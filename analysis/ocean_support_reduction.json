@@ -1,0 +1,4016 @@
+{
+  "build": "canonical-10m-carve2",
+  "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
+  "regions": 10000005,
+  "radius_km": 7645.2,
+  "planet_area_km2": 734492839.5500951,
+  "ocean_area_km2": 416859573.43604285,
+  "ocean_area_fraction": 0.5675474980687154,
+  "horizons_km": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.25,
+    1.5,
+    1.75,
+    2.0,
+    2.25,
+    2.5,
+    2.75,
+    3.0,
+    3.25,
+    3.5,
+    3.75,
+    4.0,
+    4.25,
+    4.5,
+    4.75,
+    5.0,
+    5.25,
+    5.5,
+    5.75,
+    6.0
+  ],
+  "bars": {
+    "volume_relative": {
+      "value": 1e-12,
+      "from": "lib/remap.py:CLOSURE_TOLERANCE, the float64 round-off floor"
+    },
+    "area_fraction_of_planet": {
+      "value": 0.001,
+      "km2": 734492.8395500951,
+      "from": "ocean/config/transport_loop.yaml, criterion sea_ice_area"
+    },
+    "heat_transport_w_m2": {
+      "value": 0.12,
+      "from": "ocean/config/transport_loop.yaml, criterion heat_transport_change"
+    }
+  },
+  "checks": [
+    {
+      "check": "the spec binner reproduces gridding.column on the export's own columns",
+      "mismatched_regions": 0,
+      "tolerance": 0,
+      "passes": true
+    }
+  ],
+  "supports": {
+    "exoplasim-T21": {
+      "shape": [
+        32,
+        64
+      ],
+      "cells": 2048,
+      "cells_with_ocean": 1462,
+      "cells_binarised_ocean": 1029,
+      "volume": {
+        "fine_volume_km3": 722061502.0430292,
+        "coarse_volume_km3": 722061502.0430291,
+        "residual_relative": 1.650957559896017e-16,
+        "tolerance": 1e-12,
+        "passes": true,
+        "covered_cells": 1462,
+        "ocean_area_fraction_of_planet": 0.5675474980687154
+      },
+      "horizon_area": [
+        {
+          "horizon_km": 0.0,
+          "fine_area_km2": 416859573.43604285,
+          "depth_only_area_km2": 416859573.43604285,
+          "binarised_area_km2": 420496963.0330142,
+          "depth_only_gap_km2": 0.0,
+          "binarised_gap_km2": 3637389.596971333,
+          "depth_only_gap_fraction_of_planet": 0.0,
+          "binarised_gap_fraction_of_planet": 0.004952246504131168,
+          "straddling_ocean_area_km2": 0.0,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.25,
+          "fine_area_km2": 404972829.5891078,
+          "depth_only_area_km2": 414555728.7582359,
+          "binarised_area_km2": 419745450.5882937,
+          "depth_only_gap_km2": 9582899.16912806,
+          "binarised_gap_km2": 14772620.99918586,
+          "depth_only_gap_fraction_of_planet": 0.013046960641574058,
+          "binarised_gap_fraction_of_planet": 0.020112682117139024,
+          "straddling_ocean_area_km2": 227015337.88767862,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.5,
+          "fine_area_km2": 387893202.20781374,
+          "depth_only_area_km2": 408881451.6053781,
+          "binarised_area_km2": 414746092.9920452,
+          "depth_only_gap_km2": 20988249.39756435,
+          "binarised_gap_km2": 26852890.784231484,
+          "depth_only_gap_fraction_of_planet": 0.028575158622949213,
+          "binarised_gap_fraction_of_planet": 0.0365597720471719,
+          "straddling_ocean_area_km2": 266050647.11592925,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.75,
+          "fine_area_km2": 366136991.6378927,
+          "depth_only_area_km2": 393284074.94977504,
+          "binarised_area_km2": 399512181.1844235,
+          "depth_only_gap_km2": 27147083.311882317,
+          "binarised_gap_km2": 33375189.546530783,
+          "depth_only_gap_fraction_of_planet": 0.036960310366689134,
+          "binarised_gap_fraction_of_planet": 0.04543977524270265,
+          "straddling_ocean_area_km2": 300204273.1756372,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.0,
+          "fine_area_km2": 335095971.44657093,
+          "depth_only_area_km2": 368461409.52267885,
+          "binarised_area_km2": 375636227.47852165,
+          "depth_only_gap_km2": 33365438.07610792,
+          "binarised_gap_km2": 40540256.03195071,
+          "depth_only_gap_fraction_of_planet": 0.04542649877505344,
+          "binarised_gap_fraction_of_planet": 0.055194896190932465,
+          "straddling_ocean_area_km2": 329425215.1463988,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.25,
+          "fine_area_km2": 293984206.7235959,
+          "depth_only_area_km2": 322746175.9800578,
+          "binarised_area_km2": 329548284.87638086,
+          "depth_only_gap_km2": 28761969.25646186,
+          "binarised_gap_km2": 35564078.15278494,
+          "depth_only_gap_fraction_of_planet": 0.03915895119424127,
+          "binarised_gap_fraction_of_planet": 0.048419911315363266,
+          "straddling_ocean_area_km2": 360416006.1349551,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.5,
+          "fine_area_km2": 245096173.32992995,
+          "depth_only_area_km2": 263838662.99758917,
+          "binarised_area_km2": 267754922.90927464,
+          "depth_only_gap_km2": 18742489.667659223,
+          "binarised_gap_km2": 22658749.57934469,
+          "depth_only_gap_fraction_of_planet": 0.02551759344466818,
+          "binarised_gap_fraction_of_planet": 0.030849517325756422,
+          "straddling_ocean_area_km2": 383285428.7749857,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.75,
+          "fine_area_km2": 193164838.84626162,
+          "depth_only_area_km2": 196669997.85415292,
+          "binarised_area_km2": 199505306.76534045,
+          "depth_only_gap_km2": 3505159.0078912973,
+          "binarised_gap_km2": 6340467.919078827,
+          "depth_only_gap_fraction_of_planet": 0.00477221671764471,
+          "binarised_gap_fraction_of_planet": 0.00863244347346205,
+          "straddling_ocean_area_km2": 390064309.02187395,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.0,
+          "fine_area_km2": 145008436.770755,
+          "depth_only_area_km2": 136877601.88189226,
+          "binarised_area_km2": 137573730.47891253,
+          "depth_only_gap_km2": -8130834.888862729,
+          "binarised_gap_km2": -7434706.291842461,
+          "depth_only_gap_fraction_of_planet": -0.01106999884960509,
+          "binarised_gap_fraction_of_planet": -0.010122231138967267,
+          "straddling_ocean_area_km2": 390261654.738567,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.25,
+          "fine_area_km2": 103203353.4253875,
+          "depth_only_area_km2": 80954571.9663235,
+          "binarised_area_km2": 80390894.22553158,
+          "depth_only_gap_km2": -22248781.459064007,
+          "binarised_gap_km2": -22812459.199855924,
+          "depth_only_gap_fraction_of_planet": -0.03029135242855769,
+          "binarised_gap_fraction_of_planet": -0.031058790462585622,
+          "straddling_ocean_area_km2": 383310612.870196,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.5,
+          "fine_area_km2": 69829220.98085123,
+          "depth_only_area_km2": 44641555.12518948,
+          "binarised_area_km2": 44196795.27055746,
+          "depth_only_gap_km2": -25187665.85566175,
+          "binarised_gap_km2": -25632425.71029377,
+          "depth_only_gap_fraction_of_planet": -0.03429259551541736,
+          "binarised_gap_fraction_of_planet": -0.034898128790465284,
+          "straddling_ocean_area_km2": 365167912.60292405,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.75,
+          "fine_area_km2": 46892888.17109865,
+          "depth_only_area_km2": 22211156.424976587,
+          "binarised_area_km2": 21758113.584874153,
+          "depth_only_gap_km2": -24681731.746122062,
+          "binarised_gap_km2": -25134774.586224496,
+          "depth_only_gap_fraction_of_planet": -0.03360377449185286,
+          "binarised_gap_fraction_of_planet": -0.03422058491628115,
+          "straddling_ocean_area_km2": 334957006.421781,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.0,
+          "fine_area_km2": 31331596.996833503,
+          "depth_only_area_km2": 12759090.640256584,
+          "binarised_area_km2": 12307395.627191007,
+          "depth_only_gap_km2": -18572506.35657692,
+          "binarised_gap_km2": -19024201.369642496,
+          "depth_only_gap_fraction_of_planet": -0.025286163944026042,
+          "binarised_gap_fraction_of_planet": -0.025901139323966108,
+          "straddling_ocean_area_km2": 301476701.05429256,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.25,
+          "fine_area_km2": 20562639.221803784,
+          "depth_only_area_km2": 7042276.635841906,
+          "binarised_area_km2": 6975884.235975802,
+          "depth_only_gap_km2": -13520362.585961878,
+          "binarised_gap_km2": -13586754.985827982,
+          "depth_only_gap_fraction_of_planet": -0.018407752748472832,
+          "binarised_gap_fraction_of_planet": -0.01849814491608984,
+          "straddling_ocean_area_km2": 272420438.9664812,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.5,
+          "fine_area_km2": 13433725.900219798,
+          "depth_only_area_km2": 4517256.910602808,
+          "binarised_area_km2": 4517256.910602808,
+          "depth_only_gap_km2": -8916468.98961699,
+          "binarised_gap_km2": -8916468.98961699,
+          "depth_only_gap_fraction_of_planet": -0.012139626841125732,
+          "binarised_gap_fraction_of_planet": -0.012139626841125732,
+          "straddling_ocean_area_km2": 238698215.55946797,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.75,
+          "fine_area_km2": 8785861.795158327,
+          "depth_only_area_km2": 2008157.616495967,
+          "binarised_area_km2": 2008157.616495967,
+          "depth_only_gap_km2": -6777704.17866236,
+          "binarised_gap_km2": -6777704.17866236,
+          "depth_only_gap_fraction_of_planet": -0.00922773349678121,
+          "binarised_gap_fraction_of_planet": -0.00922773349678121,
+          "straddling_ocean_area_km2": 213313009.39970344,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.0,
+          "fine_area_km2": 5764127.637728453,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -5764127.637728453,
+          "binarised_gap_km2": -5764127.637728453,
+          "depth_only_gap_fraction_of_planet": -0.007847765597359942,
+          "binarised_gap_fraction_of_planet": -0.007847765597359942,
+          "straddling_ocean_area_km2": 181821986.9427321,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.25,
+          "fine_area_km2": 3665232.5374947786,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -3665232.5374947786,
+          "binarised_gap_km2": -3665232.5374947786,
+          "depth_only_gap_fraction_of_planet": -0.0049901542127216295,
+          "binarised_gap_fraction_of_planet": -0.0049901542127216295,
+          "straddling_ocean_area_km2": 154835409.36752892,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.5,
+          "fine_area_km2": 2266632.225584984,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -2266632.225584984,
+          "binarised_gap_km2": -2266632.225584984,
+          "depth_only_gap_fraction_of_planet": -0.0030859827401086477,
+          "binarised_gap_fraction_of_planet": -0.0030859827401086477,
+          "straddling_ocean_area_km2": 125059470.88606286,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.75,
+          "fine_area_km2": 1299594.5621135235,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -1299594.5621135235,
+          "binarised_gap_km2": -1299594.5621135235,
+          "depth_only_gap_fraction_of_planet": -0.0017693767619430772,
+          "binarised_gap_fraction_of_planet": -0.0017693767619430772,
+          "straddling_ocean_area_km2": 106577827.65232402,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 5.0,
+          "fine_area_km2": 725446.4655542374,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -725446.4655542374,
+          "binarised_gap_km2": -725446.4655542374,
+          "depth_only_gap_fraction_of_planet": -0.0009876835096154252,
+          "binarised_gap_fraction_of_planet": -0.0009876835096154252,
+          "straddling_ocean_area_km2": 91102715.91983414,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.25,
+          "fine_area_km2": 413213.2327232361,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -413213.2327232361,
+          "binarised_gap_km2": -413213.2327232361,
+          "depth_only_gap_fraction_of_planet": -0.0005625830647666285,
+          "binarised_gap_fraction_of_planet": -0.0005625830647666285,
+          "straddling_ocean_area_km2": 73412161.22337621,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.5,
+          "fine_area_km2": 250079.45268893242,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -250079.45268893242,
+          "binarised_gap_km2": -250079.45268893242,
+          "depth_only_gap_fraction_of_planet": -0.00034047908873028037,
+          "binarised_gap_fraction_of_planet": -0.00034047908873028037,
+          "straddling_ocean_area_km2": 57745599.61820865,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.75,
+          "fine_area_km2": 143757.78463172913,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -143757.78463172913,
+          "binarised_gap_km2": -143757.78463172913,
+          "depth_only_gap_fraction_of_planet": -0.00019572387488458874,
+          "binarised_gap_fraction_of_planet": -0.00019572387488458874,
+          "straddling_ocean_area_km2": 44567108.55709177,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 6.0,
+          "fine_area_km2": 81136.3767478466,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -81136.3767478466,
+          "binarised_gap_km2": -81136.3767478466,
+          "depth_only_gap_fraction_of_planet": -0.00011046585123627036,
+          "binarised_gap_fraction_of_planet": -0.00011046585123627036,
+          "straddling_ocean_area_km2": 36236147.282556176,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        }
+      ],
+      "uniform_control": {
+        "worst_absolute_gap_km2": 0.0,
+        "tolerance_km2": 0.0,
+        "passes": true
+      },
+      "connectivity_coarse": [
+        {
+          "horizon_km": 0.0,
+          "deep_area_km2": 420496963.0330142,
+          "largest_body_km2": 419252699.74435043,
+          "detached_area_km2": 1244263.288663745,
+          "detached_fraction_of_planet": 0.0016940441372116082,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 0.25,
+          "deep_area_km2": 419745450.5882937,
+          "largest_body_km2": 418916053.60745883,
+          "detached_area_km2": 829396.9808348417,
+          "detached_fraction_of_planet": 0.0011292104376985882,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.5,
+          "deep_area_km2": 414746092.9920452,
+          "largest_body_km2": 414746092.9920452,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.75,
+          "deep_area_km2": 399512181.1844235,
+          "largest_body_km2": 397366091.1978592,
+          "detached_area_km2": 2146089.9865642786,
+          "detached_fraction_of_planet": 0.0029218664512493282,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 1.0,
+          "deep_area_km2": 375636227.47852165,
+          "largest_body_km2": 373652063.3334119,
+          "detached_area_km2": 1984164.1451097727,
+          "detached_fraction_of_planet": 0.0027014070638525884,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 1.25,
+          "deep_area_km2": 329548284.87638086,
+          "largest_body_km2": 317088872.73090506,
+          "detached_area_km2": 12459412.145475805,
+          "detached_fraction_of_planet": 0.01696328605886433,
+          "bodies_above_area_bar": 4
+        },
+        {
+          "horizon_km": 1.5,
+          "deep_area_km2": 267754922.90927464,
+          "largest_body_km2": 108844242.70597261,
+          "detached_area_km2": 158910680.20330203,
+          "detached_fraction_of_planet": 0.216354294618639,
+          "bodies_above_area_bar": 12
+        },
+        {
+          "horizon_km": 1.75,
+          "deep_area_km2": 199505306.76534045,
+          "largest_body_km2": 60749172.68921226,
+          "detached_area_km2": 138756134.07612818,
+          "detached_fraction_of_planet": 0.18891420937625697,
+          "bodies_above_area_bar": 19
+        },
+        {
+          "horizon_km": 2.0,
+          "deep_area_km2": 137573730.47891253,
+          "largest_body_km2": 45558348.907211125,
+          "detached_area_km2": 92015381.5717014,
+          "detached_fraction_of_planet": 0.12527743854938647,
+          "bodies_above_area_bar": 21
+        },
+        {
+          "horizon_km": 2.25,
+          "deep_area_km2": 80390894.22553158,
+          "largest_body_km2": 27722690.91449362,
+          "detached_area_km2": 52668203.31103796,
+          "detached_fraction_of_planet": 0.07170689825008947,
+          "bodies_above_area_bar": 13
+        },
+        {
+          "horizon_km": 2.5,
+          "deep_area_km2": 44196795.27055746,
+          "largest_body_km2": 17662465.204758465,
+          "detached_area_km2": 26534330.065798998,
+          "detached_fraction_of_planet": 0.036126056834062927,
+          "bodies_above_area_bar": 13
+        },
+        {
+          "horizon_km": 2.75,
+          "deep_area_km2": 21758113.584874153,
+          "largest_body_km2": 3843049.8774878383,
+          "detached_area_km2": 17915063.707386315,
+          "detached_fraction_of_planet": 0.024391066519259704,
+          "bodies_above_area_bar": 8
+        },
+        {
+          "horizon_km": 3.0,
+          "deep_area_km2": 12307395.627191007,
+          "largest_body_km2": 1981717.587814808,
+          "detached_area_km2": 10325678.0393762,
+          "detached_fraction_of_planet": 0.014058241936982083,
+          "bodies_above_area_bar": 6
+        },
+        {
+          "horizon_km": 3.25,
+          "deep_area_km2": 6975884.235975802,
+          "largest_body_km2": 1981717.587814808,
+          "detached_area_km2": 4994166.648160994,
+          "detached_fraction_of_planet": 0.006799476290633564,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 3.5,
+          "deep_area_km2": 4517256.910602808,
+          "largest_body_km2": 1458630.3521243334,
+          "detached_area_km2": 3058626.5584784746,
+          "detached_fraction_of_planet": 0.004164270083765555,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 3.75,
+          "deep_area_km2": 2008157.616495967,
+          "largest_body_km2": 1458630.3521243334,
+          "detached_area_km2": 549527.2643716335,
+          "detached_fraction_of_planet": 0.0007481723915896035,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 4.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.25,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.5,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.75,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.25,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.5,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.75,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 6.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        }
+      ]
+    },
+    "exoplasim-T42": {
+      "shape": [
+        64,
+        128
+      ],
+      "cells": 8192,
+      "cells_with_ocean": 5153,
+      "cells_binarised_ocean": 4076,
+      "volume": {
+        "fine_volume_km3": 722061502.0430292,
+        "coarse_volume_km3": 722061502.0430291,
+        "residual_relative": 1.650957559896017e-16,
+        "tolerance": 1e-12,
+        "passes": true,
+        "covered_cells": 5153,
+        "ocean_area_fraction_of_planet": 0.5675474980687154
+      },
+      "horizon_area": [
+        {
+          "horizon_km": 0.0,
+          "fine_area_km2": 416859573.43604285,
+          "depth_only_area_km2": 416859573.43604285,
+          "binarised_area_km2": 419999924.07440984,
+          "depth_only_gap_km2": 0.0,
+          "binarised_gap_km2": 3140350.6383669972,
+          "depth_only_gap_fraction_of_planet": 0.0,
+          "binarised_gap_fraction_of_planet": 0.004275536083225239,
+          "straddling_ocean_area_km2": 0.0,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.25,
+          "fine_area_km2": 404972829.5891078,
+          "depth_only_area_km2": 413725216.8363002,
+          "binarised_area_km2": 417503224.98052895,
+          "depth_only_gap_km2": 8752387.247192383,
+          "binarised_gap_km2": 12530395.39142114,
+          "depth_only_gap_fraction_of_planet": 0.011916232229783962,
+          "binarised_gap_fraction_of_planet": 0.01705992858840732,
+          "straddling_ocean_area_km2": 145059563.98884922,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.5,
+          "fine_area_km2": 387893202.20781374,
+          "depth_only_area_km2": 403431522.48413026,
+          "binarised_area_km2": 407088937.03421015,
+          "depth_only_gap_km2": 15538320.276316524,
+          "binarised_gap_km2": 19195734.826396406,
+          "depth_only_gap_fraction_of_planet": 0.021155169172015806,
+          "binarised_gap_fraction_of_planet": 0.02613467932261195,
+          "straddling_ocean_area_km2": 183124297.74134165,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.75,
+          "fine_area_km2": 366136991.6378927,
+          "depth_only_area_km2": 383107631.70137423,
+          "binarised_area_km2": 386624027.6948749,
+          "depth_only_gap_km2": 16970640.06348151,
+          "binarised_gap_km2": 20487036.05698216,
+          "depth_only_gap_fraction_of_planet": 0.023105249159238467,
+          "binarised_gap_fraction_of_planet": 0.02789276484918662,
+          "straddling_ocean_area_km2": 215362129.5262969,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.0,
+          "fine_area_km2": 335095971.44657093,
+          "depth_only_area_km2": 354428672.3719883,
+          "binarised_area_km2": 357884775.23816526,
+          "depth_only_gap_km2": 19332700.925417364,
+          "binarised_gap_km2": 22788803.791594326,
+          "depth_only_gap_fraction_of_planet": 0.026321156428508387,
+          "binarised_gap_fraction_of_planet": 0.031026584010748613,
+          "straddling_ocean_area_km2": 256952636.67812663,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.25,
+          "fine_area_km2": 293984206.7235959,
+          "depth_only_area_km2": 310995171.0520692,
+          "binarised_area_km2": 313543002.3307473,
+          "depth_only_gap_km2": 17010964.32847327,
+          "binarised_gap_km2": 19558795.60715139,
+          "depth_only_gap_fraction_of_planet": 0.02316014998715731,
+          "binarised_gap_fraction_of_planet": 0.02662898064347625,
+          "straddling_ocean_area_km2": 295671671.130248,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.5,
+          "fine_area_km2": 245096173.32992995,
+          "depth_only_area_km2": 260384401.4778036,
+          "binarised_area_km2": 263026820.81656706,
+          "depth_only_gap_km2": 15288228.14787364,
+          "binarised_gap_km2": 17930647.486637115,
+          "depth_only_gap_fraction_of_planet": 0.020814672825453635,
+          "binarised_gap_fraction_of_planet": 0.024412283580082718,
+          "straddling_ocean_area_km2": 328063619.2102773,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.75,
+          "fine_area_km2": 193164838.84626162,
+          "depth_only_area_km2": 195671278.58362436,
+          "binarised_area_km2": 197201239.68046075,
+          "depth_only_gap_km2": 2506439.7373627424,
+          "binarised_gap_km2": 4036400.8341991305,
+          "depth_only_gap_fraction_of_planet": 0.0034124767491239705,
+          "binarised_gap_fraction_of_planet": 0.005495493784080428,
+          "straddling_ocean_area_km2": 338781074.0368421,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.0,
+          "fine_area_km2": 145008436.770755,
+          "depth_only_area_km2": 135576339.52638352,
+          "binarised_area_km2": 136562928.9069916,
+          "depth_only_gap_km2": -9432097.244371474,
+          "binarised_gap_km2": -8445507.863763392,
+          "depth_only_gap_fraction_of_planet": -0.012841646285005302,
+          "binarised_gap_fraction_of_planet": -0.011498420963418224,
+          "straddling_ocean_area_km2": 333650107.9291924,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.25,
+          "fine_area_km2": 103203353.4253875,
+          "depth_only_area_km2": 88577883.34373534,
+          "binarised_area_km2": 89179805.861817,
+          "depth_only_gap_km2": -14625470.081652164,
+          "binarised_gap_km2": -14023547.5635705,
+          "depth_only_gap_fraction_of_planet": -0.019912338547249588,
+          "binarised_gap_fraction_of_planet": -0.019092830873831877,
+          "straddling_ocean_area_km2": 315985825.7489736,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.5,
+          "fine_area_km2": 69829220.98085123,
+          "depth_only_area_km2": 55316735.63234049,
+          "binarised_area_km2": 55792314.34047598,
+          "depth_only_gap_km2": -14512485.348510742,
+          "binarised_gap_km2": -14036906.640375257,
+          "depth_only_gap_fraction_of_planet": -0.019758511679161084,
+          "binarised_gap_fraction_of_planet": -0.019111019038624527,
+          "straddling_ocean_area_km2": 288641573.86084706,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.75,
+          "fine_area_km2": 46892888.17109865,
+          "depth_only_area_km2": 33331403.946442366,
+          "binarised_area_km2": 33579524.66142893,
+          "depth_only_gap_km2": -13561484.224656284,
+          "binarised_gap_km2": -13313363.509669721,
+          "depth_only_gap_fraction_of_planet": -0.018463739187659353,
+          "binarised_gap_fraction_of_planet": -0.01812592688830658,
+          "straddling_ocean_area_km2": 252910417.92848027,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.0,
+          "fine_area_km2": 31331596.996833503,
+          "depth_only_area_km2": 19303732.517371,
+          "binarised_area_km2": 19411020.742220342,
+          "depth_only_gap_km2": -12027864.479462504,
+          "binarised_gap_km2": -11920576.254613161,
+          "depth_only_gap_fraction_of_planet": -0.016375740962743805,
+          "binarised_gap_fraction_of_planet": -0.016229669797618407,
+          "straddling_ocean_area_km2": 211828599.49785447,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.25,
+          "fine_area_km2": 20562639.221803784,
+          "depth_only_area_km2": 10699980.665378988,
+          "binarised_area_km2": 10753781.362575471,
+          "depth_only_gap_km2": -9862658.556424797,
+          "binarised_gap_km2": -9808857.859228313,
+          "depth_only_gap_fraction_of_planet": -0.013427848476325586,
+          "binarised_gap_fraction_of_planet": -0.01335459970615454,
+          "straddling_ocean_area_km2": 179053419.10232902,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.5,
+          "fine_area_km2": 13433725.900219798,
+          "depth_only_area_km2": 5566747.465888441,
+          "binarised_area_km2": 5584250.604347169,
+          "depth_only_gap_km2": -7866978.4343313575,
+          "binarised_gap_km2": -7849475.295872629,
+          "depth_only_gap_fraction_of_planet": -0.010710762597971931,
+          "binarised_gap_fraction_of_planet": -0.010686932360948177,
+          "straddling_ocean_area_km2": 149880853.35262316,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.75,
+          "fine_area_km2": 8785861.795158327,
+          "depth_only_area_km2": 3352112.7474719286,
+          "binarised_area_km2": 3330293.2387953997,
+          "depth_only_gap_km2": -5433749.047686398,
+          "binarised_gap_km2": -5455568.556362927,
+          "depth_only_gap_fraction_of_planet": -0.007397960545149462,
+          "binarised_gap_fraction_of_planet": -0.0074276674496985854,
+          "straddling_ocean_area_km2": 122925175.15580314,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.0,
+          "fine_area_km2": 5764127.637728453,
+          "depth_only_area_km2": 2057761.7270338535,
+          "binarised_area_km2": 2036451.1320478916,
+          "depth_only_gap_km2": -3706365.910694599,
+          "binarised_gap_km2": -3727676.505680561,
+          "depth_only_gap_fraction_of_planet": -0.0050461566282455385,
+          "binarised_gap_fraction_of_planet": -0.005075170655120212,
+          "straddling_ocean_area_km2": 101030168.47336262,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.25,
+          "fine_area_km2": 3665232.5374947786,
+          "depth_only_area_km2": 1518405.6783374548,
+          "binarised_area_km2": 1518622.6878436804,
+          "depth_only_gap_km2": -2146826.859157324,
+          "binarised_gap_km2": -2146609.8496510983,
+          "depth_only_gap_fraction_of_planet": -0.0029228696912448286,
+          "binarised_gap_fraction_of_planet": -0.002922574236347871,
+          "straddling_ocean_area_km2": 83041283.79296076,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.5,
+          "fine_area_km2": 2266632.225584984,
+          "depth_only_area_km2": 644502.6679348946,
+          "binarised_area_km2": 644719.6774411201,
+          "depth_only_gap_km2": -1622129.5576500893,
+          "binarised_gap_km2": -1621912.5481438637,
+          "depth_only_gap_fraction_of_planet": -0.0022085028883926296,
+          "binarised_gap_fraction_of_planet": -0.002208207433495672,
+          "straddling_ocean_area_km2": 66335549.87474424,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.75,
+          "fine_area_km2": 1299594.5621135235,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -1299594.5621135235,
+          "binarised_gap_km2": -1299594.5621135235,
+          "depth_only_gap_fraction_of_planet": -0.0017693767619430772,
+          "binarised_gap_fraction_of_planet": -0.0017693767619430772,
+          "straddling_ocean_area_km2": 52840758.85058749,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 5.0,
+          "fine_area_km2": 725446.4655542374,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -725446.4655542374,
+          "binarised_gap_km2": -725446.4655542374,
+          "depth_only_gap_fraction_of_planet": -0.0009876835096154252,
+          "binarised_gap_fraction_of_planet": -0.0009876835096154252,
+          "straddling_ocean_area_km2": 42244658.80564624,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.25,
+          "fine_area_km2": 413213.2327232361,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -413213.2327232361,
+          "binarised_gap_km2": -413213.2327232361,
+          "depth_only_gap_fraction_of_planet": -0.0005625830647666285,
+          "binarised_gap_fraction_of_planet": -0.0005625830647666285,
+          "straddling_ocean_area_km2": 33136306.25608009,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.5,
+          "fine_area_km2": 250079.45268893242,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -250079.45268893242,
+          "binarised_gap_km2": -250079.45268893242,
+          "depth_only_gap_fraction_of_planet": -0.00034047908873028037,
+          "binarised_gap_fraction_of_planet": -0.00034047908873028037,
+          "straddling_ocean_area_km2": 25213353.191116035,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.75,
+          "fine_area_km2": 143757.78463172913,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -143757.78463172913,
+          "binarised_gap_km2": -143757.78463172913,
+          "depth_only_gap_fraction_of_planet": -0.00019572387488458874,
+          "binarised_gap_fraction_of_planet": -0.00019572387488458874,
+          "straddling_ocean_area_km2": 17833954.507139385,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 6.0,
+          "fine_area_km2": 81136.3767478466,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -81136.3767478466,
+          "binarised_gap_km2": -81136.3767478466,
+          "depth_only_gap_fraction_of_planet": -0.00011046585123627036,
+          "binarised_gap_fraction_of_planet": -0.00011046585123627036,
+          "straddling_ocean_area_km2": 13753225.698262274,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        }
+      ],
+      "uniform_control": {
+        "worst_absolute_gap_km2": 0.0,
+        "tolerance_km2": 0.0,
+        "passes": true
+      },
+      "connectivity_coarse": [
+        {
+          "horizon_km": 0.0,
+          "deep_area_km2": 419999924.07440984,
+          "largest_body_km2": 416584199.272515,
+          "detached_area_km2": 3415724.8018948436,
+          "detached_fraction_of_planet": 0.004650453507466601,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.25,
+          "deep_area_km2": 417503224.98052895,
+          "largest_body_km2": 414792004.89220196,
+          "detached_area_km2": 2711220.0883269906,
+          "detached_fraction_of_planet": 0.003691281851008536,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.5,
+          "deep_area_km2": 407088937.03421015,
+          "largest_body_km2": 404169570.95954955,
+          "detached_area_km2": 2919366.074660599,
+          "detached_fraction_of_planet": 0.003974669210456595,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 0.75,
+          "deep_area_km2": 386624027.6948749,
+          "largest_body_km2": 381845157.92654043,
+          "detached_area_km2": 4778869.768334448,
+          "detached_fraction_of_planet": 0.006506353106534964,
+          "bodies_above_area_bar": 4
+        },
+        {
+          "horizon_km": 1.0,
+          "deep_area_km2": 357884775.23816526,
+          "largest_body_km2": 343552533.5762221,
+          "detached_area_km2": 14332241.661943138,
+          "detached_fraction_of_planet": 0.019513112844942344,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 1.25,
+          "deep_area_km2": 313543002.3307473,
+          "largest_body_km2": 297326260.9635203,
+          "detached_area_km2": 16216741.367227018,
+          "detached_fraction_of_planet": 0.02207882840241219,
+          "bodies_above_area_bar": 6
+        },
+        {
+          "horizon_km": 1.5,
+          "deep_area_km2": 263026820.81656706,
+          "largest_body_km2": 127618698.06627983,
+          "detached_area_km2": 135408122.75028723,
+          "detached_fraction_of_planet": 0.1843559466600517,
+          "bodies_above_area_bar": 10
+        },
+        {
+          "horizon_km": 1.75,
+          "deep_area_km2": 197201239.68046075,
+          "largest_body_km2": 53806145.79061389,
+          "detached_area_km2": 143395093.88984686,
+          "detached_fraction_of_planet": 0.1952300773656035,
+          "bodies_above_area_bar": 21
+        },
+        {
+          "horizon_km": 2.0,
+          "deep_area_km2": 136562928.9069916,
+          "largest_body_km2": 33573443.703495026,
+          "detached_area_km2": 102989485.20349658,
+          "detached_fraction_of_planet": 0.14021850133567207,
+          "bodies_above_area_bar": 27
+        },
+        {
+          "horizon_km": 2.25,
+          "deep_area_km2": 89179805.861817,
+          "largest_body_km2": 25756212.1106472,
+          "detached_area_km2": 63423593.7511698,
+          "detached_fraction_of_planet": 0.0863501865995306,
+          "bodies_above_area_bar": 19
+        },
+        {
+          "horizon_km": 2.5,
+          "deep_area_km2": 55792314.34047598,
+          "largest_body_km2": 17413918.36647588,
+          "detached_area_km2": 38378395.9740001,
+          "detached_fraction_of_planet": 0.05225155904516146,
+          "bodies_above_area_bar": 14
+        },
+        {
+          "horizon_km": 2.75,
+          "deep_area_km2": 33579524.66142893,
+          "largest_body_km2": 3736559.220264852,
+          "detached_area_km2": 29842965.441164076,
+          "detached_fraction_of_planet": 0.04063070983706803,
+          "bodies_above_area_bar": 13
+        },
+        {
+          "horizon_km": 3.0,
+          "deep_area_km2": 19411020.742220342,
+          "largest_body_km2": 2492540.812789321,
+          "detached_area_km2": 16918479.92943102,
+          "detached_fraction_of_planet": 0.023034233988985155,
+          "bodies_above_area_bar": 8
+        },
+        {
+          "horizon_km": 3.25,
+          "deep_area_km2": 10753781.362575471,
+          "largest_body_km2": 1646495.137112558,
+          "detached_area_km2": 9107286.225462914,
+          "detached_fraction_of_planet": 0.012399421389923249,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 3.5,
+          "deep_area_km2": 5584250.604347169,
+          "largest_body_km2": 829205.8129018545,
+          "detached_area_km2": 4755044.791445315,
+          "detached_fraction_of_planet": 0.006473915789782187,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 3.75,
+          "deep_area_km2": 3330293.2387953997,
+          "largest_body_km2": 691357.0203908682,
+          "detached_area_km2": 2638936.2184045315,
+          "detached_fraction_of_planet": 0.0035928685431718854,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.0,
+          "deep_area_km2": 2036451.1320478916,
+          "largest_body_km2": 480478.9288071394,
+          "detached_area_km2": 1555972.2032407522,
+          "detached_fraction_of_planet": 0.0021184307313245484,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.25,
+          "deep_area_km2": 1518622.6878436804,
+          "largest_body_km2": 359156.1652764082,
+          "detached_area_km2": 1159466.5225672722,
+          "detached_fraction_of_planet": 0.0015785947256851268,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.5,
+          "deep_area_km2": 644719.6774411201,
+          "largest_body_km2": 137890.7235019207,
+          "detached_area_km2": 506828.95393919945,
+          "detached_fraction_of_planet": 0.0006900393395933602,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.75,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.25,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.5,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.75,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 6.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        }
+      ]
+    },
+    "exoplasim-T85": {
+      "shape": [
+        128,
+        256
+      ],
+      "cells": 32768,
+      "cells_with_ocean": 18882,
+      "cells_binarised_ocean": 16201,
+      "volume": {
+        "fine_volume_km3": 722061502.0430292,
+        "coarse_volume_km3": 722061502.0430292,
+        "residual_relative": 0.0,
+        "tolerance": 1e-12,
+        "passes": true,
+        "covered_cells": 18882,
+        "ocean_area_fraction_of_planet": 0.5675474980687154
+      },
+      "horizon_area": [
+        {
+          "horizon_km": 0.0,
+          "fine_area_km2": 416859573.43604285,
+          "depth_only_area_km2": 416859573.43604285,
+          "binarised_area_km2": 420039793.13711715,
+          "depth_only_gap_km2": 0.0,
+          "binarised_gap_km2": 3180219.701074302,
+          "depth_only_gap_fraction_of_planet": 0.0,
+          "binarised_gap_fraction_of_planet": 0.004329817160671448,
+          "straddling_ocean_area_km2": 0.0,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.25,
+          "fine_area_km2": 404972829.5891078,
+          "depth_only_area_km2": 412194849.4755521,
+          "binarised_area_km2": 415882256.9081735,
+          "depth_only_gap_km2": 7222019.886444271,
+          "binarised_gap_km2": 10909427.31906569,
+          "depth_only_gap_fraction_of_planet": 0.009832662073149732,
+          "binarised_gap_fraction_of_planet": 0.01485300704326557,
+          "straddling_ocean_area_km2": 86134115.99633527,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.5,
+          "fine_area_km2": 387893202.20781374,
+          "depth_only_area_km2": 398563866.8624946,
+          "binarised_area_km2": 401979505.06338567,
+          "depth_only_gap_km2": 10670664.654680848,
+          "binarised_gap_km2": 14086302.855571926,
+          "depth_only_gap_fraction_of_planet": 0.0145279355769037,
+          "binarised_gap_fraction_of_planet": 0.01917827117851867,
+          "straddling_ocean_area_km2": 117338505.66723788,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.75,
+          "fine_area_km2": 366136991.6378927,
+          "depth_only_area_km2": 376755119.73998576,
+          "binarised_area_km2": 379854530.17247486,
+          "depth_only_gap_km2": 10618128.102093041,
+          "binarised_gap_km2": 13717538.534582138,
+          "depth_only_gap_fraction_of_planet": 0.014456407918962218,
+          "binarised_gap_fraction_of_planet": 0.018676204580816137,
+          "straddling_ocean_area_km2": 148096021.6619811,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.0,
+          "fine_area_km2": 335095971.44657093,
+          "depth_only_area_km2": 347939047.185962,
+          "binarised_area_km2": 350562489.76573306,
+          "depth_only_gap_km2": 12843075.739391088,
+          "binarised_gap_km2": 15466518.31916213,
+          "depth_only_gap_fraction_of_planet": 0.01748563777321228,
+          "binarised_gap_fraction_of_planet": 0.021057411980538794,
+          "straddling_ocean_area_km2": 186796318.3565873,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.25,
+          "fine_area_km2": 293984206.7235959,
+          "depth_only_area_km2": 307216679.2208031,
+          "binarised_area_km2": 309034258.98985934,
+          "depth_only_gap_km2": 13232472.497207165,
+          "binarised_gap_km2": 15050052.266263425,
+          "depth_only_gap_fraction_of_planet": 0.018015795096535673,
+          "binarised_gap_fraction_of_planet": 0.02049040025425184,
+          "straddling_ocean_area_km2": 226685052.4661584,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.5,
+          "fine_area_km2": 245096173.32992995,
+          "depth_only_area_km2": 254095418.6818428,
+          "binarised_area_km2": 255308211.6384855,
+          "depth_only_gap_km2": 8999245.351912856,
+          "binarised_gap_km2": 10212038.308555543,
+          "depth_only_gap_fraction_of_planet": 0.01225232550588953,
+          "binarised_gap_fraction_of_planet": 0.013903523300255462,
+          "straddling_ocean_area_km2": 258698831.4500665,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.75,
+          "fine_area_km2": 193164838.84626162,
+          "depth_only_area_km2": 195701503.81019133,
+          "binarised_area_km2": 196563331.76789027,
+          "depth_only_gap_km2": 2536664.963929713,
+          "binarised_gap_km2": 3398492.921628654,
+          "depth_only_gap_fraction_of_planet": 0.0034536279012379713,
+          "binarised_gap_fraction_of_planet": 0.00462699258403984,
+          "straddling_ocean_area_km2": 272162927.3871172,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.0,
+          "fine_area_km2": 145008436.770755,
+          "depth_only_area_km2": 138835403.26300287,
+          "binarised_area_km2": 139346052.36517394,
+          "depth_only_gap_km2": -6173033.5077521205,
+          "binarised_gap_km2": -5662384.405581057,
+          "depth_only_gap_fraction_of_planet": -0.0084044842581901,
+          "binarised_gap_fraction_of_planet": -0.007709243849197337,
+          "straddling_ocean_area_km2": 264951116.23629636,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.25,
+          "fine_area_km2": 103203353.4253875,
+          "depth_only_area_km2": 93233144.18927264,
+          "binarised_area_km2": 93473219.25610626,
+          "depth_only_gap_km2": -9970209.23611486,
+          "binarised_gap_km2": -9730134.169281244,
+          "depth_only_gap_fraction_of_planet": -0.013574276969428312,
+          "binarised_gap_fraction_of_planet": -0.013247418688576084,
+          "straddling_ocean_area_km2": 245626745.9853394,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.5,
+          "fine_area_km2": 69829220.98085123,
+          "depth_only_area_km2": 59941938.240677536,
+          "binarised_area_km2": 60101149.81659442,
+          "depth_only_gap_km2": -9887282.740173697,
+          "binarised_gap_km2": -9728071.164256811,
+          "depth_only_gap_fraction_of_planet": -0.013461373900159512,
+          "binarised_gap_fraction_of_planet": -0.013244609940943232,
+          "straddling_ocean_area_km2": 214123124.27012455,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.75,
+          "fine_area_km2": 46892888.17109865,
+          "depth_only_area_km2": 38224264.800479114,
+          "binarised_area_km2": 38362705.496148884,
+          "depth_only_gap_km2": -8668623.370619535,
+          "binarised_gap_km2": -8530182.674949765,
+          "depth_only_gap_fraction_of_planet": -0.011802189080467276,
+          "binarised_gap_fraction_of_planet": -0.011613704335327255,
+          "straddling_ocean_area_km2": 175404618.59877098,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.0,
+          "fine_area_km2": 31331596.996833503,
+          "depth_only_area_km2": 23217666.618496597,
+          "binarised_area_km2": 23279860.99715346,
+          "depth_only_gap_km2": -8113930.378336906,
+          "binarised_gap_km2": -8051735.999680042,
+          "depth_only_gap_fraction_of_planet": -0.011046983634730868,
+          "binarised_gap_fraction_of_planet": -0.010962307004397808,
+          "straddling_ocean_area_km2": 141244809.68107826,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.25,
+          "fine_area_km2": 20562639.221803784,
+          "depth_only_area_km2": 14238631.684469461,
+          "binarised_area_km2": 14317226.020085573,
+          "depth_only_gap_km2": -6324007.537334323,
+          "binarised_gap_km2": -6245413.201718211,
+          "depth_only_gap_fraction_of_planet": -0.008610032932666871,
+          "binarised_gap_fraction_of_planet": -0.008503028028896463,
+          "straddling_ocean_area_km2": 111763222.24586552,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.5,
+          "fine_area_km2": 13433725.900219798,
+          "depth_only_area_km2": 8350778.751530468,
+          "binarised_area_km2": 8375031.511392415,
+          "depth_only_gap_km2": -5082947.14868933,
+          "binarised_gap_km2": -5058694.3888273835,
+          "depth_only_gap_fraction_of_planet": -0.006920349491497874,
+          "binarised_gap_fraction_of_planet": -0.006887329755217256,
+          "straddling_ocean_area_km2": 88465295.4506898,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.75,
+          "fine_area_km2": 8785861.795158327,
+          "depth_only_area_km2": 4830551.96427083,
+          "binarised_area_km2": 4833470.889106989,
+          "depth_only_gap_km2": -3955309.8308874965,
+          "binarised_gap_km2": -3952390.9060513377,
+          "depth_only_gap_fraction_of_planet": -0.005385089708036194,
+          "binarised_gap_fraction_of_planet": -0.005381115639564748,
+          "straddling_ocean_area_km2": 69747825.88835984,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.0,
+          "fine_area_km2": 5764127.637728453,
+          "depth_only_area_km2": 2976475.185796857,
+          "binarised_area_km2": 2974926.6862603426,
+          "depth_only_gap_km2": -2787652.451931596,
+          "binarised_gap_km2": -2789200.95146811,
+          "depth_only_gap_fraction_of_planet": -0.003795343265210236,
+          "binarised_gap_fraction_of_planet": -0.00379745152202791,
+          "straddling_ocean_area_km2": 54414487.87869525,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.25,
+          "fine_area_km2": 3665232.5374947786,
+          "depth_only_area_km2": 1748125.7325416803,
+          "binarised_area_km2": 1746577.233005166,
+          "depth_only_gap_km2": -1917106.8049530983,
+          "binarised_gap_km2": -1918655.3044896126,
+          "depth_only_gap_fraction_of_planet": -0.0026101095908945817,
+          "binarised_gap_fraction_of_planet": -0.002612217847712256,
+          "straddling_ocean_area_km2": 43245783.85681021,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.5,
+          "fine_area_km2": 2266632.225584984,
+          "depth_only_area_km2": 958760.5360951424,
+          "binarised_area_km2": 958760.5360951424,
+          "depth_only_gap_km2": -1307871.6894898415,
+          "binarised_gap_km2": -1307871.6894898415,
+          "depth_only_gap_fraction_of_planet": -0.001780645935624046,
+          "binarised_gap_fraction_of_planet": -0.001780645935624046,
+          "straddling_ocean_area_km2": 33262294.34461063,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.75,
+          "fine_area_km2": 1299594.5621135235,
+          "depth_only_area_km2": 447143.1157603264,
+          "binarised_area_km2": 447143.1157603264,
+          "depth_only_gap_km2": -852451.4463531971,
+          "binarised_gap_km2": -852451.4463531971,
+          "depth_only_gap_fraction_of_planet": -0.001160598715809614,
+          "binarised_gap_fraction_of_planet": -0.001160598715809614,
+          "straddling_ocean_area_km2": 25760217.571533024,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 5.0,
+          "fine_area_km2": 725446.4655542374,
+          "depth_only_area_km2": 130713.44536685944,
+          "binarised_area_km2": 130713.44536685944,
+          "depth_only_gap_km2": -594733.0201873779,
+          "binarised_gap_km2": -594733.0201873779,
+          "depth_only_gap_fraction_of_planet": -0.0008097192895054969,
+          "binarised_gap_fraction_of_planet": -0.0008097192895054969,
+          "straddling_ocean_area_km2": 19672433.676921606,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.25,
+          "fine_area_km2": 413213.2327232361,
+          "depth_only_area_km2": 34359.10419487953,
+          "binarised_area_km2": 34359.10419487953,
+          "depth_only_gap_km2": -378854.12852835655,
+          "binarised_gap_km2": -378854.12852835655,
+          "depth_only_gap_fraction_of_planet": -0.0005158037058066069,
+          "binarised_gap_fraction_of_planet": -0.0005158037058066069,
+          "straddling_ocean_area_km2": 14818561.018539965,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.5,
+          "fine_area_km2": 250079.45268893242,
+          "depth_only_area_km2": 34359.10419487953,
+          "binarised_area_km2": 34359.10419487953,
+          "depth_only_gap_km2": -215720.3484940529,
+          "binarised_gap_km2": -215720.3484940529,
+          "depth_only_gap_fraction_of_planet": -0.0002936997297702587,
+          "binarised_gap_fraction_of_planet": -0.0002936997297702587,
+          "straddling_ocean_area_km2": 10780898.192372262,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.75,
+          "fine_area_km2": 143757.78463172913,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -143757.78463172913,
+          "binarised_gap_km2": -143757.78463172913,
+          "depth_only_gap_fraction_of_planet": -0.00019572387488458874,
+          "binarised_gap_fraction_of_planet": -0.00019572387488458874,
+          "straddling_ocean_area_km2": 7372919.642701805,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 6.0,
+          "fine_area_km2": 81136.3767478466,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -81136.3767478466,
+          "binarised_gap_km2": -81136.3767478466,
+          "depth_only_gap_fraction_of_planet": -0.00011046585123627036,
+          "binarised_gap_fraction_of_planet": -0.00011046585123627036,
+          "straddling_ocean_area_km2": 5457148.670544565,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        }
+      ],
+      "uniform_control": {
+        "worst_absolute_gap_km2": 0.0,
+        "tolerance_km2": 0.0,
+        "passes": true
+      },
+      "connectivity_coarse": [
+        {
+          "horizon_km": 0.0,
+          "deep_area_km2": 420039793.13711715,
+          "largest_body_km2": 416104210.445773,
+          "detached_area_km2": 3935582.691344142,
+          "detached_fraction_of_planet": 0.005358231529874188,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 0.25,
+          "deep_area_km2": 415882256.9081735,
+          "largest_body_km2": 412833670.0489542,
+          "detached_area_km2": 3048586.8592193127,
+          "detached_fraction_of_planet": 0.004150601197265161,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.5,
+          "deep_area_km2": 401979505.06338567,
+          "largest_body_km2": 396073361.0357919,
+          "detached_area_km2": 5906144.0275937915,
+          "detached_fraction_of_planet": 0.00804111859172314,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 0.75,
+          "deep_area_km2": 379854530.17247486,
+          "largest_body_km2": 374391648.5462439,
+          "detached_area_km2": 5462881.626230955,
+          "detached_fraction_of_planet": 0.007437624074833975,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 1.0,
+          "deep_area_km2": 350562489.76573306,
+          "largest_body_km2": 335083431.8381968,
+          "detached_area_km2": 15479057.92753625,
+          "detached_fraction_of_planet": 0.02107448445245261,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 1.25,
+          "deep_area_km2": 309034258.98985934,
+          "largest_body_km2": 292893336.2360526,
+          "detached_area_km2": 16140922.75380677,
+          "detached_fraction_of_planet": 0.021975602599058286,
+          "bodies_above_area_bar": 5
+        },
+        {
+          "horizon_km": 1.5,
+          "deep_area_km2": 255308211.6384855,
+          "largest_body_km2": 204476930.90870923,
+          "detached_area_km2": 50831280.72977626,
+          "detached_fraction_of_planet": 0.06920595816960226,
+          "bodies_above_area_bar": 7
+        },
+        {
+          "horizon_km": 1.75,
+          "deep_area_km2": 196563331.76789027,
+          "largest_body_km2": 52598419.03929961,
+          "detached_area_km2": 143964912.72859067,
+          "detached_fraction_of_planet": 0.19600587640415212,
+          "bodies_above_area_bar": 27
+        },
+        {
+          "horizon_km": 2.0,
+          "deep_area_km2": 139346052.36517394,
+          "largest_body_km2": 33099536.489703834,
+          "detached_area_km2": 106246515.8754701,
+          "detached_fraction_of_planet": 0.14465289537819068,
+          "bodies_above_area_bar": 27
+        },
+        {
+          "horizon_km": 2.25,
+          "deep_area_km2": 93473219.25610626,
+          "largest_body_km2": 24956835.775393248,
+          "detached_area_km2": 68516383.48071301,
+          "detached_fraction_of_planet": 0.09328393660404084,
+          "bodies_above_area_bar": 22
+        },
+        {
+          "horizon_km": 2.5,
+          "deep_area_km2": 60101149.81659442,
+          "largest_body_km2": 16739464.310374081,
+          "detached_area_km2": 43361685.50622034,
+          "detached_fraction_of_planet": 0.05903622632016539,
+          "bodies_above_area_bar": 11
+        },
+        {
+          "horizon_km": 2.75,
+          "deep_area_km2": 38362705.496148884,
+          "largest_body_km2": 5085681.678440094,
+          "detached_area_km2": 33277023.81770879,
+          "detached_fraction_of_planet": 0.04530612420686393,
+          "bodies_above_area_bar": 12
+        },
+        {
+          "horizon_km": 3.0,
+          "deep_area_km2": 23279860.99715346,
+          "largest_body_km2": 2397113.658329785,
+          "detached_area_km2": 20882747.338823676,
+          "detached_fraction_of_planet": 0.028431519293796188,
+          "bodies_above_area_bar": 8
+        },
+        {
+          "horizon_km": 3.25,
+          "deep_area_km2": 14317226.020085573,
+          "largest_body_km2": 1812123.9613728523,
+          "detached_area_km2": 12505102.05871272,
+          "detached_fraction_of_planet": 0.01702549212919839,
+          "bodies_above_area_bar": 4
+        },
+        {
+          "horizon_km": 3.5,
+          "deep_area_km2": 8375031.511392415,
+          "largest_body_km2": 1369384.1310237646,
+          "detached_area_km2": 7005647.38036865,
+          "detached_fraction_of_planet": 0.00953807444148792,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 3.75,
+          "deep_area_km2": 4833470.889106989,
+          "largest_body_km2": 692157.3462172747,
+          "detached_area_km2": 4141313.5428897142,
+          "detached_fraction_of_planet": 0.0056383307227697785,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.0,
+          "deep_area_km2": 2974926.6862603426,
+          "largest_body_km2": 588755.9191111326,
+          "detached_area_km2": 2386170.76714921,
+          "detached_fraction_of_planet": 0.0032487325112806145,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.25,
+          "deep_area_km2": 1746577.233005166,
+          "largest_body_km2": 310978.4887018204,
+          "detached_area_km2": 1435598.7443033457,
+          "detached_fraction_of_planet": 0.0019545442337909036,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.5,
+          "deep_area_km2": 958760.5360951424,
+          "largest_body_km2": 194620.1632912159,
+          "detached_area_km2": 764140.3728039265,
+          "detached_fraction_of_planet": 0.001040364632107226,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.75,
+          "deep_area_km2": 447143.1157603264,
+          "largest_body_km2": 97178.9541478157,
+          "detached_area_km2": 349964.1616125107,
+          "detached_fraction_of_planet": 0.0004764704878904975,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.0,
+          "deep_area_km2": 130713.44536685944,
+          "largest_body_km2": 34359.10419487953,
+          "detached_area_km2": 96354.3411719799,
+          "detached_fraction_of_planet": 0.00013118486114990668,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.25,
+          "deep_area_km2": 34359.10419487953,
+          "largest_body_km2": 34359.10419487953,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.5,
+          "deep_area_km2": 34359.10419487953,
+          "largest_body_km2": 34359.10419487953,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.75,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 6.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        }
+      ]
+    },
+    "exoplasim-T127": {
+      "shape": [
+        192,
+        384
+      ],
+      "cells": 73728,
+      "cells_with_ocean": 40882,
+      "cells_binarised_ocean": 36364,
+      "volume": {
+        "fine_volume_km3": 722061502.0430292,
+        "coarse_volume_km3": 722061502.0430293,
+        "residual_relative": 1.650957559896017e-16,
+        "tolerance": 1e-12,
+        "passes": true,
+        "covered_cells": 40882,
+        "ocean_area_fraction_of_planet": 0.5675474980687154
+      },
+      "horizon_area": [
+        {
+          "horizon_km": 0.0,
+          "fine_area_km2": 416859573.43604285,
+          "depth_only_area_km2": 416859573.43604285,
+          "binarised_area_km2": 419926448.58286226,
+          "depth_only_gap_km2": 0.0,
+          "binarised_gap_km2": 3066875.1468194127,
+          "depth_only_gap_fraction_of_planet": 0.0,
+          "binarised_gap_fraction_of_planet": 0.0041755004020161595,
+          "straddling_ocean_area_km2": 0.0,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.25,
+          "fine_area_km2": 404972829.5891078,
+          "depth_only_area_km2": 410872783.6226576,
+          "binarised_area_km2": 414410680.3706101,
+          "depth_only_gap_km2": 5899954.033549786,
+          "binarised_gap_km2": 9437850.781502306,
+          "depth_only_gap_fraction_of_planet": 0.008032691015971963,
+          "binarised_gap_fraction_of_planet": 0.012849479631800564,
+          "straddling_ocean_area_km2": 63200546.61666769,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.5,
+          "fine_area_km2": 387893202.20781374,
+          "depth_only_area_km2": 395845086.96595824,
+          "binarised_area_km2": 399093343.4769017,
+          "depth_only_gap_km2": 7951884.758144498,
+          "binarised_gap_km2": 11200141.26908797,
+          "depth_only_gap_fraction_of_planet": 0.010826361170539566,
+          "binarised_gap_fraction_of_planet": 0.015248809336178804,
+          "straddling_ocean_area_km2": 90175988.57342678,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.75,
+          "fine_area_km2": 366136991.6378927,
+          "depth_only_area_km2": 374614681.45273083,
+          "binarised_area_km2": 377456347.274339,
+          "depth_only_gap_km2": 8477689.814838111,
+          "binarised_gap_km2": 11319355.636446297,
+          "depth_only_gap_fraction_of_planet": 0.011542236163978155,
+          "binarised_gap_fraction_of_planet": 0.015411117749466196,
+          "straddling_ocean_area_km2": 115881635.21701497,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.0,
+          "fine_area_km2": 335095971.44657093,
+          "depth_only_area_km2": 344589765.8904743,
+          "binarised_area_km2": 347101695.11494684,
+          "depth_only_gap_km2": 9493794.443903387,
+          "binarised_gap_km2": 12005723.66837591,
+          "depth_only_gap_fraction_of_planet": 0.012925646014083267,
+          "binarised_gap_fraction_of_planet": 0.01634559661021321,
+          "straddling_ocean_area_km2": 150745404.93114483,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.25,
+          "fine_area_km2": 293984206.7235959,
+          "depth_only_area_km2": 304259647.008385,
+          "binarised_area_km2": 306091642.63750386,
+          "depth_only_gap_km2": 10275440.284789085,
+          "binarised_gap_km2": 12107435.913907945,
+          "depth_only_gap_fraction_of_planet": 0.013989844054957956,
+          "binarised_gap_fraction_of_planet": 0.0164840761706053,
+          "straddling_ocean_area_km2": 187325842.59765607,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.5,
+          "fine_area_km2": 245096173.32992995,
+          "depth_only_area_km2": 252127358.0553186,
+          "binarised_area_km2": 253305946.92378944,
+          "depth_only_gap_km2": 7031184.725388646,
+          "binarised_gap_km2": 8209773.593859494,
+          "depth_only_gap_fraction_of_planet": 0.009572843119472091,
+          "binarised_gap_fraction_of_planet": 0.011177472606660528,
+          "straddling_ocean_area_km2": 216592837.57607865,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.75,
+          "fine_area_km2": 193164838.84626162,
+          "depth_only_area_km2": 195857233.639462,
+          "binarised_area_km2": 196557354.23121732,
+          "depth_only_gap_km2": 2692394.7932003736,
+          "binarised_gap_km2": 3392515.384955704,
+          "depth_only_gap_fraction_of_planet": 0.003665651519284474,
+          "binarised_gap_fraction_of_planet": 0.004618854265527965,
+          "straddling_ocean_area_km2": 228815577.45848048,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.0,
+          "fine_area_km2": 145008436.770755,
+          "depth_only_area_km2": 140506153.86372232,
+          "binarised_area_km2": 140985638.13809454,
+          "depth_only_gap_km2": -4502282.907032669,
+          "binarised_gap_km2": -4022798.6326604486,
+          "depth_only_gap_fraction_of_planet": -0.006129784614088939,
+          "binarised_gap_fraction_of_planet": -0.005476974608935012,
+          "straddling_ocean_area_km2": 222124088.34637713,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.25,
+          "fine_area_km2": 103203353.4253875,
+          "depth_only_area_km2": 95488848.38508761,
+          "binarised_area_km2": 95760037.44839954,
+          "depth_only_gap_km2": -7714505.040299892,
+          "binarised_gap_km2": -7443315.976987958,
+          "depth_only_gap_fraction_of_planet": -0.01050317256329595,
+          "binarised_gap_fraction_of_planet": -0.010133953084617234,
+          "straddling_ocean_area_km2": 203210460.7636755,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.5,
+          "fine_area_km2": 69829220.98085123,
+          "depth_only_area_km2": 62038368.589725435,
+          "binarised_area_km2": 62210279.65902716,
+          "depth_only_gap_km2": -7790852.391125798,
+          "binarised_gap_km2": -7618941.321824074,
+          "depth_only_gap_fraction_of_planet": -0.010607118233988494,
+          "binarised_gap_fraction_of_planet": -0.0103730641220287,
+          "straddling_ocean_area_km2": 172448324.32037675,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.75,
+          "fine_area_km2": 46892888.17109865,
+          "depth_only_area_km2": 40100782.41850734,
+          "binarised_area_km2": 40207580.23604941,
+          "depth_only_gap_km2": -6792105.752591312,
+          "binarised_gap_km2": -6685307.935049236,
+          "depth_only_gap_fraction_of_planet": -0.00924734100437485,
+          "binarised_gap_fraction_of_planet": -0.009101937520785421,
+          "straddling_ocean_area_km2": 136588845.3942482,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.0,
+          "fine_area_km2": 31331596.996833503,
+          "depth_only_area_km2": 24994847.38630259,
+          "binarised_area_km2": 25019766.68994701,
+          "depth_only_gap_km2": -6336749.610530913,
+          "binarised_gap_km2": -6311830.306886494,
+          "depth_only_gap_fraction_of_planet": -0.008627381057128364,
+          "binarised_gap_fraction_of_planet": -0.008593453832378722,
+          "straddling_ocean_area_km2": 106856094.71213919,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.25,
+          "fine_area_km2": 20562639.221803784,
+          "depth_only_area_km2": 15150029.81915468,
+          "binarised_area_km2": 15161052.833759725,
+          "depth_only_gap_km2": -5412609.402649105,
+          "binarised_gap_km2": -5401586.388044059,
+          "depth_only_gap_fraction_of_planet": -0.00736917926383671,
+          "binarised_gap_fraction_of_planet": -0.007354171609559512,
+          "straddling_ocean_area_km2": 83328434.9312976,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.5,
+          "fine_area_km2": 13433725.900219798,
+          "depth_only_area_km2": 9303453.367376566,
+          "binarised_area_km2": 9306156.77902627,
+          "depth_only_gap_km2": -4130272.532843232,
+          "binarised_gap_km2": -4127569.121193528,
+          "depth_only_gap_fraction_of_planet": -0.005623298567993096,
+          "binarised_gap_fraction_of_planet": -0.005619617917203688,
+          "straddling_ocean_area_km2": 64299103.8417691,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.75,
+          "fine_area_km2": 8785861.795158327,
+          "depth_only_area_km2": 5685588.722942114,
+          "binarised_area_km2": 5682187.915290594,
+          "depth_only_gap_km2": -3100273.0722162127,
+          "binarised_gap_km2": -3103673.8798677325,
+          "depth_only_gap_fraction_of_planet": -0.004220971131747518,
+          "binarised_gap_fraction_of_planet": -0.004225601275798484,
+          "straddling_ocean_area_km2": 49867969.51123208,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.0,
+          "fine_area_km2": 5764127.637728453,
+          "depth_only_area_km2": 3406618.1295586824,
+          "binarised_area_km2": 3401881.750998616,
+          "depth_only_gap_km2": -2357509.5081697702,
+          "binarised_gap_km2": -2362245.8867298365,
+          "depth_only_gap_fraction_of_planet": -0.003209710675483011,
+          "binarised_gap_fraction_of_planet": -0.0032161591775037622,
+          "straddling_ocean_area_km2": 38907149.318086565,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.25,
+          "fine_area_km2": 3665232.5374947786,
+          "depth_only_area_km2": 1987503.253803134,
+          "binarised_area_km2": 1987346.581225276,
+          "depth_only_gap_km2": -1677729.2836916447,
+          "binarised_gap_km2": -1677885.9562695026,
+          "depth_only_gap_fraction_of_planet": -0.0022842010069414943,
+          "binarised_gap_fraction_of_planet": -0.0022844143140963386,
+          "straddling_ocean_area_km2": 29997660.414799273,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.5,
+          "fine_area_km2": 2266632.225584984,
+          "depth_only_area_km2": 1104372.7077708244,
+          "binarised_area_km2": 1104216.0351929665,
+          "depth_only_gap_km2": -1162259.5178141594,
+          "binarised_gap_km2": -1162416.1903920174,
+          "depth_only_gap_fraction_of_planet": -0.0015823973430783718,
+          "binarised_gap_fraction_of_planet": -0.0015826106502332164,
+          "straddling_ocean_area_km2": 22549784.578488052,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.75,
+          "fine_area_km2": 1299594.5621135235,
+          "depth_only_area_km2": 515678.4759449959,
+          "binarised_area_km2": 515580.331805706,
+          "depth_only_gap_km2": -783916.0861685276,
+          "binarised_gap_km2": -784014.2303078175,
+          "depth_only_gap_fraction_of_planet": -0.001067288942733201,
+          "binarised_gap_fraction_of_planet": -0.0010674225643752444,
+          "straddling_ocean_area_km2": 16952672.863734126,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 5.0,
+          "fine_area_km2": 725446.4655542374,
+          "depth_only_area_km2": 234933.128364563,
+          "binarised_area_km2": 234834.98422527313,
+          "depth_only_gap_km2": -490513.3371896744,
+          "binarised_gap_km2": -490611.48132896423,
+          "depth_only_gap_fraction_of_planet": -0.0006678258939734968,
+          "binarised_gap_fraction_of_planet": -0.0006679595156155403,
+          "straddling_ocean_area_km2": 12573886.251245618,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.25,
+          "fine_area_km2": 413213.2327232361,
+          "depth_only_area_km2": 73259.17907547951,
+          "binarised_area_km2": 73259.17907547951,
+          "depth_only_gap_km2": -339954.0536477566,
+          "binarised_gap_km2": -339954.0536477566,
+          "depth_only_gap_fraction_of_planet": -0.00046284188945394135,
+          "binarised_gap_fraction_of_planet": -0.00046284188945394135,
+          "straddling_ocean_area_km2": 9061955.658825397,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.5,
+          "fine_area_km2": 250079.45268893242,
+          "depth_only_area_km2": 30216.809403657913,
+          "binarised_area_km2": 30216.809403657913,
+          "depth_only_gap_km2": -219862.6432852745,
+          "binarised_gap_km2": -219862.6432852745,
+          "depth_only_gap_fraction_of_planet": -0.0002993393964465995,
+          "binarised_gap_fraction_of_planet": -0.0002993393964465995,
+          "straddling_ocean_area_km2": 6534291.087811947,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.75,
+          "fine_area_km2": 143757.78463172913,
+          "depth_only_area_km2": 30216.809403657913,
+          "binarised_area_km2": 30216.809403657913,
+          "depth_only_gap_km2": -113540.97522807121,
+          "binarised_gap_km2": -113540.97522807121,
+          "depth_only_gap_fraction_of_planet": -0.00015458418260090785,
+          "binarised_gap_fraction_of_planet": -0.00015458418260090785,
+          "straddling_ocean_area_km2": 4269802.359069824,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 6.0,
+          "fine_area_km2": 81136.3767478466,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -81136.3767478466,
+          "binarised_gap_km2": -81136.3767478466,
+          "depth_only_gap_fraction_of_planet": -0.00011046585123627036,
+          "binarised_gap_fraction_of_planet": -0.00011046585123627036,
+          "straddling_ocean_area_km2": 3055507.7594867945,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        }
+      ],
+      "uniform_control": {
+        "worst_absolute_gap_km2": 0.0,
+        "tolerance_km2": 0.0,
+        "passes": true
+      },
+      "connectivity_coarse": [
+        {
+          "horizon_km": 0.0,
+          "deep_area_km2": 419926448.58286226,
+          "largest_body_km2": 417762205.25906956,
+          "detached_area_km2": 2164243.323792696,
+          "detached_fraction_of_planet": 0.002946581923274266,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.25,
+          "deep_area_km2": 414410680.3706101,
+          "largest_body_km2": 410137352.08740115,
+          "detached_area_km2": 4273328.283208966,
+          "detached_fraction_of_planet": 0.0058180666346952315,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 0.5,
+          "deep_area_km2": 399093343.4769017,
+          "largest_body_km2": 392727545.8524926,
+          "detached_area_km2": 6365797.624409139,
+          "detached_fraction_of_planet": 0.008666929453401388,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 0.75,
+          "deep_area_km2": 377456347.274339,
+          "largest_body_km2": 371363857.7150313,
+          "detached_area_km2": 6092489.559307694,
+          "detached_fraction_of_planet": 0.008294824988409114,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 1.0,
+          "deep_area_km2": 347101695.11494684,
+          "largest_body_km2": 330435120.31021965,
+          "detached_area_km2": 16666574.804727197,
+          "detached_fraction_of_planet": 0.022691269277636674,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 1.25,
+          "deep_area_km2": 306091642.63750386,
+          "largest_body_km2": 289007311.43834877,
+          "detached_area_km2": 17084331.199155092,
+          "detached_fraction_of_planet": 0.023260037782832435,
+          "bodies_above_area_bar": 4
+        },
+        {
+          "horizon_km": 1.5,
+          "deep_area_km2": 253305946.92378944,
+          "largest_body_km2": 200444513.46370238,
+          "detached_area_km2": 52861433.46008706,
+          "detached_fraction_of_planet": 0.07196997794078797,
+          "bodies_above_area_bar": 10
+        },
+        {
+          "horizon_km": 1.75,
+          "deep_area_km2": 196557354.23121732,
+          "largest_body_km2": 57306822.78790134,
+          "detached_area_km2": 139250531.44331598,
+          "detached_fraction_of_planet": 0.18958732331361086,
+          "bodies_above_area_bar": 19
+        },
+        {
+          "horizon_km": 2.0,
+          "deep_area_km2": 140985638.13809454,
+          "largest_body_km2": 41454508.654425204,
+          "detached_area_km2": 99531129.48366934,
+          "detached_fraction_of_planet": 0.1355100065299969,
+          "bodies_above_area_bar": 24
+        },
+        {
+          "horizon_km": 2.25,
+          "deep_area_km2": 95760037.44839954,
+          "largest_body_km2": 24805638.493276954,
+          "detached_area_km2": 70954398.95512259,
+          "detached_fraction_of_planet": 0.09660325483715385,
+          "bodies_above_area_bar": 19
+        },
+        {
+          "horizon_km": 2.5,
+          "deep_area_km2": 62210279.65902716,
+          "largest_body_km2": 15957619.036867142,
+          "detached_area_km2": 46252660.62216002,
+          "detached_fraction_of_planet": 0.06297224170420986,
+          "bodies_above_area_bar": 12
+        },
+        {
+          "horizon_km": 2.75,
+          "deep_area_km2": 40207580.23604941,
+          "largest_body_km2": 5845543.902497292,
+          "detached_area_km2": 34362036.33355212,
+          "detached_fraction_of_planet": 0.04678335101891556,
+          "bodies_above_area_bar": 11
+        },
+        {
+          "horizon_km": 3.0,
+          "deep_area_km2": 25019766.68994701,
+          "largest_body_km2": 3607193.9744853973,
+          "detached_area_km2": 21412572.71546161,
+          "detached_fraction_of_planet": 0.029152867887150036,
+          "bodies_above_area_bar": 6
+        },
+        {
+          "horizon_km": 3.25,
+          "deep_area_km2": 15161052.833759725,
+          "largest_body_km2": 1778542.797468543,
+          "detached_area_km2": 13382510.036291182,
+          "detached_fraction_of_planet": 0.018220068754500697,
+          "bodies_above_area_bar": 4
+        },
+        {
+          "horizon_km": 3.5,
+          "deep_area_km2": 9306156.77902627,
+          "largest_body_km2": 1228411.474025607,
+          "detached_area_km2": 8077745.305000663,
+          "detached_fraction_of_planet": 0.01099771824861981,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 3.75,
+          "deep_area_km2": 5682187.915290594,
+          "largest_body_km2": 785760.6384536028,
+          "detached_area_km2": 4896427.276836991,
+          "detached_fraction_of_planet": 0.006666405733562005,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 4.0,
+          "deep_area_km2": 3401881.750998616,
+          "largest_body_km2": 661883.8731869459,
+          "detached_area_km2": 2739997.8778116703,
+          "detached_fraction_of_planet": 0.0037304623411850055,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.25,
+          "deep_area_km2": 1987346.581225276,
+          "largest_body_km2": 369566.5098516941,
+          "detached_area_km2": 1617780.071373582,
+          "detached_fraction_of_planet": 0.0022025811338944215,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.5,
+          "deep_area_km2": 1104216.0351929665,
+          "largest_body_km2": 216145.7329170704,
+          "detached_area_km2": 888070.3022758961,
+          "detached_fraction_of_planet": 0.0012090932061636884,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.75,
+          "deep_area_km2": 515580.331805706,
+          "largest_body_km2": 130609.3411333561,
+          "detached_area_km2": 384970.99067234993,
+          "detached_fraction_of_planet": 0.0005241317136708362,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.0,
+          "deep_area_km2": 234834.98422527313,
+          "largest_body_km2": 91340.37769341469,
+          "detached_area_km2": 143494.60653185844,
+          "detached_fraction_of_planet": 0.00019536556220174232,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.25,
+          "deep_area_km2": 73259.17907547951,
+          "largest_body_km2": 15259.495633125305,
+          "detached_area_km2": 57999.6834423542,
+          "detached_fraction_of_planet": 7.896562133659631e-05,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.5,
+          "deep_area_km2": 30216.809403657913,
+          "largest_body_km2": 15134.981607675552,
+          "detached_area_km2": 15081.82779598236,
+          "detached_fraction_of_planet": 2.053366211877648e-05,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.75,
+          "deep_area_km2": 30216.809403657913,
+          "largest_body_km2": 15134.981607675552,
+          "detached_area_km2": 15081.82779598236,
+          "detached_fraction_of_planet": 2.053366211877648e-05,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 6.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        }
+      ]
+    },
+    "exoplasim-T170": {
+      "shape": [
+        256,
+        512
+      ],
+      "cells": 131072,
+      "cells_with_ocean": 71149,
+      "cells_binarised_ocean": 64467,
+      "volume": {
+        "fine_volume_km3": 722061502.0430292,
+        "coarse_volume_km3": 722061502.0430291,
+        "residual_relative": 1.650957559896017e-16,
+        "tolerance": 1e-12,
+        "passes": true,
+        "covered_cells": 71149,
+        "ocean_area_fraction_of_planet": 0.5675474980687154
+      },
+      "horizon_area": [
+        {
+          "horizon_km": 0.0,
+          "fine_area_km2": 416859573.43604285,
+          "depth_only_area_km2": 416859573.43604285,
+          "binarised_area_km2": 419279213.545253,
+          "depth_only_gap_km2": 0.0,
+          "binarised_gap_km2": 2419640.1092101336,
+          "depth_only_gap_fraction_of_planet": 0.0,
+          "binarised_gap_fraction_of_planet": 0.0032943004736332836,
+          "straddling_ocean_area_km2": 0.0,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.25,
+          "fine_area_km2": 404972829.5891078,
+          "depth_only_area_km2": 410112604.4005898,
+          "binarised_area_km2": 412965046.27533114,
+          "depth_only_gap_km2": 5139774.811482012,
+          "binarised_gap_km2": 7992216.686223328,
+          "depth_only_gap_fraction_of_planet": 0.006997719425869857,
+          "binarised_gap_fraction_of_planet": 0.010881272431626244,
+          "straddling_ocean_area_km2": 49874845.081395745,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.5,
+          "fine_area_km2": 387893202.20781374,
+          "depth_only_area_km2": 394340145.964523,
+          "binarised_area_km2": 396787308.7475303,
+          "depth_only_gap_km2": 6446943.756709278,
+          "binarised_gap_km2": 8894106.539716542,
+          "depth_only_gap_fraction_of_planet": 0.008777408586662707,
+          "binarised_gap_fraction_of_planet": 0.012109180730971485,
+          "straddling_ocean_area_km2": 73194209.34773535,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.75,
+          "fine_area_km2": 366136991.6378927,
+          "depth_only_area_km2": 373148881.46815,
+          "binarised_area_km2": 375286884.55118215,
+          "depth_only_gap_km2": 7011889.830257297,
+          "binarised_gap_km2": 9149892.913289428,
+          "depth_only_gap_fraction_of_planet": 0.009546573435014489,
+          "binarised_gap_fraction_of_planet": 0.012457429699238574,
+          "straddling_ocean_area_km2": 96751726.798751,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.0,
+          "fine_area_km2": 335095971.44657093,
+          "depth_only_area_km2": 342865318.9240657,
+          "binarised_area_km2": 344550958.5720251,
+          "depth_only_gap_km2": 7769347.477494776,
+          "binarised_gap_km2": 9454987.125454187,
+          "depth_only_gap_fraction_of_planet": 0.010577839645453587,
+          "binarised_gap_fraction_of_planet": 0.012872810484096385,
+          "straddling_ocean_area_km2": 127155461.6686284,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.25,
+          "fine_area_km2": 293984206.7235959,
+          "depth_only_area_km2": 302794184.4852959,
+          "binarised_area_km2": 304046552.65881664,
+          "depth_only_gap_km2": 8809977.761699975,
+          "binarised_gap_km2": 10062345.935220718,
+          "depth_only_gap_fraction_of_planet": 0.011994640774301384,
+          "binarised_gap_fraction_of_planet": 0.013699719579818219,
+          "straddling_ocean_area_km2": 160387807.23865515,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.5,
+          "fine_area_km2": 245096173.32992995,
+          "depth_only_area_km2": 251279259.60564494,
+          "binarised_area_km2": 252212850.6919766,
+          "depth_only_gap_km2": 6183086.2757149935,
+          "binarised_gap_km2": 7116677.362046659,
+          "depth_only_gap_fraction_of_planet": 0.008418170937517063,
+          "binarised_gap_fraction_of_planet": 0.00968923994739812,
+          "straddling_ocean_area_km2": 187565175.61189276,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.75,
+          "fine_area_km2": 193164838.84626162,
+          "depth_only_area_km2": 195148711.6850568,
+          "binarised_area_km2": 195678814.65324914,
+          "depth_only_gap_km2": 1983872.838795185,
+          "binarised_gap_km2": 2513975.806987524,
+          "depth_only_gap_fraction_of_planet": 0.0027010104550649985,
+          "binarised_gap_fraction_of_planet": 0.0034227369847845356,
+          "straddling_ocean_area_km2": 199673763.50222987,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.0,
+          "fine_area_km2": 145008436.770755,
+          "depth_only_area_km2": 141797822.1982249,
+          "binarised_area_km2": 142106499.5988623,
+          "depth_only_gap_km2": -3210614.572530091,
+          "binarised_gap_km2": -2901937.1718927026,
+          "depth_only_gap_fraction_of_planet": -0.0043711992815297085,
+          "binarised_gap_fraction_of_planet": -0.0039509400441129555,
+          "straddling_ocean_area_km2": 191882868.77929884,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.25,
+          "fine_area_km2": 103203353.4253875,
+          "depth_only_area_km2": 97133795.07687128,
+          "binarised_area_km2": 97284911.32998455,
+          "depth_only_gap_km2": -6069558.348516226,
+          "binarised_gap_km2": -5918442.095402956,
+          "depth_only_gap_fraction_of_planet": -0.008263604519594858,
+          "binarised_gap_fraction_of_planet": -0.00805786221010436,
+          "straddling_ocean_area_km2": 173322168.84969813,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.5,
+          "fine_area_km2": 69829220.98085123,
+          "depth_only_area_km2": 63639129.32835084,
+          "binarised_area_km2": 63694534.38550347,
+          "depth_only_gap_km2": -6190091.652500391,
+          "binarised_gap_km2": -6134686.595347762,
+          "depth_only_gap_fraction_of_planet": -0.008427708643547919,
+          "binarised_gap_fraction_of_planet": -0.008352275563510588,
+          "straddling_ocean_area_km2": 143087308.45867187,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.75,
+          "fine_area_km2": 46892888.17109865,
+          "depth_only_area_km2": 41066866.754033744,
+          "binarised_area_km2": 41112758.23782593,
+          "depth_only_gap_km2": -5826021.417064905,
+          "binarised_gap_km2": -5780129.933272719,
+          "depth_only_gap_fraction_of_planet": -0.007932032966629825,
+          "binarised_gap_fraction_of_planet": -0.007869552461278274,
+          "straddling_ocean_area_km2": 112132778.59522831,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.0,
+          "fine_area_km2": 31331596.996833503,
+          "depth_only_area_km2": 26043141.206705928,
+          "binarised_area_km2": 26055910.39825356,
+          "depth_only_gap_km2": -5288455.790127575,
+          "binarised_gap_km2": -5275686.598579943,
+          "depth_only_gap_fraction_of_planet": -0.007200146148963082,
+          "binarised_gap_fraction_of_planet": -0.007182761103309738,
+          "straddling_ocean_area_km2": 86811828.90877134,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.25,
+          "fine_area_km2": 20562639.221803784,
+          "depth_only_area_km2": 16052768.586642265,
+          "binarised_area_km2": 16046523.897177935,
+          "depth_only_gap_km2": -4509870.635161519,
+          "binarised_gap_km2": -4516115.32462585,
+          "depth_only_gap_fraction_of_planet": -0.0061401151819587335,
+          "binarised_gap_fraction_of_planet": -0.0061486172246310025,
+          "straddling_ocean_area_km2": 66915418.72411436,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.5,
+          "fine_area_km2": 13433725.900219798,
+          "depth_only_area_km2": 9854534.962799251,
+          "binarised_area_km2": 9845505.12545532,
+          "depth_only_gap_km2": -3579190.937420547,
+          "binarised_gap_km2": -3588220.774764478,
+          "depth_only_gap_fraction_of_planet": -0.004873009980074058,
+          "binarised_gap_fraction_of_planet": -0.004885303956077231,
+          "straddling_ocean_area_km2": 50668180.188645065,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.75,
+          "fine_area_km2": 8785861.795158327,
+          "depth_only_area_km2": 5896080.507290244,
+          "binarised_area_km2": 5889166.886982322,
+          "depth_only_gap_km2": -2889781.2878680825,
+          "binarised_gap_km2": -2896694.908176005,
+          "depth_only_gap_fraction_of_planet": -0.00393439000663122,
+          "binarised_gap_fraction_of_planet": -0.0039438027877172245,
+          "straddling_ocean_area_km2": 38375561.301988125,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.0,
+          "fine_area_km2": 5764127.637728453,
+          "depth_only_area_km2": 3635838.5565359592,
+          "binarised_area_km2": 3626534.0605757236,
+          "depth_only_gap_km2": -2128289.0811924934,
+          "binarised_gap_km2": -2137593.577152729,
+          "depth_only_gap_fraction_of_planet": -0.0028976308094387304,
+          "binarised_gap_fraction_of_planet": -0.0029102987286602914,
+          "straddling_ocean_area_km2": 29384871.22334248,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.25,
+          "fine_area_km2": 3665232.5374947786,
+          "depth_only_area_km2": 2256950.9541561604,
+          "binarised_area_km2": 2251721.860781908,
+          "depth_only_gap_km2": -1408281.5833386183,
+          "binarised_gap_km2": -1413510.6767128706,
+          "depth_only_gap_fraction_of_planet": -0.0019173523654788037,
+          "binarised_gap_fraction_of_planet": -0.0019244716906684888,
+          "straddling_ocean_area_km2": 22377575.4706437,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.5,
+          "fine_area_km2": 2266632.225584984,
+          "depth_only_area_km2": 1269574.2137377262,
+          "binarised_area_km2": 1271545.788480997,
+          "depth_only_gap_km2": -997058.0118472576,
+          "binarised_gap_km2": -995086.4371039867,
+          "depth_only_gap_fraction_of_planet": -0.001357478191969841,
+          "binarised_gap_fraction_of_planet": -0.001354793925170891,
+          "straddling_ocean_area_km2": 16696965.646697104,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.75,
+          "fine_area_km2": 1299594.5621135235,
+          "depth_only_area_km2": 587790.0361630917,
+          "binarised_area_km2": 587703.1319215298,
+          "depth_only_gap_km2": -711804.5259504318,
+          "binarised_gap_km2": -711891.4301919937,
+          "depth_only_gap_fraction_of_planet": -0.0009691102317436332,
+          "binarised_gap_fraction_of_planet": -0.0009692285504485713,
+          "straddling_ocean_area_km2": 12343948.869167745,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.0,
+          "fine_area_km2": 725446.4655542374,
+          "depth_only_area_km2": 235502.45172977448,
+          "binarised_area_km2": 235415.5474882126,
+          "depth_only_gap_km2": -489944.0138244629,
+          "binarised_gap_km2": -490030.9180660248,
+          "depth_only_gap_fraction_of_planet": -0.0006670507695140668,
+          "binarised_gap_fraction_of_planet": -0.0006671690882190049,
+          "straddling_ocean_area_km2": 9104709.32082045,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.25,
+          "fine_area_km2": 413213.2327232361,
+          "depth_only_area_km2": 117299.01048898697,
+          "binarised_area_km2": 117212.10624742508,
+          "depth_only_gap_km2": -295914.2222342491,
+          "binarised_gap_km2": -296001.126475811,
+          "depth_only_gap_fraction_of_planet": -0.00040288237856138647,
+          "binarised_gap_fraction_of_planet": -0.00040300069726632463,
+          "straddling_ocean_area_km2": 6462117.597633362,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.5,
+          "fine_area_km2": 250079.45268893242,
+          "depth_only_area_km2": 42209.405314683914,
+          "binarised_area_km2": 42209.405314683914,
+          "depth_only_gap_km2": -207870.0473742485,
+          "binarised_gap_km2": -207870.0473742485,
+          "depth_only_gap_fraction_of_planet": -0.0002830116730635207,
+          "binarised_gap_fraction_of_planet": -0.0002830116730635207,
+          "straddling_ocean_area_km2": 4527690.494085789,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.75,
+          "fine_area_km2": 143757.78463172913,
+          "depth_only_area_km2": 17359.295729875565,
+          "binarised_area_km2": 17359.295729875565,
+          "depth_only_gap_km2": -126398.48890185356,
+          "binarised_gap_km2": -126398.48890185356,
+          "depth_only_gap_fraction_of_planet": -0.0001720894773858891,
+          "binarised_gap_fraction_of_planet": -0.0001720894773858891,
+          "straddling_ocean_area_km2": 2951106.4607824087,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 6.0,
+          "fine_area_km2": 81136.3767478466,
+          "depth_only_area_km2": 8866.509024620056,
+          "binarised_area_km2": 8866.509024620056,
+          "depth_only_gap_km2": -72269.86772322655,
+          "binarised_gap_km2": -72269.86772322655,
+          "depth_only_gap_fraction_of_planet": -9.83942440711806e-05,
+          "binarised_gap_fraction_of_planet": -9.83942440711806e-05,
+          "straddling_ocean_area_km2": 2098306.129298091,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        }
+      ],
+      "uniform_control": {
+        "worst_absolute_gap_km2": 0.0,
+        "tolerance_km2": 0.0,
+        "passes": true
+      },
+      "connectivity_coarse": [
+        {
+          "horizon_km": 0.0,
+          "deep_area_km2": 419279213.545253,
+          "largest_body_km2": 417188000.0358464,
+          "detached_area_km2": 2091213.5094065666,
+          "detached_fraction_of_planet": 0.0028471530242384865,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.25,
+          "deep_area_km2": 412965046.27533114,
+          "largest_body_km2": 408870524.13336325,
+          "detached_area_km2": 4094522.1419678926,
+          "detached_fraction_of_planet": 0.005574624994950181,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 0.5,
+          "deep_area_km2": 396787308.7475303,
+          "largest_body_km2": 389854820.33081853,
+          "detached_area_km2": 6932488.416711748,
+          "detached_fraction_of_planet": 0.009438469707830183,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 0.75,
+          "deep_area_km2": 375286884.55118215,
+          "largest_body_km2": 368463646.08621573,
+          "detached_area_km2": 6823238.464966416,
+          "detached_fraction_of_planet": 0.009289727683589006,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 1.0,
+          "deep_area_km2": 344550958.5720251,
+          "largest_body_km2": 336435177.1477484,
+          "detached_area_km2": 8115781.42427671,
+          "detached_fraction_of_planet": 0.011049503803533246,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 1.25,
+          "deep_area_km2": 304046552.65881664,
+          "largest_body_km2": 285434341.8578004,
+          "detached_area_km2": 18612210.80101621,
+          "detached_fraction_of_planet": 0.025340220896390087,
+          "bodies_above_area_bar": 4
+        },
+        {
+          "horizon_km": 1.5,
+          "deep_area_km2": 252212850.6919766,
+          "largest_body_km2": 103158228.6361928,
+          "detached_area_km2": 149054622.0557838,
+          "detached_fraction_of_planet": 0.20293543249119414,
+          "bodies_above_area_bar": 13
+        },
+        {
+          "horizon_km": 1.75,
+          "deep_area_km2": 195678814.65324914,
+          "largest_body_km2": 56224255.0907405,
+          "detached_area_km2": 139454559.56250864,
+          "detached_fraction_of_planet": 0.18986510426422928,
+          "bodies_above_area_bar": 21
+        },
+        {
+          "horizon_km": 2.0,
+          "deep_area_km2": 142106499.5988623,
+          "largest_body_km2": 41104347.830531,
+          "detached_area_km2": 101002151.76833129,
+          "detached_fraction_of_planet": 0.13751277933519265,
+          "bodies_above_area_bar": 21
+        },
+        {
+          "horizon_km": 2.25,
+          "deep_area_km2": 97284911.32998455,
+          "largest_body_km2": 24662375.484504223,
+          "detached_area_km2": 72622535.84548032,
+          "detached_fraction_of_planet": 0.09887439595730355,
+          "bodies_above_area_bar": 17
+        },
+        {
+          "horizon_km": 2.5,
+          "deep_area_km2": 63694534.38550347,
+          "largest_body_km2": 15952888.992637277,
+          "detached_area_km2": 47741645.392866194,
+          "detached_fraction_of_planet": 0.06499947014066165,
+          "bodies_above_area_bar": 14
+        },
+        {
+          "horizon_km": 2.75,
+          "deep_area_km2": 41112758.23782593,
+          "largest_body_km2": 5713259.544995189,
+          "detached_area_km2": 35399498.69283074,
+          "detached_fraction_of_planet": 0.04819583906973727,
+          "bodies_above_area_bar": 12
+        },
+        {
+          "horizon_km": 3.0,
+          "deep_area_km2": 26055910.39825356,
+          "largest_body_km2": 3633215.8703325987,
+          "detached_area_km2": 22422694.52792096,
+          "detached_fraction_of_planet": 0.0305281322302008,
+          "bodies_above_area_bar": 6
+        },
+        {
+          "horizon_km": 3.25,
+          "deep_area_km2": 16046523.897177935,
+          "largest_body_km2": 1785813.514771819,
+          "detached_area_km2": 14260710.382406116,
+          "detached_fraction_of_planet": 0.01941572417661872,
+          "bodies_above_area_bar": 4
+        },
+        {
+          "horizon_km": 3.5,
+          "deep_area_km2": 9845505.12545532,
+          "largest_body_km2": 1244748.5755296946,
+          "detached_area_km2": 8600756.549925625,
+          "detached_fraction_of_planet": 0.011709789512984112,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 3.75,
+          "deep_area_km2": 5889166.886982322,
+          "largest_body_km2": 745932.9886227846,
+          "detached_area_km2": 5143233.898359537,
+          "detached_fraction_of_planet": 0.007002428916134791,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 4.0,
+          "deep_area_km2": 3626534.0605757236,
+          "largest_body_km2": 589351.0701806545,
+          "detached_area_km2": 3037182.990395069,
+          "detached_fraction_of_planet": 0.00413507501619139,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.25,
+          "deep_area_km2": 2251721.860781908,
+          "largest_body_km2": 382742.66638994217,
+          "detached_area_km2": 1868979.1943919659,
+          "detached_fraction_of_planet": 0.0025445846354836994,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.5,
+          "deep_area_km2": 1271545.788480997,
+          "largest_body_km2": 236064.20902466774,
+          "detached_area_km2": 1035481.5794563293,
+          "detached_fraction_of_planet": 0.0014097912514580827,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.75,
+          "deep_area_km2": 587703.1319215298,
+          "largest_body_km2": 162652.62751841545,
+          "detached_area_km2": 425050.5044031143,
+          "detached_fraction_of_planet": 0.000578699316746878,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.0,
+          "deep_area_km2": 235415.5474882126,
+          "largest_body_km2": 85561.1512196064,
+          "detached_area_km2": 149854.3962686062,
+          "detached_fraction_of_planet": 0.00020402431201425698,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.25,
+          "deep_area_km2": 117212.10624742508,
+          "largest_body_km2": 68542.06811356544,
+          "detached_area_km2": 48670.038133859634,
+          "detached_fraction_of_planet": 6.626346168830167e-05,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.5,
+          "deep_area_km2": 42209.405314683914,
+          "largest_body_km2": 17174.59965324402,
+          "detached_area_km2": 25034.805661439896,
+          "detached_fraction_of_planet": 3.408447885860217e-05,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.75,
+          "deep_area_km2": 17359.295729875565,
+          "largest_body_km2": 8866.509024620056,
+          "detached_area_km2": 8492.786705255508,
+          "detached_fraction_of_planet": 1.1562790333609876e-05,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 6.0,
+          "deep_area_km2": 8866.509024620056,
+          "largest_body_km2": 8866.509024620056,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        }
+      ]
+    },
+    "goldstein-36x36": {
+      "shape": [
+        36,
+        36
+      ],
+      "cells": 1296,
+      "cells_with_ocean": 1085,
+      "cells_binarised_ocean": 751,
+      "volume": {
+        "fine_volume_km3": 722061502.0430292,
+        "coarse_volume_km3": 722061502.0430292,
+        "residual_relative": 0.0,
+        "tolerance": 1e-12,
+        "passes": true,
+        "covered_cells": 1085,
+        "ocean_area_fraction_of_planet": 0.5675474980687154
+      },
+      "horizon_area": [
+        {
+          "horizon_km": 0.0,
+          "fine_area_km2": 416859573.43604285,
+          "depth_only_area_km2": 416859573.43604285,
+          "binarised_area_km2": 425913639.7070296,
+          "depth_only_gap_km2": 0.0,
+          "binarised_gap_km2": 9054066.270986736,
+          "depth_only_gap_fraction_of_planet": 0.0,
+          "binarised_gap_fraction_of_planet": 0.01232696329147701,
+          "straddling_ocean_area_km2": 0.0,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.25,
+          "fine_area_km2": 404972829.5891078,
+          "depth_only_area_km2": 414905538.80142385,
+          "binarised_area_km2": 424212950.8757446,
+          "depth_only_gap_km2": 9932709.212316036,
+          "binarised_gap_km2": 19240121.28663677,
+          "depth_only_gap_fraction_of_planet": 0.013523221299747729,
+          "binarised_gap_fraction_of_planet": 0.02619511076298862,
+          "straddling_ocean_area_km2": 256562007.19484103,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.5,
+          "fine_area_km2": 387893202.20781374,
+          "depth_only_area_km2": 408985134.49664944,
+          "binarised_area_km2": 420242586.84219533,
+          "depth_only_gap_km2": 21091932.288835704,
+          "binarised_gap_km2": 32349384.634381592,
+          "depth_only_gap_fraction_of_planet": 0.02871632118531655,
+          "binarised_gap_fraction_of_planet": 0.04404315861567395,
+          "straddling_ocean_area_km2": 294678592.8180427,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 0.75,
+          "fine_area_km2": 366136991.6378927,
+          "depth_only_area_km2": 396310843.5859599,
+          "binarised_area_km2": 406629060.4184674,
+          "depth_only_gap_km2": 30173851.94806719,
+          "binarised_gap_km2": 40492068.78057468,
+          "depth_only_gap_fraction_of_planet": 0.04108120640978587,
+          "binarised_gap_fraction_of_planet": 0.05512929003552658,
+          "straddling_ocean_area_km2": 317954060.29693085,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.0,
+          "fine_area_km2": 335095971.44657093,
+          "depth_only_area_km2": 371204032.6181295,
+          "binarised_area_km2": 383375502.74893326,
+          "depth_only_gap_km2": 36108061.17155856,
+          "binarised_gap_km2": 48279531.30236232,
+          "depth_only_gap_fraction_of_planet": 0.04916053530715987,
+          "binarised_gap_fraction_of_planet": 0.06573179301779902,
+          "straddling_ocean_area_km2": 348234220.49474645,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.25,
+          "fine_area_km2": 293984206.7235959,
+          "depth_only_area_km2": 327184493.2485055,
+          "binarised_area_km2": 337998116.7093549,
+          "depth_only_gap_km2": 33200286.524909556,
+          "binarised_gap_km2": 44013909.98575896,
+          "depth_only_gap_fraction_of_planet": 0.045201647636546056,
+          "binarised_gap_fraction_of_planet": 0.05992421929221143,
+          "straddling_ocean_area_km2": 374968594.9554594,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.5,
+          "fine_area_km2": 245096173.32992995,
+          "depth_only_area_km2": 272892329.02480865,
+          "binarised_area_km2": 280159265.1398907,
+          "depth_only_gap_km2": 27796155.694878697,
+          "binarised_gap_km2": 35063091.80996072,
+          "depth_only_gap_fraction_of_planet": 0.03784401181079574,
+          "binarised_gap_fraction_of_planet": 0.04773782659533918,
+          "straddling_ocean_area_km2": 393656379.7716519,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 1.75,
+          "fine_area_km2": 193164838.84626162,
+          "depth_only_area_km2": 200618571.31286818,
+          "binarised_area_km2": 206429000.28624958,
+          "depth_only_gap_km2": 7453732.466606557,
+          "binarised_gap_km2": 13264161.439987957,
+          "depth_only_gap_fraction_of_planet": 0.010148134965035539,
+          "binarised_gap_fraction_of_planet": 0.018058939074358796,
+          "straddling_ocean_area_km2": 402135641.6916434,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.0,
+          "fine_area_km2": 145008436.770755,
+          "depth_only_area_km2": 126746110.25982648,
+          "binarised_area_km2": 128174820.07713622,
+          "depth_only_gap_km2": -18262326.51092851,
+          "binarised_gap_km2": -16833616.693618774,
+          "depth_only_gap_fraction_of_planet": -0.02486385915227558,
+          "binarised_gap_fraction_of_planet": -0.022918694080026714,
+          "straddling_ocean_area_km2": 399653898.3020078,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.25,
+          "fine_area_km2": 103203353.4253875,
+          "depth_only_area_km2": 75441102.64291024,
+          "binarised_area_km2": 77135334.320104,
+          "depth_only_gap_km2": -27762250.78247726,
+          "binarised_gap_km2": -26068019.1052835,
+          "depth_only_gap_fraction_of_planet": -0.03779785082654134,
+          "binarised_gap_fraction_of_planet": -0.03549118208048312,
+          "straddling_ocean_area_km2": 391438932.06187737,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.5,
+          "fine_area_km2": 69829220.98085123,
+          "depth_only_area_km2": 39253691.19605261,
+          "binarised_area_km2": 39708152.40504712,
+          "depth_only_gap_km2": -30575529.784798622,
+          "binarised_gap_km2": -30121068.575804114,
+          "depth_only_gap_fraction_of_planet": -0.041628084221389146,
+          "binarised_gap_fraction_of_planet": -0.04100934271088935,
+          "straddling_ocean_area_km2": 378758033.9770121,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 2.75,
+          "fine_area_km2": 46892888.17109865,
+          "depth_only_area_km2": 19997139.00091642,
+          "binarised_area_km2": 19855668.63083142,
+          "depth_only_gap_km2": -26895749.170182228,
+          "binarised_gap_km2": -27037219.54026723,
+          "depth_only_gap_fraction_of_planet": -0.036618123039370815,
+          "binarised_gap_fraction_of_planet": -0.03681073263672462,
+          "straddling_ocean_area_km2": 355391135.1578184,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.0,
+          "fine_area_km2": 31331596.996833503,
+          "depth_only_area_km2": 10264236.222892761,
+          "binarised_area_km2": 10209301.925668955,
+          "depth_only_gap_km2": -21067360.773940742,
+          "binarised_gap_km2": -21122295.07116455,
+          "depth_only_gap_fraction_of_planet": -0.028682867469266692,
+          "binarised_gap_fraction_of_planet": -0.028757659617352785,
+          "straddling_ocean_area_km2": 323458712.38303983,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.25,
+          "fine_area_km2": 20562639.221803784,
+          "depth_only_area_km2": 6172847.050738096,
+          "binarised_area_km2": 6239117.98402977,
+          "depth_only_gap_km2": -14389792.171065688,
+          "binarised_gap_km2": -14323521.237774014,
+          "depth_only_gap_fraction_of_planet": -0.019591466922781693,
+          "binarised_gap_fraction_of_planet": -0.0195012401299211,
+          "straddling_ocean_area_km2": 295480472.71858555,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.5,
+          "fine_area_km2": 13433725.900219798,
+          "depth_only_area_km2": 3416231.677173853,
+          "binarised_area_km2": 3403437.591455698,
+          "depth_only_gap_km2": -10017494.223045945,
+          "binarised_gap_km2": -10030288.3087641,
+          "depth_only_gap_fraction_of_planet": -0.013638654706534706,
+          "binarised_gap_fraction_of_planet": -0.013656073645194465,
+          "straddling_ocean_area_km2": 266061953.6324407,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 3.75,
+          "fine_area_km2": 8785861.795158327,
+          "depth_only_area_km2": 1134862.02277112,
+          "binarised_area_km2": 1134862.02277112,
+          "depth_only_gap_km2": -7650999.772387207,
+          "binarised_gap_km2": -7650999.772387207,
+          "depth_only_gap_fraction_of_planet": -0.010416711178660007,
+          "binarised_gap_fraction_of_planet": -0.010416711178660007,
+          "straddling_ocean_area_km2": 236243530.48437762,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.0,
+          "fine_area_km2": 5764127.637728453,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -5764127.637728453,
+          "binarised_gap_km2": -5764127.637728453,
+          "depth_only_gap_fraction_of_planet": -0.007847765597359942,
+          "binarised_gap_fraction_of_planet": -0.007847765597359942,
+          "straddling_ocean_area_km2": 204058560.30258638,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.25,
+          "fine_area_km2": 3665232.5374947786,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -3665232.5374947786,
+          "binarised_gap_km2": -3665232.5374947786,
+          "depth_only_gap_fraction_of_planet": -0.0049901542127216295,
+          "binarised_gap_fraction_of_planet": -0.0049901542127216295,
+          "straddling_ocean_area_km2": 175807147.56777406,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.5,
+          "fine_area_km2": 2266632.225584984,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -2266632.225584984,
+          "binarised_gap_km2": -2266632.225584984,
+          "depth_only_gap_fraction_of_planet": -0.0030859827401086477,
+          "binarised_gap_fraction_of_planet": -0.0030859827401086477,
+          "straddling_ocean_area_km2": 146390133.66486168,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 4.75,
+          "fine_area_km2": 1299594.5621135235,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -1299594.5621135235,
+          "binarised_gap_km2": -1299594.5621135235,
+          "depth_only_gap_fraction_of_planet": -0.0017693767619430772,
+          "binarised_gap_fraction_of_planet": -0.0017693767619430772,
+          "straddling_ocean_area_km2": 125177775.05969691,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": true,
+          "binarised_gap_above_bar": true
+        },
+        {
+          "horizon_km": 5.0,
+          "fine_area_km2": 725446.4655542374,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -725446.4655542374,
+          "binarised_gap_km2": -725446.4655542374,
+          "depth_only_gap_fraction_of_planet": -0.0009876835096154252,
+          "binarised_gap_fraction_of_planet": -0.0009876835096154252,
+          "straddling_ocean_area_km2": 108975286.89626724,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.25,
+          "fine_area_km2": 413213.2327232361,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -413213.2327232361,
+          "binarised_gap_km2": -413213.2327232361,
+          "depth_only_gap_fraction_of_planet": -0.0005625830647666285,
+          "binarised_gap_fraction_of_planet": -0.0005625830647666285,
+          "straddling_ocean_area_km2": 89798532.32759315,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.5,
+          "fine_area_km2": 250079.45268893242,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -250079.45268893242,
+          "binarised_gap_km2": -250079.45268893242,
+          "depth_only_gap_fraction_of_planet": -0.00034047908873028037,
+          "binarised_gap_fraction_of_planet": -0.00034047908873028037,
+          "straddling_ocean_area_km2": 68312542.85444695,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 5.75,
+          "fine_area_km2": 143757.78463172913,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -143757.78463172913,
+          "binarised_gap_km2": -143757.78463172913,
+          "depth_only_gap_fraction_of_planet": -0.00019572387488458874,
+          "binarised_gap_fraction_of_planet": -0.00019572387488458874,
+          "straddling_ocean_area_km2": 52373527.64556044,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        },
+        {
+          "horizon_km": 6.0,
+          "fine_area_km2": 81136.3767478466,
+          "depth_only_area_km2": 0.0,
+          "binarised_area_km2": 0.0,
+          "depth_only_gap_km2": -81136.3767478466,
+          "binarised_gap_km2": -81136.3767478466,
+          "depth_only_gap_fraction_of_planet": -0.00011046585123627036,
+          "binarised_gap_fraction_of_planet": -0.00011046585123627036,
+          "straddling_ocean_area_km2": 41793758.91952443,
+          "gap_within_straddling_bound": true,
+          "depth_only_gap_above_bar": false,
+          "binarised_gap_above_bar": false
+        }
+      ],
+      "uniform_control": {
+        "worst_absolute_gap_km2": 0.0,
+        "tolerance_km2": 0.0,
+        "passes": true
+      },
+      "connectivity_coarse": [
+        {
+          "horizon_km": 0.0,
+          "deep_area_km2": 425913639.7070296,
+          "largest_body_km2": 424212443.3692447,
+          "detached_area_km2": 1701196.3377848864,
+          "detached_fraction_of_planet": 0.0023161510176558484,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.25,
+          "deep_area_km2": 424212950.8757446,
+          "largest_body_km2": 423645826.507076,
+          "detached_area_km2": 567124.3686685562,
+          "detached_fraction_of_planet": 0.0007721305615667289,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.5,
+          "deep_area_km2": 420242586.84219533,
+          "largest_body_km2": 419107279.3098007,
+          "detached_area_km2": 1135307.5323946476,
+          "detached_fraction_of_planet": 0.001545702655304396,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 0.75,
+          "deep_area_km2": 406629060.4184674,
+          "largest_body_km2": 404925485.765489,
+          "detached_area_km2": 1703574.6529784203,
+          "detached_fraction_of_planet": 0.002319389054932006,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 1.0,
+          "deep_area_km2": 383375502.74893326,
+          "largest_body_km2": 380537099.6797473,
+          "detached_area_km2": 2838403.069185972,
+          "detached_fraction_of_planet": 0.0038644394013760603,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 1.25,
+          "deep_area_km2": 337998116.7093549,
+          "largest_body_km2": 331193477.4963841,
+          "detached_area_km2": 6804639.212970793,
+          "detached_fraction_of_planet": 0.009264405105894422,
+          "bodies_above_area_bar": 3
+        },
+        {
+          "horizon_km": 1.5,
+          "deep_area_km2": 280159265.1398907,
+          "largest_body_km2": 113427253.0491128,
+          "detached_area_km2": 166732012.09077787,
+          "detached_fraction_of_planet": 0.2270029101888966,
+          "bodies_above_area_bar": 14
+        },
+        {
+          "horizon_km": 1.75,
+          "deep_area_km2": 206429000.28624958,
+          "largest_body_km2": 67487116.35348433,
+          "detached_area_km2": 138941883.93276525,
+          "detached_fraction_of_planet": 0.1891671047710587,
+          "bodies_above_area_bar": 20
+        },
+        {
+          "horizon_km": 2.0,
+          "deep_area_km2": 128174820.07713622,
+          "largest_body_km2": 47073295.27669144,
+          "detached_area_km2": 81101524.80044478,
+          "detached_fraction_of_planet": 0.11041840087933677,
+          "bodies_above_area_bar": 19
+        },
+        {
+          "horizon_km": 2.25,
+          "deep_area_km2": 77135334.320104,
+          "largest_body_km2": 34028716.929186106,
+          "detached_area_km2": 43106617.3909179,
+          "detached_fraction_of_planet": 0.058688955248797726,
+          "bodies_above_area_bar": 13
+        },
+        {
+          "horizon_km": 2.5,
+          "deep_area_km2": 39708152.40504712,
+          "largest_body_km2": 13047190.787046492,
+          "detached_area_km2": 26660961.618000627,
+          "detached_fraction_of_planet": 0.03629846362332339,
+          "bodies_above_area_bar": 9
+        },
+        {
+          "horizon_km": 2.75,
+          "deep_area_km2": 19855668.63083142,
+          "largest_body_km2": 3971332.6232694387,
+          "detached_area_km2": 15884336.007561982,
+          "detached_fraction_of_planet": 0.021626263936475872,
+          "bodies_above_area_bar": 6
+        },
+        {
+          "horizon_km": 3.0,
+          "deep_area_km2": 10209301.925668955,
+          "largest_body_km2": 2268489.4455230236,
+          "detached_area_km2": 7940812.480145931,
+          "detached_fraction_of_planet": 0.010811286444957015,
+          "bodies_above_area_bar": 6
+        },
+        {
+          "horizon_km": 3.25,
+          "deep_area_km2": 6239117.98402977,
+          "largest_body_km2": 2268489.4455230236,
+          "detached_area_km2": 3970628.5385067463,
+          "detached_fraction_of_planet": 0.005405945878163915,
+          "bodies_above_area_bar": 2
+        },
+        {
+          "horizon_km": 3.5,
+          "deep_area_km2": 3403437.591455698,
+          "largest_body_km2": 1134522.6062887907,
+          "detached_area_km2": 2268914.9851669073,
+          "detached_fraction_of_planet": 0.003089090679980903,
+          "bodies_above_area_bar": 1
+        },
+        {
+          "horizon_km": 3.75,
+          "deep_area_km2": 1134862.02277112,
+          "largest_body_km2": 567652.2199192047,
+          "detached_area_km2": 567209.8028519154,
+          "detached_fraction_of_planet": 0.0007722468788114436,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.25,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.5,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 4.75,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.25,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.5,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 5.75,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        },
+        {
+          "horizon_km": 6.0,
+          "deep_area_km2": 0.0,
+          "largest_body_km2": 0.0,
+          "detached_area_km2": 0.0,
+          "detached_fraction_of_planet": 0.0,
+          "bodies_above_area_bar": 0
+        }
+      ]
+    }
+  },
+  "connectivity_fine": [
+    {
+      "horizon_km": 0.0,
+      "deep_area_km2": 416859573.43604285,
+      "largest_body_km2": 416859573.43604285,
+      "detached_area_km2": 0.0,
+      "detached_fraction_of_planet": 0.0,
+      "bodies_above_area_bar": 1
+    },
+    {
+      "horizon_km": 0.25,
+      "deep_area_km2": 404972829.5891078,
+      "largest_body_km2": 400864377.8954465,
+      "detached_area_km2": 4108451.693661332,
+      "detached_fraction_of_planet": 0.00559358985198265,
+      "bodies_above_area_bar": 1
+    },
+    {
+      "horizon_km": 0.5,
+      "deep_area_km2": 387893202.20781374,
+      "largest_body_km2": 379316622.209629,
+      "detached_area_km2": 8576579.99818474,
+      "detached_fraction_of_planet": 0.011676873532815137,
+      "bodies_above_area_bar": 3
+    },
+    {
+      "horizon_km": 0.75,
+      "deep_area_km2": 366136991.6378927,
+      "largest_body_km2": 357898018.71719956,
+      "detached_area_km2": 8238972.920693159,
+      "detached_fraction_of_planet": 0.011217227013050045,
+      "bodies_above_area_bar": 3
+    },
+    {
+      "horizon_km": 1.0,
+      "deep_area_km2": 335095971.44657093,
+      "largest_body_km2": 314305821.1824079,
+      "detached_area_km2": 20790150.264163017,
+      "detached_fraction_of_planet": 0.028305449889610604,
+      "bodies_above_area_bar": 4
+    },
+    {
+      "horizon_km": 1.25,
+      "deep_area_km2": 293984206.7235959,
+      "largest_body_km2": 268028544.56280112,
+      "detached_area_km2": 25955662.160794795,
+      "detached_fraction_of_planet": 0.03533820993638771,
+      "bodies_above_area_bar": 5
+    },
+    {
+      "horizon_km": 1.5,
+      "deep_area_km2": 245096173.32992995,
+      "largest_body_km2": 161356680.28033382,
+      "detached_area_km2": 83739493.04959613,
+      "detached_fraction_of_planet": 0.11400995154818633,
+      "bodies_above_area_bar": 12
+    },
+    {
+      "horizon_km": 1.75,
+      "deep_area_km2": 193164838.84626162,
+      "largest_body_km2": 54273428.366136014,
+      "detached_area_km2": 138891410.4801256,
+      "detached_fraction_of_planet": 0.18909838598998718,
+      "bodies_above_area_bar": 20
+    },
+    {
+      "horizon_km": 2.0,
+      "deep_area_km2": 145008436.770755,
+      "largest_body_km2": 39711356.883610904,
+      "detached_area_km2": 105297079.88714409,
+      "detached_fraction_of_planet": 0.14336025379313783,
+      "bodies_above_area_bar": 20
+    },
+    {
+      "horizon_km": 2.25,
+      "deep_area_km2": 103203353.4253875,
+      "largest_body_km2": 24350889.2965073,
+      "detached_area_km2": 78852464.1288802,
+      "detached_fraction_of_planet": 0.10735634152292124,
+      "bodies_above_area_bar": 18
+    },
+    {
+      "horizon_km": 2.5,
+      "deep_area_km2": 69829220.98085123,
+      "largest_body_km2": 16017247.847324073,
+      "detached_area_km2": 53811973.13352716,
+      "detached_fraction_of_planet": 0.07326412217509029,
+      "bodies_above_area_bar": 13
+    },
+    {
+      "horizon_km": 2.75,
+      "deep_area_km2": 46892888.17109865,
+      "largest_body_km2": 5730844.018154144,
+      "detached_area_km2": 41162044.152944505,
+      "detached_fraction_of_planet": 0.05604145055812638,
+      "bodies_above_area_bar": 12
+    },
+    {
+      "horizon_km": 3.0,
+      "deep_area_km2": 31331596.996833503,
+      "largest_body_km2": 3606158.480224848,
+      "detached_area_km2": 27725438.516608655,
+      "detached_fraction_of_planet": 0.037747731528045315,
+      "bodies_above_area_bar": 6
+    },
+    {
+      "horizon_km": 3.25,
+      "deep_area_km2": 20562639.221803784,
+      "largest_body_km2": 1795610.672719717,
+      "detached_area_km2": 18767028.549084067,
+      "detached_fraction_of_planet": 0.025551002730781678,
+      "bodies_above_area_bar": 4
+    },
+    {
+      "horizon_km": 3.5,
+      "deep_area_km2": 13433725.900219798,
+      "largest_body_km2": 1204025.2477566004,
+      "detached_area_km2": 12229700.652463198,
+      "detached_fraction_of_planet": 0.016650537614436592,
+      "bodies_above_area_bar": 1
+    },
+    {
+      "horizon_km": 3.75,
+      "deep_area_km2": 8785861.795158327,
+      "largest_body_km2": 1014501.2119947672,
+      "detached_area_km2": 7771360.583163559,
+      "detached_fraction_of_planet": 0.010580580455929038,
+      "bodies_above_area_bar": 1
+    },
+    {
+      "horizon_km": 4.0,
+      "deep_area_km2": 5764127.637728453,
+      "largest_body_km2": 584515.1676288843,
+      "detached_area_km2": 5179612.470099568,
+      "detached_fraction_of_planet": 0.007051957747160992,
+      "bodies_above_area_bar": 0
+    },
+    {
+      "horizon_km": 4.25,
+      "deep_area_km2": 3665232.5374947786,
+      "largest_body_km2": 379629.8756592274,
+      "detached_area_km2": 3285602.6618355513,
+      "detached_fraction_of_planet": 0.004473294339871452,
+      "bodies_above_area_bar": 0
+    },
+    {
+      "horizon_km": 4.5,
+      "deep_area_km2": 2266632.225584984,
+      "largest_body_km2": 228416.3771955967,
+      "detached_area_km2": 2038215.8483893871,
+      "detached_fraction_of_planet": 0.0027749975747045704,
+      "bodies_above_area_bar": 0
+    },
+    {
+      "horizon_km": 4.75,
+      "deep_area_km2": 1299594.5621135235,
+      "largest_body_km2": 129972.68419909477,
+      "detached_area_km2": 1169621.8779144287,
+      "detached_fraction_of_planet": 0.0015924210760595934,
+      "bodies_above_area_bar": 0
+    },
+    {
+      "horizon_km": 5.0,
+      "deep_area_km2": 725446.4655542374,
+      "largest_body_km2": 86415.4432580471,
+      "detached_area_km2": 639031.0222961903,
+      "detached_fraction_of_planet": 0.0008700302955813989,
+      "bodies_above_area_bar": 0
+    },
+    {
+      "horizon_km": 5.25,
+      "deep_area_km2": 413213.2327232361,
+      "largest_body_km2": 65885.28566908836,
+      "detached_area_km2": 347327.9470541477,
+      "detached_fraction_of_planet": 0.00047288132484300235,
+      "bodies_above_area_bar": 0
+    },
+    {
+      "horizon_km": 5.5,
+      "deep_area_km2": 250079.45268893242,
+      "largest_body_km2": 50203.05666708946,
+      "detached_area_km2": 199876.39602184296,
+      "detached_fraction_of_planet": 0.00027212844735732876,
+      "bodies_above_area_bar": 0
+    },
+    {
+      "horizon_km": 5.75,
+      "deep_area_km2": 143757.78463172913,
+      "largest_body_km2": 27093.54068183899,
+      "detached_area_km2": 116664.24394989014,
+      "detached_fraction_of_planet": 0.00015883646193385825,
+      "bodies_above_area_bar": 0
+    },
+    {
+      "horizon_km": 6.0,
+      "deep_area_km2": 81136.3767478466,
+      "largest_body_km2": 15062.981269836426,
+      "detached_area_km2": 66073.39547801018,
+      "detached_fraction_of_planet": 8.995784835490384e-05,
+      "bodies_above_area_bar": 0
+    }
+  ],
+  "capacity_bar": {
+    "ocean_area_m2": 416859573436042.9,
+    "material_heat_transport_w": 50023148812325.14,
+    "material_heat_transport_pw": 0.05002314881232514,
+    "critical_fraction_by_passage_transport_pw": {
+      "0.1": 0.5002314881232514,
+      "0.25": 0.20009259524930056,
+      "0.5": 0.10004629762465028,
+      "1": 0.05002314881232514,
+      "2": 0.02501157440616257
+    },
+    "decision_procedure": "Take the passage's own heat transport from the first accepted ocean run and compare the measured fractional capacity error against material_heat_transport_w divided by it. Above one the passage needs its geometry carried at a finer support; at or below one the cell-mean bathymetry is admissible there.",
+    "sea_water_density_kg_m3": 1030.0
+  },
+  "provenance": {
+    "generator": "analysis/ocean_support_reduction.py",
+    "source_config": {
+      "schema_version": 1,
+      "source_build": "canonical-10m-carve2",
+      "baseline_climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+      "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+      "planet": {
+        "radius_earth": 1.2,
+        "gravity_m_s2": 12.81,
+        "mass_earth": 1.881009,
+        "rotation_hours": 30.0,
+        "obliquity_degrees": 32.0,
+        "eccentricity": 0.02,
+        "rotation_direction": "prograde",
+        "longitude_positive": "east",
+        "prime_meridian": "orogen_export_zero"
+      },
+      "star": {
+        "spectral_type": "K2.5V",
+        "activity": "active",
+        "surface_uv_relative_to_earth": 0.4,
+        "mass_solar": 0.8,
+        "luminosity_solar": 0.32359365692962827,
+        "effective_temperature_k": 4965.0,
+        "metallicity": 0.0
+      },
+      "orbit": {
+        "earth_solar_constant_w_m2": 1361.0,
+        "baseline_flux_earth": 0.945,
+        "sweep_flux_earth": [
+          0.9,
+          0.95,
+          1.0
+        ],
+        "longitude_vernal_equinox_degrees": 102.7
+      },
+      "atmosphere": {
+        "pN2_bar": 0.78025,
+        "pO2_bar": 0.21,
+        "pAr_bar": 0.0093,
+        "pCO2_bar": 0.00045,
+        "pCH4_bar": 1.6e-06,
+        "pN2O_bar": 3e-07,
+        "ozone": true
+      },
+      "radiation": {
+        "two_band_albedo": true,
+        "stellar_spectrum": "k25v"
+      },
+      "ocean": {
+        "horizontal_diffusion": false,
+        "horizontal_diffusivity_m2_s": 1000.0,
+        "salinity_psu": 34.7,
+        "cold_start": {
+          "sst_equator_k": 300.0,
+          "sst_pole_k": 273.0,
+          "sea_ice_thickness_m": 0.0
+        },
+        "sea_ice_fusion_j_kg": 328000.0
+      },
+      "surface": {
+        "mixed_layer_depth_m": 50.0,
+        "sea_ice": true,
+        "sea_ice_max_thickness_m": -1.0,
+        "sea_ice_lead_closing_m": 0.5,
+        "cryosphere": {
+          "sea_ice_density_kg_m3": 920.0,
+          "sea_ice_specific_heat_j_kg_k": 2070.0,
+          "sea_ice_conductivity_w_m_k": 2.03,
+          "snow_fusion_j_kg": 333444.87
+        },
+        "glaciers": {
+          "enabled": true,
+          "min_snow_depth_m": 2.0,
+          "initial_height_m": -1.0,
+          "max_snow_depth_m": -1.0,
+          "persistence_orbits": 1.0
+        },
+        "land_water_column": {
+          "scheme": "layered",
+          "layers": 3,
+          "lower_boundary": "impermeable",
+          "layer_thickness_m": [
+            0.02,
+            0.48,
+            1.0
+          ],
+          "soil_phase": false,
+          "evaporation_limiter": {
+            "theta_low": 0.0,
+            "exponent": 1
+          }
+        },
+        "soil_albedo_moisture": {
+          "enabled": true,
+          "saturation_at_empty_layer": 0.0,
+          "saturation_at_full_layer": 0.7609,
+          "shape_sigma_broadband": 1.0,
+          "shape_sigma_band1": 1.0,
+          "shape_sigma_band2": 1.0
+        }
+      },
+      "model": {
+        "resolution": "T21",
+        "latitudes": 32,
+        "longitudes": 64,
+        "layers": 10,
+        "vertical_grid": 4,
+        "model_top_hpa": 50.0,
+        "precision_bytes": 8,
+        "compile_flags": {
+          "f90_opts": [
+            "-O2",
+            "-cpp",
+            "-ffpe-trap=invalid,zero,overflow",
+            "-ffpe-summary=none",
+            "-march=znver4",
+            "-funroll-loops",
+            "-g"
+          ],
+          "profiles": {
+            "production": [],
+            "checked": [
+              "-fcheck=all"
+            ],
+            "poisoned": [
+              "-fcheck=all",
+              "-finit-real=snan",
+              "-Og"
+            ]
+          },
+          "profile": "production"
+        },
+        "ncpus": 16,
+        "timestep_minutes": 45.0,
+        "physics_filter": "gp|exp|sp",
+        "filter_kappa": 8.0,
+        "filter_power": 16,
+        "cold_start_seed": 88888888,
+        "hyperdiffusion": {
+          "eddy_wind_m_s": 9.838,
+          "order_alpha": 4,
+          "cutoff_fraction": 0.381,
+          "ratios_to_vorticity": {
+            "divergence": 0.2,
+            "temperature": 2.533,
+            "humidity": 0.333
+          },
+          "timescales_days": {
+            "T21": {
+              "divergence": 0.2691,
+              "vorticity": 1.3455,
+              "temperature": 3.4082,
+              "humidity": 0.4481
+            },
+            "T42": {
+              "divergence": 0.1346,
+              "vorticity": 0.6728,
+              "temperature": 1.7042,
+              "humidity": 0.224
+            },
+            "T85": {
+              "divergence": 0.0665,
+              "vorticity": 0.3324,
+              "temperature": 0.842,
+              "humidity": 0.1107
+            },
+            "T127": {
+              "divergence": 0.0445,
+              "vorticity": 0.2225,
+              "temperature": 0.5636,
+              "humidity": 0.0741
+            },
+            "T170": {
+              "divergence": 0.0333,
+              "vorticity": 0.1663,
+              "temperature": 0.4212,
+              "humidity": 0.0554
+            }
+          }
+        },
+        "cold_start_profile": {
+          "surface_temperature_k": 279.83
+        },
+        "semi_implicit_reference_temperature_k": 241.41,
+        "rayleigh_sponge_rotations": [
+          20.0,
+          100.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "output_type": ".nc",
+        "uniform_land_surface": true,
+        "energy_diagnostics": true,
+        "energy_diagnostics_3d": false,
+        "energy_fixer": true,
+        "cloud_absorption_scale": 1.192,
+        "cloud_water_reference_kg_m3": 0.00021,
+        "precip_reevaporation_gamma": "derived",
+        "cloud_fraction_subgrid_width": "derived",
+        "asymptotic_mixing_length_m": "derived",
+        "land_longwave_emissivity": 0.930897,
+        "sea_longwave_emissivity": 0.98,
+        "ozone_scale": 0.794,
+        "ozone_uv_weight": 0.335,
+        "ozone_visible_weight": 0.908,
+        "h2o_sw_weight": 1.351,
+        "h2o_sw_level": 1.161,
+        "h2o_sw_level_bracket": [
+          1.128,
+          1.205
+        ],
+        "co2_sw_weight": 1.51,
+        "roughness_source": "lithology",
+        "soil_water_source": "pedology",
+        "lake_dwmax_m": 0.2,
+        "land_albedo_source": "vegetated",
+        "vegetation_albedo": 0.165,
+        "vegetation_albedo_bracket": [
+          0.15,
+          0.171
+        ],
+        "vegetation_albedo_bands": [
+          0.074,
+          0.222
+        ],
+        "tree_albedo": 0.143,
+        "tree_albedo_bracket": [
+          0.13,
+          0.148
+        ],
+        "grass_albedo": 0.209,
+        "grass_albedo_bracket": [
+          0.19,
+          0.217
+        ],
+        "lithology_albedo_overrides": {
+          "playa_clastic": {
+            "albedo": 0.23,
+            "replaces": 0.19
+          }
+        },
+        "barren_rock_classes": [
+          "evaporite",
+          "playa_clastic"
+        ],
+        "geography_land_threshold": 0.5,
+        "seasonal_samples_per_orbit": 32,
+        "regular_output_bins_per_orbit": 12
+      },
+      "stellar_cycle": {
+        "components": {
+          "medium": {
+            "period_earth_years": 11.0,
+            "amplitude_flux_peak_to_peak": 0.025,
+            "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
+          },
+          "long": {
+            "period_earth_years": 57.0,
+            "amplitude_flux_peak_to_peak": 0.035,
+            "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+          }
+        },
+        "total_amplitude_flux_peak_to_peak": 0.06,
+        "alignment_recurrence_earth_years": 314
+      }
+    },
+    "config_sha256": "5b5af300556abfb825d78463bf50c4db95ead31078f368c5825474f2aa24ed2d",
+    "git_commit": "0b7aadb3ba2078e07bd2ae5e21b6e5e554e8d0cc"
+  }
+}

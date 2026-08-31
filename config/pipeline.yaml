@@ -491,6 +491,17 @@ steps:
       active canonical export and preserve extensive quantities on their
       declared wet support. A report is not acceptance unless every support
       identity and conservation check passes.
+      CONSERVATION IS NOT SUFFICIENT AND THE MEASUREMENT SAYS SO. Ocean volume
+      is affine in depth, so a support built entirely on cell-mean depths
+      preserves it exactly and still misplaces the ocean area on either side of
+      a depth horizon by 12 to 49 times the loop's own planetary-area bar, at
+      every rung including T170 and worst on the 36 x 36 GOLDSTEIN candidate.
+      The support therefore carries a per-cell depth DISTRIBUTION --
+      `lib/gridding.py:cell_quantiles` is the operator -- with the probability
+      vector it is resolved at declared, and it reports the horizon at which
+      this world's deep water separates and the bodies it separates into, which
+      no cell depth carries at any resolution measured.
+      `notes/audits/ocean-support-nonlinear-reductions.md` is the finding.
 
   - id: ocean_forcing
     script: ocean/scripts/build_forcing.py

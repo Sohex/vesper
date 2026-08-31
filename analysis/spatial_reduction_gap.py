@@ -169,8 +169,8 @@ from build_surface_albedo import (MODE_FOREST_FRACTION, ROCK_BANDS,  # noqa: E40
 # the module that owns it. `sadeghi_mix` is imported rather than restated
 # because the compiled model runs the same shape and `soil_albedo_wetting.py`
 # already checks the two against each other.
-from gridding import (cell_expectation, cell_mean, gaussian_grid,  # noqa: E402
-                      require_gaussian_rows)
+from gridding import (cell_expectation, cell_mean, gaussian_latitudes,  # noqa: E402
+                      require_same_rows)
 from climatology import annual_mean                             # noqa: E402
 from paths import best_available_climatology                    # noqa: E402
 from stellar import band_fractions                              # noqa: E402
@@ -914,10 +914,13 @@ def band_downward_shortwave(grid: tuple[int, int]) -> dict | None:
     not built on is worse than no flux, which is the disposition
     `analysis/coastline_flux_bracket.py` already takes for the same reason.
 
-    The two axes are joined by INDEX and never by label. `require_same_rows`
-    refuses a climatology whose Gaussian rows are not this rung's, and the
-    columns are the identity because the export and the model label the same
-    columns differently and only the labels differ. `CLAUDE.md` rule 3.
+    The two axes are joined by INDEX and never by label. `require_same_rows` is
+    the door for an axis read off a CLIMATOLOGY: netCDF stores it as float32, so
+    the constructed Gauss-Legendre nodes and the axis on disk agree to a few
+    parts in a million and no closer, and `require_gaussian_rows`'s float64 bar
+    refuses a correct axis for that reason alone. The columns are the identity,
+    because the export and the model label the same columns differently and only
+    the labels differ. `CLAUDE.md` rule 3.
     """
     from netCDF4 import Dataset
     clim = best_available_climatology()
@@ -927,9 +930,9 @@ def band_downward_shortwave(grid: tuple[int, int]) -> dict | None:
         shape = (len(ds.dimensions["lat"]), len(ds.dimensions["lon"]))
         if shape != grid:
             return None
-        require_gaussian_rows(gaussian_grid(grid[0], grid[1]),
-                              np.asarray(ds["lat"][:], dtype=np.float64),
-                              "the accepted climatology")
+        require_same_rows(gaussian_latitudes(grid[0]),
+                          np.asarray(ds["lat"][:], dtype=np.float64),
+                          "the accepted climatology against this rung")
         centres = np.asarray(ds["time"][:], dtype=np.float64)
         bands = [annual_mean(np.asarray(ds[n][:], dtype=np.float64), centres).ravel()
                  for n in ("rsds1", "rsds2")]
