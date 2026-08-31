@@ -1,201 +1,117 @@
 {
-  "generated": "2026-08-27T10:17:11.337702+00:00",
+  "generated": "2026-08-31T00:00:22.712075+00:00",
   "basis": "chosen",
   "generator": "exoplasim/scripts/derive_design_flux.py",
-  "generator_sha256": "ae0c00f2447a227a130d5e1d37c6a8653d490ace1e8de55e0ab6f7fb45ffa62b",
+  "generator_sha256": "8e0ab72139896a50a742593709942a679104df050dd918b1aa000f421912d993",
   "design_flux": 0.945,
   "chosen": {
     "flux": 0.945,
-    "refused_at": "band_amplification_sign",
-    "refusal": "a band's warm-season amplification is not positive; the projection cannot be trusted. -80 to -70 amp_warm -0.004; -70 to -60 amp_warm -0.173; +60 to +70 amp_warm -0.361; +70 to +80 amp_warm -0.3",
-    "reopens_when": "a projection method that can represent a band whose seasonal range CONTRACTS with warming. The per-band amplification is a ratio to the global mean change and is undefined in sign for such a band, so what reopens the derivation is a different projection and not another flux point: the sign is a property of this world's seasonal response, and every run at every flux would show it",
+    "refused_at": "cold_extreme_cap_admits_no_candidate",
+    "refusal": "the declared cold-extreme cap 0.05 admits no candidate in 0.7775 to 1.0075, the range the projection is a field on inside the declared 0.7775 to 1.11. The smallest cold-extreme land fraction any scored candidate reaches is 0.11696. This world cannot be placed at any flux the search carries without exceeding the cap; that is a result about the cap and the terrain together, and it is not resolved by moving either one after the fact",
+    "reopens_when": "reopen when the smallest cold-extreme land fraction any scored candidate reaches falls to the declared cap or below -- which is a property of the terrain under this star, so in practice a future carve that removes cold-extreme land, or a re-declaration of the cap with a new argument. Until one of those happens, re-running the derivation at any flux returns this same refusal.",
     "evidence": "notes/audits/design-flux-two-point-response.md",
-    "evidence_sha256": "2b7cbd5e3a1e5a23483823ce0c2c80e2bf8bd6543695628edd9d40b4f1a737a8",
+    "evidence_sha256": "b842f27f354f6af84152fa570be0c1e19813d8d8982b571a2ca68a2754be6210",
     "measured": {
-      "bands_with_non_positive_warm_amplification": [
-        {
-          "band": "-80 to -70",
-          "warm_c_at_0.945": 37.04,
-          "amp_warm": -0.004,
-          "cold_c_at_0.945": -67.55,
-          "amp_cold": 2.252
-        },
-        {
-          "band": "-70 to -60",
-          "warm_c_at_0.945": 26.57,
-          "amp_warm": -0.173,
-          "cold_c_at_0.945": -60.2,
-          "amp_cold": 2.949
-        },
-        {
-          "band": "+60 to +70",
-          "warm_c_at_0.945": 21.22,
-          "amp_warm": -0.361,
-          "cold_c_at_0.945": -61.45,
-          "amp_cold": 2.278
-        },
-        {
-          "band": "+70 to +80",
-          "warm_c_at_0.945": 27.91,
-          "amp_warm": -0.3,
-          "cold_c_at_0.945": -67.05,
-          "amp_cold": 1.891
-        }
+      "cap": 0.05,
+      "scored_range": [
+        0.7775,
+        1.0075
       ],
-      "all_bands": [
-        {
-          "band": "-90 to -80",
-          "warm_c_at_0.945": 42.85,
-          "amp_warm": 0.475,
-          "cold_c_at_0.945": -71.13,
-          "amp_cold": 1.107
-        },
-        {
-          "band": "-80 to -70",
-          "warm_c_at_0.945": 37.04,
-          "amp_warm": -0.004,
-          "cold_c_at_0.945": -67.55,
-          "amp_cold": 2.252
-        },
-        {
-          "band": "-70 to -60",
-          "warm_c_at_0.945": 26.57,
-          "amp_warm": -0.173,
-          "cold_c_at_0.945": -60.2,
-          "amp_cold": 2.949
-        },
-        {
-          "band": "-60 to -50",
-          "warm_c_at_0.945": 13.15,
-          "amp_warm": 0.455,
-          "cold_c_at_0.945": -31.68,
-          "amp_cold": 2.346
-        },
-        {
-          "band": "-50 to -40",
-          "warm_c_at_0.945": 15.33,
-          "amp_warm": 1.179,
-          "cold_c_at_0.945": -12.46,
-          "amp_cold": 1.47
-        },
-        {
-          "band": "-40 to -30",
-          "warm_c_at_0.945": 23.8,
-          "amp_warm": 1.266,
-          "cold_c_at_0.945": -4.79,
-          "amp_cold": 1.111
-        },
-        {
-          "band": "-30 to -20",
-          "warm_c_at_0.945": 25.68,
-          "amp_warm": 0.996,
-          "cold_c_at_0.945": 5.33,
-          "amp_cold": 0.936
-        },
-        {
-          "band": "-20 to -10",
-          "warm_c_at_0.945": 23.9,
-          "amp_warm": 0.784,
-          "cold_c_at_0.945": 10.71,
-          "amp_cold": 0.854
-        },
-        {
-          "band": "-10 to +0",
-          "warm_c_at_0.945": 20.67,
-          "amp_warm": 0.735,
-          "cold_c_at_0.945": 14.57,
-          "amp_cold": 0.79
-        },
-        {
-          "band": "+0 to +10",
-          "warm_c_at_0.945": 20.81,
-          "amp_warm": 0.823,
-          "cold_c_at_0.945": 16.05,
-          "amp_cold": 0.837
-        },
-        {
-          "band": "+10 to +20",
-          "warm_c_at_0.945": 27.44,
-          "amp_warm": 1.195,
-          "cold_c_at_0.945": 13.01,
-          "amp_cold": 1.036
-        },
-        {
-          "band": "+20 to +30",
-          "warm_c_at_0.945": 29.58,
-          "amp_warm": 1.212,
-          "cold_c_at_0.945": 5.99,
-          "amp_cold": 0.983
-        },
-        {
-          "band": "+30 to +40",
-          "warm_c_at_0.945": 23.02,
-          "amp_warm": 1.143,
-          "cold_c_at_0.945": -3.1,
-          "amp_cold": 0.964
-        },
-        {
-          "band": "+40 to +50",
-          "warm_c_at_0.945": 12.81,
-          "amp_warm": 0.898,
-          "cold_c_at_0.945": -22.39,
-          "amp_cold": 1.551
-        },
-        {
-          "band": "+50 to +60",
-          "warm_c_at_0.945": 12.9,
-          "amp_warm": 0.324,
-          "cold_c_at_0.945": -43.91,
-          "amp_cold": 2.303
-        },
-        {
-          "band": "+60 to +70",
-          "warm_c_at_0.945": 21.22,
-          "amp_warm": -0.361,
-          "cold_c_at_0.945": -61.45,
-          "amp_cold": 2.278
-        },
-        {
-          "band": "+70 to +80",
-          "warm_c_at_0.945": 27.91,
-          "amp_warm": -0.3,
-          "cold_c_at_0.945": -67.05,
-          "amp_cold": 1.891
-        },
-        {
-          "band": "+80 to +90",
-          "warm_c_at_0.945": 21.12,
-          "amp_warm": 0.229,
-          "cold_c_at_0.945": -68.45,
-          "amp_cold": 1.31
-        }
-      ],
-      "sources": {
-        "base": {
-          "path": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-          "flux": 0.945,
-          "climatology_stage": "bootstrap",
-          "land_albedo_source": "vegetated"
-        },
-        "bracket": {
-          "run": "run_b45380e61f90",
-          "flux": 1.0,
-          "tail_orbits": [
-            60,
-            61,
-            62,
-            63,
-            64,
-            65,
-            66,
-            67,
-            68,
-            69
-          ],
-          "land_albedo_source": "vegetated"
-        },
-        "global_mean_span_k": -8.532,
-        "slope_k_per_unit_flux": 159.7
+      "minimum_cold_extreme_land_fraction": 0.11696,
+      "cold_extreme_land_fraction_by_flux": {
+        "0.7775": 0.37335,
+        "0.78": 0.3706,
+        "0.7825": 0.36785,
+        "0.785": 0.36653,
+        "0.7875": 0.3651,
+        "0.79": 0.36378,
+        "0.7925": 0.36258,
+        "0.795": 0.36138,
+        "0.7975": 0.36138,
+        "0.8": 0.35875,
+        "0.8025": 0.35478,
+        "0.805": 0.35478,
+        "0.8075": 0.35203,
+        "0.81": 0.35071,
+        "0.8125": 0.34939,
+        "0.815": 0.34939,
+        "0.8175": 0.34939,
+        "0.82": 0.34939,
+        "0.8225": 0.34687,
+        "0.825": 0.34446,
+        "0.8275": 0.34446,
+        "0.83": 0.34314,
+        "0.8325": 0.34062,
+        "0.835": 0.33822,
+        "0.8375": 0.33558,
+        "0.84": 0.33306,
+        "0.8425": 0.33041,
+        "0.845": 0.32934,
+        "0.8475": 0.32588,
+        "0.85": 0.3248,
+        "0.8525": 0.32228,
+        "0.855": 0.31856,
+        "0.8575": 0.31629,
+        "0.86": 0.31629,
+        "0.8625": 0.31282,
+        "0.865": 0.31162,
+        "0.8675": 0.3091,
+        "0.87": 0.3091,
+        "0.8725": 0.3091,
+        "0.875": 0.30682,
+        "0.8775": 0.30682,
+        "0.88": 0.30254,
+        "0.8825": 0.30133,
+        "0.885": 0.29693,
+        "0.8875": 0.29479,
+        "0.89": 0.29372,
+        "0.8925": 0.29372,
+        "0.895": 0.29172,
+        "0.8975": 0.28757,
+        "0.9": 0.2833,
+        "0.9025": 0.27769,
+        "0.905": 0.27435,
+        "0.9075": 0.27342,
+        "0.91": 0.27235,
+        "0.9125": 0.27235,
+        "0.915": 0.27049,
+        "0.9175": 0.27049,
+        "0.92": 0.26956,
+        "0.9225": 0.26662,
+        "0.925": 0.26476,
+        "0.9275": 0.26226,
+        "0.93": 0.26026,
+        "0.9325": 0.25933,
+        "0.935": 0.25747,
+        "0.9375": 0.25654,
+        "0.94": 0.2536,
+        "0.9425": 0.25146,
+        "0.945": 0.24681,
+        "0.9475": 0.24295,
+        "0.95": 0.23973,
+        "0.9525": 0.23401,
+        "0.955": 0.22986,
+        "0.9575": 0.22908,
+        "0.96": 0.22331,
+        "0.9625": 0.21896,
+        "0.965": 0.21211,
+        "0.9675": 0.20777,
+        "0.97": 0.2042,
+        "0.9725": 0.19969,
+        "0.975": 0.1975,
+        "0.9775": 0.19453,
+        "0.98": 0.19095,
+        "0.9825": 0.18223,
+        "0.985": 0.17881,
+        "0.9875": 0.17364,
+        "0.99": 0.16553,
+        "0.9925": 0.16131,
+        "0.995": 0.15491,
+        "0.9975": 0.14647,
+        "1.0": 0.14069,
+        "1.0025": 0.13772,
+        "1.005": 0.12665,
+        "1.0075": 0.11696
       }
     },
     "note": "the derivation was RUN and refused; this record exists because it did. `refusal` is the exception it raised and `measured` is what it had read when it raised. Re-run this script without --chosen to reproduce it"
