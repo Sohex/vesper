@@ -19,6 +19,7 @@ from autocorrelation import (RELIABLE_SPAN_MULTIPLE, integrated_time,
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = PROJECT_ROOT / "biosphere/config/equilibrium_window.yaml"
 MEMORY_ESTIMATOR = "lib/autocorrelation.py:integrated_time"
+DRIFT_ESTIMATOR = "lib/lpj_output.py:drift_bound"
 ACCEPTANCE_PATH = PROJECT_ROOT / "biosphere/config/lpj_acceptance.yaml"
 DRIVER_MAGIC = b"VESPDRV8"
 
@@ -64,7 +65,7 @@ class ReducedTable:
 
 def read_policy(path: Path = POLICY_PATH) -> dict:
     policy = yaml.safe_load(path.read_text())
-    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/3":
+    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/4":
         raise EquilibriumWindowError("unsupported equilibrium-window contract")
     cycles = policy.get("complete_forcing_cycles")
     if not isinstance(cycles, int) or cycles < 3:
@@ -74,6 +75,14 @@ def read_policy(path: Path = POLICY_PATH) -> dict:
                 "absolute_scale_floor"):
         if not isinstance(trend.get(key), (int, float)) or trend[key] <= 0:
             raise EquilibriumWindowError(f"trend.{key} must be positive")
+    rate = trend.get("maximum_false_acceptance_rate")
+    if not isinstance(rate, (int, float)) or not 0 < rate < 1:
+        raise EquilibriumWindowError(
+            "trend.maximum_false_acceptance_rate is the rate this contract "
+            "controls and must lie in (0, 1)")
+    if trend.get("drift_bound_estimator") != DRIFT_ESTIMATOR:
+        raise EquilibriumWindowError(
+            f"trend.drift_bound_estimator must name {DRIFT_ESTIMATOR}")
     cell = trend.get("cell_fraction", {})
     if cell.get("null_statistic") != "maximum_over_detrended_windows_of_this_run":
         raise EquilibriumWindowError(
@@ -247,40 +256,26 @@ def _cell_fraction(cycle_means: np.ndarray, policy: dict) -> np.ndarray:
 
 def _trend(cycle_means: np.ndarray, policy: dict,
            limits: np.ndarray) -> tuple[list[dict], bool]:
-    # cycle_means: cycle, cell, field
-    ncycle, ncell, nfield = cycle_means.shape
-    x = np.arange(ncycle, dtype=float)
-    x -= x.mean()
-    denominator = float(np.sum(x * x))
-    floor = float(policy["trend"]["absolute_scale_floor"])
-    sigma = float(policy["trend"]["slope_standard_errors"])
+    """The PER-CELL half: drift that leaves the spatial mean flat.
 
-    spatial = cycle_means.mean(axis=1)
-    spatial_slope = np.einsum("t,tf->f", x, spatial) / denominator
-    spatial_mean = spatial.mean(axis=0)
-    spatial_residual = spatial - (spatial_mean[None]
-                                  + x[:, None] * spatial_slope[None])
-    spatial_se = np.sqrt(np.sum(spatial_residual * spatial_residual, axis=0)
-                         / (ncycle - 2) / denominator)
-    spatial_drift = spatial_slope * (ncycle - 1)
-    spatial_relative = np.abs(spatial_drift) / np.maximum(np.abs(spatial_mean), floor)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        spatial_significance = np.where(
-            spatial_se > 0, np.abs(spatial_slope) / spatial_se,
-            np.where(np.abs(spatial_slope) > 0, np.inf, 0.0))
-    global_trending = (
-        (spatial_relative > policy["trend"]["relative_end_to_end_limit"])
-        & (spatial_significance > sigma))
+    `_settled_within` owns the spatial mean and owns it over the whole record.
+    What is left here is the one case a spatial mean cannot see, and it is why
+    this half exists at all: opposed regional drifts that cancel. It is still a
+    slope over the reported window against a limit measured from the run's own
+    detrended windows, which means its size is calibrated rather than derived
+    and its family false-refusal rate is well above the level it declares. That
+    errs toward REFUSING, so a pass through it is evidence and a refusal through
+    it is not; `biosphere/notes/equilibrium-trend-null.md` carries the numbers
+    and the analytic replacement is tracked.
+    """
+    # cycle_means: cycle, cell, field
+    nfield = cycle_means.shape[2]
     fractions = _cell_fraction(cycle_means, policy)
-    fraction_trending = fractions > limits
-    rejected = global_trending | fraction_trending
+    rejected = fractions > limits
     diagnostics = [{
-        "spatial_mean_relative_end_to_end_change": float(spatial_relative[i]),
-        "spatial_mean_slope_standard_errors": float(spatial_significance[i]),
         "trending_cell_fraction": float(fractions[i]),
         "trending_cell_fraction_limit": float(limits[i]),
-        "global_trending": bool(global_trending[i]),
-        "cell_fraction_trending": bool(fraction_trending[i]),
+        "cell_fraction_trending": bool(rejected[i]),
         "rejected": bool(rejected[i]),
     } for i in range(nfield)]
     return diagnostics, bool(rejected.any())
@@ -494,6 +489,8 @@ def timescale_report(run_dir: Path, *, policy_path: Path = POLICY_PATH) -> dict:
     run_dir = Path(run_dir)
     policy = read_policy(policy_path)
     floor = float(policy["trend"]["absolute_scale_floor"])
+    limit = float(policy["trend"]["relative_end_to_end_limit"])
+    alpha = float(policy["trend"]["maximum_false_acceptance_rate"])
     outputs = yaml.safe_load(ACCEPTANCE_PATH.read_text())["stability_outputs"]
     tables = {}
     for output in outputs:
@@ -516,12 +513,23 @@ def timescale_report(run_dir: Path, *, policy_path: Path = POLICY_PATH) -> dict:
                 continue
             flat = spatial - np.polyval(np.polyfit(x, spatial, 1), x) + spatial.mean()
             memory = integrated_time(flat)
+            bound = drift_bound(spatial, alpha, floor)
             fields[name] = {
                 "memory": {"tau_cycles": float(memory["tau"]),
                            "effective_samples": float(memory["effective_sample_size"]),
                            "reliable": bool(memory["reliable"]),
                            "lag1": float(memory["lag1"])},
                 "relaxation": relaxation_time(spatial, memory["tau"]),
+                # The RECORD this field needs, recorded on a refusal as well as
+                # on a pass because a run refused for not resolving its own
+                # drift is exactly the run that says how long the next one has
+                # to be. `lib/run_lengths.py` reads it and states no number of
+                # its own.
+                "drift": {**bound,
+                          "settled": bool(bound["upper_bound"] <= limit),
+                          "record_cycles_for_bound": float(cycles_for_bound(
+                              bound["relative_standard_error"], span,
+                              bound["tau_cycles"], alpha, limit))},
             }
         tables[output] = {"record_cycles": int(span),
                           "forcing_cycle_years": int(cycle_years),
@@ -539,37 +547,30 @@ def timescale_report(run_dir: Path, *, policy_path: Path = POLICY_PATH) -> dict:
             "tables": tables}
 
 
-def _memory_adequacy(record: np.ndarray, names: list[str],
-                     policy: dict) -> tuple[list[dict], list[str]]:
-    """Can this retained record establish the memory time of what it is judging?
+def _settled_within(record: np.ndarray, names: list[str],
+                    policy: dict) -> tuple[list[dict], list[str]]:
+    """Is every assessed field's drift demonstrably inside the tolerance?
 
-    THE MEASUREMENT THAT FORCED THIS. At fixed forcing the integrated
-    autocorrelation time of these spatial-mean series is 9 to 125 complete forcing
-    cycles, against an acceptance window of 10. A trend fitted inside one memory
-    time is not a trend: it is one smooth excursion of a process that has not had
-    time to sample its own distribution, its residuals are small because the
-    process is smooth on that scale, and the ordinary least-squares standard error
-    it is judged against is correspondingly small. That is the whole of the 0.47 to
-    0.86 per-cell flag rate this contract measures against a nominal 0.081.
-    `biosphere/notes/equilibrium-trend-null.md` carries the measurement.
+    THE GLOBAL HALF OF THE CONTRACT, and it runs on the WHOLE RETAINED RECORD
+    rather than on the reported window. Those are two different spans and only
+    one number used to name both: the window is how much of the run a consumer
+    reads a value over, and the record is how much of it the equilibrium claim
+    is made from. A drift test on the window was a slope fitted inside one
+    memory time, which is what `drift_bound` replaces.
 
-    WHAT THIS GUARD DOES, AND WHAT IT DOES NOT. It applies
-    `lib/autocorrelation.py`'s declared span bar, fixed before it was applied to
-    any series here, to BOTH spans that have to carry the memory time: the retained
-    record, which is where tau is estimated, and the acceptance window, which is
-    where the trend test below actually runs. A statistic computed over a span
-    shorter than that span's own memory time is not supported by it, and the window
-    is the span the slope is fitted on.
-
-    It does not repair the trend test. That test is valid only where its window is
-    long against tau; on this model today it is nowhere, so this guard fails closed
-    and the test is unreachable. Its replacement is tracked rather than improvised.
+    A field is settled when the upper bound on its end-to-end relative drift is
+    inside `relative_end_to_end_limit`, and it is REFUSED otherwise, whether the
+    bound is wide because the field is drifting or wide because the record is
+    short. Those two are the same refusal on purpose: an acceptance gate that
+    passes a run it cannot resolve is asserting something it did not measure.
+    The refusal names which of the two it is, by carrying both the drift
+    estimate and the record that would answer it.
     """
     floor = float(policy["trend"]["absolute_scale_floor"])
-    window = int(policy["complete_forcing_cycles"])
+    limit = float(policy["trend"]["relative_end_to_end_limit"])
+    alpha = float(policy["trend"]["maximum_false_acceptance_rate"])
     diagnostics, refused = [], []
     span = record.shape[0]
-    x = np.arange(span, dtype=float)
     for index, name in enumerate(names):
         spatial = record[:, :, index].mean(axis=1)
         level = float(abs(spatial.mean()))
@@ -577,26 +578,27 @@ def _memory_adequacy(record: np.ndarray, names: list[str],
             diagnostics.append({
                 "field": name, "assessed": False,
                 "reason": "the spatial mean is zero or exactly constant, so it "
-                          "carries no memory to establish"})
+                          "carries no drift to bound"})
             continue
-        flat = spatial - np.polyval(np.polyfit(x, spatial, 1), x) + spatial.mean()
-        memory = integrated_time(flat)
-        needed = float(RELIABLE_SPAN_MULTIPLE * memory["tau"])
-        row = {"field": name, "assessed": True, "tau_cycles": float(memory["tau"]),
-               "effective_samples": float(memory["effective_sample_size"]),
-               "record_supports_tau": bool(memory["reliable"]),
-               "window_supports_a_trend": bool(window >= needed),
-               "cycles_required": needed}
-        diagnostics.append(row)
-        if not memory["reliable"]:
-            refused.append(
-                f"{name} (a {span}-cycle record cannot establish a memory time of "
-                f"{memory['tau']:.1f} cycles, which needs {needed:.0f})")
-        elif window < needed:
-            refused.append(
-                f"{name} (memory time {memory['tau']:.1f} cycles, so a trend over "
-                f"the {window}-cycle window is inside one memory time; it needs "
-                f"{needed:.0f})")
+        bound = drift_bound(spatial, alpha, floor)
+        needed = cycles_for_bound(bound["relative_standard_error"], span,
+                                  bound["tau_cycles"], alpha, limit)
+        settled = bool(bound["upper_bound"] <= limit)
+        diagnostics.append({"field": name, "assessed": True, "settled": settled,
+                            "record_cycles": int(span), **bound,
+                            "record_cycles_for_bound": float(needed)})
+        if settled:
+            continue
+        length = ("no finite record" if not np.isfinite(needed)
+                  else f"{needed:.0f} cycles")
+        refused.append(
+            f"{name} (drift {bound['relative_drift']:.4f} +/- "
+            f"{bound['relative_standard_error']:.4f} bounds at "
+            f"{bound['upper_bound']:.4f} against a limit of {limit:g}; memory "
+            f"time {bound['tau_cycles']:.1f} cycles leaves "
+            f"{bound['effective_samples_per_half']:.1f} effective samples per "
+            f"half of a {span}-cycle record, and a SETTLED field of this "
+            f"scatter would resolve the limit at {length})")
     return diagnostics, refused
 
 
@@ -720,11 +722,12 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
             "time its acceptance depends on cannot be established")
     record = cube[:usable].reshape(
         usable // cycle_years, cycle_years, len(cells), len(names)).mean(axis=1)
-    memory, unestablished = _memory_adequacy(record, names, policy)
-    if unestablished:
+    drift, unsettled = _settled_within(record, names, policy)
+    if unsettled:
         raise EquilibriumWindowError(
-            f"{path}'s retained record is too short to judge: "
-            f"{'; '.join(unestablished)}")
+            f"{path}'s retained record does not bound its drift inside "
+            f"{policy['trend']['relative_end_to_end_limit']:g}: "
+            f"{'; '.join(unsettled)}")
     limits, null = _cell_fraction_null(cube, years, window_years, cycle_years, policy)
     trends, rejected = _trend(cycle_means, policy, limits)
     for name, diagnostic in zip(names, trends):
@@ -813,7 +816,8 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
                    "complete_forcing_cycles": policy["complete_forcing_cycles"],
                    "forcing_cycle_years": cycle_years},
         "trend": {"rule": policy["trend"], "cell_fraction_null": null,
-                  "memory": memory, "fields": trends, "verdict": "PASS"},
+                  "record_cycles": int(record.shape[0]), "drift": drift,
+                  "fields": trends, "verdict": "PASS"},
         "uncertainty": uncertainty,
         "peers": peer_records,
     }

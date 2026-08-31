@@ -453,7 +453,13 @@ def selftest() -> dict:
         run = root / "run"
         run.mkdir()
         cells = [(0.0, 10.0), (20.0, -10.0)]
-        years = range(12)
+        # The equilibrium contract measures its own trending-cell null on the
+        # record BEFORE the acceptance window, so a fixture has to retain one:
+        # at a per-field false-refusal rate of 0.05 that is 19 null windows
+        # beside the acceptance window, and 20 windows of ten one-year cycles is
+        # 200 years plus the window. A fixture shorter than that exercises the
+        # insufficient-record refusal instead of the checks it was written for.
+        years = range(210)
         driver = root / "driver.bin"
         _write_driver(driver, cells, 1000.0)
         contract = read_contract()
@@ -469,7 +475,7 @@ def selftest() -> dict:
             (run / output).write_text("\n".join(merged) + "\n", encoding="utf-8")
         manifest = {
             "run_id": "fixture", "source_build": "fixture",
-            "physical": {"nyear": 12, "ranks": 2}, "ranks": 2,
+            "physical": {"nyear": len(years), "ranks": 2}, "ranks": 2,
             "forcing": {"cells": 2, "cycle_years": 1},
             "inputs": {"driver": {"path": str(driver), "sha256": sha256(driver)}},
         }

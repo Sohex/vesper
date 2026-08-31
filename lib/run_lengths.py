@@ -67,11 +67,6 @@ import json
 import math
 from pathlib import Path
 
-# The one span bar in the tree, and the ecological record floor below is the same
-# rule applied to a different model's series. Importing it rather than restating
-# it is what keeps the two from drifting apart.
-from autocorrelation import RELIABLE_SPAN_MULTIPLE
-
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # THE MEMORY TIME, MEASURED and no longer inferred. The lower end is retained
@@ -597,6 +592,7 @@ def ecological_timescale_brackets(root=None) -> dict:
     memory, relaxation, sources, cycle_years = [], [], [], set()
     declined = 0
     tolerance, span = None, []
+    resolving, unresolvable = [], 0
     for path in sorted(directory.glob("lpj_*/acceptance.json")):
         try:
             report = json.loads(path.read_text(encoding="utf-8"))
@@ -619,6 +615,13 @@ def ecological_timescale_brackets(root=None) -> dict:
                     relaxation.append(float(approach["tau_cycles"]))
                 else:
                     declined += 1
+                needed = (field.get("drift") or {}).get("record_cycles_for_bound")
+                if needed is None:
+                    continue
+                if math.isfinite(float(needed)):
+                    resolving.append(float(needed))
+                else:
+                    unresolvable += 1
     if not memory:
         raise RuntimeError(
             f"no acceptance artifact under {ECOLOGICAL_ACCEPTANCE_DIR} carries "
@@ -637,12 +640,27 @@ def ecological_timescale_brackets(root=None) -> dict:
             "`lib/lpj_output.py:relaxation_time`. A spin-up cannot be derived "
             "from a relaxation time nothing has measured; buy a longer "
             "diagnostic rather than a default.")
+    if not resolving:
+        raise RuntimeError(
+            "no acceptance artifact carries a per-field resolving length. The "
+            "retained record floor is `lib/lpj_output.py:cycles_for_bound`'s "
+            "answer for the field that needs the most, and it is written onto "
+            f"the artifact by `{ECOLOGICAL_TIMESCALE_GENERATOR}`. Re-assess a "
+            "run under the current contract rather than falling back to a span "
+            "multiple, which is the rule this one replaced.")
     return {
         "memory_cycles_bracket": (min(memory), max(memory)),
         "relaxation_cycles_bracket": (min(relaxation), max(relaxation)),
         "relaxation_top_is_open": declined > 0,
         "fields_with_a_measurable_approach": len(relaxation),
         "fields_declined": declined,
+        # The record each field needs before its drift bound falls inside the
+        # contract's tolerance, as the producer computed it. The TOP sizes the
+        # record because it has to serve every field it will be asked to judge,
+        # and `unresolvable` counts the fields for which no finite record does --
+        # a bracket with an open top, reported and not silently dropped.
+        "resolving_cycles_bracket": (min(resolving), max(resolving)),
+        "fields_with_no_finite_record": unresolvable,
         "forcing_cycle_years": cycle_years.pop(),
         "longest_record_cycles": max(span) if span else 0,
         "drift_tolerance_when_assessed": tolerance,
@@ -666,20 +684,31 @@ def ecological_drift_tolerance() -> float:
     return float(read_policy()["trend"]["relative_end_to_end_limit"])
 
 
-def ecological_record_cycles(tau_memory_cycles: float) -> float:
-    """How much record a run must RETAIN, from the memory time.
+def ecological_record_cycles(brackets: dict) -> float:
+    """How much record a run must RETAIN, from what its own acceptance resolves.
 
-    The same rule `lib/autocorrelation.py` states for any span whose mean is
-    taken: a span shorter than `RELIABLE_SPAN_MULTIPLE` times its own memory time
-    cannot establish that memory time, so it cannot establish the interval on
-    anything measured over it either.
+    THE RECORD IS SIZED BY WHAT THE CONTRACT MUST BE ABLE TO SEE, not by a
+    multiple of anything. `lib/lpj_output.py:cycles_for_bound` inverts the
+    contract's own drift bound: the record at which a settled field of this
+    scatter and this memory time bounds its end-to-end drift inside
+    `relative_end_to_end_limit`. The memory time enters through the standard
+    error of a half-record mean, which is where it belongs, and the top of the
+    bracket sizes the record because a record has to serve every field it will
+    be asked to judge.
 
-    IT DOES NOT CLOSE, for the same reason the climate side's
-    `production_span_orbits` does not: the memory time read off this model grows
-    with the window it is read on. So this is a FLOOR at the lengths runs are
-    actually bought at, and the next record re-reads it.
+    WHY IT IS NOT A SPAN MULTIPLE ANY MORE. `RELIABLE_SPAN_MULTIPLE * tau` asks
+    for a record ten times a memory time read off that same record, and the
+    memory time this model reports GROWS with the window it is read on: 9.3 to
+    125.3 cycles on a 1000-cycle record became 11.1 to 212.7 on the 1253-cycle
+    record those numbers sized. It did not converge, twice. Here the standard
+    error falls as one over the root of the record while the memory time grows
+    sublinearly with it, so the requirement is reached rather than chased.
+
+    IT IS STILL A FLOOR, for the weaker reason: the memory time is held at its
+    measured value while a longer record may read a larger one, which moves the
+    answer rather than preventing one.
     """
-    return float(RELIABLE_SPAN_MULTIPLE) * float(tau_memory_cycles)
+    return float(brackets["resolving_cycles_bracket"][1])
 
 
 def ecological_spinup_cycles(tau_relaxation_cycles: float,
@@ -726,7 +755,7 @@ def ecological_run_cycles(root=None) -> dict:
     """
     brackets = ecological_timescale_brackets(root)
     tolerance = ecological_drift_tolerance()
-    record = ecological_record_cycles(brackets["memory_cycles_bracket"][1])
+    record = ecological_record_cycles(brackets)
     slowest = brackets["relaxation_cycles_bracket"][1]
     spinup = ecological_spinup_cycles(slowest, record, tolerance)
     return {
@@ -740,8 +769,7 @@ def ecological_run_cycles(root=None) -> dict:
             "on the records available, and a field the estimator declines may be "
             "slower still"
             if brackets["relaxation_top_is_open"] else
-            "the memory time read off this model grows with the window it is "
-            "read on, so every record floor is a floor at the length it was "
-            "read at"),
+            "the memory time each resolving length was computed at is the one "
+            "its own record read, and a longer record may read a larger one"),
         "brackets": brackets,
     }
