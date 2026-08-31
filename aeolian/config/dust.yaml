@@ -215,8 +215,23 @@ drag_partition:
   #
   # The values are aerodynamic roughness lengths of the ERODIBLE PATCH, which is
   # what `drag_efficiency` takes -- not the grid-cell roughness. Cells combine
-  # them as an erodible-area-weighted GEOMETRIC mean, because the drag goes as
-  # 1/ln(z/z0) and it is ln(z0) that averages.
+  # them as an erodible-area-weighted GEOMETRIC mean, and the reason is that
+  # MB95's drag partition is AFFINE in ln(z0): `feff = 1 - ln(z0/z0s)/D` and the
+  # denominator carries no z0, so the mean of ln(z0) reproduces the area-mean
+  # drag efficiency exactly wherever the clip does not bind, which on this
+  # table it never does. It is NOT because "the drag goes as 1/ln(z/z0)"; that
+  # reason would carry to the exchange coefficient, where `ce = k^2/ln^2` and
+  # `notes/audits/nonlinear-spatial-reductions.md` section 3 measures 8 to 10
+  # per cent of land-mean error from averaging in the wrong quantity.
+  #
+  # The same single value also divides the in-model friction velocity as
+  # `DUSTZ0`, and `u* = k U / ln(z_ref/z0)` is NOT affine in ln(z0), so the
+  # geometric mean understates the area-mean of u* and of every power of it.
+  # `aeolian/scripts/roughness_mixing_order.py` sizes that: at most 4.9 per cent
+  # on u* cubed over the widest mixture this table holds, against the 62.8 per
+  # cent the class's own declared `bracket` below is worth on the same quantity.
+  # An order of magnitude inside the ignorance the step already carries, so the
+  # geometric mean stands for both consumers.
   aeolian_z0_by_class_m:
     playa_clastic:
       z0: 3.9e-4

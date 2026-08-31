@@ -426,6 +426,73 @@ with no residual. That is the same shape as section 3's roughness repair --
 reduce in the quantity the model is linear in, write back the value that
 reproduces it -- and it costs one transform per staged field.
 
+## 8. The aeolian roughness mixture. Right operation, wrong reason, and immaterial
+
+`aeolian/config/dust.yaml` collapses a patchwork of erodible surfaces to one
+roughness per lithology class and then one per cell, as a geometric mean. Two
+laws read that single number and they are not nonlinear in the same way, so one
+reduction cannot be right for both by assumption. Measured 2026-08-30 by
+`aeolian/scripts/roughness_mixing_order.py`; the artifact is
+`aeolian/analysis/roughness_mixing_order.json`.
+
+**The drag partition is AFFINE in `ln z0` and the geometric mean is therefore
+EXACT for it.** Marticorena and Bergametti (1995) give
+`feff = 1 - ln(z0/z0s) / ln(a (X/z0s)^b)`, whose denominator carries no `z0`, so
+the area mean of `ln z0` reproduces the area-mean drag efficiency to the last
+bit. That is an identity rather than a comparison and it is the arm that can
+fail: the two orders agree to 1.7e-16 on the widest mixture in the table and to
+exactly zero on the rest, against a 1e-12 bar, and the clip binds on no
+endmember of either mixture. Its premise is the clip, and a table whose classes
+clipped would break the affinity without breaking the arithmetic, which is why
+the arm reports the clip separately from the residual.
+
+**The reason the config gave is not that reason, and the difference is not
+pedantic.** It read "the drag goes as 1/ln(z/z0) and it is ln(z0) that
+averages". The same sentence carries to the exchange coefficient, where
+`ce = k^2 / ln(z_ref/z0)^2` and section 3 above measures 8 to 10 per cent of
+land-mean error from averaging in the wrong quantity. A correct operation
+resting on a reason that generalises wrongly is one copy-paste from a defect,
+and the config and `build_dust.py:mosaic_scalar_z0` now carry the affine
+argument instead.
+
+**The friction velocity is not affine in `ln z0`, and that residual is what the
+arm sizes.** The same value is written as the namelist `DUSTZ0` the in-model
+friction velocity divides by, and `u* = k U / ln(z_ref/z0)` goes as `1/L` with
+`L = ln(z_ref/z0)`. `1/L^p` is convex in `L` for every positive `p`, so the area
+mean of `u*^p` is at or above `u*^p` at the mean `L` and the geometric mean
+UNDERSTATES it. The sign is pre-registrable and one-signed here, for the reason
+the regolith depth law's is: a single convex function of one variable does not
+change curvature.
+
+| mixture | spread in `ln z0` | `u*` | `u*^2` | `u*^3` |
+| --- | ---: | ---: | ---: | ---: |
+| `playa_clastic`'s three landform bands | 3.005 | 1.0078 | 1.0238 | **1.0488** |
+| `evaporite` against `playa_clastic`, worst share | 1.025 | 1.0015 | 1.0047 | **1.0093** |
+
+Process-then-aggregate over aggregate-then-process, at the shorter end of the
+reference-height bracket, which is where the gap is largest. The reference
+height is `lapse.reference_height_m` over the same 273.15 to 313.15 K liquid
+span the roughness builder brackets over, and it runs 106.2 to 121.7 m on this
+planet.
+
+**NOT MATERIAL, by an order of magnitude, against the instrument the step
+already declares.** Each class carries a `bracket` on its own `z0` in
+`aeolian_z0_by_class_m`, which is the level uncertainty its measurement set
+supports. On `playa_clastic` that bracket is worth a factor 1.63 on `u*^3`,
+against the 1.049 the order of the mixture is worth. In logs the declared
+ignorance is 10.2 times the gap. The between-class mixture is narrower still and
+is bounded by the band case rather than argued to be: the two erodible classes
+span 1.025 in `ln z0` where the three bands span 3.005, and the arm reports both
+spreads so the bound is checkable.
+
+The class mixture is measured over a declared share sweep rather than the
+export's own per-cell shares, and that is a deliberate limit rather than an
+omission. Per-cell shares would move the gap between the pure endpoints, where
+it is exactly one, and the equal-share case, where it is largest; the arm
+already evaluates the largest, so a per-cell measurement can only lower the
+answer. It would sharpen a number that is already an order of magnitude inside
+its instrument.
+
 ## What follows
 
 - The regolith depth law is the one reduction here that needs an expectation

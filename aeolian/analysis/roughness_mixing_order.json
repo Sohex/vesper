@@ -1,0 +1,539 @@
+{
+  "issue": "SPAT-7",
+  "what_this_is": "whether the order of the aeolian roughness mixture changes the drag partition or the friction velocity, and by how much against the level bracket each class already declares",
+  "reference_height_m": {
+    "air_temperature_bracket_k": [
+      273.15,
+      313.15
+    ],
+    "height_m": [
+      106.18185694525211,
+      121.73109464545377
+    ],
+    "source": "lib/lapse.py:reference_height_m, this planet's gravity"
+  },
+  "powers": [
+    1,
+    2,
+    3
+  ],
+  "band_share_build": "precarve-craton-10m",
+  "arms": [
+    {
+      "mixture": "playa_clastic landform bands",
+      "z0_m": [
+        0.00015143315356948753,
+        0.0009231139982781388,
+        0.003056949128634474
+      ],
+      "shares": [
+        0.5328,
+        0.3731,
+        0.094
+      ],
+      "geometric_mean_z0_m": 0.0003943076223817776,
+      "ln_z0_spread": 3.005028383794328,
+      "drag_partition_control": {
+        "process_then_aggregate": 0.3361614900778153,
+        "aggregate_then_process": 0.33616149007781515,
+        "absolute_difference": 1.6653345369377348e-16,
+        "tolerance": 1e-12,
+        "clip_binds_on_an_endmember": false,
+        "passes": true
+      },
+      "friction_velocity_by_reference_height_m": {
+        "106.182": {
+          "u_star_power_1_ratio": 1.0077687878281647,
+          "u_star_power_2_ratio": 1.0238263165639987,
+          "u_star_power_3_ratio": 1.0488328026492326
+        },
+        "121.731": {
+          "u_star_power_1_ratio": 1.0075962246400194,
+          "u_star_power_2_ratio": 1.0232890159649584,
+          "u_star_power_3_ratio": 1.047712320156317
+        }
+      }
+    },
+    {
+      "mixture": "evaporite at 0 against playa_clastic",
+      "z0_m": [
+        0.00014,
+        0.00039
+      ],
+      "shares": [
+        0.0,
+        1.0
+      ],
+      "geometric_mean_z0_m": 0.0003899999999999999,
+      "ln_z0_spread": 1.024504316514388,
+      "drag_partition_control": {
+        "process_then_aggregate": 0.3376859943488725,
+        "aggregate_then_process": 0.3376859943488725,
+        "absolute_difference": 0.0,
+        "tolerance": 1e-12,
+        "clip_binds_on_an_endmember": false,
+        "passes": true
+      },
+      "friction_velocity_by_reference_height_m": {
+        "106.182": {
+          "u_star_power_1_ratio": 1.0,
+          "u_star_power_2_ratio": 1.0,
+          "u_star_power_3_ratio": 1.0
+        },
+        "121.731": {
+          "u_star_power_1_ratio": 1.0,
+          "u_star_power_2_ratio": 1.0,
+          "u_star_power_3_ratio": 1.0
+        }
+      }
+    },
+    {
+      "mixture": "evaporite at 0.25 against playa_clastic",
+      "z0_m": [
+        0.00014,
+        0.00039
+      ],
+      "shares": [
+        0.25,
+        0.75
+      ],
+      "geometric_mean_z0_m": 0.0003018773050020055,
+      "ln_z0_spread": 1.024504316514388,
+      "drag_partition_control": {
+        "process_then_aggregate": 0.37323249841043216,
+        "aggregate_then_process": 0.37323249841043216,
+        "absolute_difference": 0.0,
+        "tolerance": 1e-12,
+        "clip_binds_on_an_endmember": false,
+        "passes": true
+      },
+      "friction_velocity_by_reference_height_m": {
+        "106.182": {
+          "u_star_power_1_ratio": 1.0011615221270929,
+          "u_star_power_2_ratio": 1.0034424187547393,
+          "u_star_power_3_ratio": 1.0068034207818553
+        },
+        "121.731": {
+          "u_star_power_1_ratio": 1.00113749335474,
+          "u_star_power_2_ratio": 1.0033715979878963,
+          "u_star_power_3_ratio": 1.006664195036413
+        }
+      }
+    },
+    {
+      "mixture": "evaporite at 0.5 against playa_clastic",
+      "z0_m": [
+        0.00014,
+        0.00039
+      ],
+      "shares": [
+        0.5,
+        0.5
+      ],
+      "geometric_mean_z0_m": 0.00023366642891095853,
+      "ln_z0_spread": 1.024504316514388,
+      "drag_partition_control": {
+        "process_then_aggregate": 0.4087790024719919,
+        "aggregate_then_process": 0.40877900247199184,
+        "absolute_difference": 5.551115123125783e-17,
+        "tolerance": 1e-12,
+        "clip_binds_on_an_endmember": false,
+        "passes": true
+      },
+      "friction_velocity_by_reference_height_m": {
+        "106.182": {
+          "u_star_power_1_ratio": 1.0015486961694575,
+          "u_star_power_2_ratio": 1.004650885428023,
+          "u_star_power_3_ratio": 1.0093137780131147
+        },
+        "121.731": {
+          "u_star_power_1_ratio": 1.00151665780632,
+          "u_star_power_2_ratio": 1.0045545739207626,
+          "u_star_power_3_ratio": 1.009120663050807
+        }
+      }
+    },
+    {
+      "mixture": "evaporite at 0.75 against playa_clastic",
+      "z0_m": [
+        0.00014,
+        0.00039
+      ],
+      "shares": [
+        0.75,
+        0.25
+      ],
+      "geometric_mean_z0_m": 0.00018086818417713545,
+      "ln_z0_spread": 1.024504316514388,
+      "drag_partition_control": {
+        "process_then_aggregate": 0.44432550653355163,
+        "aggregate_then_process": 0.4443255065335515,
+        "absolute_difference": 1.1102230246251565e-16,
+        "tolerance": 1e-12,
+        "clip_binds_on_an_endmember": false,
+        "passes": true
+      },
+      "friction_velocity_by_reference_height_m": {
+        "106.182": {
+          "u_star_power_1_ratio": 1.001161522127093,
+          "u_star_power_2_ratio": 1.0035339093872953,
+          "u_star_power_3_ratio": 1.0071699500768485
+        },
+        "121.731": {
+          "u_star_power_1_ratio": 1.0011374933547401,
+          "u_star_power_2_ratio": 1.0034602628932476,
+          "u_star_power_3_ratio": 1.0070193925551016
+        }
+      }
+    },
+    {
+      "mixture": "evaporite at 1 against playa_clastic",
+      "z0_m": [
+        0.00014,
+        0.00039
+      ],
+      "shares": [
+        1.0,
+        0.0
+      ],
+      "geometric_mean_z0_m": 0.00014000000000000001,
+      "ln_z0_spread": 1.024504316514388,
+      "drag_partition_control": {
+        "process_then_aggregate": 0.4798720105951113,
+        "aggregate_then_process": 0.4798720105951113,
+        "absolute_difference": 0.0,
+        "tolerance": 1e-12,
+        "clip_binds_on_an_endmember": false,
+        "passes": true
+      },
+      "friction_velocity_by_reference_height_m": {
+        "106.182": {
+          "u_star_power_1_ratio": 1.0,
+          "u_star_power_2_ratio": 1.0,
+          "u_star_power_3_ratio": 1.0
+        },
+        "121.731": {
+          "u_star_power_1_ratio": 1.0,
+          "u_star_power_2_ratio": 1.0,
+          "u_star_power_3_ratio": 1.0
+        }
+      }
+    }
+  ],
+  "instrument_by_class": {
+    "evaporite": {
+      "z0_bracket_m": [
+        5.3e-05,
+        0.00039
+      ],
+      "factor_by_reference_height_m": {
+        "106.182": {
+          "u_star_power_1_factor": 0.8624532272972169,
+          "u_star_power_2_factor": 0.7438255692753848,
+          "u_star_power_3_factor": 0.6415147627677452
+        },
+        "121.731": {
+          "u_star_power_1_factor": 0.8637365799605603,
+          "u_star_power_2_factor": 0.7460408795619652,
+          "u_star_power_3_factor": 0.64438279782362
+        }
+      }
+    },
+    "playa_clastic": {
+      "z0_bracket_m": [
+        0.0001,
+        0.0008
+      ],
+      "factor_by_reference_height_m": {
+        "106.182": {
+          "u_star_power_1_factor": 0.8501356710265997,
+          "u_star_power_2_factor": 0.7227306591518471,
+          "u_star_power_3_factor": 0.6144191138895523
+        },
+        "121.731": {
+          "u_star_power_1_factor": 0.8515973049710945,
+          "u_star_power_2_factor": 0.7252179698340314,
+          "u_star_power_3_factor": 0.6175936686272697
+        }
+      }
+    }
+  },
+  "affine_tolerance": 1e-12,
+  "provenance": {
+    "generator": "aeolian/scripts/roughness_mixing_order.py",
+    "source_config": {
+      "schema_version": 1,
+      "source_build": "canonical-10m-carve2",
+      "baseline_climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+      "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+      "planet": {
+        "radius_earth": 1.2,
+        "gravity_m_s2": 12.81,
+        "mass_earth": 1.881009,
+        "rotation_hours": 30.0,
+        "obliquity_degrees": 32.0,
+        "eccentricity": 0.02,
+        "rotation_direction": "prograde",
+        "longitude_positive": "east",
+        "prime_meridian": "orogen_export_zero"
+      },
+      "star": {
+        "spectral_type": "K2.5V",
+        "activity": "active",
+        "surface_uv_relative_to_earth": 0.4,
+        "mass_solar": 0.8,
+        "luminosity_solar": 0.32359365692962827,
+        "effective_temperature_k": 4965.0,
+        "metallicity": 0.0
+      },
+      "orbit": {
+        "earth_solar_constant_w_m2": 1361.0,
+        "baseline_flux_earth": 0.945,
+        "sweep_flux_earth": [
+          0.9,
+          0.95,
+          1.0
+        ],
+        "longitude_vernal_equinox_degrees": 102.7
+      },
+      "atmosphere": {
+        "pN2_bar": 0.78025,
+        "pO2_bar": 0.21,
+        "pAr_bar": 0.0093,
+        "pCO2_bar": 0.00045,
+        "pCH4_bar": 1.6e-06,
+        "pN2O_bar": 3e-07,
+        "ozone": true
+      },
+      "radiation": {
+        "two_band_albedo": true,
+        "stellar_spectrum": "k25v"
+      },
+      "ocean": {
+        "horizontal_diffusion": false,
+        "horizontal_diffusivity_m2_s": 1000.0,
+        "salinity_psu": 34.7,
+        "cold_start": {
+          "sst_equator_k": 300.0,
+          "sst_pole_k": 273.0,
+          "sea_ice_thickness_m": 0.0
+        },
+        "sea_ice_fusion_j_kg": 328000.0
+      },
+      "surface": {
+        "mixed_layer_depth_m": 50.0,
+        "sea_ice": true,
+        "sea_ice_max_thickness_m": -1.0,
+        "sea_ice_lead_closing_m": 0.5,
+        "cryosphere": {
+          "sea_ice_density_kg_m3": 920.0,
+          "sea_ice_specific_heat_j_kg_k": 2070.0,
+          "sea_ice_conductivity_w_m_k": 2.03,
+          "snow_fusion_j_kg": 333444.87
+        },
+        "glaciers": {
+          "enabled": true,
+          "min_snow_depth_m": 2.0,
+          "initial_height_m": -1.0,
+          "max_snow_depth_m": -1.0,
+          "persistence_orbits": 1.0
+        },
+        "land_water_column": {
+          "scheme": "layered",
+          "layers": 3,
+          "lower_boundary": "impermeable",
+          "layer_thickness_m": [
+            0.02,
+            0.48,
+            1.0
+          ],
+          "soil_phase": false,
+          "evaporation_limiter": {
+            "theta_low": 0.0,
+            "exponent": 1
+          }
+        },
+        "soil_albedo_moisture": {
+          "enabled": true,
+          "saturation_at_empty_layer": 0.0,
+          "saturation_at_full_layer": 0.7609,
+          "shape_sigma_broadband": 1.0,
+          "shape_sigma_band1": 1.0,
+          "shape_sigma_band2": 1.0
+        }
+      },
+      "model": {
+        "resolution": "T21",
+        "latitudes": 32,
+        "longitudes": 64,
+        "layers": 10,
+        "vertical_grid": 4,
+        "model_top_hpa": 50.0,
+        "precision_bytes": 8,
+        "compile_flags": {
+          "f90_opts": [
+            "-O2",
+            "-cpp",
+            "-ffpe-trap=invalid,zero,overflow",
+            "-ffpe-summary=none",
+            "-march=znver4",
+            "-funroll-loops",
+            "-g"
+          ],
+          "profiles": {
+            "production": [],
+            "checked": [
+              "-fcheck=all"
+            ],
+            "poisoned": [
+              "-fcheck=all",
+              "-finit-real=snan",
+              "-Og"
+            ]
+          },
+          "profile": "production"
+        },
+        "ncpus": 16,
+        "timestep_minutes": 45.0,
+        "physics_filter": "gp|exp|sp",
+        "filter_kappa": 8.0,
+        "filter_power": 16,
+        "cold_start_seed": 88888888,
+        "hyperdiffusion": {
+          "eddy_wind_m_s": 9.838,
+          "order_alpha": 4,
+          "cutoff_fraction": 0.381,
+          "ratios_to_vorticity": {
+            "divergence": 0.2,
+            "temperature": 2.533,
+            "humidity": 0.333
+          },
+          "timescales_days": {
+            "T21": {
+              "divergence": 0.2691,
+              "vorticity": 1.3455,
+              "temperature": 3.4082,
+              "humidity": 0.4481
+            },
+            "T42": {
+              "divergence": 0.1346,
+              "vorticity": 0.6728,
+              "temperature": 1.7042,
+              "humidity": 0.224
+            },
+            "T85": {
+              "divergence": 0.0665,
+              "vorticity": 0.3324,
+              "temperature": 0.842,
+              "humidity": 0.1107
+            },
+            "T127": {
+              "divergence": 0.0445,
+              "vorticity": 0.2225,
+              "temperature": 0.5636,
+              "humidity": 0.0741
+            },
+            "T170": {
+              "divergence": 0.0333,
+              "vorticity": 0.1663,
+              "temperature": 0.4212,
+              "humidity": 0.0554
+            }
+          }
+        },
+        "cold_start_profile": {
+          "surface_temperature_k": 279.83
+        },
+        "semi_implicit_reference_temperature_k": 241.41,
+        "rayleigh_sponge_rotations": [
+          20.0,
+          100.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "output_type": ".nc",
+        "uniform_land_surface": true,
+        "energy_diagnostics": true,
+        "energy_diagnostics_3d": false,
+        "energy_fixer": true,
+        "cloud_absorption_scale": 1.192,
+        "cloud_water_reference_kg_m3": 0.00021,
+        "precip_reevaporation_gamma": "derived",
+        "cloud_fraction_subgrid_width": "derived",
+        "asymptotic_mixing_length_m": "derived",
+        "land_longwave_emissivity": 0.930897,
+        "sea_longwave_emissivity": 0.98,
+        "ozone_scale": 0.794,
+        "ozone_uv_weight": 0.335,
+        "ozone_visible_weight": 0.908,
+        "h2o_sw_weight": 1.351,
+        "h2o_sw_level": 1.161,
+        "h2o_sw_level_bracket": [
+          1.128,
+          1.205
+        ],
+        "co2_sw_weight": 1.51,
+        "roughness_source": "lithology",
+        "soil_water_source": "pedology",
+        "lake_dwmax_m": 0.2,
+        "land_albedo_source": "vegetated",
+        "vegetation_albedo": 0.165,
+        "vegetation_albedo_bracket": [
+          0.15,
+          0.171
+        ],
+        "vegetation_albedo_bands": [
+          0.074,
+          0.222
+        ],
+        "tree_albedo": 0.143,
+        "tree_albedo_bracket": [
+          0.13,
+          0.148
+        ],
+        "grass_albedo": 0.209,
+        "grass_albedo_bracket": [
+          0.19,
+          0.217
+        ],
+        "lithology_albedo_overrides": {
+          "playa_clastic": {
+            "albedo": 0.23,
+            "replaces": 0.19
+          }
+        },
+        "barren_rock_classes": [
+          "evaporite",
+          "playa_clastic"
+        ],
+        "geography_land_threshold": 0.5,
+        "seasonal_samples_per_orbit": 32,
+        "regular_output_bins_per_orbit": 12
+      },
+      "stellar_cycle": {
+        "components": {
+          "medium": {
+            "period_earth_years": 11.0,
+            "amplitude_flux_peak_to_peak": 0.025,
+            "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
+          },
+          "long": {
+            "period_earth_years": 57.0,
+            "amplitude_flux_peak_to_peak": 0.035,
+            "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+          }
+        },
+        "total_amplitude_flux_peak_to_peak": 0.06,
+        "alignment_recurrence_earth_years": 314
+      }
+    },
+    "config_sha256": "5b5af300556abfb825d78463bf50c4db95ead31078f368c5825474f2aa24ed2d",
+    "git_commit": "54b3722937212405453a3e48dd6c2d0053155b0e"
+  }
+}

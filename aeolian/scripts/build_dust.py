@@ -182,10 +182,17 @@ def mosaic_scalar_z0(z0_plane: np.ndarray, erodible: np.ndarray,
                      lat: np.ndarray) -> float:
     """The one roughness that stands for the whole mosaic, as a scalar.
 
-    GEOMETRIC, because the drag goes as 1/ln(z/z0) and it is ln(z0) that
-    averages over a patchwork, and weighted by ERODIBLE AREA rather than by
-    erodible fraction, because the Gaussian grid's cells are not the same size
-    and the mosaic is a property of ground rather than of cells.
+    GEOMETRIC, because MB95's drag partition is AFFINE in ln(z0) -- `feff` is
+    `1 - ln(z0/z0s)/D` and `D` carries no z0 -- so the mean of ln(z0) is the
+    area-mean drag efficiency exactly, not approximately. The friction velocity
+    this same value divides is not affine in ln(z0) and the geometric mean
+    understates every power of it; `aeolian/scripts/roughness_mixing_order.py`
+    measures that residual against the level bracket each class declares and
+    finds it an order of magnitude inside it.
+
+    Weighted by ERODIBLE AREA rather than by erodible fraction, because the
+    Gaussian grid's cells are not the same size and the mosaic is a property of
+    ground rather than of cells.
 
     There is one statement of it because two consumers need the same number:
     this script reports it as the roughness an arm actually ran at, and
