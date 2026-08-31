@@ -740,7 +740,7 @@ uncertainty:
     cosby_within_class_variance:
       brackets: the adopted closure, which is what every consumer installs
       from: cosby1984 Table 4, the S.D. rows
-      reference: references/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf
+      reference: references/pdf/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf
       # Standard deviation of each parameter WITHIN a texture class, regressed
       # on texture in the same table and the same fit whose mean rows are the
       # central case. Coefficients per PERCENT, as Cosby writes them; the

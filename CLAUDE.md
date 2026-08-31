@@ -311,8 +311,15 @@ ocean/                 Offline cGENIE/GOLDSTEIN coupling, forcing/support contra
                        transport returns and loop gates (see ocean/README.md).
 maps/                  Rendering and cartography.
 analysis/              Project-level analysis products (error budget, dust optics).
-references/            Primary literature. PDFs untracked; INDEX.md tracked, and it
-                       records which sources have actually been READ.
+references/            Primary literature. INDEX.md tracked, and it records which
+                       sources have actually been READ. The papers are untracked
+                       and live in references/pdf/, which holds NOTHING ELSE: a
+                       directory of pure payload is one a worktree links whole,
+                       and a paper fetched into a mixed directory dies with the
+                       worktree. Cite a paper by BARE FILENAME in INDEX.md.
+                       External model source consulted as reference is untracked
+                       per-tree under the same exclude-the-bulk-keep-the-record
+                       rule.
 archive/               Identity of things whose payload has been deleted. Tracked.
 docs/                  The docs book (mdBook; docs/src/SUMMARY.md is the index).
 notes/                 Dated findings with their evidence; notes/audits/ for audits.

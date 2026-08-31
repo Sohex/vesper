@@ -109,7 +109,7 @@ texture_only:
     # Parton et al. (1993) eqn 8 as the paper prints it, before the CENTURY 5
     # parameter update `somdynam.cpp` applies: C_AL = (H2O_30/18)*(0.01 +
     # 0.04*sand), read off p. 788 of
-    # `references/parton1993-century-soil-organic-matter.pdf`. With the source's
+    # `references/pdf/parton1993-century-soil-organic-matter.pdf`. With the source's
     # own coefficients the remainder is bounded BELOW ZERO nowhere on the
     # simplex; it bottoms out at pure sand, positive. So the source bounds what
     # the model does not, and the sign failure is entirely the coefficient

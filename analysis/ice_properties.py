@@ -87,8 +87,8 @@ OUTPUT = ROOT / "analysis" / "ice_properties.json"
 
 # ---------------------------------------------------------------------------
 # IAPWS R10-06(2009), the Gibbs energy of ice Ih. Coefficients from Table 2 of
-# the release, which `references/iapws_2009_revised-release-on-the-equation-of-state-2006-for-h2o-ice-ih.pdf`
-# carries and which Appendix I of `references/TEOS-10_Manual.pdf` restates.
+# the release, which `references/pdf/iapws_2009_revised-release-on-the-equation-of-state-2006-for-h2o-ice-ih.pdf`
+# carries and which Appendix I of `references/pdf/TEOS-10_Manual.pdf` restates.
 # `s0` is the IAPWS-95 value, which is the one the release's own check table is
 # computed with and the one used wherever ice and liquid water are compared.
 # ---------------------------------------------------------------------------

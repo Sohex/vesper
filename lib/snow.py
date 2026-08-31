@@ -70,7 +70,7 @@ from __future__ import annotations
 # 10.5194/tc-15-2739-2021. Equation (18): the VERTICAL effective thermal
 # conductivity under the fast kinetics hypothesis, as a second-order polynomial
 # in the ice volume fraction, at each of the five temperatures the paper
-# simulated. `references/fourteau_2021_impact-of-water-vapor-diffusion-and-latent-heat-on-the-effective-therm.pdf`
+# simulated. `references/pdf/fourteau_2021_impact-of-water-vapor-diffusion-and-latent-heat-on-the-effective-therm.pdf`
 # carries it and `references/INDEX.md` records it as read.
 #
 #     k = a (rho/rhoice)**2 + b (rho/rhoice) + c        W/m/K

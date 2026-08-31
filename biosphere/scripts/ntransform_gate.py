@@ -830,7 +830,7 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str,
          "register"),
         ("a source citing a file references/INDEX.md does not record",
          mutate(named_source("li1992", "Li, Frolking and Frolking (1992). "
-                         "references/li1992-no-such-file.pdf")),
+                         "references/pdf/li1992-no-such-file.pdf")),
          "source"),
         ("a source that cites no file at all",
          mutate(named_source("li1992", "Li, Frolking and Frolking (1992).")),

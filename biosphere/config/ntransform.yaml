@@ -722,12 +722,12 @@ calibration:
       Xu-Ri and Prentice (2008), Terrestrial nitrogen cycle simulated with a
       dynamic global vegetation model, Global Change Biology 14(8) 1745-1764,
       10.1111/j.1365-2486.2008.01625.x.
-      references/xuri2008-terrestrial-nitrogen-cycle-dgvm.pdf
+      references/pdf/xuri2008-terrestrial-nitrogen-cycle-dgvm.pdf
     li1992: >
       Li, Frolking and Frolking (1992), A model of nitrous oxide evolution from
       soil driven by rainfall events: 1. Model structure and sensitivity,
       Journal of Geophysical Research 97(D9) 9759-9776, 10.1029/92JD00509.
-      references/li1992-a-model-of-nitrous-oxide-evolution-from-soil.pdf
+      references/pdf/li1992-a-model-of-nitrous-oxide-evolution-from-soil.pdf
       DNDC itself, and the primary behind three of the entries below. Held and
       read; the PDF's own title page and embedded metadata were checked against
       the DOI, since a different Li et al. (1992) on cloud optical properties
@@ -737,42 +737,42 @@ calibration:
       dinitrogen/nitrous oxide ratio as affected by soil water, available carbon,
       and nitrate, Soil Science Society of America Journal 57(1) 66-72,
       10.2136/sssaj1993.03615995005700010013x.
-      references/weier1993-denitrification-n2-n2o-ratio.pdf
+      references/pdf/weier1993-denitrification-n2-n2o-ratio.pdf
     shah1978: >
       Shah and Coulman (1978), Kinetics of nitrification and denitrification
       reactions, Biotechnology and Bioengineering 20(1) 43-72,
       10.1002/bit.260200105. The measured Ks values are dissolved-substrate
       concentrations in a continuous stirred tank reactor, which settles the
       divisor as solution water rather than bulk soil volume.
-      references/shah1978-kinetics-of-nitrification-and-denitrification-reactions.pdf
+      references/pdf/shah1978-kinetics-of-nitrification-and-denitrification-reactions.pdf
     smith2014: >
       Smith, Warlind, Arneth, Hickler, Leadley, Siltberg and Zaehle (2014),
       Implications of incorporating N cycling and N limitations on primary
       production in an individual-based dynamic vegetation model,
       Biogeosciences 11, 2027-2054, 10.5194/bg-11-2027-2014.
-      references/smith_2014_implications-of-incorporating-n-cycling-and-n-limitations-on-primary-p.pdf
+      references/pdf/smith_2014_implications-of-incorporating-n-cycling-and-n-limitations-on-primary-p.pdf
     pilegaard2013: >
       Pilegaard (2013), Processes regulating nitric oxide emissions from soils,
       Phil. Trans. R. Soc. B 368(1621) 20130126, 10.1098/rstb.2013.0126.
-      references/pilegaard_2013_processes-regulating-nitric-oxide-emissions-from-soils.pdf
+      references/pdf/pilegaard_2013_processes-regulating-nitric-oxide-emissions-from-soils.pdf
     linn1984: >
       Linn and Doran (1984), Effect of water-filled pore space on carbon dioxide
       and nitrous oxide production in tilled and nontilled soils, Soil Science
       Society of America Journal 48(6) 1267-1272,
       10.2136/sssaj1984.03615995004800060013x.
-      references/linn1984-water-filled-pore-space-co2-n2o.pdf
+      references/pdf/linn1984-water-filled-pore-space-co2-n2o.pdf
     stark1995: >
       Stark and Firestone (1995), Mechanisms for soil moisture effects on
       activity of nitrifying bacteria, Applied and Environmental Microbiology
       61(1) 218-221, 10.1128/aem.61.1.218-221.1995.
-      references/stark1995-mechanisms-for-soil-moisture-effects-on-nitrifying-bacteria.pdf
+      references/pdf/stark1995-mechanisms-for-soil-moisture-effects-on-nitrifying-bacteria.pdf
       The only held source that measures nitrification against a dry-end
       moisture axis this model can reach. One silt loam.
     cosby1984: >
       Cosby, Hornberger, Clapp and Ginn (1984), A statistical exploration of the
       relationships of soil moisture characteristics to the physical properties
       of soils, Water Resources Research 20(6) 682-690, 10.1029/WR020i006p00682.
-      references/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf
+      references/pdf/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf
       Not a nitrogen source: the retention curve SoilInput::get_mineral builds
       the soil from, and therefore the only bridge between a water potential
       axis and this model's water-filled pore space one.
@@ -780,7 +780,7 @@ calibration:
       Greaves and Carter (1920), Influence of moisture on the bacterial
       activities of the soil, Soil Science 10(5) 361-387,
       10.1097/00010694-192011000-00004.
-      references/greaves1920-influence-of-moisture-on-bacterial-activities.pdf
+      references/pdf/greaves1920-influence-of-moisture-on-bacterial-activities.pdf
       The primary measurement behind linn1984 fig. 1's nitrification trace.
 
   entries:

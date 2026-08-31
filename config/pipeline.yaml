@@ -1950,7 +1950,7 @@ steps:
     needs: []
     writes: [analysis/trace_gas_forcing.json]
     gate: >
-      needs references/rugheimer_2013_spectral-fingerprints-of-earth-like-planets-around-fgk-stars.pdf,
+      needs references/pdf/rugheimer_2013_spectral-fingerprints-of-earth-like-planets-around-fgk-stars.pdf,
       which is untracked; references/INDEX.md carries the DOI
 
   - id: error_budget

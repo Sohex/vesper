@@ -77,14 +77,24 @@ repaired, and one whose target has been archived away is removed.
 Entry-by-entry linking has a consequence worth knowing before writing anything
 in a worktree. A wholly-ignored directory is one symlink, so a write inside it
 lands in the main checkout. A directory holding tracked content beside ignored
-payload CANNOT be one -- `references/INDEX.md`, `exoplasim/runs/INDEX.json` and
-the `source/` READMEs are all tracked -- so what the worktree gets is a real
-directory of one link per EXISTING file, and a file created there afterwards is
-real in the worktree alone. Being ignored, it is never committed; when the
-worktree is removed it is gone, while a tracked row describing it survives and
-outlives its own artifact. `references/` lost thirteen PDFs that way, with their
-`INDEX.md` rows still standing. `--check` now fails on payload in that state and
-names it, so the fix is to copy it to the main checkout before the worktree
+payload CANNOT be one -- `exoplasim/runs/INDEX.json` and the `source/` READMEs
+are tracked -- so what the worktree gets is a real directory of one link per
+EXISTING file, and a file created there afterwards is real in the worktree
+alone. Being ignored, it is never committed; when the worktree is removed it is
+gone, while a tracked row describing it survives and outlives its own artifact.
+`references/` lost thirteen PDFs that way, with their `INDEX.md` rows still
+standing.
+
+TWO REPAIRS, and which one applies is decided by whether the payload can be
+separated from the tracked record. Where it can, SEPARATE IT: the papers now
+live in `references/pdf/`, which holds nothing else and is therefore one
+symlink, so a paper fetched inside a worktree lands in the main checkout. That
+is why `INDEX.md` cites a paper by bare filename -- the row names the paper, not
+its directory, and the directory is free to be pure payload. Where it cannot,
+DETECT IT: `exoplasim/runs/` and `source/` interleave a tracked index and README
+with the payload they describe, and what dies there is a run or an export rather
+than a paper, so `--check` fails on payload living only in the worktree and
+names it, and the fix is to copy it to the main checkout before the worktree
 goes. `notes/audits/worktree-stranded-payload.md` carries the shapes and the
 evidence.
 

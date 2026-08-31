@@ -27,6 +27,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCES = ROOT / "references"
 INDEX = REFERENCES / "INDEX.md"
+# The papers, in the one directory that holds nothing else. Keeping them apart
+# from the external source trees is what lets a worktree link this wholesale
+# rather than file by file, and it stops a pdf inside one of those trees
+# standing in for a paper of the same name. notes/audits/worktree-stranded-payload.md.
+PAPERS = REFERENCES / "pdf"
 
 # The first cell of a table row, when it is a single backticked token.
 _ROW = re.compile(r"^\|\s*`([^`]+)`\s*\|")
@@ -62,19 +67,20 @@ def check_reference_index() -> list[str]:
     if not rows:
         return [f"{INDEX} asserts no filenames at all; the row pattern has changed"]
 
-    held = {p.name for p in REFERENCES.rglob("*.pdf")}
+    held = {p.name for p in PAPERS.glob("*.pdf")}
     if not held:
-        print(f"    references/ holds no PDFs in this checkout; "
+        print(f"    references/pdf/ holds no PDFs in this checkout; "
               f"{len(rows)} asserted filenames not checked")
         return []
 
     problems = []
     for number, cell in rows:
-        path = REFERENCES / cell
+        path = PAPERS / cell
         if path.exists():
             continue
-        # Named at the top level but filed in a subdirectory is a path error in
-        # the row, not a missing paper; say which it is.
+# A row names a paper by BARE FILENAME and the papers live in one
+        # directory, so a name found anywhere else under references/ is a
+        # filing error rather than a missing paper; say which it is.
         elsewhere = sorted(p.relative_to(REFERENCES).as_posix()
                            for p in REFERENCES.rglob(Path(cell).name))
         if elsewhere:

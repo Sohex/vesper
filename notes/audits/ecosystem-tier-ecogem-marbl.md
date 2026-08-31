@@ -569,7 +569,7 @@ coupling arithmetic and MARBL derives seven of its ten ratios from three.
 
 Section 12 recorded this as the one axis the reading had not covered, and the
 row asks for the required C-N-P-S-Fe-Si inputs of each tier. Read at source
-2026-08-24, with `references/naidoobagwell2024-ecogenie-diatom-extension.pdf`
+2026-08-24, with `references/pdf/naidoobagwell2024-ecogenie-diatom-extension.pdf`
 read for the parts the source cannot settle.
 
 ### 13a. ECOGEM: silicon is namelist-reachable and gated three ways

@@ -468,7 +468,7 @@ the ocean plan lands and not before.
 ## 4. BIG-MITgcm is the nearest peer, and two of its details are warnings
 
 BIG-MITgcm (Moinat et al., 2026, `10.5194/gmd-19-4357-2026`,
-`references/gmd-19-4357-2026.pdf`) is the only published model that made the
+`references/pdf/gmd-19-4357-2026.pdf`) is the only published model that made the
 same architectural bet as this project. SPEEDY physics on the MITgcm core at
 CS32, about 2.8 degrees, with a 25-level ocean, Winton thermodynamic sea ice, a
 two-layer land model, BIOME4, pysheds runoff routing and a new shallow-ice

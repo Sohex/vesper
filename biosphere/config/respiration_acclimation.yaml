@@ -79,7 +79,7 @@ memory:
       value_days: 7.0
       sourced: true
       source: >
-        Gifford (2003), references/gifford2003-plant-respiration.pdf. Reports
+        Gifford (2003), references/pdf/gifford2003-plant-respiration.pdf. Reports
         plant respiration acclimating to a temperature change in as little as a
         week, which is a bound on how fast the adjustment can be rather than a
         fitted running-mean length.
@@ -88,7 +88,7 @@ memory:
       sourced: true
       source: >
         Thum et al. (2019) QUINCY supplement Table S1,
-        references/thum2019-quincy-supplement.pdf. The memory time scale of the
+        references/pdf/thum2019-quincy-supplement.pdf. The memory time scale of the
         acclimation of the temperature response of maintenance respiration, for
         Eq. S23, which is the same relation this fork implements and which
         Table S2 parameterises with the same slope from Atkin et al. (2014).

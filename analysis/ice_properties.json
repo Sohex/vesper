@@ -2,7 +2,7 @@
   "generated": "2026-08-27",
   "generator": "analysis/ice_properties.py",
   "standard": "IAPWS R10-06(2009), the equation of state 2006 for H2O ice Ih",
-  "standard_reference": "references/iapws_2009_revised-release-on-the-equation-of-state-2006-for-h2o-ice-ih.pdf",
+  "standard_reference": "references/pdf/iapws_2009_revised-release-on-the-equation-of-state-2006-for-h2o-ice-ih.pdf",
   "check_tolerance": 1e-09,
   "check_worst_relative": 6.8e-10,
   "check_states": [

@@ -255,7 +255,7 @@
       0.0006,
       0.0007
     ],
-    "optical_path_source": "Nolet, Poortinga, Roosjen, Bartholomeus and Ruessink (2014), references/nolet2014-surface-moisture-beach-sand-reflectance.pdf. Their optical model Eq. (6), Rh = fs Rd exp(-a d), separates an elastic-scattering fraction from an optical path length d in water; d at saturation is 0.06 to 0.07 cm. The path is what a photon traverses, and it is not the layer's water inventory",
+    "optical_path_source": "Nolet, Poortinga, Roosjen, Bartholomeus and Ruessink (2014), references/pdf/nolet2014-surface-moisture-beach-sand-reflectance.pdf. Their optical model Eq. (6), Rh = fs Rd exp(-a d), separates an elastic-scattering fraction from an optical path length d in water; d at saturation is 0.06 to 0.07 cm. The path is what a photon traverses, and it is not the layer's water inventory",
     "optical_path_transfers_because": "d is fitted, but against a(l), pure water's own absorption coefficient, so it comes out a geometric length with a physical meaning rather than the residual of a fit. Nolet's OTHER regressions -- Eq. (7)'s water-retention parameters and the field model -- have no such anchor and are not read here",
     "unconstrained_tail": {
       "above_um": 2.1,

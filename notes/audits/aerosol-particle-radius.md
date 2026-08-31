@@ -1,7 +1,7 @@
 # The radiation used a different particle radius than the transport
 
 Read 2026-08-18, against `vendor/exoplasim` and Cohen et al. (2024),
-`references/2307.10931v2.pdf`.
+`references/pdf/2307.10931v2.pdf`.
 
 **Fixed in this fork.** `aero_ini` use-associates radmod's copy under an alias,
 `use radmod, only: l_aerorad, aerofile, rad_apart => apart`

@@ -177,7 +177,7 @@ hydrography/data/reference/*
 # excluded; INDEX.md is NOT, because it is the bibliography and the record of
 # which sources have actually been read. A blanket `references/` rule used to
 # sit here and silently swallowed it.
-references/*.pdf
+references/pdf/
 references/*.html
 references/_*
 references/*.zip

@@ -224,7 +224,7 @@ OPEN_WATER_ALBEDO = 0.06
 # THE OPTICAL PATH A PHOTON TRAVERSES IN THE PORE WATER at saturation, in
 # metres, which is the quantity the liquid's own absorption is evaluated at.
 # Nolet, Poortinga, Roosjen, Bartholomeus and Ruessink (2014),
-# `references/nolet2014-surface-moisture-beach-sand-reflectance.pdf`, measure
+# `references/pdf/nolet2014-surface-moisture-beach-sand-reflectance.pdf`, measure
 # it: their optical model Eq. (6), Rh = fs Rd exp(-a d), separates an elastic-
 # scattering fraction fs from an optical path length d in water, and d at
 # saturation is 0.06 to 0.07 cm.
@@ -868,7 +868,7 @@ def main() -> None:
             "optical_path_m": list(NOLET_PATH_SATURATED_M),
             "optical_path_source":
                 "Nolet, Poortinga, Roosjen, Bartholomeus and Ruessink (2014), "
-                "references/nolet2014-surface-moisture-beach-sand-reflectance.pdf. "
+                "references/pdf/nolet2014-surface-moisture-beach-sand-reflectance.pdf. "
                 "Their optical model Eq. (6), Rh = fs Rd exp(-a d), separates an "
                 "elastic-scattering fraction from an optical path length d in "
                 "water; d at saturation is 0.06 to 0.07 cm. The path is what a "

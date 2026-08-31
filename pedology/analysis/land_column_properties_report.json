@@ -382,7 +382,7 @@
   },
   "uncertainty_cases": {
     "source": "cosby1984 Table 4, the S.D. rows: the within-texture-class residual spread of the same parameters whose means are the adopted central case",
-    "reference": "references/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf",
+    "reference": "references/pdf/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf",
     "deviate": 1.0,
     "corners": 8,
     "applied": "coherently across all layers and all properties in one case",
