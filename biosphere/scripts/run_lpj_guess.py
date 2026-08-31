@@ -632,14 +632,43 @@ def main() -> None:
                 "under different inputs it integrates from a state those "
                 "inputs never produced, and every number out of it would be "
                 "attributed to a spin-up that did not happen.")
+        # THE STATE FILES HAVE TO BE THE ONES THE PARENT WROTE. `runs/` is
+        # untracked and nothing stops a directory being cleaned, half-copied
+        # from elsewhere or rewritten by a later save, and the archive is an
+        # untagged stream of raw object bytes: a truncated or substituted file
+        # is read as a simulated state without complaint. The parent recorded
+        # what it wrote, so this is an identity with a right answer rather than
+        # a plausibility check.
+        state_now = {p.name: sha256(p) for p in sorted(parent_state.iterdir())
+                     if p.is_file()}
+        state_then = (parent.get("saved_state") or {}).get("sha256")
+        if state_then is None:
+            raise SystemExit(
+                f"{parent_manifest_path} records no hashes for the state files "
+                f"it wrote, so there is nothing to show {parent_state} still "
+                "holds them. That manifest predates --save-state; re-run the "
+                "parent rather than continuing a state file of unknown "
+                "provenance.")
+        if state_then != state_now:
+            gone = sorted(set(state_then) - set(state_now))
+            extra = sorted(set(state_now) - set(state_then))
+            moved = sorted(name for name in set(state_then) & set(state_now)
+                           if state_then[name] != state_now[name])
+            raise SystemExit(
+                f"{parent_state} no longer holds the state files "
+                f"{args.continue_from} wrote"
+                + (f"; absent: {', '.join(gone)}" if gone else "")
+                + (f"; changed: {', '.join(moved)}" if moved else "")
+                + (f"; unexpected: {', '.join(extra)}" if extra else "")
+                + ". The archive is an untagged byte stream, so a substituted "
+                "file would be read as a simulated state without complaint.")
+
         parent_nyear = parent["physical"]["nyear"]
         continuation = {
             "parent_run_id": parent.get("run_id", args.continue_from),
             "parent_manifest_sha256": sha256(parent_manifest_path),
             "parent_state_dir": str(parent_state.resolve()),
-            "parent_state_sha256": {
-                p.name: sha256(p) for p in sorted(parent_state.iterdir())
-                if p.is_file()},
+            "parent_state_sha256": state_now,
             "parent_nyear": parent_nyear,
             "parent_ranks": (parent.get("physical") or {}).get("ranks"),
             "resumed_at_year": parent_nyear,
