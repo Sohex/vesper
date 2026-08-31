@@ -6367,6 +6367,42 @@ def check_reference_index_files_exist() -> list[str]:
     return module.check_reference_index()
 
 
+def check_worktree_links_are_current() -> list[str]:
+    """No linked file's target has moved under this worktree since it linked.
+
+    `scripts/link_worktree.py` links ignored payload per file wherever a
+    directory holds tracked content beside it, and an existing linked file is a
+    symlink INTO THE MAIN CHECKOUT. So a worktree that REGENERATES one writes
+    through, and whatever the main checkout built from it is silently
+    invalidated -- `vendor/lpj-guess/framework/vesper.h` did exactly that on
+    2026-08-31 and condemned a binary nobody had touched.
+    `world-bga1` closed the direction where a worktree's new file dies with it;
+    this is the other direction.
+
+    THE FACT, NOT THE CULPRIT. From inside a worktree a write from here and a
+    regeneration in the main checkout are indistinguishable, and both matter:
+    the first invalidates what the main checkout built, the second means this
+    worktree's results came from bytes that are gone. Re-running the linker
+    re-baselines, which is how a legitimate regeneration is accepted rather
+    than refused.
+
+    HERE AS WELL AS IN `link_worktree.py --check`, because an agent that
+    regenerates a file does not then run the linker -- but it does commit. The
+    cost is a JSON read plus hashing the entries under the ledger's hash
+    budget, 0.13 s on the standing payload against 11.6 GB of linked bytes, so
+    it is a static read in every sense rule 8 cares about. It returns nothing
+    in the main checkout and nothing in a worktree with no ledger, so it is a
+    no-op where it has no question to ask.
+    """
+    import importlib.util as ilu
+
+    spec = ilu.spec_from_file_location(
+        "_smoke_worktree_links", ROOT / "scripts" / "check_worktree_links.py")
+    module = ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.check_worktree_links()
+
+
 def main() -> None:
     argparse.ArgumentParser(
         description="The fast static gate: every check here is a read, a parse "
@@ -6510,6 +6546,8 @@ def main() -> None:
                lambda: check_run_index_is_a_ledger()),
               ("every filename references/INDEX.md asserts is on disk",
                lambda: check_reference_index_files_exist()),
+              ("no linked file's target has moved under this worktree",
+               lambda: check_worktree_links_are_current()),
               ("every commissioning row is re-read from its run record",
                lambda: check_commissioning_evidence_is_re_read()),
               ("the model's shortwave cloud tables are the papers' tables",

@@ -272,6 +272,36 @@ def lock_wrapper(verbose: bool) -> list[str]:
         + (r.stderr.strip().splitlines() or ["(no output)"])[-1]]
 
 
+def worktree_links_self_test(verbose: bool) -> list[str]:
+    """`scripts/check_worktree_links.py --self-test`.
+
+    Starting that script proves it imports; it does not prove the ledger
+    comparison still discriminates. The self-test builds a throwaway repository
+    of the shape the hazard needs -- a generated ignored file beside tracked
+    source, a wholly-ignored directory, files either side of the hash budget --
+    adds A REAL GIT WORKTREE to it, and answers nine questions, including the
+    two that decide whether the guard is usable at all: an identical-bytes
+    rewrite must NOT report, and re-linking must re-baseline so a legitimate
+    regeneration is accepted rather than refused.
+
+    Here rather than in `smoke_test.py` because it creates a worktree and
+    spawns git, which is the line rule 8 draws between the two tiers, and
+    because this file already runs the one other self-test of that shape.
+    """
+    r = subprocess.run([sys.executable, "scripts/check_worktree_links.py", "--self-test"],
+                       capture_output=True, text=True, timeout=180, cwd=ROOT,
+                       env=PROBE_ENV)
+    if verbose:
+        for line in r.stdout.splitlines():
+            print(f"  {line}")
+    if r.returncode == 0:
+        return []
+    failed = [l.strip() for l in r.stdout.splitlines() if l.strip().startswith("FAIL")]
+    return [f"scripts/check_worktree_links.py --self-test: {f}" for f in failed] or [
+        "scripts/check_worktree_links.py --self-test failed without naming a case: "
+        + (r.stderr.strip().splitlines() or ["(no output)"])[-1]]
+
+
 def verify(roots: list[Path], jobs: int, verbose: bool) -> tuple[list[str], list[str]]:
     """Start every entry point under `roots`. Returns (failures, refusals)."""
     files = entry_points(roots)
@@ -509,6 +539,7 @@ def main() -> None:
     if any(r.resolve() == ROOT / "scripts" for r in roots):
         problems += self_test(a.verbose)
         problems += lock_wrapper(a.verbose)
+        problems += worktree_links_self_test(a.verbose)
     if refusals:
         print(f"\n{len(refusals)} entry points started and refused, which is "
               f"not this gate's business:")
