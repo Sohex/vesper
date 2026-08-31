@@ -87,7 +87,8 @@ from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
 
 import climatology  # noqa: E402  from lib/, via _paths
 from builds import component_data, grid_export, mesh_export, resolution_of, soilmap
-from gridding import land_fraction_of_class, region_cells
+from gridding import (gaussian_grid, land_fraction_of_class,
+                      region_cells, require_gaussian_rows)
 from lapse import sigma_levels
 from orogen import LAND, Export
 from paths import best_available_climatology, rel, require_clean_io, snapshot_beside
@@ -550,15 +551,23 @@ def advect_to_steady_state(emission, u, v, loss_rate, lat, lon, cfg):
     Upwind advection on the regular longitude / Gaussian latitude grid, stepped
     explicitly until the field stops moving. A steady state exists because the
     loss term is everywhere positive.
+
+    The east-west cell width is a METRIC term rather than a label mapping, but
+    it is still the grid's own geometry, so it is read off the spec
+    `lib/gridding.py` constructs for this grid rather than rebuilt from `nlon`
+    here. `require_gaussian_rows` is what makes that a check: the spec is built
+    and the axis is read, and if the field handed in is not on the grid the
+    spec describes, every metre in `dx` is a metre of some other grid.
     """
     tr = cfg["transport"]
     nlat, nlon = emission.shape
     radius = 6.371e6 * float(cfg["_planet_radius_earth"])  # from config/planet.yaml
-    dlon = np.deg2rad(360.0 / nlon)
+    spec = gaussian_grid(nlat, nlon, name="dust-transport")
+    require_gaussian_rows(spec, lat, "the dust transport grid")
     dphi = np.abs(np.gradient(np.deg2rad(lat)))
     coslat = np.maximum(np.cos(np.deg2rad(lat)),
                         tr.get("polar_coslat_floor", 1e-3))
-    dx = (radius * coslat * dlon)[:, None] * np.ones((1, nlon))
+    dx = np.outer(radius * coslat, np.deg2rad(spec.dlon))
     dy = (radius * dphi)[:, None] * np.ones((1, nlon))
 
     speed = np.maximum(np.abs(u) / dx + np.abs(v) / dy, 1e-12)
