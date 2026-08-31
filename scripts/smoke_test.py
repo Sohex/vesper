@@ -20,11 +20,15 @@ such passes used to run here, both behind their own opt-out flag -- and the
 admitting the problem rather than fixing it. They are now their own gates,
 neither weakened and neither deleted:
 
-* **`scripts/verify_entry_points.py`** -- every script with a `__main__` answers
-  `--help` in an interpreter of its own, about 136 of them. It catches an
-  argparse default that raises while being constructed, which is what a strict
-  per-build default does when the build directory is missing, and an import
-  graph that no longer resolves. Nothing static answers either question, and the
+* **`scripts/verify_entry_points.py`** -- every script with a `__main__` STARTS
+  in an interpreter of its own: its module body executes, and where it builds an
+  argparse parser the parser is constructed. It catches an argparse default that
+  raises while being constructed, which is what a strict per-build default does
+  when the build directory is missing, and an import graph that no longer
+  resolves. Starting is not running: the probe is `--help` only where there is a
+  parser to short-circuit it, and otherwise the module body under a `__name__`
+  that is not `__main__`, so a gate started by that pass does not run and rewrite
+  its report. Nothing static answers either question, and the
   checks below do NOT stand in for it: they are all about name binding inside a
   source text.
 * **`exoplasim/scripts/verify_model_compiles.py`** -- `gfortran -fsyntax-only`
@@ -46,8 +50,9 @@ writes -- run from `main()` with the rest):
 1b. **Undefined names**, via pyflakes F821. A name used but never imported is
    bound by nothing and crashes at the end of `main()` -- after the artifact has
    been written. That is exactly how a six-site `relative_to` sweep shipped five
-   NameErrors, and no entry-point check can see it: `--help` proves argparse was
-   constructed and nothing about the code after it.
+   NameErrors, and no entry-point check can see it: starting a script proves its
+   module body ran and its parser was constructed, and nothing about the code
+   after that.
 3. **Defaults point at the active build.** Any default path under a component's
    `data/` must resolve beneath the active build's directory. This is the check
    that would have caught `carve_verdict.py` reading 2,107 basins from

@@ -194,6 +194,13 @@ The arguments and the incidents behind these are in
   identity, a conservation law, a quantity the other side already knows. If you
   cannot say in advance what result would mean "wrong", it is not a test.
   `docs/src/practice/failure-modes.md` class 17.
+- **A gate must not RUN what it only needs to START, and must not decide by a
+  channel that answers for units its question is not about.** A probe that holds
+  for most of the tree is not a probe: `--help` short-circuits only a script that
+  builds a parser first, and an exit status conflates every reason a process
+  ends. Both cost this project a gate that rewrote nine tracked artifacts every
+  time it ran and reported two correct refusals as broken imports.
+  `docs/src/practice/failure-modes.md` class 38.
 - **An undocumented component is not complete.** The test for done is "can
   someone who has never seen it find it and use it without reading the diff":
   a new module belongs in the `lib/` list, a new step in
