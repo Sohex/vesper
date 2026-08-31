@@ -75,6 +75,11 @@ def read_policy(path: Path = POLICY_PATH) -> dict:
                 "absolute_scale_floor"):
         if not isinstance(trend.get(key), (int, float)) or trend[key] <= 0:
             raise EquilibriumWindowError(f"trend.{key} must be positive")
+    if policy.get("reported_span") != "whole_retained_record":
+        raise EquilibriumWindowError(
+            "reported_span names the span the reduced value is taken over, and "
+            "this contract knows one: the whole retained record, which is the "
+            "span it certifies")
     rate = trend.get("maximum_false_acceptance_rate")
     if not isinstance(rate, (int, float)) or not 0 < rate < 1:
         raise EquilibriumWindowError(
@@ -584,8 +589,15 @@ def _settled_within(record: np.ndarray, names: list[str],
         needed = cycles_for_bound(bound["relative_standard_error"], span,
                                   bound["tau_cycles"], alpha, limit)
         settled = bool(bound["upper_bound"] <= limit)
+        # What the REPORTED value is worth, in the units the tolerance is in, so
+        # a consumer never has to reconstruct it. This is the one standard error
+        # of a mean over a series with memory, at the same memory time the bound
+        # was taken at, over the same span the bound certifies.
+        reported_error = mean_standard_error(spatial, bound["tau_cycles"]) / level
         diagnostics.append({"field": name, "assessed": True, "settled": settled,
                             "record_cycles": int(span), **bound,
+                            "reported_mean_relative_standard_error":
+                                float(reported_error),
                             "record_cycles_for_bound": float(needed)})
         if settled:
             continue
@@ -710,8 +722,6 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
         missing = int(np.size(window) - np.isfinite(window).sum())
         raise EquilibriumWindowError(
             f"{path}'s declared end window has {missing} missing cell-year rows")
-    mean = window.mean(axis=0)
-    temporal_std = window.std(axis=0, ddof=1)
     cycle_means = window.reshape(
         policy["complete_forcing_cycles"], cycle_years, len(cells), len(names)
     ).mean(axis=1)
@@ -722,6 +732,18 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
             "time its acceptance depends on cannot be established")
     record = cube[:usable].reshape(
         usable // cycle_years, cycle_years, len(cells), len(names)).mean(axis=1)
+    # THE REPORTED VALUE IS TAKEN OVER THE SPAN THE CONTRACT CERTIFIES, and that
+    # is the whole retained record. Reporting a ten-cycle mean while certifying
+    # the record hands a consumer a number whose own sampling error is larger
+    # than the drift the certificate refuses: the memory time of most assessed
+    # fields is tens to hundreds of cycles, so a ten-cycle mean is one effective
+    # sample and cannot be known better than the field's marginal scatter, which
+    # for ten of the assessed fields exceeds `relative_end_to_end_limit` outright.
+    # The window keeps one job, and it is the per-cell half's, whose empirical
+    # null is built from windows and needs many of them.
+    reported = cube[:usable]
+    mean = reported.mean(axis=0)
+    temporal_std = reported.std(axis=0, ddof=1)
     drift, unsettled = _settled_within(record, names, policy)
     if unsettled:
         raise EquilibriumWindowError(
@@ -811,6 +833,13 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
                          "root_seed", manifest.get("physical", {}).get("root_seed")),
                      "npatch": manifest.get("physical", {}).get("npatch")},
         "forcing": forcing_source,
+        # The span `values` and `temporal_std` are taken over, which is the span
+        # the drift bound certifies. A consumer reads this one.
+        "reported": {"first_year": years[0], "last_year": years[usable - 1],
+                     "annual_values": int(usable),
+                     "complete_forcing_cycles": int(usable // cycle_years),
+                     "forcing_cycle_years": cycle_years},
+        # The per-cell half's window, and nothing else's.
         "window": {"first_year": selected_years[0], "last_year": selected_years[-1],
                    "annual_values": window_years,
                    "complete_forcing_cycles": policy["complete_forcing_cycles"],

@@ -105,14 +105,20 @@ def main() -> None:
         check("complete-cycle mean", np.allclose(
             reduced.values[(-10.0, 20.0)], [10.0, 100.0]),
             f"mean {reduced.values[(-10.0, 20.0)].tolist()}")
-        expected_std_a = np.std(np.tile([-2.0, 2.0], 10), ddof=1)
-        check("temporal spread", np.isclose(
+        # The reported spread is over the SAME span as the reported value, which
+        # is the whole retained record and not the per-cell half's window.
+        expected_std_a = np.std(np.tile([-2.0, 2.0], FIXTURE_CYCLES), ddof=1)
+        check("temporal spread is over the reported span", np.isclose(
             reduced.temporal_std[(-10.0, 20.0)][0], expected_std_a),
-            f"sample std {reduced.temporal_std[(-10.0, 20.0)][0]:.8f}")
-        check("fixed ten-cycle window",
-              reduced.report["window"]["complete_forcing_cycles"] == 10
+            f"sample std {reduced.temporal_std[(-10.0, 20.0)][0]:.8f} over "
+            f"{reduced.report['reported']['annual_values']} annual values")
+        check("the reported span is the record and the window is the cell half's",
+              reduced.report["reported"]["complete_forcing_cycles"]
+              == FIXTURE_CYCLES
+              and reduced.report["window"]["complete_forcing_cycles"] == 10
               and reduced.report["window"]["annual_values"] == 20,
-              str(reduced.report["window"]))
+              f"reported {reduced.report['reported']} against cell-half window "
+              f"{reduced.report['window']}")
         check("stationary periodic phase accepted",
               reduced.report["trend"]["verdict"] == "PASS",
               "a repeating two-year phase has constant cycle means")

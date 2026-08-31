@@ -4,12 +4,21 @@
 # rests on and what each earlier form of this rule could and could not detect are
 # in `biosphere/notes/equilibrium-trend-null.md`.
 contract_version: vesper-lpj-equilibrium-window/4
-# The REPORTED window: how much of the run's end a consumer reads a value over,
-# and the span the per-cell half's slope is fitted on. It is NOT the span the
-# equilibrium claim is made from. Those are two different spans and one number
-# used to name both, which is how a trend came to be fitted inside one memory
-# time; the global half below reads the whole retained record instead.
+# The PER-CELL HALF'S window, and nothing else's. It used to name three spans at
+# once -- the reported value's, the equilibrium claim's, and this one -- and the
+# first two are the whole retained record. A slope fitted over ten cycles sits
+# inside one memory time for 61 of the 64 assessed fields, and a mean taken over
+# ten cycles is one effective sample of them.
 complete_forcing_cycles: 10
+# WHAT A CONSUMER READS, and it is the span the contract certifies. Reporting a
+# ten-cycle mean while certifying the whole record hands a consumer a number
+# whose own sampling error is larger than the drift the certificate refuses: at
+# a memory time of tens to hundreds of cycles a ten-cycle mean cannot be known
+# better than the field's marginal scatter, and ten of the assessed fields have
+# a marginal scatter above `relative_end_to_end_limit` outright. The reduced
+# value, its temporal spread and its own standard error are therefore taken over
+# the whole retained record, and the standard error travels with the value.
+reported_span: whole_retained_record
 trend:
   # DECISION, and sized through the consumer's own chain rather than left bare.
   # `exoplasim/scripts/build_surface_albedo.py --mode modelled` reads fpc.out and
