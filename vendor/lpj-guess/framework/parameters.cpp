@@ -444,7 +444,14 @@ void plib_declarations(int id,xtring setname) {
 	case BLOCK_GLOBAL:
 
 		declareitem("title",&title,80,CB_NONE,"Title for run");
-		declareitem("nyear_spinup",&nyear_spinup,1,10000,1,CB_NONE,"Number of simulation years to spinup for");
+		// The upper bound is 1000000 and not the stock 10000 because a
+		// CONTINUATION declares as its spin-up the simulated years its parent
+		// already integrated (biosphere/scripts/run_lpj_guess.py, state_block).
+		// That number grows with every link of a restart chain, so the stock
+		// bound -- a convention for a spin-up somebody types by hand -- caps
+		// the chain at one link, and a run refused for reaching it is refused
+		// by an arbitrary limit rather than by anything about the world.
+		declareitem("nyear_spinup",&nyear_spinup,1,1000000,1,CB_NONE,"Number of simulation years to spinup for");
 		declareitem("vegmode",&strparam,16,CB_VEGMODE,
 			"Vegetation mode (\"INDIVIDUAL\", \"COHORT\", \"POPULATION\")");
 		declareitem("ifbgestab",&ifbgestab,1,CB_NONE,

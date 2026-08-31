@@ -462,18 +462,19 @@ def main() -> None:
     parser.add_argument("--round-trip", action="store_true",
                         help="instead: restart at --state-day and write the "
                              "state again with NO simulated day in between")
-    parser.add_argument("--nyear-spinup", type=int, default=0,
-                        help="the simulated years in front of --nyear. ZERO by "
-                             "default, and that default is what makes this "
-                             "fixture runnable at all: the PFT file declares "
-                             "the DERIVED spin-up floor, which is thousands of "
-                             "simulated years, and inheriting it turns a "
-                             "twelve-year bed into a twelve-thousand-year one. "
-                             "Zero also puts every simulated year in the "
-                             "output tables, which is what the annual mode "
-                             "compares. It disables the CENTURY accelerator "
-                             "window, so this fixture does not exercise the "
-                             "accelerator's own restart state.")
+    parser.add_argument("--nyear-spinup", type=int, default=1,
+                        help="the simulated years in front of --nyear. ONE by "
+                             "default, which is the model's own minimum and is "
+                             "what makes this fixture runnable at all: the PFT "
+                             "file declares the DERIVED spin-up floor, which is "
+                             "thousands of simulated years, and inheriting it "
+                             "turns a twelve-year bed into a "
+                             "twelve-thousand-year one. One also puts all but "
+                             "the first simulated year in the output tables, "
+                             "which is what the annual mode compares. It leaves "
+                             "the CENTURY accelerator window empty, so this "
+                             "fixture does not exercise the accelerator's own "
+                             "restart state.")
     parser.add_argument("--ranks", type=int, default=4)
     parser.add_argument("--npatch", type=int, default=5)
     parser.add_argument("--bed", type=Path, default=None,
