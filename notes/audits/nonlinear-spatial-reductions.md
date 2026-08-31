@@ -371,6 +371,21 @@ stale.
 
 ## 7. The wet-soil albedo mixing. Pre-registered before the measurement
 
+### The ocean's zenith fit is not an aggregate-then-process composition here
+
+`radmod.f90`'s ocean albedo is strongly convex in the cosine of the zenith
+angle -- the ECHAM-3 branch is `min(0.05/(mu0 + 0.15), 0.15)` -- and the model
+does hold a branch that hands it a LONGITUDINAL MEAN of that cosine, taken over
+a latitude row. That branch is `ndcycle == 0` and this world does not run it:
+`ndcycle`'s compiled default is 1, nothing in `config/planet.yaml` or in
+`run_exoplasim.py` assigns it, and `radini` is the only place it could be
+assigned. So the zenith cosine reaching the fit is instantaneous and there is no
+aggregation in front of it to have an order. The composition is real in the
+source and absent from this configuration, which is a different verdict from
+"small", and it becomes live the moment a run turns the diurnal cycle off.
+
+### The staged fields
+
 `build_surface_albedo.py` is affine at the crossing everywhere except here, and
 that is worth saying first because it is the larger part of the finding. Every
 nonlinear step in the builder -- the band split through `band_shapes`, the
