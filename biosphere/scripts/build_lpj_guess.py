@@ -92,14 +92,29 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import re
 import subprocess
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _paths import GUESS_BINARY, GUESS_BUILD, GUESS_SOURCE, PROJECT_ROOT  # noqa: E402
+# `_paths` BY LOCATION, not by name. Every component has a module called
+# `_paths`, and this one is imported INTO other components' processes:
+# `scripts/check_consistency.py` appends `exoplasim/scripts` to `sys.path`
+# first, so by the time this module loads, `sys.modules["_paths"]` is
+# ExoPlaSim's and a plain `from _paths import GUESS_BINARY` raises ImportError
+# -- which the gate reports as "not checked", the one verdict a staleness check
+# must never quietly return. A gate that cannot import is a gate that is not
+# running, and it looks exactly like a gate that passed.
+_spec = importlib.util.spec_from_file_location(
+    "biosphere_paths", Path(__file__).resolve().parent / "_paths.py")
+_paths = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_paths)
+GUESS_BINARY = _paths.GUESS_BINARY
+GUESS_BUILD = _paths.GUESS_BUILD
+GUESS_SOURCE = _paths.GUESS_SOURCE
+PROJECT_ROOT = _paths.PROJECT_ROOT
 
 CONTRACT = "vesper-lpj-guess-binary/1"
 PROVENANCE = GUESS_BINARY.with_suffix(".provenance.json")
