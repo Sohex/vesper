@@ -383,10 +383,19 @@ def main() -> int:
     # and it carries `require_configured_grid`, which a hand-rolled read of the
     # config key does not.
     clim, clim_stage = best_available_climatology(args.climatology)
+    # NAMED BY WHAT WAS DECLARED, READ BY WHERE THE BYTES ARE, and the two are
+    # not the same path in a worktree. `scripts/link_worktree.py` links the
+    # climatology payload in from the main checkout, so `resolve()` follows the
+    # link OUT of the project root and `rel()` can then only hand back an
+    # absolute path. That path is what gets stamped on `water_table.nc` and
+    # compared against `surface_water.nc`'s repo-relative `forcing` stamp
+    # below, so a resolved name refuses every worktree run and writes an
+    # artifact naming a file that does not exist in any other tree.
+    clim_name = rel(args.climatology if args.climatology is not None else clim)
     clim = clim.resolve()
     if not clim.is_file():
         raise SystemExit(
-            f"config/planet.yaml names {rel(clim)} as the {clim_stage} "
+            f"config/planet.yaml names {clim_name} as the {clim_stage} "
             "climatology and it does not exist")
     # THE TWO HALVES OF ONE WATER BALANCE, checked rather than assumed. This
     # takes the same recharge field `surface_water.py` runs the lakes on, so
@@ -399,14 +408,23 @@ def main() -> int:
     if sw_nc.is_file():
         with Dataset(sw_nc) as _ds:
             sw_forcing = getattr(_ds, "forcing", None)
-        if sw_forcing and sw_forcing != rel(clim):
-            raise SystemExit(
-                f"{rel(sw_nc)} was forced by {sw_forcing} and this run "
-                f"resolved {rel(clim)} as the {clim_stage} climatology. The "
-                "lakes and the water table are the surface and subsurface "
-                "halves of one balance and cannot come from two climates: "
-                "re-run `surface_water` on this climatology, or pass "
-                "--climatology to force both onto the same one.")
+        # COMPARED AS FILES AND NOT AS SPELLINGS. The stamp is repo-relative,
+        # so it is re-anchored and resolved before the test: one file reachable
+        # under two names is one forcing, and two names for one file must not
+        # read as a disagreement about the climate.
+        if sw_forcing:
+            sw_path = Path(sw_forcing)
+            if not sw_path.is_absolute():
+                sw_path = PROJECT_ROOT / sw_path
+            if sw_path.resolve() != clim:
+                raise SystemExit(
+                    f"{rel(sw_nc)} was forced by {sw_forcing} and this run "
+                    f"resolved {clim_name} as the {clim_stage} climatology. "
+                    "The lakes and the water table are the surface and "
+                    "subsurface halves of one balance and cannot come from "
+                    "two climates: re-run `surface_water` on this "
+                    "climatology, or pass --climatology to force both onto "
+                    "the same one.")
 
     build = builds.build_root(config)
     export = Export(builds.mesh_export(config))
@@ -480,7 +498,7 @@ def main() -> int:
           f"of magnitude across lithologies")
 
     # -- forcing -----------------------------------------------------------
-    print(f"reading the climatology {rel(clim)}")
+    print(f"reading the climatology {clim_name}")
     recharge, fields = recharge_field(export, config, clim)
     lat, lon, runoff_grid, precip_grid, evap_grid, lsm, evap_annual_grid = fields
     recharge = np.where(land, recharge, 0.0)
@@ -713,7 +731,7 @@ def main() -> int:
     report = {
         "source_build": build.name,
         "terrain_hash": export.terrain_hash,
-        "forcing": rel(clim),
+        "forcing": clim_name,
         # WHICH STAGE the recharge came from. lib/paths.py.
         "climatology_stage": clim_stage,
         "forcing_sha256": sha256(clim),
@@ -966,7 +984,7 @@ def main() -> int:
         ds.title = f"Steady-state water table under {clim.stem}"
         ds.terrain_hash = export.terrain_hash
         ds.setncattr("vesper_source_build", build.name)
-        ds.forcing = rel(clim)
+        ds.forcing = clim_name
         ds.climatology_stage = clim_stage
         ds.sigma = args.sigma
         ds.caveat = (

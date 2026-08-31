@@ -888,10 +888,14 @@ steps:
       skill in the second case and none in the first, so `sink_fraction` and
       `at_surface` in `water_table.nc` are the unit of certification rather than
       the field as a whole. What survives in BOTH regimes is the per-basin
-      exchange direction. MIN-6 cannot use a per-cell depth, and SURF-7's mask
-      gets AUC 0.52 to 0.57; both were measured over ALL cells, and re-measuring
-      them restricted to cells where the sink did not set the depth is what
-      those rows now ask for. This planet's own regime is NOT known and moves
+      exchange direction. MIN-6 is CLOSED against this field and not waiting on
+      it: the mechanism's control is a depth two orders of magnitude above
+      anything this solver produces, and the vadose-zone flag that would survive
+      the range problem fires on 1 of 10,146 bore-carrying cells across both
+      scored continents, so it has no group to be scored against.
+      SURF-7's mask gets AUC 0.52 to 0.57; that was measured over ALL cells, and
+      re-measuring it restricted to cells where the sink did not set the depth
+      is what that row still asks for. This planet's own regime is NOT known and moves
       with loop A, so re-read the flag after each accepted baseline rather than
       transporting either continent's result.
 

@@ -1,40 +1,46 @@
 {
-  "source_build": "precarve-craton",
-  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-  "forcing": "/home/cfutro/docs/world/exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-  "forcing_sha256": "227909c0a19e204b88dd081b42bf7671447a5dc781e8ebeacd8e942144df5715",
-  "config_sha256": "fdee90a77e7a78e2ea2b3116dda8b74c961583eb3bade8657a0d6900a84520c4",
+  "source_build": "canonical-10m-carve2",
+  "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
+  "forcing": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "climatology_stage": "bootstrap",
+  "forcing_sha256": "13ddb89058fe9901588f73482a3b79a726cbecf758d7dd98762cd19a3b417602",
+  "config_sha256": "70ce51aac1513fd2dfc66183ef27dc7016192f2a3bfddbb3e38122a19dd3c18f",
   "sigma": 0.0,
+  "operator_noise": 0.0,
+  "noise_seed": 0,
   "unassigned_policy": "exclude",
+  "evaporation_interval": null,
   "gravity_m_s2": 12.81,
   "conductivity_vs_earth": 1.3062564688247262,
   "geometry": {
-    "faces": 7499997,
+    "faces": 30000009,
     "voronoi_area_over_sphere": 1.0,
-    "export_cell_area_over_sphere": 1.000680974409125,
+    "export_cell_area_over_sphere": 1.0006854371073761,
     "note": "flux uses the Voronoi area its own faces bound; water volumes use the export's cell_area so the reduction identity against surface_water.py is exact"
   },
   "laplace_beltrami": {
     "criterion": 0.1,
     "relative_rms": {
-      "1": 0.02165422451858263,
-      "2": 0.1081881734670909,
-      "3": 0.12015462041162055,
-      "4": 0.12426941987830004
+      "1": 0.07723551909067441,
+      "2": 0.13145330677633235,
+      "3": 0.1378566312863166,
+      "4": 0.138711308617855
     }
   },
   "closure": {
-    "recharge_m3_s": 1332781.1760872037,
-    "discharge_m3_s": 1332781.1760872034,
-    "seepage_m3_s": 1332781.1760872034,
+    "recharge_m3_s": 1653405.4675872272,
+    "discharge_m3_s": 1653405.4675872275,
+    "seepage_m3_s": 1653405.4675872275,
     "to_ocean_m3_s": 0.0,
-    "relative_residual": 1.746953272084896e-16,
+    "to_groundwater_et_m3_s": 0.0,
+    "to_baseflow_m3_s": 0.0,
+    "relative_residual": 1.4081884221275348e-16,
     "tolerance": 1e-10,
     "passes": true
   },
   "converged": true,
   "convergence": {
-    "criterion_residual": 1e-08,
+    "criterion_residual": 1e-12,
     "criterion_flip_fraction": 0.0,
     "final_residual": 0.0,
     "criterion_note": "the water balance residual on free cells over total land recharge, and a still active set. Not the head step: a bar on the step can be met by a shrinking step rather than by convergence",
@@ -42,20 +48,32 @@
       "pass",
       "free_cells",
       "cells_flipped",
-      "residual"
+      "residual",
+      "infeasible_pinned_cells"
     ],
+    "seepage_clipped_m3_s": -0.0,
     "trace": []
   },
   "outer_iterations": 1,
   "water_table": {
     "median_depth_m_land": 0.0,
     "at_surface_fraction_land": 1.0,
-    "unassigned_land_fraction": 0.012453195018721993,
-    "aquifer_thickness_m": 100.0,
+    "unassigned_land_fraction": 0.014012879522224984,
+    "aquifer_thickness": {
+      "source": "constant",
+      "constant_m": 100.0
+    },
+    "saturated_column_drained": {
+      "50": 0.0,
+      "75": 0.0,
+      "95": 0.0,
+      "99": 0.0
+    },
+    "unconfined": true,
     "at_transmissivity_floor": 0,
-    "at_transmissivity_floor_note": "a numerical bound, not a physical one: T = K0 f exp(-d/f) underflows on steep bedrock where f is a metre. These cells' depths are a lower bound rather than a value"
+    "transmissivity_note": "T = K (h - z_bottom): the saturated column is solved for, so a cell at the minimum saturated thickness carries a LOWER BOUND on its depth rather than a value, and at_transmissivity_floor counts them"
   },
-  "git_commit": "5f77654de9df06c72f86d71987a98ef5a5851c84",
+  "git_commit": "e5bea33f4633b65057d0b4132d3f06442a3efbd6",
   "reduction_identity": {
     "criterion": "exact: seepage == recharge per cell, Qg == 0 per basin",
     "seepage_equals_recharge_exactly": true,

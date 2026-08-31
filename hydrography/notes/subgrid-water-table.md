@@ -4,8 +4,10 @@ This is worldbuilding. Vesper is an invented super-Earth; everything here is
 about the steady-state groundwater model written for it, the mesh it is solved
 on, and the Earth measurements it has been scored against.
 
-Everything measured here was measured on 2026-08-24, on `precarve-craton-10m`
-where a build is named and on `precarve-craton` where the two are compared. The
+Sections 1, 2, 5, 6 and 7 were measured on 2026-08-24, on `precarve-craton-10m`
+where a build is named and on `precarve-craton` where the two are compared.
+Sections 3 and 4 carry the GW-24 and GW-18 measurements, which were re-taken on
+2026-08-30 on `canonical-10m-carve2` and name that build at each figure. The
 Earth figures quoted are carried from `earth-calibration-criterion.md` and
 `groundwater-et-sink.md` and are not re-derived.
 
@@ -140,7 +142,7 @@ of recharge, 15 km to a local baselevel, Gleeson's median conductivity of
 | aquifer thickness | confined mound over 15 km | unconfined correction |
 | ---: | ---: | ---: |
 | 100 m | 381 m, so the table pins | not a perturbation at all |
-| 365 m, this world's sourced median | 104 m | 14%, about 15 m |
+| 332 m, this world's sourced median | 115 m | 17%, about 20 m |
 | 1,000 m | 38 m | 1.9%, about 0.7 m |
 | 2,000 m, GW-17's range fix | 19 m | 0.48%, about 0.09 m |
 
@@ -151,8 +153,8 @@ is not what limits this. What limits it is the model's own between-cell spread,
 1.91 m in Australia and 20.72 m in the United States, against observed spreads
 of 18.36 and 28.94 m. At the 2 km thickness GW-17 needed to reproduce the
 observed depth range the correction is 0.09 m, which is 0.4% of the model's own
-spread and cannot move a correlation. At 365 m it is 15 m, which is comparable
-to the spread -- but there the confined mound is already 104 m over 15 km, far
+spread and cannot move a correlation. At 332 m it is 20 m, which is comparable
+to the spread -- but there the confined mound is already 115 m over 15 km, far
 above the median relief the terrain offers over that distance, so the table pins
 and the evapotranspiration sink rather than the flow solve sets the depth.
 
@@ -258,9 +260,25 @@ the guard exists so that a configuration which crosses it says so.
 
 ### What must be run before this can be turned on
 
-Nothing here has touched the real mesh, and the risk in this change has always
-been convergence rather than algebra. Two solvers died on the previous attempt
-at a depth-dependent transmissivity.
+The risk in this change has always been convergence rather than algebra. Two
+solvers died on the previous attempt at a depth-dependent transmissivity.
+
+**One of the three has now been run on the real mesh, and it is the algebraic
+one.** `--unconfined --reduction-test` on `canonical-10m-carve2`, 2026-08-30, on
+its 10,000,005 regions and 30,000,009 faces with the Voronoi area closing on the
+sphere to 1.00000000: at zero permeability the unconfined assembly reproduces
+the surface-only balance BITWISE, seepage equal to recharge on every land cell
+at a worst absolute difference of 0.0 m3/s and a largest basin `Qg` of 0.0 m3/s,
+with closure at a relative residual of 1.408e-16 against a declared 1e-10. PASS.
+So the unconfined form does not disturb the identity the component is certified
+by, on this world's own mesh rather than on a synthetic.
+
+It says nothing about the question this row is actually about. Zero permeability
+pins the table at the surface on 100% of land, so there is no flow, no Picard
+iteration and no active set to converge: `saturated_column_drained` reads 0.000%
+in that run because the depth is zero everywhere by construction, and it is NOT
+the materiality measurement this section calls for. That number has to come from
+a CONFINED solve of the real case, which has not been obtained on this build.
 
     python hydrography/scripts/build_groundwater.py --unconfined --uniqueness-check
     python hydrography/scripts/build_groundwater.py --unconfined --reduction-test
@@ -302,13 +320,14 @@ cover over basement. It is a STATE and not a history, which is why
 `docs/src/reference/no-time-axis.md` does not refuse it: it is the thickness
 that is there now, not an accumulation over a duration.
 
-Measured on the active build, floored at Gleeson's 100 m: 35.9% of land sits on
-the floor because it carries no cover at all, the land median is 365 m, the 95th
-percentile 998 m, the maximum 2,950 m, and the area-weighted mean 380 m. **Only
-0.4% of land reaches the 2 km that GW-17 applied everywhere.**
+Measured 2026-08-30 on `canonical-10m-carve2`, over its 4,328,732 land regions,
+floored at Gleeson's 100 m: 42.9% of land sits on the floor because it carries
+no cover at all, the land median cover is 332 m, the 95th percentile 1,286 m,
+the maximum 2,953 m, and the area-weighted mean thickness 405 m. **Only 0.68% of
+land reaches the 2 km that GW-17 applied everywhere.**
 
 So the honest statement is not that GW-18 sources the range. It is that a
-sourced thickness CONTRADICTS the assumed one over 99.6% of the land, and puts
+sourced thickness CONTRADICTS the assumed one over 99.3% of the land, and puts
 2 km only in the deepest basins. The prediction, recorded in
 `config/groundwater.yaml` before the run: the depth range shrinks, and cratonic
 cells move from lateral-flow control back towards the local
