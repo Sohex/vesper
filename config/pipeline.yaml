@@ -1281,13 +1281,39 @@ steps:
       the CONSUMING step reports and against that step's own instrument -- the
       roughness builder's `z_ref` bracket, Dunne's scatter on the weathering
       exponent, the pedogenesis model's minimum depth -- because one percentage
-      across six quantities would be a preference and not a criterion. Arms
-      that need a climate field SWEEP it, since `baseline_climatology` is null
-      and `water_table.nc` does not exist, and an arm that crosses its bar
-      inside its bracket is reported as crossing rather than resolved.
+      across six quantities would be a preference and not a criterion. An arm
+      whose input has no sub-grid population SWEEPS it rather than reading a
+      climatology, and an arm that crosses its bar inside its bracket is
+      reported as crossing rather than resolved. The wet-albedo arm is the one
+      that converts to watts, and it does so only on the rung the accepted
+      climatology carries, with no fallback onto another.
       `notes/audits/nonlinear-spatial-reductions.md` is the finding; SPAT-4's
       operators in `lib/gridding.py` are what a material gap is corrected with,
       and a gap inside its instrument is a reason NOT to carry an expectation.
+
+  - id: ocean_support_reduction
+    reads_export: true
+    script: analysis/ocean_support_reduction.py
+    cost: minutes
+    needs: []
+    writes: [analysis/ocean_support_reduction.json]
+    gate: >
+      SPAT-7's ocean half, and the sizing OCN-11 is owed before a wet support
+      can be called adequate. Bathymetry and coastline are TERRAIN, so this
+      needs no climate run and no ocean run and sits outside every loop.
+      Three quantities are asked of the same cell distribution and they behave
+      differently: volume is affine in depth and the cell mean reproduces it
+      exactly, which is the arm that can FAIL; the area on either side of a
+      depth horizon is a threshold the mean does not carry; and connectivity is
+      a property of the graph the cells form, which coarsening moves in two
+      directions at once, deepening bottlenecks while binarising narrow
+      passages away. The bars are the consuming loop's own --
+      `lib/remap.py:CLOSURE_TOLERANCE` for the volume control,
+      `ocean/config/transport_loop.yaml`'s `sea_ice_area` for a planetary area
+      fraction, and its `heat_transport_change` for passage capacity, published
+      as the critical fractional error against a transport the first accepted
+      ocean run supplies. `notes/audits/ocean-support-nonlinear-reductions.md`
+      is the finding and carries the pre-registration.
 
   - id: shortwave_band_weights
     script: exoplasim/scripts/shortwave_band_weights.py
