@@ -137,6 +137,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1266,6 +1267,60 @@ def check_derived_config_values(rep: "Report", config: dict) -> None:
     except Exception as exc:
         rep.add(WARN, "derived config values match their artifacts",
                 f"not checked: {exc}")
+
+
+
+def check_held_references_are_on_disk(rep: "Report") -> None:
+    """Every `references/INDEX.md` row that names a PDF has that PDF.
+
+    THE ROW IS THE EVIDENCE A DECISION CITES. `references/INDEX.md` marks each
+    source *read* or *held*, and its own header says the distinction is the
+    point of the file: a number taken from a citation rather than from the
+    paper is `docs/src/practice/failure-modes.md` class 9. A row naming a file
+    that is not there breaks that guarantee in the quietest way available --
+    the row still reads as evidence, and the decision resting on it is OPAQUE
+    by this project's vocabulary, its derivation existing somewhere a reader
+    cannot reach.
+
+    It is not hypothetical. `nolet2014-surface-moisture-beach-sand-reflectance`
+    was named by a row marked read, cited by
+    `analysis/soil_albedo_wetting.py`'s band-2 term, and absent from
+    `references/`; the absence surfaced only when someone went to read it.
+
+    WHAT COUNTS AS A CLAIM. A table row whose first cell is a single backticked
+    `.pdf` name, which is the convention the file's header states. A source
+    sought and not reached is written as a bullet without a filename, so it is
+    not claimed and not checked -- that shape is the honest record of a paper
+    this host could not get, and the check must not push anyone toward
+    inventing a filename for one.
+
+    HERE AND NOT IN `smoke_test.py`: `references/` holds untracked payload, so
+    this reads artifacts rather than the tree, which is the line between the
+    two gates.
+    """
+    index = ROOT / "references" / "INDEX.md"
+    if not index.is_file():
+        rep.add(WARN, "held references are on disk",
+                f"{rel(index)} is missing")
+        return
+    named, missing = [], []
+    for line in index.read_text(encoding="utf-8").splitlines():
+        if not line.lstrip().startswith("|"):
+            continue
+        cells = line.split("|")
+        if len(cells) < 3:
+            continue
+        match = re.fullmatch(r"`([^`]+\.pdf)`", cells[1].strip())
+        if not match:
+            continue
+        named.append(match.group(1))
+        if not (ROOT / "references" / match.group(1)).is_file():
+            missing.append(match.group(1))
+    rep.add(FAIL if missing else OK, "held references are on disk",
+            (f"{len(missing)} of {len(named)} rows name a PDF that is not in "
+             f"references/, so each is cited as evidence nobody can open: "
+             f"{', '.join(sorted(missing))}") if missing else
+            f"{len(named)} rows name a PDF and every one of them is there")
 
 
 def check_derived_config_rules(rep: "Report", config: dict) -> None:
@@ -2900,6 +2955,7 @@ def main() -> int:
                 f"not checked: {exc}")
 
     check_derived_config_values(rep, config)
+    check_held_references_are_on_disk(rep)
     check_derived_config_rules(rep, config)
     check_land_column_thermal_constants(rep)
     check_cold_start_currency(rep, config)
