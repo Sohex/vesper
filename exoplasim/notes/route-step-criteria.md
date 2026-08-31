@@ -258,11 +258,11 @@ the order is fixed:
    capacity: a cold one reads the staged field, a converted one takes `dwmax`
    from a template cut at that rung after step 3.
 
-**Steps 2 and 3 are separated by a carrier defect that is real and is not this
-one.** `build_soil.py` takes no `--grid`: its grid export comes from
+**Step 2 sits behind a carrier defect that is real and is not this one.**
+`build_soil.py` takes no `--grid`: its grid export comes from
 `config/planet.yaml`'s `model.resolution` and its climatology from the single
-unrunged `bootstrap_climatology` key, whose `--climatology` override is pinned
-by sha to the declared file and so cannot name another. Running the soil at a
+unrunged `bootstrap_climatology` key, whose `--climatology` is a cross-check
+pinned by sha to the declared file and so cannot name another. Running the soil at a
 second rung therefore means moving both config keys together, which is a
 configuration change `continue_exoplasim.py` refuses to resume across and which
 blocks every run in flight. WORLD-QGB6 fixed this shape one level down;
