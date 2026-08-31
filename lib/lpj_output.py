@@ -418,7 +418,7 @@ def drift_bound(series, alpha: float, floor: float) -> dict:
     each replaces a defect the earlier form could not repair.
 
     NO MULTIPLICITY CORRECTION IS NEEDED OR APPLIED. A run passes only when
-    every assessed field passes, so by the intersection-union principle the
+    every assessed quantity passes, so by the intersection-union principle the
     run-level rate of accepting a field that truly drifts at the tolerance is
     bounded by `alpha` with nothing added. Contract 2 declared a per-field rate
     of 0.05 and measured a family rate of 0.34 over 64 fields, and expressing
@@ -570,7 +570,7 @@ def relaxation_time(series: np.ndarray, tau_memory: float,
     WHY NOT A CURVE FIT. Fitting `a + b * exp(-t / tau)` needs the record to
     contain the turn-over: the asymptote `a` is a free parameter, and on a record
     shorter than the approach it lands outside the data and the fit says nothing.
-    On this model's 1000-cycle record that happened for 34 of 64 assessed fields.
+    On this model's 1000-cycle record that happened for 34 of its 64 columns.
 
     WHAT THIS DOES INSTEAD. For that same exponential the DIFFERENCE between
     consecutive equal blocks decays by `exp(-Q / tau)`, and the asymptote cancels
@@ -853,7 +853,7 @@ def _cell_fraction_null(cube: np.ndarray, years: list[int], window_years: int,
 
     The limit on the trending-cell fraction cannot be one declared number. Measured
     on a run at fixed forcing, the fraction a field reaches when nothing is drifting
-    spans three orders of magnitude across the assessed fields, because it is set by
+    spans three orders of magnitude across a table's columns, because it is set by
     that field's own internal variability and not by anything about equilibrium: the
     slow soil pools sit near a thousandth while the patch-driven grass and vegetation
     fields sit near four tenths. A single limit is therefore either unreachable for
@@ -972,7 +972,7 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
     # than the drift the certificate refuses: the memory time of most assessed
     # fields is tens to hundreds of cycles, so a ten-cycle mean is one effective
     # sample and cannot be known better than the field's marginal scatter, which
-    # for ten of the assessed fields exceeds `relative_end_to_end_limit` outright.
+    # for ten of this model's columns exceeds `relative_end_to_end_limit` outright.
     # The window keeps one job, and it is the per-cell half's, whose empirical
     # null is built from windows and needs many of them.
     reported = cube[:usable]

@@ -7,14 +7,14 @@ contract_version: vesper-lpj-equilibrium-window/5
 # The PER-CELL HALF'S window, and nothing else's. It used to name three spans at
 # once -- the reported value's, the equilibrium claim's, and this one -- and the
 # first two are the whole retained record. A slope fitted over ten cycles sits
-# inside one memory time for 61 of the 64 assessed fields, and a mean taken over
-# ten cycles is one effective sample of them.
+# inside one memory time for 61 of the 64 columns it used to judge, and a mean
+# taken over ten cycles is one effective sample of them.
 complete_forcing_cycles: 10
 # WHAT A CONSUMER READS, and it is the span the contract certifies. Reporting a
 # ten-cycle mean while certifying the whole record hands a consumer a number
 # whose own sampling error is larger than the drift the certificate refuses: at
 # a memory time of tens to hundreds of cycles a ten-cycle mean cannot be known
-# better than the field's marginal scatter, and ten of the assessed fields have
+# better than the series' marginal scatter, and ten of those columns have
 # a marginal scatter above `relative_end_to_end_limit` outright. The reduced
 # value, its temporal spread and its own standard error are therefore taken over
 # the whole retained record, and the standard error travels with the value.
@@ -161,7 +161,7 @@ trend:
   # declared, because it is what sizes the retained record.
   #
   # The run-level rate is the same number and needs no multiplicity correction.
-  # A run passes only when every assessed field passes, so by the
+  # A run passes only when every assessed quantity passes, so by the
   # intersection-union principle the probability of accepting a run in which any
   # field truly drifts at the limit is bounded by this per-field rate. Contract 2
   # declared 0.05 per field and measured 0.34 per run over 64 fields; expressing
@@ -200,7 +200,7 @@ trend:
     null_statistic: maximum_over_detrended_windows_of_this_run
     # DECISION at the conventional level, and it is a PER-FIELD rate: a stationary
     # field exceeds the largest of N detrended null windows with probability
-    # 1/(N+1). This half refuses a run when ANY of the 64 assessed fields exceeds,
+    # 1/(N+1). This half refuses a run when ANY assessed quantity exceeds,
     # so its FAMILY rate is larger -- measured at 0.34 on 100 windows and about
     # 0.24 on the 124 a 1253-cycle record leaves. That errs toward REFUSING, so a
     # pass through this half is evidence and a refusal through it is not, and the

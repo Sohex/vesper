@@ -2341,7 +2341,7 @@ one_offs:
   - biosphere/scripts/check_forcing_contract.py
   # Validates the equilibrium contract's drift bound against series whose
   # answer is known by construction, and prices the retained record each
-  # assessed field needs. Outside the graph because its JSON is EVIDENCE for
+  # assessed quantity needs. Outside the graph because its JSON is EVIDENCE for
   # a declared rate in `biosphere/config/equilibrium_window.yaml`, not an
   # input any step reads, and because it runs no model: every series is a
   # synthetic AR(1) or a completed run's own table. world-rnns.

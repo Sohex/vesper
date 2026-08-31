@@ -193,7 +193,7 @@ def main() -> None:
                   "false_refusal_rate"] <= reduced.report["trend"]["rule"][
                       "cell_fraction"]["per_field_false_refusal_rate"],
               str(reduced.report["trend"]["cell_fraction_null"]))
-        check("every assessed field carries its own limit",
+        check("every assessed quantity carries its own limit",
               all("trending_cell_fraction_limit" in item
                   for item in reduced.report["trend"]["fields"]),
               "one declared fraction cannot serve fields whose null spans "
