@@ -472,6 +472,48 @@ and leaves solved-water and dry-barren contributions unchanged. Forest code 212
 is the resulting whole-cell tree share. `rootable_albedo_gate.py` fixes ordinary,
 barren, partial-lake and pure-lake answers and checks the two-band identity.
 
+### A run saves its state, and another run continues from it
+
+The ecological spin-up in front of a retained record is several times the
+record, so most of a run's wall clock buys the approach to equilibrium rather
+than the record itself. A run refused by the acceptance contract used to be
+answerable only by a second run from bare ground that re-integrated the whole of
+that approach; with a state file the marginal cost of more retained record, of a
+second seed, or of another patch count is the record alone.
+
+```bash
+python biosphere/scripts/run_lpj_guess.py --nyear 8600 --save-state
+python biosphere/scripts/run_lpj_guess.py --nyear 9853 --continue-from lpj_<parent>
+```
+
+`--nyear` is CUMULATIVE. `vesperinput.cpp:getclimate` stops on `date.year`
+reaching `nyear_spinup + nyear` and counts from year zero whether the state was
+read or integrated, so the second command above adds 1,253 simulated years to
+the 8,600 the first one left on disk. The continuation is a NEW run with a new
+id -- rule 6, unchanged by where the state came from -- and `run_manifest.json`
+carries a `continuation` block naming the parent, the chain back to bare ground,
+the year it resumed at, how many years it integrated itself and the hashes of
+the state files it read. `acceptance.json` carries that block too, on a pass and
+on a refusal, so a consumer reading a record can see that the spin-up in front
+of it was integrated by a named run rather than assumed.
+
+**What may be continued is guarded, not trusted.** A state file is a simulated
+state and not a result: read under a different forcing, a different soil map, a
+different binary or a different ecological parameter, the model integrates from
+a state those inputs never produced while every number out of it is attributed
+to a spin-up that did not happen -- a silent wrong answer, and a worse position
+than having no state file at all. `run_lpj_guess.py:continuation_refusals`
+compares the parent manifest's pinned input hashes and physical settings against
+the continuing run's and refuses on any difference. The rank count is recorded
+rather than refused: `PartitionedMapDeserializer` searches every file in the
+state directory for a cell's coordinates, and the stochastic substreams are
+derived from the cell rather than from the rank.
+
+That a resumed run reproduces the run it continues is a separate question with a
+right answer, and `verify_lpj_restart_continuity.py` is where it is asked. Its
+three modes and what each can see are below, under what a restarted soil column
+inherits.
+
 ### The volatile organic source is off, and off is a decision
 
 `bvoc_gate.py` is that decision made explicit. `ifbvoc 1` reads like one switch
