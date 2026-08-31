@@ -33,11 +33,6 @@ that removes what it rested on.
 
 ## `source_build`
 
-```
-source_build: precarve-craton
-```
-
-
 DETERMINED. Which World Orogen build every component reads. source/ is namespaced by build
 because they now multiply faster than they can be swapped in place, and a
 result's provenance should depend on what it was computed from rather than on
@@ -49,31 +44,27 @@ and a stale list beside the live setting reads as though it were checked.
 
 ## `baseline_climatology`
 
-```
-baseline_climatology: null
-```
+Which climatology every downstream component reads by default. Named here
+rather than hardcoded in a _paths helper, because it was hardcoded once -- to a
+climatology computed on pre-carve terrain under the wrong stellar spectrum --
+and six scripts across pedology and biosphere took that superseded default
+silently.
 
+The key is either a path or null, and null is a real state rather than an
+omission: a carve moves `source_build`, every climatology on the terrain it
+replaces becomes a property of a world this project no longer holds, and the
+key goes back to null until a commissioning produces one. `climatology_path()`
+raises on null rather than falling back, which is the point -- a stale default
+returns a plausible number from the wrong world, and that is worse than an
+error. Read the current state from `config/planet.yaml`; the comment above the
+key there is where the reason for the current one lives.
 
-DECLARED ABSENT, 2026-08-19. Which climatology every downstream component reads
-by default. Named here rather than hardcoded in a _paths helper, because it was
-hardcoded once -- to a climatology computed on pre-carve terrain under the wrong
-stellar spectrum -- and six scripts across pedology and biosphere took that
-superseded default silently.
-
-NULL means no baseline is named, and `climatology_path()` raises rather than
-falling back. That is the point: a stale default returns a plausible number
-from the wrong world, which is worse than an error.
-
-It is null because there is no climatology on this build. Every run was reduced
-to its identity under `archive/runs/` and deleted, so the bootstrap and baseline
-climatologies both went with them, and nothing downstream may read one until a
-commissioning produces one.
-
-Repoint it at the REGULAR climatology of the BASELINE run when that exists, not
-at the bootstrap's. The bootstrap is the first run on a terrain and exists so
-that lakes, the lake compositing in the albedo and the pedology soil water field
-can be built at all; the run whose climatology the carve verdict uses is the one
-made afterwards, with those fields in place.
+It takes the REGULAR climatology of the BASELINE run and never the bootstrap's.
+The bootstrap is the first run on a terrain and exists so that lakes, the lake
+compositing in the albedo and the pedology soil water field can be built at
+all; the run whose climatology the carve verdict uses is the one made
+afterwards, with those fields in place. A step that will take either reads
+`best_available_climatology`, which names the stage it chose.
 
 A named climatology is not automatically the ACTIVE build's climate.
 check_consistency.py compares terrain hashes and reports the mismatch; that is
@@ -741,10 +732,6 @@ The same argument applies to water vapour and to CO2, and those are
 
 ## `h2o_sw_weight`
 
-```
-h2o_sw_weight: 1.346
-```
-
 The same spectral re-weighting in the term that is ten times larger than ozone's.
 Lacis & Hansen's water vapour absorptance is their Eq. 21, a fit to Yamamoto
 (1962), and Yamamoto defines it as a fraction of the SOLAR constant; `radmod.f90`
@@ -758,11 +745,6 @@ the value belongs to the k25v spectrum rather than to the blackbody `solarini`
 builds when `NSTARFILE` is 0.
 
 ## `h2o_sw_level`
-
-```
-h2o_sw_level: 1.163
-h2o_sw_level_bracket: [1.129, 1.206]
-```
 
 A SECOND correction to the same water vapour term and a separate decision from
 the weight above, which is why it is a separate key. `h2o_sw_weight` is a
