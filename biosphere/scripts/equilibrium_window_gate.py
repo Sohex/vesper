@@ -278,20 +278,34 @@ def main() -> None:
               False, str(exc))
     else:
         import math as _math
-        tau = derived["brackets"]["relaxation_cycles_bracket"][1]
         tolerance = run_lengths.ecological_drift_tolerance()
         record, spinup = derived["record_cycles"], derived["spinup_cycles"]
 
-        def residual_drift(span: float) -> float:
-            return (_math.exp(-span / tau)
-                    * (1.0 - _math.exp(-record / tau)))
+        # THE SPIN-UP EXISTS ONLY WHERE A RELAXATION TIME HAS BEEN MEASURED, and
+        # the thing that must never happen is a number appearing without one. So
+        # the check is on the pair: a derived spin-up has to satisfy the
+        # inequality it came from, and an absent one has to name the estimator
+        # that declined and the count. A default in either place fails.
+        if spinup is None:
+            check("no spin-up is invented where no relaxation time is measured",
+                  bool(derived["spinup_reason"])
+                  and "relaxation_time" in derived["spinup_reason"]
+                  and derived["total_cycles"] is None,
+                  derived["spinup_reason"] or "no reason given")
+        else:
+            tau = derived["brackets"]["relaxation_cycles_bracket"][1]
 
-        check("the derived spin-up satisfies the drift it was derived from",
-              residual_drift(spinup) <= tolerance * 1.000001
-              and residual_drift(spinup * 0.99) > tolerance,
-              f"{spinup:.0f} cycles leaves {residual_drift(spinup):.4f} across "
-              f"{record:.0f} retained, against a tolerance of {tolerance:g}; "
-              f"one per cent shorter leaves {residual_drift(spinup*0.99):.4f}")
+            def residual_drift(span: float) -> float:
+                return (_math.exp(-span / tau)
+                        * (1.0 - _math.exp(-record / tau)))
+
+            check("the derived spin-up satisfies the drift it was derived from",
+                  residual_drift(spinup) <= tolerance * 1.000001
+                  and residual_drift(spinup * 0.99) > tolerance,
+                  f"{spinup:.0f} cycles leaves {residual_drift(spinup):.4f} "
+                  f"across {record:.0f} retained, against a tolerance of "
+                  f"{tolerance:g}; one per cent shorter leaves "
+                  f"{residual_drift(spinup * 0.99):.4f}")
         # The record floor is an inversion, so it has a right answer too: the
         # field that set it must resolve the tolerance AT that length and must
         # not resolve it one per cent short. `cycles_for_bound` is monotone in

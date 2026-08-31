@@ -577,6 +577,13 @@ def ecological_timescale_brackets(root=None) -> dict:
     a field the estimator declines is a field that may be slower still. An open
     top is not a missing number; it is the honest shape of a timescale longer than
     the record that measured it, and it is why what comes out of it is a FLOOR.
+    It may be MISSING ENTIRELY, and on the records this project has it is: no
+    field's contraction is resolvably below one, so `relaxation_cycles_bracket`
+    is None and `relaxation_measurable` says so. That does not touch the memory
+    or resolving brackets, because the two lengths are independent -- the record
+    is sized by what the acceptance contract must be able to see and the spin-up
+    by how long a transient takes to decay -- and one being unmeasurable must not
+    hide the other.
 
     A MEMORY READING THE ESTIMATOR CALLS UNRELIABLE IS STILL ADMITTED, and that is
     deliberate rather than an oversight. `reliable` false means the record is
@@ -633,13 +640,6 @@ def ecological_timescale_brackets(root=None) -> dict:
             f"the acceptance artifacts declare more than one forcing cycle "
             f"length {sorted(cycle_years)}, so their cycles are not one unit and "
             "cannot be bracketed together")
-    if not relaxation:
-        raise RuntimeError(
-            "no field's approach to equilibrium is measurable on the records "
-            f"available: {declined} were declined by "
-            "`lib/lpj_output.py:relaxation_time`. A spin-up cannot be derived "
-            "from a relaxation time nothing has measured; buy a longer "
-            "diagnostic rather than a default.")
     if not resolving:
         raise RuntimeError(
             "no acceptance artifact carries a per-field resolving length. The "
@@ -650,7 +650,9 @@ def ecological_timescale_brackets(root=None) -> dict:
             "multiple, which is the rule this one replaced.")
     return {
         "memory_cycles_bracket": (min(memory), max(memory)),
-        "relaxation_cycles_bracket": (min(relaxation), max(relaxation)),
+        "relaxation_cycles_bracket": ((min(relaxation), max(relaxation))
+                                      if relaxation else None),
+        "relaxation_measurable": bool(relaxation),
         "relaxation_top_is_open": declined > 0,
         "fields_with_a_measurable_approach": len(relaxation),
         "fields_declined": declined,
@@ -754,22 +756,41 @@ def ecological_spinup_cycles(tau_relaxation_cycles: float,
 def ecological_run_cycles(root=None) -> dict:
     """The spin-up and retained record this world's ecology needs, and why.
 
-    Both are FLOORS. The record's floor is the memory time's, taken at the TOP of
-    that bracket because a record must serve every field it judges. The spin-up's
-    is the relaxation time's, taken at the top of a bracket whose top is open
-    whenever any field's approach could not be measured -- so the number that
-    comes out is what a run buys UP FRONT, and the acceptance contract's refusal
-    is what buys the rest. That is the same bargain the climate side makes.
+    THE TWO ARE INDEPENDENT AND ARE RETURNED INDEPENDENTLY. The record's floor is
+    what the acceptance contract has to be able to RESOLVE, inverted out of its
+    own drift bound. The spin-up's is how long a TRANSIENT takes to decay, and it
+    exists only where a relaxation time has been measured. On the records this
+    project has, none has: no field's contraction is resolvably below one, so
+    `spinup_cycles` is None and `spinup_reason` names the estimator and the
+    count. A caller that needs a spin-up says so and falls back explicitly;
+    nothing here invents one, and the record floor is unaffected because it never
+    depended on the relaxation time.
+
+    BOTH ARE FLOORS where they exist, and the spin-up's floor is what a run buys
+    UP FRONT while the acceptance contract's refusal buys the rest. That is the
+    same bargain the climate side makes.
     """
     brackets = ecological_timescale_brackets(root)
     tolerance = ecological_drift_tolerance()
     record = ecological_record_cycles(brackets)
-    slowest = brackets["relaxation_cycles_bracket"][1]
-    spinup = ecological_spinup_cycles(slowest, record, tolerance)
+    spinup, reason = None, None
+    if brackets["relaxation_measurable"]:
+        spinup = ecological_spinup_cycles(
+            brackets["relaxation_cycles_bracket"][1], record, tolerance)
+    else:
+        reason = (
+            "no field's approach to equilibrium is measurable on the records "
+            f"available: all {brackets['fields_declined']} field-records were "
+            "declined by `lib/lpj_output.py:relaxation_time`, most for block "
+            "differences that change sign or sit inside their own standard "
+            "error, and every one that reached a contraction had an uncertainty "
+            "reaching one. A spin-up cannot be derived from a relaxation time "
+            "nothing has measured, and a default is not a derivation.")
     return {
         "spinup_cycles": spinup,
+        "spinup_reason": reason,
         "record_cycles": record,
-        "total_cycles": spinup + record,
+        "total_cycles": None if spinup is None else spinup + record,
         "is_a_floor": True,
         "floor_because": (
             "the relaxation bracket's top is open: "
