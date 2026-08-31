@@ -2311,6 +2311,14 @@ one_offs:
   # naming one artifact would give `--purge` two answers. `--plan` names it
   # after every step the map is reachable from.
   - maps/snapshot.py
+  # Per-worktree tooling, outside the graph in both directions: neither reads
+  # anything a step writes and neither writes anything a step reads. The linker
+  # makes symlinks and one ledger of what those links pointed at, in the
+  # worktree's own `.git/worktrees/<name>/`, which `--purge` must never reach
+  # and `git worktree remove` deletes anyway. The checker writes nothing outside
+  # the temporary repository its `--self-test` builds and removes. world-ov4u.
+  - scripts/link_worktree.py
+  - scripts/check_worktree_links.py
   # Reports the host's load and who has claimed it, and writes only a claim file
   # OUTSIDE the repository. It is not a step because it produces nothing the
   # pipeline reads and nothing `--purge` should ever delete; it is here so the
