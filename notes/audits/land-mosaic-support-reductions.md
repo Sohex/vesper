@@ -165,6 +165,16 @@ signature of pairing a climatology with a bucket from a different iteration,
 and it is the reason the instrument now refuses that pairing by name rather
 than reporting around it.
 
+**The tree already said so and nobody was listening at the point it mattered.**
+`scripts/check_consistency.py`'s `runs vs the surface fields they staged` arm
+reports `run_67323a923013` with exactly codes 229 and 2290 orphaned, and it is
+a FAIL in the report today. What that gate does not have is a place to be asked
+at the moment of a read, and its verdict names one consumer -- "nothing can be
+seeded from it" -- while the consumer this cost was an offline calculation
+reading the run's climatology against `exoplasim/inputs/`. `world-4mqf` carries
+the second half of that message. So the missing piece was a door and not a
+record, which is why the repair adds no artifact.
+
 ## 4. The mixing term is not one-signed, and that changes the repair
 
 `world-cyu3` pre-registered, before any measurement, that the mixing gap
