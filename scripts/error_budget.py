@@ -56,7 +56,20 @@ re-evaluates the criterion on them. It used to invert the recorded aridity index
 and evaporation margin to recover them instead, which put the verdict's formula
 in a second place and broke the first time the criterion moved; BUDG-5.
 
-**The kelvin reaches those columns through
+**The carve half has two unavailabilities and they are reported separately.**
+Its outputs read different things, so each is reported exactly when the thing it
+reads is present. The runoff percent needs the configured build's water balance
+and `HYDROLOGICAL_RESPONSE_PER_KELVIN`. The basin count needs a carve list on
+the configured build on top of both. The `CARVE_ITEMS` table and the basin
+verdict table are denominated in the criterion's own channels, so no kelvin
+reaches them and they need the carve list alone. The albedo and forcing halves
+read no hydrography artifact whatsoever and neither unavailability touches them.
+A build whose carve list has not been regenerated -- which is the ordinary state
+of the build a carve pass PRODUCES -- therefore gets everything but the basin
+column, and the reason where the basin tables would be. It used to be a
+traceback that denied a reader every column that was fine.
+
+**The kelvin reaches the runoff and basin columns through
 `HYDROLOGICAL_RESPONSE_PER_KELVIN`**, which is the one input and is declared
 once, at the top of this file. Two of its three channels are measured and the
 third is bracketed, so the basin column is a RANGE and the runoff column is not:
@@ -300,19 +313,32 @@ def verify_hydrological_response(config) -> list[str]:
        one world's amplification scaled by another world's sensitivity, with
        nothing about the product looking wrong.
     """
-    # `sensitivity` owns run lookup and already merges the live index with the
-    # archived entries. Reading the index a second time here would be the same
-    # class of defect this function exists to close, so it is not done.
-    by_id = {e.get("run_id"): e for e in sensitivity._index_entries()}
+    # `sensitivity` owns run lookup, and it keeps the LIVE index and the
+    # ARCHIVED identities APART on purpose: merging them is what let a bracket
+    # measured on two deleted runs go on reproducing its own constant. Both are
+    # read here and the archived one is reported as a problem in its own right
+    # rather than merged in silently, so every reason this secant is unusable
+    # comes out at once instead of the first one. Reading
+    # `exoplasim/runs/INDEX.json` directly here would be the same class of
+    # defect this function exists to close, so it is not done.
+    live, archived = sensitivity._live_entries(), sensitivity._archived_entries()
     problems, means = [], {}
     configured = config.get("source_build")
     for role in ("cold", "warm"):
         want = HYDROLOGICAL_RESPONSE_SECANT[role]
-        entry = by_id.get(want["run_id"])
+        entry = live.get(want["run_id"])
         if entry is None:
-            problems.append(f"the {role} secant run {want['run_id']} is in no "
-                            "run index, live or archived")
-            continue
+            entry = archived.get(want["run_id"])
+            if entry is None:
+                problems.append(f"the {role} secant run {want['run_id']} is in "
+                                "no run index, live or archived")
+                continue
+            problems.append(
+                f"{want['run_id']} survives only as archived identity, on build "
+                f"{entry.get('source_build')!r}. Its raw output is gone, so the "
+                "two fractional responses this secant carries cannot be "
+                "recomputed from it. Re-measure by "
+                + HYDROLOGICAL_RESPONSE_SECANT["re_measured_by"])
         physical = entry.get("physical", {})
         flux = physical.get("flux_ratio")
         if flux is None or abs(float(flux) - want["flux_ratio"]) > 1e-9:
@@ -813,7 +839,7 @@ def land_water_balance(config) -> dict:
     }
 
 
-def basin_response(config) -> tuple[dict, int, "callable"]:
+def basin_response(config) -> tuple[dict, int | None, "callable | None"]:
     """How many basins change verdict under a uniform fractional perturbation.
 
     The criterion is `export_carve_list.py`'s, and its three water terms are
@@ -848,21 +874,45 @@ def basin_response(config) -> tuple[dict, int, "callable"]:
     Basins carried forward from a previous carve pass have no water balance to
     read, because they were decided on a terrain that no longer exists. They are
     excluded and counted, not silently folded in.
+
+    **When the carve list cannot be read this REFUSES rather than raising**, and
+    the summary it returns carries `unavailable` instead of the tables. The
+    build the budget is configured on is often a build the carve list has not
+    been regenerated for -- a carve pass writes the list on the build it was
+    decided from, and the build it produces gets one only when hydrography is
+    taken round again -- and the albedo half of this budget reads no hydrography
+    artifact at all. Dying here denied a reader every column that was fine.
     """
     path = builds.component_data("hydrography", config, strict=True) / "carve_list.json"
+
+    def unavailable(reasons):
+        return {"source": str(path.relative_to(ROOT)),
+                "unavailable": reasons}, None, None
+
+    if not path.exists():
+        return unavailable([
+            f"{path.relative_to(ROOT)} does not exist, so there is no basin "
+            "population to evaluate the criterion against. Re-run "
+            "hydrography/scripts/export_carve_list.py on this build."])
     data = json.loads(path.read_text(encoding="utf-8"))
     rows = [r for r in data["basins"] if not r.get("carried_from_previous_pass")]
     carried = len(data["basins"]) - len(rows)
+    if not rows:
+        return unavailable([
+            f"every one of the {carried} basins in "
+            f"{path.relative_to(ROOT)} is carried from a previous carve pass, "
+            "so none of them has a water balance on this terrain to "
+            "re-evaluate the criterion on."])
 
     required = ("precipitation_km_per_year", "lake_evaporation_km_per_year",
                 "land_evaporation_km_per_year")
     absent = [k for k in required if k not in rows[0]]
     if absent:
-        raise SystemExit(
+        return unavailable([
             f"{path.relative_to(ROOT)} does not record {', '.join(absent)}, so "
             "the carve criterion cannot be re-evaluated from it. This budget no "
             "longer inverts the aridity index to recover them; see BUDG-5. "
-            "Re-run hydrography/scripts/export_carve_list.py, which writes them.")
+            "Re-run hydrography/scripts/export_carve_list.py, which writes them."])
 
     def column(key):
         return np.array([np.nan if r.get(key) is None else r[key] for r in rows],
@@ -981,6 +1031,12 @@ def per_item_carve_currency(kelvin, water, baseline, overflowing):
     channel cannot reach it; it reaches the basin count through the numerator
     only. Returning a single basin number would hide exactly the term that is
     not measured.
+
+    **The two columns fail separately, because they read different things.** The
+    runoff percent needs the configured build's water balance and the
+    hydrological response; the basin count needs a carve list on top of both. So
+    a build whose carve list has not been regenerated still gets a runoff column
+    and reports `--` for basins alone.
     """
     if kelvin is None:
         return None, None
@@ -989,6 +1045,8 @@ def per_item_carve_currency(kelvin, water, baseline, overflowing):
     d_land_e = h["land_evaporation"] * kelvin
     runoff_percent = 100.0 * (water["d_runoff_per_d_precipitation"] * d_precip
                               + water["d_runoff_per_d_land_evaporation"] * d_land_e)
+    if overflowing is None:
+        return round(runoff_percent, 2), None
     basins = sorted(int(overflowing(d_precip, d_land_e, rate * kelvin) - baseline)
                     for rate in h["lake_evaporation"])
     return round(runoff_percent, 2), basins
@@ -1026,11 +1084,31 @@ def main() -> None:
     water = land_water_balance(config)
     basins, basin_baseline, overflowing = basin_response(config)
 
-    # The carve columns exist only while the conversion into them holds. When
-    # it does not, they report as unavailable with the reason on the artifact:
-    # a kelvin priced into basins through a response measured on another world
-    # is a number, and a number is what makes it dangerous.
+    # THE CARVE HALF HAS TWO UNAVAILABILITIES AND THEY ARE NOT THE SAME ONE.
+    # Each output on that side is reported exactly when the thing it reads is
+    # present, rather than all of them being gated on one flag:
+    #
+    #   runoff percent   the configured build's water balance and the
+    #                    hydrological response. Absent iff `carve_problems`.
+    #   basin count      those, AND a carve list on the configured build.
+    #                    Absent iff either fails.
+    #   the CARVE_ITEMS table and the basin verdict table
+    #                    the carve list alone. There is no kelvin anywhere in
+    #                    their path, so the response cannot reach them; absent
+    #                    iff `basin_problems`.
+    #
+    # Folding the two together would have printed `--` for a runoff column that
+    # is fully determined, and folding them together in the other direction is
+    # what made a build with no carve list a traceback. The albedo and forcing
+    # halves read no hydrography artifact at all and are never affected by
+    # either.
+    #
+    # A kelvin priced into basins through a response measured on another world
+    # is a number, and a number is what makes it dangerous; a basin count taken
+    # from a carve list decided on another terrain is the same defect one step
+    # earlier. Both report the reason on the artifact instead.
     carve_problems = verify_hydrological_response(config)
+    basin_problems = basins.get("unavailable") or []
 
     def carve(kelvin):
         if carve_problems:
@@ -1039,10 +1117,11 @@ def main() -> None:
 
     def carve_columns(runoff_pct, basin_range):
         """Both carve columns as strings, so a null prints as a null."""
-        if runoff_pct is None:
-            return "--", "--"
+        runoff_col = "--" if runoff_pct is None else f"{runoff_pct:+.1f}%"
+        if basin_range is None:
+            return runoff_col, "--"
         low, high = basin_range
-        return (f"{runoff_pct:+.1f}%",
+        return (runoff_col,
                 f"{low:+d}" if low == high else f"{low:+d} to {high:+d}")
 
     rows = []
@@ -1078,6 +1157,13 @@ def main() -> None:
               "below reads --:")
         for problem in carve_problems:
             print(f"  {problem}")
+    if basin_problems:
+        print("BASIN CRITERION UNAVAILABLE, so every basin column below reads "
+              "--, and the two basin tables are not printed. The albedo, "
+              "forcing and runoff columns read no carve list and are "
+              "unaffected:")
+        for problem in basin_problems:
+            print(f"  {problem}")
     print()
     print(f"{'item':38} {'d(alb)':>8} {'K naive':>8} {'K':>7} "
           f"{'runoff':>8} {'basins':>16}")
@@ -1099,12 +1185,17 @@ def main() -> None:
     print("-" * 86)
     carve_rows = []
     for label, channel, (low, high), note in CARVE_ITEMS:
-        keys = CARVE_CHANNELS[channel]
-        counts = sorted(overflowing(*[x * k for k in keys]) - basin_baseline
-                        for x in (low, high))
+        if basin_problems:
+            counts = None
+        else:
+            keys = CARVE_CHANNELS[channel]
+            counts = sorted(overflowing(*[x * k for k in keys]) - basin_baseline
+                            for x in (low, high))
         carve_rows.append((label, channel, (low, high), counts, note))
+        rendered = ("--" if counts is None
+                    else f"{counts[0]:+d} to {counts[1]:+d}")
         print(f"{label:46} {channel} {low:+.0%} to {high:+.0%} "
-              f"{f'{counts[0]:+d} to {counts[1]:+d}':>16}")
+              f"{rendered:>16}")
 
     print("\nnot in one currency, no conversion invented:")
     for label, magnitude, _ in OTHER_ITEMS:
@@ -1117,13 +1208,20 @@ def main() -> None:
           f"({water['runoff_fraction_of_precipitation']:.1%} of P). "
           f"Runoff amplifies dP by {water['d_runoff_per_d_precipitation']}x "
           f"and dE by {abs(water['d_runoff_per_d_land_evaporation'])}x.")
-    print(f"\nbasins that change verdict, from {basins['overflowing_basins']} "
-          f"overflowing ({basins['reconstruction_check']}):")
-    header = "  " + f"{'channel':20}" + "".join(
-        f"{k:>8}" for k in basins["change_in_overflowing_basins"]["land_precipitation"])
-    print(header)
-    for label, table in basins["change_in_overflowing_basins"].items():
-        print("  " + f"{label:20}" + "".join(f"{v:+8d}" for v in table.values()))
+    if basin_problems:
+        print("\nbasins that change verdict: NOT REPORTED. "
+              + " ".join(basin_problems))
+    else:
+        print(f"\nbasins that change verdict, from "
+              f"{basins['overflowing_basins']} overflowing "
+              f"({basins['reconstruction_check']}):")
+        header = "  " + f"{'channel':20}" + "".join(
+            f"{k:>8}" for k in
+            basins["change_in_overflowing_basins"]["land_precipitation"])
+        print(header)
+        for label, table in basins["change_in_overflowing_basins"].items():
+            print("  " + f"{label:20}"
+                  + "".join(f"{v:+8d}" for v in table.values()))
     h = HYDROLOGICAL_RESPONSE_PER_KELVIN
     lo, hi = h["lake_evaporation"]
     if carve_problems:
@@ -1183,8 +1281,21 @@ def main() -> None:
             "criterion's own water terms. They convert to basins exactly, with "
             "no kelvin in the path, and none should be given one. A "
             "lake_evaporation item has a null runoff_percent because runoff is "
-            "P - E_land and does not contain it.",
+            "P - E_land and does not contain it. A null `basins` means the "
+            "carve list itself was unreadable; carve_currency.basin_response "
+            "carries the reason.",
         "carve_currency": {
+            "unavailability_is_per_currency":
+                "The carve half has two unavailabilities and they are reported "
+                "separately, because its outputs read different things. The "
+                "runoff percent needs the configured build's water balance and "
+                "the hydrological response, and is null when "
+                "hydrological_response_verify lists problems. The basin count "
+                "needs those AND a carve list on the configured build, and is "
+                "null when either fails. The carve_items and the basin_response "
+                "tables have no kelvin in their path at all and need the carve "
+                "list alone. The albedo and forcing halves read no hydrography "
+                "artifact and are never affected by either.",
             "why": "The temperature is a result this project can revise. The "
                    "carve list is not: it leaves the project, changes the "
                    "terrain, and cannot be undone. An item priced only in "
