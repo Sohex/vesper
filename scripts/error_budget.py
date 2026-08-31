@@ -496,6 +496,65 @@ def albedo_report_path(config) -> Path:
             / rungs.model_grid(config)[0].lower() / "albedo_report.json")
 
 
+# A ROCK CLASS'S SHARE OF THE STAGED LAND-MEAN ALBEDO: how far the land mean
+# `build_surface_albedo.py` writes moves per unit of that class's albedo. It is
+# NOT the class's area fraction of land, and the difference is what a literal
+# 0.147 here was: an area-shaped number standing where a staged-mean sensitivity
+# belongs, overstating the playa item by a factor of 1.727. That is the same
+# error one level down from the one `notes/audits/albedo-attenuation.md` settles
+# -- the denominator of an albedo item is the STAGED land mean, so its numerator
+# has to be a derivative of that same staged mean.
+#
+# MEASURED 2026-08-31 by running `build_surface_albedo.py` three times into a
+# scratch `--output`, changing only `model.lithology_albedo_overrides`, and
+# differencing `land_mean_written`. It costs 38 s a run and touches nothing:
+#
+#   playa 0.23 -> 0.25   d(land mean) +0.0017028459   share 0.08514230
+#   playa 0.23 -> 0.33   d(land mean) +0.0085142296   share 0.08514230
+#   playa 0.25 -> 0.33   d(land mean) +0.0068113837   share 0.08514230
+#
+# Exactly linear to eight figures across a factor of five in step size, which is
+# what says a single share is the right shape and that the item can be priced as
+# a step times a constant at all.
+#
+# NOT RE-DERIVABLE HERE, on the same footing as the attenuation rows and the
+# hydrological secant: the report the budget reads records the override that was
+# applied and not the sensitivity to it, so this is declared until
+# `build_surface_albedo.py` emits it. `verify_land_mean_shares` checks it the
+# moment the report carries one and refuses a disagreement rather than
+# preferring the declaration.
+LAND_MEAN_SHARES = {
+    "playa_clastic": 0.0851423,
+}
+# The land mean is written to ten figures and the share is stated to seven, so a
+# unit in the last place of the share is what agreement can mean. Fixed on that
+# precision, not on today's residual.
+LAND_MEAN_SHARE_TOLERANCE = 1e-6
+
+
+def verify_land_mean_shares(report: dict) -> list[str]:
+    """Re-read each declared share from the albedo report. Empty means it holds.
+
+    The report does not carry a share yet, so this is silent today and becomes a
+    check the moment `build_surface_albedo.py` records one. Written now rather
+    than later because the point of declaring a measured constant beside the
+    recipe that produced it is that something can refuse it, and a declaration
+    with no reader is what `lib/sensitivity.py` learned the expensive way.
+    """
+    problems = []
+    overrides = report.get("lithology_albedo_overrides") or {}
+    for name, declared in LAND_MEAN_SHARES.items():
+        recorded = (overrides.get(name) or {}).get("land_mean_share")
+        if recorded is None:
+            continue
+        if abs(float(recorded) - declared) > LAND_MEAN_SHARE_TOLERANCE:
+            problems.append(
+                f"{name} now has a land-mean share of {float(recorded):.7f} in "
+                f"the staged albedo report against the {declared:.7f} declared "
+                "here, so every item priced through it has moved")
+    return problems
+
+
 def albedo_items(config) -> list[tuple[str, float, str]]:
     """(label, land-mean albedo delta, note) for the albedo half of the budget.
 
@@ -561,8 +620,16 @@ def albedo_items(config) -> list[tuple[str, float, str]]:
          "the assumption LPJ-GUESS exists to replace. Measured: "
          f"{ends['bare_rock']:.5f} bare against {ends['vegetated']:.5f} "
          "vegetated, both pre-lake and on the overridden rock table."),
-        ("playa_clastic albedo, 0.25 to 0.33", 0.08 * 0.147,
-         "largest single rock-class lever; a mixture of clay playa and varnished fan"),
+        ("playa_clastic albedo, 0.25 to 0.33",
+         0.08 * LAND_MEAN_SHARES["playa_clastic"],
+         "the largest single rock-class lever: a mixture of clay playa and "
+         "varnished fan. The 0.08 step is the declared range of the class "
+         "albedo and the share it multiplies is MEASURED, from three "
+         "generator runs that differ in that override alone. It was 0.147, "
+         "which is an area-shaped number where a staged-mean sensitivity "
+         "belongs and overstated this item by 1.727. The staged value is 0.23, "
+         "which sits BELOW this range, so the range is the class's plausible "
+         "spread and not a bracket around what is staged."),
         ("lakes composited into albedo", float(report["lakes"]["delta"]),
          "solved lakes reaching the climate at all. Measured, from the same "
          "report: the cells carrying water are the bright playa and salt crust."),
@@ -1146,6 +1213,13 @@ def main() -> None:
           f"{len(ATTENUATION_PAIRS)} pairs")
     if problems:
         print("SENSITIVITY DISAGREES WITH THE RUN INDEX: " + "; ".join(problems))
+    share_problems = verify_land_mean_shares(
+        json.loads(albedo_report_path(config).read_text(encoding="utf-8")))
+    if share_problems:
+        print("A DECLARED LAND-MEAN SHARE NO LONGER MATCHES THE STAGED ALBEDO "
+              "REPORT, so every item priced through it is stale:")
+        for problem in share_problems:
+            print(f"  {problem}")
     attenuation_problems = verify_attenuation(planetary_albedo)
     if attenuation_problems:
         print("THE ATTENUATION NO LONGER MATCHES THE ARMS IT WAS MEASURED ON, "
@@ -1266,6 +1340,21 @@ def main() -> None:
                                k: dict(v) for k, v in ATTENUATION_PAIRS.items()},
                            attenuation_verify=(attenuation_problems
                                                or "re-derives from its arms"),
+                           land_mean_shares=dict(LAND_MEAN_SHARES),
+                           land_mean_shares_note=
+                               "How far the STAGED land-mean albedo moves per "
+                               "unit of a rock class's albedo, which is what an "
+                               "item denominated in that class has to be "
+                               "multiplied by. Not the class's area fraction of "
+                               "land: that is an area-shaped number where a "
+                               "staged-mean sensitivity belongs, and it "
+                               "overstated the playa item by 1.727. Measured "
+                               "from three build_surface_albedo.py runs that "
+                               "differ in one override, exactly linear across a "
+                               "factor of five in step size.",
+                           land_mean_shares_verify=(
+                               share_problems or "the staged albedo report "
+                               "records no share to check these against yet"),
                            verify=problems or "agrees with the run index"),
         "albedo_items": [],
         "forcing_items": [],
