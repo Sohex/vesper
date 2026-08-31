@@ -2580,6 +2580,17 @@ def declare_timestep(config: dict) -> float:
             print(f"  - {problem}")
     for caveat in rungs.commissioning_caveats(rung, timestep):
         print(f"timestep CAVEAT: {caveat}")
+    currency = rungs.evidence_source_currency(PROJECT_ROOT).get((rung, timestep))
+    if currency == "superseded":
+        print(f"timestep CAVEAT: the endurance row for {rung} at {timestep} min "
+              "was integrated by an executable the registry no longer "
+              "registers, so under C-ROUTE-6 it is evidence about a model that "
+              "no longer exists. It supports keeping this step and does not "
+              "condemn one.")
+    elif currency in ("unregistered", "unreadable"):
+        print(f"timestep CAVEAT: which model source the endurance row for "
+              f"{rung} at {timestep} min describes cannot be read "
+              f"({currency}), so it is neither current nor superseded.")
     return timestep
 
 
