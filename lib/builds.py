@@ -162,6 +162,21 @@ def mesh_export_of(root: Path) -> Path:
     return carriers[0]
 
 
+def mesh_export_at(path: Path) -> Path:
+    """The mesh carrier for a directory that is either the carrier or the build.
+
+    A caller naming an export on a command line has one of two directories:
+    the one World Orogen's `--out` wrote, which holds `raw/` directly, or a
+    build directory under `source/`, whose carrier is a subdirectory. Both are
+    real and a measurement script is handed both, so resolving them here is
+    what lets a usage example name the BUILD. That is the whole point: naming
+    the carrier means spelling `exoplasim-T42` in a path that has nothing to do
+    with T42, which is the literal `mesh_export` above exists to keep out.
+    """
+    path = Path(path)
+    return path if (path / "raw").is_dir() else mesh_export_of(path)
+
+
 def grid_export(config: dict | None = None, resolution: str | None = None,
                 *, build: str | None = None) -> Path:
     """Export whose grid matches the configured model resolution.

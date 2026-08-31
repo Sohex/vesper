@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Is Orogen's terrain converged in the mesh, and what does a finer one buy?
 
-    python analysis/orogen_resolution.py --export "2.5M build=source/precarve-craton/exoplasim-T42" \
+    python analysis/orogen_resolution.py --export "2.5M=source/precarve-craton" \
                                          --export "10M=/scratch/n10m"
+
+A PATH is either a build directory under `source/` or the directory World
+Orogen's `--out` wrote; the mesh carrier inside a build is identified rather
+than named, so no rung appears in an export path here.
 
 Worldbuilding. Vesper is an invented planet and this script measures the
 generator that makes its terrain: whether the elevation field a World Orogen
@@ -55,6 +59,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "lib"))
 
+from builds import mesh_export_at  # noqa: E402
 from lib.orogen import Export  # noqa: E402
 from scipy.spatial import cKDTree  # noqa: E402
 
@@ -190,12 +195,13 @@ def main() -> None:
             ap.error(f"--export wants LABEL=PATH, got {spec!r}")
         label, path = spec.split("=", 1)
         p = Path(path)
-        exports[label] = p if p.is_absolute() else (PROJECT_ROOT / p)
+        root = p if p.is_absolute() else (PROJECT_ROOT / p)
+        if not root.exists():
+            ap.error(f"{label}: {root} does not exist")
+        exports[label] = mesh_export_at(root)
 
     results: dict = {}
     for label, root in exports.items():
-        if not root.exists():
-            ap.error(f"{label}: {root} does not exist")
         d = load(root)
         results[label] = {
             "sanity": sanity(d),
