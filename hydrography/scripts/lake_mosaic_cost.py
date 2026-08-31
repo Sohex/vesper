@@ -200,7 +200,7 @@ def main() -> None:
     # An inert blend is a property of a GENERATOR INVOCATION, and the record of
     # that invocation lives beside the staged field rather than travelling with
     # the copy in the run directory. So this is checked for the field that will
-    # be staged and is unrecorded for the field that ran. world-nbtu.
+    # be staged and is unrecorded for the field that ran. world-hl06.
     blend_is_inert = staged_record.get("lakes") is None
 
     lake_km2 = np.asarray(support["solved_lake_area_km2"][:], float)
