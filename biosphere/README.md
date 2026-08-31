@@ -490,8 +490,11 @@ python biosphere/scripts/run_lpj_guess.py --nyear 9853 --continue-from lpj_<pare
 reaching `nyear_spinup + nyear` and counts from year zero whether the state was
 read or integrated, so the second command above adds 1,253 simulated years to
 the 8,600 the first one left on disk. The continuation is a NEW run with a new
-id -- rule 6, unchanged by where the state came from -- and `run_manifest.json`
-carries a `continuation` block naming the parent, the chain back to bare ground,
+id -- rule 6, unchanged by where the state came from. Its output tables carry
+its own simulated years and not the parent's, so the retained record a consumer
+reads is the continuation's alone and the parent's years are spin-up whatever
+they were bought as. `run_manifest.json` carries a `continuation` block naming
+the parent, the chain back to bare ground,
 the year it resumed at, how many years it integrated itself and the hashes of
 the state files it read. `acceptance.json` carries that block too, on a pass and
 on a refusal, so a consumer reading a record can see that the spin-up in front
