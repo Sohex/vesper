@@ -92,6 +92,7 @@ from gridding import (gaussian_grid, land_fraction_of_class,
 from lapse import sigma_levels
 from orogen import LAND, Export
 from paths import best_available_climatology, rel, require_clean_io, snapshot_beside
+from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 from provenance import require_build
 from surface_classes import cover_mask
 
@@ -1104,9 +1105,20 @@ def main() -> None:
         ],
     }
     output.parent.mkdir(parents=True, exist_ok=True)
+    field_path = output.with_suffix(".nc")
+    # `aeolian/analysis/` holds tracked reports beside this ignored netCDF, so a
+    # worktree gets a PER-FILE link to the main checkout's copy of the field and
+    # regenerating here would replace what `build_surface_dust.py` reads there.
+    # Both products are refused together: a report without its field, or a field
+    # without its report, is a pair that no longer describes one run.
+    # notes/audits/worktree-write-through.md.
+    for path in (output, field_path):
+        refuse_a_write_through_a_symlink(
+            path, what="a dust product build_surface_dust.py reads there",
+            instead=("Pass --output to a path inside this worktree, or run the "
+                     "generator in the main checkout."))
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
-    field_path = output.with_suffix(".nc")
     with Dataset(field_path, "w") as ds:
         ds.createDimension("lat", nlat)
         ds.createDimension("lon", nlon)

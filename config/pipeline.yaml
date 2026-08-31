@@ -2339,6 +2339,14 @@ one_offs:
   # were wrong: a record that NAMES its build is a stamp, and a staged field is
   # not the one a named run read.
   - lib/provenance.py
+  # The same shape, and here for the same reason. It is the one refusal a
+  # generator of a linked artifact puts at its write door, so it writes nothing
+  # the pipeline reads and `--self-test` is all there is to run: a throwaway
+  # tree with a per-file link and a wholly-ignored directory link, and nine
+  # cases with answers fixed in advance. The negative ones carry the weight --
+  # a guard that refused every path would pass the positives alone and would
+  # stop every generator in the main checkout.
+  - lib/write_door.py
   - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/shtns_variant_sweep.py
   - exoplasim/scripts/build_pyfft.py

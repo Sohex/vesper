@@ -19,6 +19,9 @@ from pathlib import Path
 
 import numpy as np
 
+import _paths  # noqa: F401  -- puts lib/ on sys.path
+from write_door import refuse_a_write_through_a_symlink as _refuse_write_through
+
 # Fixed, not the current date. See the module docstring: a clock here would make
 # every regenerated surface field hash differently for no physical reason.
 SRA_DATE_STAMP = 20260811
@@ -26,7 +29,7 @@ SRA_DATE_STAMP = 20260811
 
 
 def refuse_a_write_through_a_symlink(path: Path) -> None:
-    """Refuse to write a staged field that is a link into another checkout.
+    """Refuse to stage a surface field that is a link into another checkout.
 
     `scripts/link_worktree.py` links `exoplasim/inputs/<rung>/` ENTRY BY ENTRY,
     because a worktree has to READ the staged fields to prepare a run. The
@@ -45,31 +48,17 @@ def refuse_a_write_through_a_symlink(path: Path) -> None:
     `build_surface_albedo.py`, `build_surface_soil_water.py`,
     `build_boundary_conditions.py` and `build_surface_roughness.py` at once.
 
-    It fires on the path itself or on any symlinked ancestor, and it says what
-    to pass instead. In the main checkout nothing on these paths is a link, so
-    it never fires there. world-4o59.
+    THE MECHANISM LIVES IN `lib/write_door.py` and this states only what is
+    particular to a staged field. It was the first door of its kind and six
+    other groups of regenerable artifact have the same exposure; a copy per
+    component is six more places for the rule to drift, so there is one.
+    world-4o59, world-pkt5.
     """
-    path = Path(path)
-    offender, target = None, None
-    for candidate in (path, *path.parents):
-        if candidate.is_symlink():
-            offender, target = candidate, candidate.resolve()
-            break
-        if candidate == candidate.parent:
-            break
-    if offender is None:
-        return
-    raise SystemExit(
-        f"{path} is reached through the symlink {offender}, which points at "
-        f"{target}.\n"
-        "  Writing here would write THROUGH the link into another checkout and "
-        "replace a staged surface field a run there may be reading, and nothing "
-        "would record which worktree did it.\n"
-        "  A worktree links these entries so it can READ them to stage a run; "
-        "generating into them is what is refused. Pass --output to a path "
-        "inside this worktree, or run the generator in the main checkout. "
-        "world-4o59."
-    )
+    _refuse_write_through(
+        path, what="a staged surface field a run there may be reading",
+        instead=("Pass --output to a path inside this worktree, or run the "
+                 "generator in the main checkout."))
+
 
 def write_sra(path: Path, code: int, field: np.ndarray) -> None:
     """Write one field to `path` under ExoPlaSim's numeric `code`.
