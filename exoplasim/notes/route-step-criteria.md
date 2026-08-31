@@ -200,6 +200,74 @@ That leaves the field's carrier fixed and its content still at one rung, and the
 route's consequence below unchanged until a T42 climate reaches pedology.
 WORLD-QGB6 carries the measurement.
 
+#### The soil waits for a climate at the rung, and is not remapped onto it
+
+*Decided 2026-08-31, WORLD-512R.*
+
+The alternative was to remap the T21 climatology onto the target grid through
+`lib/remap.py` and run `soil` there on the remapped fields, which would put a
+land column and a staged code 0229 at a rung before any run had reached it.
+**The soil waits.** Three things carry it, and the first is the one that would
+still hold if the other two changed.
+
+**A remapped climatology is not a less determined climate, it is another
+world's.** `lib/paths.py:best_available_climatology` draws the line the
+best-available agreement rests on, and draws it explicitly to separate itself
+from the no-fallback rule: the bootstrap and the baseline are the SAME world at
+two stages of determination -- same build, same terrain hash, same config,
+checked by `require_build` at every call site -- so neither answer comes from
+somewhere else. A T21 climatology is a climate that closed on the T21 land mask
+and the T21 orography. Remapped, its precipitation and its evaporation balance
+on a mask no run integrated, and `build_soil.py` takes runoff as P - E, which is
+also the numerator of the carve criterion. That is a plausible number computed
+on a different world, which is the failure shape the no-fallback rule names.
+The best-available agreement is about the STAGE a step reads, and the rung is
+not a stage.
+
+**The saving it was worth is already spent.** The route has to buy a first arm
+at each new rung regardless, because a restart template can only be cut from a
+run of the target rung on the current staging. That arm's own climatology is
+exactly the input `soil` needs, and it is the same `build_climatology.py`
+minutes either way. Where the correct input and the approximate one cost the
+same, there is nothing to trade.
+
+**Nothing in the schedule would run earlier.** The first arm at a rung above
+T21 cannot read a staged 0229 whatever exists, because it is the arm that must
+run before the soil at that rung can be built at all; and the route does not
+want a cold arm above T21 for its own sake. So a soil built on a remapped
+climate would sit unread until the arm that supersedes its input had finished.
+
+What the remap WOULD have to carry if it were ever taken up is stated here so
+the question is not reopened cheaply: the product would have to be labelled
+remapped through `lib/spatial_support.py`'s identity and semantics contract, at
+every artifact it reached, so that no consumer could mistake it for a climate at
+that rung. That is a cost on top of the remap and not a mitigation of it.
+
+#### The order that unblocks the route
+
+Once an arm at the target rung has a climatology, the soil chain is minutes and
+the order is fixed:
+
+1. `build_climatology.py` on an arm of the target rung whose staged surface
+   family is the current one, and DECLARE it -- pointing a component at another
+   component's output is deliberate, never defaulted.
+2. `soil` at that rung, then `land_column_properties` at that rung.
+3. `surface_soil_water --grid source/<build>/exoplasim-<rung>`, which stages
+   codes 0229 and 2290 there.
+4. From then on every arm at that rung, cold or converted, carries the pedology
+   capacity: a cold one reads the staged field, a converted one takes `dwmax`
+   from a template cut at that rung after step 3.
+
+**Steps 2 and 3 are separated by a carrier defect that is real and is not this
+one.** `build_soil.py` takes no `--grid`: its grid export comes from
+`config/planet.yaml`'s `model.resolution` and its climatology from the single
+unrunged `bootstrap_climatology` key, whose `--climatology` override is pinned
+by sha to the declared file and so cannot name another. Running the soil at a
+second rung therefore means moving both config keys together, which is a
+configuration change `continue_exoplasim.py` refuses to resume across and which
+blocks every run in flight. WORLD-QGB6 fixed this shape one level down;
+WORLD-CCX6 is the same fix here.
+
 `config/pipeline.yaml`'s `surface_soil_water` needs `boundary_conditions` and
 `land_column_properties`, which is what it reads. The DETERMINATION argument the
 climatology edge stood for -- a staged surface field is an INPUT to the run
