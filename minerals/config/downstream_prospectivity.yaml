@@ -261,6 +261,38 @@ deposits:
     # fringe, secondary sulfides below the water table where pO2 falls to about
     # 1e-40 atm -- but no rainfall number, and a thick leached cap needs a deep
     # water table rather than a dry climate as such.
+    #
+    # AND THIS PROJECT NOW MODELS A WATER TABLE, WHICH DOES NOT CHANGE THE
+    # ANSWER. `hydrography/scripts/build_groundwater.py` solves a steady-state
+    # depth per region, so the obvious move is to key this rule on it rather
+    # than on climate. It is refused, and on RANGE rather than on skill, which
+    # matters because the two would be repaired differently.
+    #
+    # The depth the sources make the control is a leached cap of several hundred
+    # metres, Reich and Vasconcelos p. 306, "particularly when the water table
+    # was deep enough". The modelled depth does not go there. Scored against
+    # Earth bores its 95th percentile over land is single-digit metres in the
+    # configuration this component runs, and reaches only tens of metres in the
+    # configuration that reproduces the observed depth RANGE -- which is a
+    # uniform aquifer thickness that GW-18 has since measured against the only
+    # sediment thickness this project holds and found contradicted over more
+    # than 99% of the land. `hydrography/notes/groundwater-et-sink.md` carries
+    # both measurements with their dates.
+    #
+    # It is also structural rather than a matter of tuning: with the
+    # evapotranspiration sink dominant the equilibrium depth is
+    # `lambda ln(ET_max / R)`, a logarithm, so reaching a hundred metres would
+    # need an evaporative demand `e^100` times the recharge. The sink cannot
+    # produce a deep water table at all, and the lateral term reaches such
+    # depths only where a baselevel is near AND the aquifer is kilometres thick.
+    #
+    # So a perfectly skilful depth field confined to metres could not drive this
+    # rule, and no cut of `sink_fraction` rescues it: the regime flags say where
+    # the depth MEANS something, not where it is large.
+    # `CLAUDE.md`'s rule on checking the instrument against the size of the
+    # effect is what this is, and the effect is two orders of magnitude outside
+    # the instrument. The absence stays declared here rather than being filled
+    # with a depth threshold no read source states.
     multiplies: porphyry_cu_mo  # documentation only: the script hardcodes the pairing
 
   placer_au:

@@ -285,6 +285,32 @@ model's 95th percentile over land is 6.86 m, and it puts 1.1% of land past 30 m
 where the observations put 8.5%. A perfectly skilful model confined to 2-7 m
 still could not drive that rule.
 
+**And the weaker term that would survive the range problem does not exist
+either.** A depth field that cannot say HOW deep can still say whether there is
+a vadose zone at all, which is the boundary Reich and Vasconcelos p. 306 put the
+mechanism on: oxidation above the water table, secondary sulfides below it. That
+term needs no threshold in metres and would be `at_surface` alone. Measured
+2026-08-30 on the cached 15.19 km Earth solves, splitting the bore-carrying mesh
+cells by the flag:
+
+| set | bores | cells | cells the model marks at_surface |
+| --- | ---: | ---: | ---: |
+| Australia, all | 53,410 | 3,276 | **0** |
+| United States, unconfined | 73,451 | 6,870 | **1** |
+
+The declared test was whether the observed cell-mean depth is lower in
+model-pinned cells than in the rest by more than the standard error of the
+difference. It cannot be run: one of the two groups is empty on both continents.
+So the flag is not wrong on scored ground, it is ABSENT from it, and a term
+built on it could not be certified against anything.
+
+That is the worst pairing rather than a null result, because the flag is not
+absent on Vesper: the same solver marks a quarter of this world's land at the
+surface. A term that does nothing where it can be tested and a great deal where
+it cannot is one this project has no way to check, and `sink_fraction` does not
+rescue it -- the regime flags say where the depth MEANS something, not where it
+is large.
+
 **SURF-7 fails on CLASSIFICATION, and is not closed.** It wants a mask, "at or
 near a water table, or at zones of groundwater outflow", so the test is
 discrimination rather than a value:
