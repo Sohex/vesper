@@ -56,7 +56,20 @@ re-evaluates the criterion on them. It used to invert the recorded aridity index
 and evaporation margin to recover them instead, which put the verdict's formula
 in a second place and broke the first time the criterion moved; BUDG-5.
 
-**The kelvin reaches those columns through
+**The carve half has two unavailabilities and they are reported separately.**
+Its outputs read different things, so each is reported exactly when the thing it
+reads is present. The runoff percent needs the configured build's water balance
+and `HYDROLOGICAL_RESPONSE_PER_KELVIN`. The basin count needs a carve list on
+the configured build on top of both. The `CARVE_ITEMS` table and the basin
+verdict table are denominated in the criterion's own channels, so no kelvin
+reaches them and they need the carve list alone. The albedo and forcing halves
+read no hydrography artifact whatsoever and neither unavailability touches them.
+A build whose carve list has not been regenerated -- which is the ordinary state
+of the build a carve pass PRODUCES -- therefore gets everything but the basin
+column, and the reason where the basin tables would be. It used to be a
+traceback that denied a reader every column that was fine.
+
+**The kelvin reaches the runoff and basin columns through
 `HYDROLOGICAL_RESPONSE_PER_KELVIN`**, which is the one input and is declared
 once, at the top of this file. Two of its three channels are measured and the
 third is bracketed, so the basin column is a RANGE and the runoff column is not:
@@ -300,19 +313,32 @@ def verify_hydrological_response(config) -> list[str]:
        one world's amplification scaled by another world's sensitivity, with
        nothing about the product looking wrong.
     """
-    # `sensitivity` owns run lookup and already merges the live index with the
-    # archived entries. Reading the index a second time here would be the same
-    # class of defect this function exists to close, so it is not done.
-    by_id = {e.get("run_id"): e for e in sensitivity._index_entries()}
+    # `sensitivity` owns run lookup, and it keeps the LIVE index and the
+    # ARCHIVED identities APART on purpose: merging them is what let a bracket
+    # measured on two deleted runs go on reproducing its own constant. Both are
+    # read here and the archived one is reported as a problem in its own right
+    # rather than merged in silently, so every reason this secant is unusable
+    # comes out at once instead of the first one. Reading
+    # `exoplasim/runs/INDEX.json` directly here would be the same class of
+    # defect this function exists to close, so it is not done.
+    live, archived = sensitivity._live_entries(), sensitivity._archived_entries()
     problems, means = [], {}
     configured = config.get("source_build")
     for role in ("cold", "warm"):
         want = HYDROLOGICAL_RESPONSE_SECANT[role]
-        entry = by_id.get(want["run_id"])
+        entry = live.get(want["run_id"])
         if entry is None:
-            problems.append(f"the {role} secant run {want['run_id']} is in no "
-                            "run index, live or archived")
-            continue
+            entry = archived.get(want["run_id"])
+            if entry is None:
+                problems.append(f"the {role} secant run {want['run_id']} is in "
+                                "no run index, live or archived")
+                continue
+            problems.append(
+                f"{want['run_id']} survives only as archived identity, on build "
+                f"{entry.get('source_build')!r}. Its raw output is gone, so the "
+                "two fractional responses this secant carries cannot be "
+                "recomputed from it. Re-measure by "
+                + HYDROLOGICAL_RESPONSE_SECANT["re_measured_by"])
         physical = entry.get("physical", {})
         flux = physical.get("flux_ratio")
         if flux is None or abs(float(flux) - want["flux_ratio"]) > 1e-9:
@@ -470,6 +496,65 @@ def albedo_report_path(config) -> Path:
             / rungs.model_grid(config)[0].lower() / "albedo_report.json")
 
 
+# A ROCK CLASS'S SHARE OF THE STAGED LAND-MEAN ALBEDO: how far the land mean
+# `build_surface_albedo.py` writes moves per unit of that class's albedo. It is
+# NOT the class's area fraction of land, and the difference is what a literal
+# 0.147 here was: an area-shaped number standing where a staged-mean sensitivity
+# belongs, overstating the playa item by a factor of 1.727. That is the same
+# error one level down from the one `notes/audits/albedo-attenuation.md` settles
+# -- the denominator of an albedo item is the STAGED land mean, so its numerator
+# has to be a derivative of that same staged mean.
+#
+# MEASURED 2026-08-31 by running `build_surface_albedo.py` three times into a
+# scratch `--output`, changing only `model.lithology_albedo_overrides`, and
+# differencing `land_mean_written`. It costs 38 s a run and touches nothing:
+#
+#   playa 0.23 -> 0.25   d(land mean) +0.0017028459   share 0.08514230
+#   playa 0.23 -> 0.33   d(land mean) +0.0085142296   share 0.08514230
+#   playa 0.25 -> 0.33   d(land mean) +0.0068113837   share 0.08514230
+#
+# Exactly linear to eight figures across a factor of five in step size, which is
+# what says a single share is the right shape and that the item can be priced as
+# a step times a constant at all.
+#
+# NOT RE-DERIVABLE HERE, on the same footing as the attenuation rows and the
+# hydrological secant: the report the budget reads records the override that was
+# applied and not the sensitivity to it, so this is declared until
+# `build_surface_albedo.py` emits it. `verify_land_mean_shares` checks it the
+# moment the report carries one and refuses a disagreement rather than
+# preferring the declaration.
+LAND_MEAN_SHARES = {
+    "playa_clastic": 0.0851423,
+}
+# The land mean is written to ten figures and the share is stated to seven, so a
+# unit in the last place of the share is what agreement can mean. Fixed on that
+# precision, not on today's residual.
+LAND_MEAN_SHARE_TOLERANCE = 1e-6
+
+
+def verify_land_mean_shares(report: dict) -> list[str]:
+    """Re-read each declared share from the albedo report. Empty means it holds.
+
+    The report does not carry a share yet, so this is silent today and becomes a
+    check the moment `build_surface_albedo.py` records one. Written now rather
+    than later because the point of declaring a measured constant beside the
+    recipe that produced it is that something can refuse it, and a declaration
+    with no reader is what `lib/sensitivity.py` learned the expensive way.
+    """
+    problems = []
+    overrides = report.get("lithology_albedo_overrides") or {}
+    for name, declared in LAND_MEAN_SHARES.items():
+        recorded = (overrides.get(name) or {}).get("land_mean_share")
+        if recorded is None:
+            continue
+        if abs(float(recorded) - declared) > LAND_MEAN_SHARE_TOLERANCE:
+            problems.append(
+                f"{name} now has a land-mean share of {float(recorded):.7f} in "
+                f"the staged albedo report against the {declared:.7f} declared "
+                "here, so every item priced through it has moved")
+    return problems
+
+
 def albedo_items(config) -> list[tuple[str, float, str]]:
     """(label, land-mean albedo delta, note) for the albedo half of the budget.
 
@@ -535,8 +620,16 @@ def albedo_items(config) -> list[tuple[str, float, str]]:
          "the assumption LPJ-GUESS exists to replace. Measured: "
          f"{ends['bare_rock']:.5f} bare against {ends['vegetated']:.5f} "
          "vegetated, both pre-lake and on the overridden rock table."),
-        ("playa_clastic albedo, 0.25 to 0.33", 0.08 * 0.147,
-         "largest single rock-class lever; a mixture of clay playa and varnished fan"),
+        ("playa_clastic albedo, 0.25 to 0.33",
+         0.08 * LAND_MEAN_SHARES["playa_clastic"],
+         "the largest single rock-class lever: a mixture of clay playa and "
+         "varnished fan. The 0.08 step is the declared range of the class "
+         "albedo and the share it multiplies is MEASURED, from three "
+         "generator runs that differ in that override alone. It was 0.147, "
+         "which is an area-shaped number where a staged-mean sensitivity "
+         "belongs and overstated this item by 1.727. The staged value is 0.23, "
+         "which sits BELOW this range, so the range is the class's plausible "
+         "spread and not a bracket around what is staged."),
         ("lakes composited into albedo", float(report["lakes"]["delta"]),
          "solved lakes reaching the climate at all. Measured, from the same "
          "report: the cells carrying water are the bright playa and salt crust."),
@@ -813,7 +906,7 @@ def land_water_balance(config) -> dict:
     }
 
 
-def basin_response(config) -> tuple[dict, int, "callable"]:
+def basin_response(config) -> tuple[dict, int | None, "callable | None"]:
     """How many basins change verdict under a uniform fractional perturbation.
 
     The criterion is `export_carve_list.py`'s, and its three water terms are
@@ -848,21 +941,45 @@ def basin_response(config) -> tuple[dict, int, "callable"]:
     Basins carried forward from a previous carve pass have no water balance to
     read, because they were decided on a terrain that no longer exists. They are
     excluded and counted, not silently folded in.
+
+    **When the carve list cannot be read this REFUSES rather than raising**, and
+    the summary it returns carries `unavailable` instead of the tables. The
+    build the budget is configured on is often a build the carve list has not
+    been regenerated for -- a carve pass writes the list on the build it was
+    decided from, and the build it produces gets one only when hydrography is
+    taken round again -- and the albedo half of this budget reads no hydrography
+    artifact at all. Dying here denied a reader every column that was fine.
     """
     path = builds.component_data("hydrography", config, strict=True) / "carve_list.json"
+
+    def unavailable(reasons):
+        return {"source": str(path.relative_to(ROOT)),
+                "unavailable": reasons}, None, None
+
+    if not path.exists():
+        return unavailable([
+            f"{path.relative_to(ROOT)} does not exist, so there is no basin "
+            "population to evaluate the criterion against. Re-run "
+            "hydrography/scripts/export_carve_list.py on this build."])
     data = json.loads(path.read_text(encoding="utf-8"))
     rows = [r for r in data["basins"] if not r.get("carried_from_previous_pass")]
     carried = len(data["basins"]) - len(rows)
+    if not rows:
+        return unavailable([
+            f"every one of the {carried} basins in "
+            f"{path.relative_to(ROOT)} is carried from a previous carve pass, "
+            "so none of them has a water balance on this terrain to "
+            "re-evaluate the criterion on."])
 
     required = ("precipitation_km_per_year", "lake_evaporation_km_per_year",
                 "land_evaporation_km_per_year")
     absent = [k for k in required if k not in rows[0]]
     if absent:
-        raise SystemExit(
+        return unavailable([
             f"{path.relative_to(ROOT)} does not record {', '.join(absent)}, so "
             "the carve criterion cannot be re-evaluated from it. This budget no "
             "longer inverts the aridity index to recover them; see BUDG-5. "
-            "Re-run hydrography/scripts/export_carve_list.py, which writes them.")
+            "Re-run hydrography/scripts/export_carve_list.py, which writes them."])
 
     def column(key):
         return np.array([np.nan if r.get(key) is None else r[key] for r in rows],
@@ -981,6 +1098,12 @@ def per_item_carve_currency(kelvin, water, baseline, overflowing):
     channel cannot reach it; it reaches the basin count through the numerator
     only. Returning a single basin number would hide exactly the term that is
     not measured.
+
+    **The two columns fail separately, because they read different things.** The
+    runoff percent needs the configured build's water balance and the
+    hydrological response; the basin count needs a carve list on top of both. So
+    a build whose carve list has not been regenerated still gets a runoff column
+    and reports `--` for basins alone.
     """
     if kelvin is None:
         return None, None
@@ -989,6 +1112,8 @@ def per_item_carve_currency(kelvin, water, baseline, overflowing):
     d_land_e = h["land_evaporation"] * kelvin
     runoff_percent = 100.0 * (water["d_runoff_per_d_precipitation"] * d_precip
                               + water["d_runoff_per_d_land_evaporation"] * d_land_e)
+    if overflowing is None:
+        return round(runoff_percent, 2), None
     basins = sorted(int(overflowing(d_precip, d_land_e, rate * kelvin) - baseline)
                     for rate in h["lake_evaporation"])
     return round(runoff_percent, 2), basins
@@ -1026,11 +1151,31 @@ def main() -> None:
     water = land_water_balance(config)
     basins, basin_baseline, overflowing = basin_response(config)
 
-    # The carve columns exist only while the conversion into them holds. When
-    # it does not, they report as unavailable with the reason on the artifact:
-    # a kelvin priced into basins through a response measured on another world
-    # is a number, and a number is what makes it dangerous.
+    # THE CARVE HALF HAS TWO UNAVAILABILITIES AND THEY ARE NOT THE SAME ONE.
+    # Each output on that side is reported exactly when the thing it reads is
+    # present, rather than all of them being gated on one flag:
+    #
+    #   runoff percent   the configured build's water balance and the
+    #                    hydrological response. Absent iff `carve_problems`.
+    #   basin count      those, AND a carve list on the configured build.
+    #                    Absent iff either fails.
+    #   the CARVE_ITEMS table and the basin verdict table
+    #                    the carve list alone. There is no kelvin anywhere in
+    #                    their path, so the response cannot reach them; absent
+    #                    iff `basin_problems`.
+    #
+    # Folding the two together would have printed `--` for a runoff column that
+    # is fully determined, and folding them together in the other direction is
+    # what made a build with no carve list a traceback. The albedo and forcing
+    # halves read no hydrography artifact at all and are never affected by
+    # either.
+    #
+    # A kelvin priced into basins through a response measured on another world
+    # is a number, and a number is what makes it dangerous; a basin count taken
+    # from a carve list decided on another terrain is the same defect one step
+    # earlier. Both report the reason on the artifact instead.
     carve_problems = verify_hydrological_response(config)
+    basin_problems = basins.get("unavailable") or []
 
     def carve(kelvin):
         if carve_problems:
@@ -1039,10 +1184,11 @@ def main() -> None:
 
     def carve_columns(runoff_pct, basin_range):
         """Both carve columns as strings, so a null prints as a null."""
-        if runoff_pct is None:
-            return "--", "--"
+        runoff_col = "--" if runoff_pct is None else f"{runoff_pct:+.1f}%"
+        if basin_range is None:
+            return runoff_col, "--"
         low, high = basin_range
-        return (f"{runoff_pct:+.1f}%",
+        return (runoff_col,
                 f"{low:+d}" if low == high else f"{low:+d} to {high:+d}")
 
     rows = []
@@ -1067,6 +1213,13 @@ def main() -> None:
           f"{len(ATTENUATION_PAIRS)} pairs")
     if problems:
         print("SENSITIVITY DISAGREES WITH THE RUN INDEX: " + "; ".join(problems))
+    share_problems = verify_land_mean_shares(
+        json.loads(albedo_report_path(config).read_text(encoding="utf-8")))
+    if share_problems:
+        print("A DECLARED LAND-MEAN SHARE NO LONGER MATCHES THE STAGED ALBEDO "
+              "REPORT, so every item priced through it is stale:")
+        for problem in share_problems:
+            print(f"  {problem}")
     attenuation_problems = verify_attenuation(planetary_albedo)
     if attenuation_problems:
         print("THE ATTENUATION NO LONGER MATCHES THE ARMS IT WAS MEASURED ON, "
@@ -1077,6 +1230,13 @@ def main() -> None:
         print("CARVE CURRENCY UNAVAILABLE, so every runoff and basin column "
               "below reads --:")
         for problem in carve_problems:
+            print(f"  {problem}")
+    if basin_problems:
+        print("BASIN CRITERION UNAVAILABLE, so every basin column below reads "
+              "--, and the two basin tables are not printed. The albedo, "
+              "forcing and runoff columns read no carve list and are "
+              "unaffected:")
+        for problem in basin_problems:
             print(f"  {problem}")
     print()
     print(f"{'item':38} {'d(alb)':>8} {'K naive':>8} {'K':>7} "
@@ -1099,12 +1259,17 @@ def main() -> None:
     print("-" * 86)
     carve_rows = []
     for label, channel, (low, high), note in CARVE_ITEMS:
-        keys = CARVE_CHANNELS[channel]
-        counts = sorted(overflowing(*[x * k for k in keys]) - basin_baseline
-                        for x in (low, high))
+        if basin_problems:
+            counts = None
+        else:
+            keys = CARVE_CHANNELS[channel]
+            counts = sorted(overflowing(*[x * k for k in keys]) - basin_baseline
+                            for x in (low, high))
         carve_rows.append((label, channel, (low, high), counts, note))
+        rendered = ("--" if counts is None
+                    else f"{counts[0]:+d} to {counts[1]:+d}")
         print(f"{label:46} {channel} {low:+.0%} to {high:+.0%} "
-              f"{f'{counts[0]:+d} to {counts[1]:+d}':>16}")
+              f"{rendered:>16}")
 
     print("\nnot in one currency, no conversion invented:")
     for label, magnitude, _ in OTHER_ITEMS:
@@ -1117,13 +1282,20 @@ def main() -> None:
           f"({water['runoff_fraction_of_precipitation']:.1%} of P). "
           f"Runoff amplifies dP by {water['d_runoff_per_d_precipitation']}x "
           f"and dE by {abs(water['d_runoff_per_d_land_evaporation'])}x.")
-    print(f"\nbasins that change verdict, from {basins['overflowing_basins']} "
-          f"overflowing ({basins['reconstruction_check']}):")
-    header = "  " + f"{'channel':20}" + "".join(
-        f"{k:>8}" for k in basins["change_in_overflowing_basins"]["land_precipitation"])
-    print(header)
-    for label, table in basins["change_in_overflowing_basins"].items():
-        print("  " + f"{label:20}" + "".join(f"{v:+8d}" for v in table.values()))
+    if basin_problems:
+        print("\nbasins that change verdict: NOT REPORTED. "
+              + " ".join(basin_problems))
+    else:
+        print(f"\nbasins that change verdict, from "
+              f"{basins['overflowing_basins']} overflowing "
+              f"({basins['reconstruction_check']}):")
+        header = "  " + f"{'channel':20}" + "".join(
+            f"{k:>8}" for k in
+            basins["change_in_overflowing_basins"]["land_precipitation"])
+        print(header)
+        for label, table in basins["change_in_overflowing_basins"].items():
+            print("  " + f"{label:20}"
+                  + "".join(f"{v:+8d}" for v in table.values()))
     h = HYDROLOGICAL_RESPONSE_PER_KELVIN
     lo, hi = h["lake_evaporation"]
     if carve_problems:
@@ -1168,6 +1340,21 @@ def main() -> None:
                                k: dict(v) for k, v in ATTENUATION_PAIRS.items()},
                            attenuation_verify=(attenuation_problems
                                                or "re-derives from its arms"),
+                           land_mean_shares=dict(LAND_MEAN_SHARES),
+                           land_mean_shares_note=
+                               "How far the STAGED land-mean albedo moves per "
+                               "unit of a rock class's albedo, which is what an "
+                               "item denominated in that class has to be "
+                               "multiplied by. Not the class's area fraction of "
+                               "land: that is an area-shaped number where a "
+                               "staged-mean sensitivity belongs, and it "
+                               "overstated the playa item by 1.727. Measured "
+                               "from three build_surface_albedo.py runs that "
+                               "differ in one override, exactly linear across a "
+                               "factor of five in step size.",
+                           land_mean_shares_verify=(
+                               share_problems or "the staged albedo report "
+                               "records no share to check these against yet"),
                            verify=problems or "agrees with the run index"),
         "albedo_items": [],
         "forcing_items": [],
@@ -1183,8 +1370,21 @@ def main() -> None:
             "criterion's own water terms. They convert to basins exactly, with "
             "no kelvin in the path, and none should be given one. A "
             "lake_evaporation item has a null runoff_percent because runoff is "
-            "P - E_land and does not contain it.",
+            "P - E_land and does not contain it. A null `basins` means the "
+            "carve list itself was unreadable; carve_currency.basin_response "
+            "carries the reason.",
         "carve_currency": {
+            "unavailability_is_per_currency":
+                "The carve half has two unavailabilities and they are reported "
+                "separately, because its outputs read different things. The "
+                "runoff percent needs the configured build's water balance and "
+                "the hydrological response, and is null when "
+                "hydrological_response_verify lists problems. The basin count "
+                "needs those AND a carve list on the configured build, and is "
+                "null when either fails. The carve_items and the basin_response "
+                "tables have no kelvin in their path at all and need the carve "
+                "list alone. The albedo and forcing halves read no hydrography "
+                "artifact and are never affected by either.",
             "why": "The temperature is a result this project can revise. The "
                    "carve list is not: it leaves the project, changes the "
                    "terrain, and cannot be undone. An item priced only in "
