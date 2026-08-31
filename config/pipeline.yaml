@@ -2295,6 +2295,13 @@ one_offs:
   # contract. Generates nothing: it is a verdict on an artifact another
   # step wrote, and carries fixtures so it can fail on itself.
   - biosphere/scripts/check_forcing_contract.py
+  # Validates the equilibrium contract's drift bound against series whose
+  # answer is known by construction, and prices the retained record each
+  # assessed field needs. Outside the graph because its JSON is EVIDENCE for
+  # a declared rate in `biosphere/config/equilibrium_window.yaml`, not an
+  # input any step reads, and because it runs no model: every series is a
+  # synthetic AR(1) or a completed run's own table. world-rnns.
+  - biosphere/scripts/validate_drift_statistic.py
   - exoplasim/scripts/compare_flux_sweep.py
   - exoplasim/scripts/compare_albedo_bracket.py
   - exoplasim/scripts/close_term_energy.py

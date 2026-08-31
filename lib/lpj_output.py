@@ -10,6 +10,7 @@ import struct
 from typing import Iterable
 
 import numpy as np
+from scipy import stats
 import yaml
 
 from autocorrelation import (RELIABLE_SPAN_MULTIPLE, integrated_time,
@@ -283,6 +284,136 @@ def _trend(cycle_means: np.ndarray, policy: dict,
         "rejected": bool(rejected[i]),
     } for i in range(nfield)]
     return diagnostics, bool(rejected.any())
+
+
+def drift_bound(series, alpha: float, floor: float) -> dict:
+    """An upper confidence bound on a series' END-TO-END relative drift.
+
+    WHAT THIS IS FOR, AND IT POINTS THE OPPOSITE WAY TO WHAT CAME BEFORE IT. An
+    acceptance gate asserts that a run HAS SETTLED. A significance test that
+    fails to reject "no drift" asserts nothing of the kind: it reports that it
+    could not tell, and on a record shorter than its own memory time it can
+    never tell about anything. The error such a gate must control is therefore
+    letting a DRIFTING run through, and the instrument for that is an
+    equivalence test -- bound the drift from above, pass only when the bound is
+    inside the tolerance. Three properties follow from the direction alone, and
+    each replaces a defect the earlier form could not repair.
+
+    NO MULTIPLICITY CORRECTION IS NEEDED OR APPLIED. A run passes only when
+    every assessed field passes, so by the intersection-union principle the
+    run-level rate of accepting a field that truly drifts at the tolerance is
+    bounded by `alpha` with nothing added. Contract 2 declared a per-field rate
+    of 0.05 and measured a family rate of 0.34 over 64 fields, and expressing
+    0.05 through its empirical null would have needed about 7100 retained
+    cycles.
+
+    NO SEPARATE MEMORY GUARD. A record too short to resolve the tolerance gives
+    a wide bound, the bound exceeds the limit, and the field is refused by the
+    test itself rather than by a span rule standing in front of it. Being a span
+    rule is what made contract 3's guard self-referential.
+
+    A CONVERGENT RECORD FLOOR, which `cycles_for_bound` inverts out of this.
+
+    THE CONSTRUCTION. The record is split in half and the difference of the two
+    half means is DOUBLED, because for a steady drift a half-to-half difference
+    is half the end-to-end change; left unscaled it silently doubles the
+    tolerance it is judged against. Each half mean carries the memory-corrected
+    standard error `lib/autocorrelation.py` owns, at the memory time of the
+    LARGER of the two halves' estimates -- a selection toward overestimates,
+    which widens the bound and is the conservative direction here. Scatter and
+    memory time are taken on the RAW half and not a detrended one, so a real
+    drift inflates the error it is judged against rather than shrinking it.
+
+    The bound is a t bound at Welch degrees of freedom built from each half's
+    EFFECTIVE sample count, and that is where the span bar enters: a half
+    carrying few effective samples earns a heavy critical value instead of a
+    normal one. Putting a hard span bar on the whole record instead lets a half
+    stand on five effective samples, which measured a family refusal rate of
+    0.23 against a declared 0.05.
+    """
+    x = np.asarray(series, dtype=float)
+    n = x.size
+    m = n // 2
+    if m < 3:
+        raise EquilibriumWindowError(
+            "a drift bound needs at least six cycles to halve")
+    first, last = x[:m], x[n - m:]
+    tau = max(integrated_time(first)["tau"], integrated_time(last)["tau"])
+    variances = [float(np.var(half, ddof=1)) * tau / m for half in (first, last)]
+    effective = m / tau
+    per_half_df = max(effective - 1.0, 1.0)
+    total = variances[0] + variances[1]
+    if total > 0.0:
+        df = total ** 2 / sum(v ** 2 / per_half_df for v in variances)
+    else:
+        df = per_half_df
+    df = max(df, 1.0)
+    drift = 2.0 * float(last.mean() - first.mean())
+    standard_error = 2.0 * float(np.sqrt(total))
+    scale = max(abs(float(x.mean())), float(floor))
+    relative = abs(drift) / scale
+    relative_error = standard_error / scale
+    critical = float(stats.t.isf(alpha, df))
+    return {"relative_drift": relative,
+            "relative_standard_error": relative_error,
+            "upper_bound": relative + critical * relative_error,
+            "tau_cycles": float(tau),
+            "effective_samples_per_half": float(effective),
+            "degrees_of_freedom": float(df),
+            "critical_value": critical,
+            "half_cycles": int(m)}
+
+
+def cycles_for_bound(relative_standard_error: float, cycles: int, tau: float,
+                     alpha: float, limit: float, ceiling: float = 1.0e6) -> float:
+    """The record a field needs before its drift bound can fall inside `limit`.
+
+    THIS IS THE NUMBER THAT REPLACES THE SPAN MULTIPLE, and the reason it can is
+    that it converges. `RELIABLE_SPAN_MULTIPLE * tau` asks for a record ten times
+    a memory time read off the record itself, and the memory time this model
+    reports grows with the window it is read on. Here the standard error falls as
+    one over the root of the record while the memory time grows sublinearly with
+    it, so the required length is reached rather than chased.
+
+    The bound a SETTLED field of this scatter would show at length `n` is its
+    expected absolute drift estimate plus the critical value times the standard
+    error, and both terms scale with the same standard error:
+
+        bound(n) = (E|z| + t(alpha, df(n))) * standard_error * sqrt(cycles / n)
+
+    with `df(n) = n / tau - 2` for equal halves at a common memory time and
+    `E|z| = sqrt(2 / pi)` for a standard normal. `bound` is decreasing in `n`, so
+    the smallest `n` satisfying it is found by bisection on a doubled bracket.
+
+    IT IS A FLOOR AND THE CALLER RECORDS IT AS ONE, for one reason: `tau` is held
+    at its measured value while a longer record may read a larger one. That is a
+    weaker self-reference than the span multiple's, because it moves the answer
+    rather than preventing one.
+    """
+    if not np.isfinite(relative_standard_error) or relative_standard_error <= 0:
+        return float(cycles)
+    coefficient = float(relative_standard_error) * np.sqrt(float(cycles))
+    expected_absolute = float(np.sqrt(2.0 / np.pi))
+
+    def bound(n: float) -> float:
+        df = max(n / float(tau) - 2.0, 1.0)
+        critical = float(stats.t.isf(alpha, df))
+        return (expected_absolute + critical) * coefficient / np.sqrt(n)
+
+    if bound(float(cycles)) <= limit:
+        return float(cycles)
+    low, high = float(cycles), float(cycles) * 2.0
+    while bound(high) > limit:
+        high *= 2.0
+        if high > ceiling:
+            return float("inf")
+    for _ in range(60):
+        middle = 0.5 * (low + high)
+        if bound(middle) <= limit:
+            high = middle
+        else:
+            low = middle
+    return high
 
 
 def relaxation_time(series: np.ndarray, tau_memory: float,
