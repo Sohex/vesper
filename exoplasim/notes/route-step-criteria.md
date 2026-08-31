@@ -174,25 +174,38 @@ of the carve criterion. With it set, `run_exoplasim.py` REFUSES to start
 without staged code 229.
 
 **Code 229 exists at T21 and nowhere else, and it is the ONLY field in the
-family in that position.** Every other staged field takes a `--grid` and can be
-cut at any exported rung; `exoplasim/inputs/t42` carries all thirteen of them.
-`build_surface_soil_water.py` takes no `--grid` at all. It reads the grid and
-the land mask off a climatology and calls `require_configured_grid` on it, so
-with `model.resolution: T42` it refuses every climatology this project has.
+family in that position.** `exoplasim/inputs/t42` carries all thirteen of the
+others.
 
-**And the dependency is on the grid, not on the climate.** The builder says so
-itself: what it takes from the climatology "is the grid and the boundary land
-mask, and nothing else: the water capacity itself comes from the land column
-states, which pedology weathered under a climate of their own." The mask is a
-pure function of the terrain and `build_boundary_conditions.py` already writes
-it at every rung as code 172. So the field's content is rung-independent and
-only its CARRIER pins it to T21. WORLD-QGB6.
+**WHAT PINS IT IS NOT THE EXOPLASIM BUILDER.** That was the first answer and it
+was only half of one: `build_surface_soil_water.py` took no `--grid`, read the
+grid and the land mask off a climatology and called `require_configured_grid`
+on it, so the one rung a run had reached was the only rung the field could be
+cut at. It now takes a `--grid` like the rest of the family and takes the
+ownership mask from surface code 0172, which `build_boundary_conditions.py`
+writes at every exported rung and which a climatology's `lsm` is a copy of index
+for index. A climatology passed to it is a cross-check and never a carrier.
+Verified by reproducing both staged T21 files bit for bit through the new path.
 
-`config/pipeline.yaml` makes the climatology edge real rather than an
-oversight -- `surface_soil_water` needs `bootstrap_climatology`, because a
-staged surface field is an INPUT to the run whose output would otherwise build
-it -- and that edge is about DETERMINATION, which the bootstrap satisfies. It
-is the grid coupling riding on the same argument that pins the rung.
+**WHAT PINS IT IS `land_column_states_<res>.txt`, and that is a real dependency
+rather than a carrier.** The states file is per build and per rung.
+`pedology/scripts/land_column_properties.py` derives it from `soilmap_<res>.txt`
+alone, but `pedology/scripts/build_soil.py` reads a climatology for temperature,
+precipitation, runoff, evaporation and elevation -- content, not a grid -- and
+refuses one whose shape is not its grid export's. Neither takes a `--grid`, so
+their rung is `config/planet.yaml`'s. So a soil at a rung needs a CLIMATE at
+that rung, and no climatology above T21 exists anywhere in this tree.
+
+That leaves the field's carrier fixed and its content still at one rung, and the
+route's consequence below unchanged until a T42 climate reaches pedology.
+WORLD-QGB6 carries the measurement.
+
+`config/pipeline.yaml`'s `surface_soil_water` needs `boundary_conditions` and
+`land_column_properties`, which is what it reads. The DETERMINATION argument the
+climatology edge stood for -- a staged surface field is an INPUT to the run
+whose output would otherwise build it -- is enforced where the climate actually
+enters, at `soil`, which names its own stage and refuses a pairing it did not
+declare.
 
 **The consequence reaches further than a cold start, because `dwmax` is
 `STATIC_GRID, TARGET`.** `restart_schema.py` takes field capacity from the
@@ -210,8 +223,8 @@ interchangeable, and the asymmetry is one-signed:
 
 | arm | where `dwmax` comes from | possible today at T42 |
 | --- | --- | --- |
-| cold | the staged `.sra`, read by `landini` only when `nrestart == 0` | **no**, code 229 is not staged at this rung |
-| converted | the restart, which FREEZES it | yes |
+| cold | the staged `.sra`, read by `landini` only when `nrestart == 0` | **no**, pedology has no land column states at this rung |
+| converted | the restart, which FREEZES it | yes, at whatever capacity the template froze |
 
 **This is the route working rather than failing.** The escalation route exists
 so that no rung above T21 pays for a cold start, and a converted arm carries
