@@ -1387,8 +1387,13 @@ def main() -> None:
         }
 
     multiplier_bound = max(e["multiplier_bound"] for e in elements.values())
-    multiplier_low_end = min(e["multiplier_low_end"] for e in elements.values())
     binding = max(elements, key=lambda k: elements[k]["multiplier_bound"])
+    # The low end is the BINDING element's, not the smallest across elements.
+    # The scalar is one quantity and its bracket is the uncertainty in that
+    # quantity; the spread across elements is a different statement and is what
+    # `by_element` is for. Taking the minimum over elements would put sulfur's
+    # anion-only bound underneath a scalar magnesium sets.
+    multiplier_low_end = elements[binding]["multiplier_low_end"]
     report["exchange_complex"] = {
         "note": ("Cation exchange capacity, base saturation and the "
                  "exchangeable base pool. Emitted because ANUT-8's "
@@ -1438,12 +1443,15 @@ def main() -> None:
         "root_term_only_multiplier": {
             el: 1.0 + float(r) for el, r in root_all.items()},
         "bracket_note": (
-            "the two ends span the root term's composition (the largest ratio "
-            "anywhere in Vitousek and Sanford Table 7 against the largest at a "
-            "closed-canopy site of the kind the above-ground maximum came "
-            "from) and the field's tail (land maximum against p99). They do "
-            "NOT span the LEVEL exposure on the capacity coefficients, which "
-            "is larger than either and which world-n4i0 owns."),
+            "both ends are the BINDING element's, because the scalar is one "
+            "quantity: they span the root term's composition (the largest "
+            "ratio anywhere in Vitousek and Sanford Table 7 against the "
+            "largest at a closed-canopy site of the kind the above-ground "
+            "maximum came from) and the field's tail (land maximum against "
+            "p99). The spread ACROSS elements is a different statement and is "
+            "what by_element carries. Neither end spans the LEVEL exposure on "
+            "the capacity coefficients, which is larger than both and which "
+            "level_probe reports and world-n4i0 owns."),
         "declared_multiplier": float(anut["belowground_and_exchangeable_multiplier"]),
     }
 

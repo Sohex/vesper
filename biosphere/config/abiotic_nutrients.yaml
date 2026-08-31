@@ -669,17 +669,81 @@ adequacy:
     min_c_to_s_mass: 190
 
   # Multiplier taking the above-ground pool to the whole circulating pool:
-  # roots, and the exchangeable pool held on soil colloids. A BRACKET, because
-  # no artifact in this repository carries an exchangeable-cation or
-  # cation-exchange-capacity field -- `pedology/scripts/build_soil.py` emits
-  # sand, clay, silt, organic carbon, pH, bulk density and C:N and no CEC.
-  # The upper end is set by Chadwick et al. (1999) Fig. 2a, whose soil exchange
-  # cations reach about 6 meq/100 g integrated over the top metre; at a
-  # 1200 kg/m2 soil column that is of order 1.4 kg Ca/m2, near four times the
-  # largest above-ground calcium pool in the compilation. The screen runs on the
-  # upper end. Direction: up.
-  belowground_and_exchangeable_multiplier: 5.0
-  belowground_and_exchangeable_bracket: [1.0, 5.0]
+  # roots, and the exchangeable pool held on soil colloids.
+  #
+  # A BOUND READ OFF A FIELD, AND NO LONGER A GUESS BETWEEN 1 AND 5. Pedology
+  # emits an exchange complex: `pedology/config/pedogenesis.yaml`'s `exchange`
+  # block derives cation exchange capacity additively from the clay and
+  # organic-matter fractions of the soil map, base saturation from its pH, and
+  # the exchangeable pool per element over THIS declaration's own
+  # `root_zone_depth_m`, which `build_soil.py` reads from here so both sides
+  # count the same column. The soil map's `cec` column is the capacity and
+  # `pedology/analysis/soil_report.json`'s `exchange_complex` block is the
+  # arithmetic.
+  #
+  # THE VALUE IS BIGGER THAN THE BRACKET IT REPLACES, AND THAT IS THE FINDING.
+  # The old upper end of 5 came from Chadwick et al. (1999) Fig. 2a, whose
+  # Hawaiian soil exchange cations reach about 6 meq/100 g over the top metre.
+  # That is a deeply weathered, base-depleted basaltic profile. This world's
+  # simulated soils are not: the land-mean pH sits above the base-saturation
+  # transition both Chadwick et al. (2003) and Solly et al. (2020) place near
+  # pH 5.5 to 6.5, so most of the capacity holds bases rather than aluminium,
+  # and the capacity itself is larger because the clay fraction is. So the
+  # screen was running on an upper end that was not an upper bound, and had
+  # been reporting a critical runoff BELOW what its own construction supports.
+  # A screen that is permissive where it advertises conservatism is the defect;
+  # the larger number is the repair.
+  #
+  # WHAT REPORTS THE ELEMENT-BY-ELEMENT PICTURE. The scalar is what this file's
+  # own ledger script reads and it has to cover the worst element, so it is the
+  # maximum over the four. `belowground_and_exchangeable_by_element` beside it
+  # is what the mechanism says per element, and the two are not close. Sulfur
+  # is the largest gap and it is a different mechanism rather than a smaller
+  # number: sulfate is an ANION, so its soil term is the anion exchange
+  # capacity of variable-charge andic material and not the cation complex at
+  # all. Applying a cation-set scalar to it makes the screen far stricter for
+  # sulfur than any mechanism supports. world-vf8j moves the ledger onto the
+  # map; until it does, the scalar governs and is conservative for every
+  # element.
+  #
+  # DIRECTION: UP, at every step, matching the rest of this block. The land
+  # MAXIMUM of the emitted pool rather than its mean; the intercept
+  # `pedogenesis.yaml` drops from the capacity relation added back, because
+  # dropping it understates capacity; the largest cation share each source
+  # permits; and the largest root-to-shoot nutrient ratio in Vitousek and
+  # Sanford (1986) Table 7.
+  #
+  # THE BRACKET SPANS TWO THINGS AND NOT THE THIRD, AND THE THIRD IS LARGER.
+  # Its ends are the root term's composition -- the largest ratio anywhere in
+  # Table 7, which is a 5.5 T/ha heath scrub, against the largest at a
+  # closed-canopy site of the kind the above-ground maximum came from -- and
+  # the field's tail, its land maximum against its 99th percentile. It does NOT
+  # span the LEVEL of the capacity coefficients, which rest on one region's fit
+  # and are an open exposure world-n4i0 owns. That exposure moves this number
+  # by more than this bracket does, and a reader should not take the bracket
+  # for the uncertainty.
+  #
+  # THE VERDICT DOES NOT REST ON THAT EXPOSURE, WHICH IS WHY IT IS REPORTED
+  # RATHER THAN WAITED ON. Evaluate the bound at the most kaolinitic clay any
+  # read source supports -- Dahlgren et al. (2004) put halloysite at 2 to 10
+  # cmol(+)/kg against Sahrawat's mixed-mineralogy 38 -- and every cation still
+  # lands above 5. The root term alone does: Vitousek and Sanford Table 7's
+  # largest magnesium root-to-shoot ratio is 5.43, so 1 + roots is already
+  # outside the old bracket with no exchange complex in the arithmetic at all.
+  # The 1-to-5 bracket did not bound even the PLANT half of what it multiplied.
+  #
+  # AND IT IS RE-DERIVED RATHER THAN FROZEN. `build_soil.py` refuses when this
+  # key, or any entry in the map beside it, falls below what the emitted field
+  # implies. Soil carbon grows the organic term through loop A, so the check
+  # fires on the iteration that outgrows the declaration instead of quietly
+  # making the screen permissive again.
+  belowground_and_exchangeable_multiplier: 54.09
+  belowground_and_exchangeable_bracket: [47.44, 54.09]
+  belowground_and_exchangeable_by_element:
+    K: 31.15
+    Ca: 26.37
+    Mg: 54.09
+    S: 5.67
 
   # Elements the screen can reach, and the ones it refuses on and why. A refusal
   # is a result: it says the element cannot be screened with what exists, which
