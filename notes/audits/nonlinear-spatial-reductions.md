@@ -539,6 +539,50 @@ curvature, or the measured gap is carried as declared model-form error with the
 table above as its bracket. Nothing in `build_surface_albedo.py` can fix it,
 which is why this finding does not move that builder.
 
+### The model change is priced, and it clears the bar
+
+The choice between those two was not takeable on the numbers above, because
+nobody had measured whether the third staged field works. The repair this audit
+pre-registered for the same defect was wrong by two orders, so a proposed form
+is priced before it is adopted. `analysis/spatial_reduction_gap.py`'s arm now
+carries three forms against the same truth, and the criterion -- inside the
+0.12 W m-2 storage tolerance at every saturation the modelled column reaches --
+was fixed before they were run.
+
+| saturation | 0.000 | 0.095 | 0.190 | 0.285 | 0.380 | 0.476 | 0.571 | 0.666 | 0.761 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| as built | 0.000 | -0.105 | -0.142 | **-0.147** | -0.137 | -0.120 | -0.099 | -0.076 | -0.054 |
+| staged in the transform | 0.857 | 0.872 | **0.876** | 0.873 | 0.866 | 0.858 | 0.849 | 0.840 | 0.831 |
+| three points | 0.000 | -0.029 | -0.023 | -0.005 | -0.025 | -0.039 | **-0.042** | -0.038 | -0.030 |
+
+Global-mean absorbed shortwave in W m-2, at T21 on the accepted baseline's own
+downward shortwave. The three-point form peaks at 0.042 and is inside the bar
+at every saturation; the defect peaks at 0.147 and is outside it over three of
+the nine points. The albedo side falls with it at every rung: the band 1
+land-mean gap from 1.97e-03 to 5.58e-04 at T21 and from 1.25e-03 to 3.42e-04 at
+T170, and the worst cell from 1.68e-02 to about 4.6e-03 across the ladder.
+
+**The refuted repair is worse on the mesh than on the two-class cell that
+refuted it.** Staging in the transform is 0.83 to 0.88 W m-2 across the whole
+range -- six times the defect, seven times the bar, and 0.857 at the zero
+saturation the defect gets exactly right. Its worst cell grows with refinement,
+from 8.6e-02 at T21 to 2.6e-01 at T170, where every other form's shrinks.
+
+**Why three staged points and not a fitted shape parameter.** Sadeghi's `sigma`
+is `s_dry / s_sat` and a per-cell value chosen to force agreement at one
+saturation would be the residual of a fit with no derivation to carry to another
+planet. The third albedo is not: it is the exact area mean of the per-region
+mixed albedo, the same reduction the other two staged fields are, so all three
+are exact area means of per-region quantities and the composition is exact at
+three saturations by construction.
+
+**The third point's saturation is derived.** `landmod.f90`'s `drhsfull` is the
+fill fraction above which the evaporation limiter's wetness factor reaches one,
+and `wetalb` maps a fill fraction onto saturation through `skinsrad` and
+`skinsrfc`. The knee is the image of one under the other, read from the model
+source and from `config/planet.yaml` by the measurement rather than written into
+it. That the gap also peaks near there is a result and not the reason.
+
 ## 8. The aeolian roughness mixture. Right operation, wrong reason, and immaterial
 
 `aeolian/config/dust.yaml` collapses a patchwork of erodible surfaces to one

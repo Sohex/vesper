@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-31T04:57:07+00:00",
+  "generated": "2026-08-31T05:41:04+00:00",
   "issue": "SPAT-7",
   "build": "canonical-10m-carve2",
   "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
@@ -544,6 +544,368 @@
           0.7609
         ],
         "wetting_arm": "twomey",
+        "candidate_repairs": {
+          "why": "world-yxor offers a model change or a declared bracket, and the choice cannot be taken until the model change is priced: the repair this audit pre-registered for the same defect was measured wrong by two orders, so a proposed form is measured before it is adopted",
+          "criterion": "VIABLE when the absorbed-shortwave gap is inside 0.12 W m-2 at every saturation in the declared range; the criterion is the same bar the defect is measured against and predates the result",
+          "evaporation_knee": {
+            "fill_fraction": 0.4,
+            "source": "landmod.f90, real :: drhsfull",
+            "saturation": 0.30436,
+            "mapped_by": "config/planet.yaml soil_albedo_moisture saturation_at_empty_layer/saturation_at_full_layer, which is the map wetalb applies"
+          },
+          "forms": {
+            "as_built": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0014218297713390784,
+                    "maximum_absolute_gap": 0.009655973053669442
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0019105391587112839,
+                    "maximum_absolute_gap": 0.014037713838316979
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.0019739451794214265,
+                    "maximum_absolute_gap": 0.015470287144861594
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0018333576670083397,
+                    "maximum_absolute_gap": 0.015168780782622127
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0015946186345532816,
+                    "maximum_absolute_gap": 0.013819878286534054
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0013115042666018905,
+                    "maximum_absolute_gap": 0.011833310209564046
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0010123935625014915,
+                    "maximum_absolute_gap": 0.00946343122679677
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0007125166298980114,
+                    "maximum_absolute_gap": 0.006872596860939245
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.001255078350062177,
+                    "maximum_absolute_gap": 0.009049081137070147
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0016988968188334083,
+                    "maximum_absolute_gap": 0.013201719137124257
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.0017664081224193868,
+                    "maximum_absolute_gap": 0.014589581776799476
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0016495902622613778,
+                    "maximum_absolute_gap": 0.01433770384139943
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0014416199106745912,
+                    "maximum_absolute_gap": 0.013087294794250415
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0011906218897565293,
+                    "maximum_absolute_gap": 0.01122381543267717
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0009224686672086966,
+                    "maximum_absolute_gap": 0.008988170132930018
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0006513546918314442,
+                    "maximum_absolute_gap": 0.0065350968569861945
+                  }
+                ]
+              },
+              "absorbed_shortwave_w_m2": {
+                "0.0": 0.0,
+                "0.095113": -0.10505403933528508,
+                "0.190225": -0.14182648383088922,
+                "0.285338": -0.14711739370934065,
+                "0.38045": -0.13710579198420791,
+                "0.475562": -0.11960385105428763,
+                "0.570675": -0.0986222595872686,
+                "0.665787": -0.07630227845774824,
+                "0.7609": -0.053808958477202594
+              },
+              "peak_absolute_w_m2": 0.14711739370934065,
+              "saturations_past_the_bar": [
+                "0.190225",
+                "0.285338",
+                "0.38045"
+              ],
+              "inside_the_bar_everywhere": false
+            },
+            "staged_in_transform": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.011669012798290133,
+                    "maximum_absolute_gap": 0.06352904113083016
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.011660658238299608,
+                    "maximum_absolute_gap": 0.060023244274592796
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.011557006835205864,
+                    "maximum_absolute_gap": 0.06608121805594983
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.01141014801463311,
+                    "maximum_absolute_gap": 0.07113514433144433
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.011246259500800335,
+                    "maximum_absolute_gap": 0.07529385463825428
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.011078735848021697,
+                    "maximum_absolute_gap": 0.0787745101285281
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.010914438376199424,
+                    "maximum_absolute_gap": 0.08172996121724621
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.010756784530586682,
+                    "maximum_absolute_gap": 0.08427050577083392
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.010607322394601099,
+                    "maximum_absolute_gap": 0.08647776538603821
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.011029819071508507,
+                    "maximum_absolute_gap": 0.08097655977766371
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.011359214695634485,
+                    "maximum_absolute_gap": 0.07819155024255353
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.011481040429402704,
+                    "maximum_absolute_gap": 0.07473435223097516
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.011490027552937892,
+                    "maximum_absolute_gap": 0.0711562909963184
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.011435952574736952,
+                    "maximum_absolute_gap": 0.06768252351234771
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.011346554030180462,
+                    "maximum_absolute_gap": 0.06605000959858678
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.011237936741054699,
+                    "maximum_absolute_gap": 0.06667388970166975
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.01111972253993679,
+                    "maximum_absolute_gap": 0.06715686746294576
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.01099775586239582,
+                    "maximum_absolute_gap": 0.06753812268629161
+                  }
+                ]
+              },
+              "absorbed_shortwave_w_m2": {
+                "0.0": 0.8566568493306341,
+                "0.095113": 0.8721634901736859,
+                "0.190225": 0.8756242923868254,
+                "0.285338": 0.8727023393771759,
+                "0.38045": 0.8663703366877025,
+                "0.475562": 0.8582635871712032,
+                "0.570675": 0.8493119331574043,
+                "0.665787": 0.8400553862678888,
+                "0.7609": 0.830809649295815
+              },
+              "peak_absolute_w_m2": 0.8756242923868254,
+              "saturations_past_the_bar": [
+                "0.0",
+                "0.095113",
+                "0.190225",
+                "0.285338",
+                "0.38045",
+                "0.475562",
+                "0.570675",
+                "0.665787",
+                "0.7609"
+              ],
+              "inside_the_bar_everywhere": false
+            },
+            "three_point_knee": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.00038960320963083946,
+                    "maximum_absolute_gap": 0.0031839101221143307
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.00031390411557358125,
+                    "maximum_absolute_gap": 0.0027552022213697125
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -6.0443516539797436e-05,
+                    "maximum_absolute_gap": 0.0005619379687147874
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.00032959938324659475,
+                    "maximum_absolute_gap": 0.0022862403971961043
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.000519909503397216,
+                    "maximum_absolute_gap": 0.0037957122538948285
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0005578691506646251,
+                    "maximum_absolute_gap": 0.004260193043977206
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0005037393022090325,
+                    "maximum_absolute_gap": 0.004003534897663974
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.00039376320660276717,
+                    "maximum_absolute_gap": 0.0032434228438122104
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0003509876919454287,
+                    "maximum_absolute_gap": 0.0027723683241268615
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.00028480925220731847,
+                    "maximum_absolute_gap": 0.0024138464155318284
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -5.516617906532516e-05,
+                    "maximum_absolute_gap": 0.0004950401984890052
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.00029793110053229845,
+                    "maximum_absolute_gap": 0.0023230177079656134
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0004720069723650014,
+                    "maximum_absolute_gap": 0.0038586457603966284
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0005084190249328998,
+                    "maximum_absolute_gap": 0.00433129452422068
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0004606556779396434,
+                    "maximum_absolute_gap": 0.004069712547094595
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.00036118348907120254,
+                    "maximum_absolute_gap": 0.003295900144278524
+                  }
+                ]
+              },
+              "absorbed_shortwave_w_m2": {
+                "0.0": 0.0,
+                "0.095113": -0.028945312218313608,
+                "0.190225": -0.02343704476940252,
+                "0.285338": -0.004531426495679061,
+                "0.38045": -0.024773682655584064,
+                "0.475562": -0.03917949021639786,
+                "0.570675": -0.04213567670790125,
+                "0.665787": -0.03812359738307577,
+                "0.7609": -0.02985358228719824
+              },
+              "peak_absolute_w_m2": 0.04213567670790125,
+              "saturations_past_the_bar": [],
+              "inside_the_bar_everywhere": true
+            }
+          }
+        },
         "cells_with_land": 1639,
         "cells_of_one_substrate_class": 147,
         "one_class_control": {
@@ -781,7 +1143,7 @@
               "twomey",
               "lekner"
             ],
-            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-ab6f3f520ad67d40a/analysis/soil_albedo_wetting.json",
             "generated": "2026-08-30",
             "refused_classes": {
               "water": "open water is not a surface that wets",
@@ -1346,6 +1708,312 @@
           0.7609
         ],
         "wetting_arm": "twomey",
+        "candidate_repairs": {
+          "why": "world-yxor offers a model change or a declared bracket, and the choice cannot be taken until the model change is priced: the repair this audit pre-registered for the same defect was measured wrong by two orders, so a proposed form is measured before it is adopted",
+          "criterion": "VIABLE when the absorbed-shortwave gap is inside 0.12 W m-2 at every saturation in the declared range; the criterion is the same bar the defect is measured against and predates the result",
+          "evaporation_knee": {
+            "fill_fraction": 0.4,
+            "source": "landmod.f90, real :: drhsfull",
+            "saturation": 0.30436,
+            "mapped_by": "config/planet.yaml soil_albedo_moisture saturation_at_empty_layer/saturation_at_full_layer, which is the map wetalb applies"
+          },
+          "forms": {
+            "as_built": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.001298447981498655,
+                    "maximum_absolute_gap": 0.010145943386826006
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0017544086389038244,
+                    "maximum_absolute_gap": 0.014877020277349218
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.001821155475456123,
+                    "maximum_absolute_gap": 0.01652236509065763
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0016983437526628818,
+                    "maximum_absolute_gap": 0.01633505869891827
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0014824852761047731,
+                    "maximum_absolute_gap": 0.015064105844129705
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0012231749265128025,
+                    "maximum_absolute_gap": 0.013050216840592266
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0009469213681873457,
+                    "maximum_absolute_gap": 0.010548499642440201
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0006681722691644496,
+                    "maximum_absolute_gap": 0.007735993888215387
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0011551774480025334,
+                    "maximum_absolute_gap": 0.00989132712601487
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0015713982458292971,
+                    "maximum_absolute_gap": 0.01456691317278097
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.0016407666359746578,
+                    "maximum_absolute_gap": 0.016309463902890065
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0015379312347968271,
+                    "maximum_absolute_gap": 0.01621618926973467
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.001348446926892343,
+                    "maximum_absolute_gap": 0.014999837501392776
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0011169419656622498,
+                    "maximum_absolute_gap": 0.013048136677046351
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0008676780595447554,
+                    "maximum_absolute_gap": 0.010590600073990486
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0006141445667677768,
+                    "maximum_absolute_gap": 0.0077961286251620465
+                  }
+                ]
+              }
+            },
+            "staged_in_transform": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.010444362640161785,
+                    "maximum_absolute_gap": 0.07842855816513594
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.010509457159554996,
+                    "maximum_absolute_gap": 0.09316489412075102
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.010477322778387555,
+                    "maximum_absolute_gap": 0.10492261459511121
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.010396957370174955,
+                    "maximum_absolute_gap": 0.1145077260126961
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.010293738205228059,
+                    "maximum_absolute_gap": 0.12246802033337656
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.010181167001948625,
+                    "maximum_absolute_gap": 0.12918395130772092
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.010066547320057923,
+                    "maximum_absolute_gap": 0.13492645169540812
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.009953833749201686,
+                    "maximum_absolute_gap": 0.1398931439622963
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.00984511050132429,
+                    "maximum_absolute_gap": 0.14423173597733197
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.009216206062922236,
+                    "maximum_absolute_gap": 0.08614120684976623
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.009567989639096474,
+                    "maximum_absolute_gap": 0.08280973847920828
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.00973958817204917,
+                    "maximum_absolute_gap": 0.07887738825370366
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.00980958852285222,
+                    "maximum_absolute_gap": 0.07581468384541118
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.009820133315832813,
+                    "maximum_absolute_gap": 0.0769334119608033
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.009795199603390245,
+                    "maximum_absolute_gap": 0.07799277249621916
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.009749031480253311,
+                    "maximum_absolute_gap": 0.08431331029386907
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.009690369242188817,
+                    "maximum_absolute_gap": 0.09128205784162541
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.009624700255417727,
+                    "maximum_absolute_gap": 0.09779917676733962
+                  }
+                ]
+              }
+            },
+            "three_point_knee": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.00036151716544920696,
+                    "maximum_absolute_gap": 0.0035008949330228023
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.00029281182481860504,
+                    "maximum_absolute_gap": 0.0030728602505782354
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -5.663207606571378e-05,
+                    "maximum_absolute_gap": 0.0006344658968738814
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.00030046155165959894,
+                    "maximum_absolute_gap": 0.002433683896808425
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0004757673177316817,
+                    "maximum_absolute_gap": 0.004067351250789636
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0005122623585826275,
+                    "maximum_absolute_gap": 0.004592427626790296
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.00046399922953488257,
+                    "maximum_absolute_gap": 0.004339287918946694
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.00036372930948380666,
+                    "maximum_absolute_gap": 0.0035330046012579386
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.00032463477678633303,
+                    "maximum_absolute_gap": 0.003294766179539721
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.00026471711576602283,
+                    "maximum_absolute_gap": 0.0029364226563091678
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -5.149078996016875e-05,
+                    "maximum_absolute_gap": 0.0006142230734073606
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0002753478593292494,
+                    "maximum_absolute_gap": 0.0024594362880959175
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.00043771701127768496,
+                    "maximum_absolute_gap": 0.004128167244858538
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.00047292805178710304,
+                    "maximum_absolute_gap": 0.004678944067545043
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0004296874106936729,
+                    "maximum_absolute_gap": 0.00443786314424327
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0003377545119925071,
+                    "maximum_absolute_gap": 0.0036268966117204426
+                  }
+                ]
+              }
+            }
+          }
+        },
         "cells_with_land": 5754,
         "cells_of_one_substrate_class": 848,
         "one_class_control": {
@@ -1583,7 +2251,7 @@
               "twomey",
               "lekner"
             ],
-            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-ab6f3f520ad67d40a/analysis/soil_albedo_wetting.json",
             "generated": "2026-08-30",
             "refused_classes": {
               "water": "open water is not a surface that wets",
@@ -2131,6 +2799,312 @@
           0.7609
         ],
         "wetting_arm": "twomey",
+        "candidate_repairs": {
+          "why": "world-yxor offers a model change or a declared bracket, and the choice cannot be taken until the model change is priced: the repair this audit pre-registered for the same defect was measured wrong by two orders, so a proposed form is measured before it is adopted",
+          "criterion": "VIABLE when the absorbed-shortwave gap is inside 0.12 W m-2 at every saturation in the declared range; the criterion is the same bar the defect is measured against and predates the result",
+          "evaporation_knee": {
+            "fill_fraction": 0.4,
+            "source": "landmod.f90, real :: drhsfull",
+            "saturation": 0.30436,
+            "mapped_by": "config/planet.yaml soil_albedo_moisture saturation_at_empty_layer/saturation_at_full_layer, which is the map wetalb applies"
+          },
+          "forms": {
+            "as_built": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0011148654532517786,
+                    "maximum_absolute_gap": 0.010276859373003544
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0015185502534200608,
+                    "maximum_absolute_gap": 0.015059816026615935
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.0015871989706759723,
+                    "maximum_absolute_gap": 0.016810151455033395
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.001489036832616017,
+                    "maximum_absolute_gap": 0.01667398179096513
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0013066483997555614,
+                    "maximum_absolute_gap": 0.015351758392013137
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0010831724068117953,
+                    "maximum_absolute_gap": 0.01327215748408106
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.000842091532936406,
+                    "maximum_absolute_gap": 0.01070863272079256
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.000596484368283481,
+                    "maximum_absolute_gap": 0.007840935025098528
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.001007001722041568,
+                    "maximum_absolute_gap": 0.010002743234489853
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0013797758884483392,
+                    "maximum_absolute_gap": 0.014772660448026831
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.0014496590236636898,
+                    "maximum_absolute_gap": 0.016536763965164736
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0013661971223449883,
+                    "maximum_absolute_gap": 0.016458714652280215
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0012036462978877681,
+                    "maximum_absolute_gap": 0.015199301015215771
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0010013031716946286,
+                    "maximum_absolute_gap": 0.01320084790672793
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0007808760573281393,
+                    "maximum_absolute_gap": 0.010706574642995514
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0005546635973595937,
+                    "maximum_absolute_gap": 0.007876451351878033
+                  }
+                ]
+              }
+            },
+            "staged_in_transform": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.008951906678920927,
+                    "maximum_absolute_gap": 0.1117251582727749
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.009091369174350751,
+                    "maximum_absolute_gap": 0.13293377625546954
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.009136095117704022,
+                    "maximum_absolute_gap": 0.1504659578000816
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.009129546559485198,
+                    "maximum_absolute_gap": 0.1650333394464239
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.009095105590572944,
+                    "maximum_absolute_gap": 0.17725785159893648
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.009045773221004928,
+                    "maximum_absolute_gap": 0.18766595688466248
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.008988981884228307,
+                    "maximum_absolute_gap": 0.1966372897435648
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.008929064567482022,
+                    "maximum_absolute_gap": 0.20445204366667025
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.008868567201339085,
+                    "maximum_absolute_gap": 0.21132198049423523
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.007290245636408911,
+                    "maximum_absolute_gap": 0.1086535991443211
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.00765986189213432,
+                    "maximum_absolute_gap": 0.12000436286278005
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.00787896640632566,
+                    "maximum_absolute_gap": 0.12797439784855924
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.008009139611402923,
+                    "maximum_absolute_gap": 0.13383268142778476
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.008084371477722294,
+                    "maximum_absolute_gap": 0.1382925903220093
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.008124556590338325,
+                    "maximum_absolute_gap": 0.14178389448851614
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.008141873569828114,
+                    "maximum_absolute_gap": 0.14457967428899499
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.008144046974750532,
+                    "maximum_absolute_gap": 0.14686102730861314
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.008136117243906893,
+                    "maximum_absolute_gap": 0.14875252035596842
+                  }
+                ]
+              }
+            },
+            "three_point_knee": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0003186108036661774,
+                    "maximum_absolute_gap": 0.0035642163477866973
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.00026001374403623526,
+                    "maximum_absolute_gap": 0.003133565280716455
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -5.0609656347089894e-05,
+                    "maximum_absolute_gap": 0.0006513225325593952
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.000256970941927711,
+                    "maximum_absolute_gap": 0.0024463451643164102
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.00040921728745239286,
+                    "maximum_absolute_gap": 0.0040899993151373715
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.00044286075219061605,
+                    "maximum_absolute_gap": 0.00461990558229694
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.00040299481245784785,
+                    "maximum_absolute_gap": 0.004367179615139299
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0003172428370056625,
+                    "maximum_absolute_gap": 0.0035573408796124584
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0002866227838022194,
+                    "maximum_absolute_gap": 0.003542923607281534
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.00023536595175976106,
+                    "maximum_absolute_gap": 0.003098797587224089
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -4.6058578818428685e-05,
+                    "maximum_absolute_gap": 0.0006381596879960205
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0002408083575857453,
+                    "maximum_absolute_gap": 0.002473254391189117
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0003847591130598938,
+                    "maximum_absolute_gap": 0.004141908793777627
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0004176111497720072,
+                    "maximum_absolute_gap": 0.004688692151007423
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0003809994839281874,
+                    "maximum_absolute_gap": 0.004445469541245417
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0003006143521267677,
+                    "maximum_absolute_gap": 0.003641824046215658
+                  }
+                ]
+              }
+            }
+          }
+        },
         "cells_with_land": 20719,
         "cells_of_one_substrate_class": 5283,
         "one_class_control": {
@@ -2368,7 +3342,7 @@
               "twomey",
               "lekner"
             ],
-            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-ab6f3f520ad67d40a/analysis/soil_albedo_wetting.json",
             "generated": "2026-08-30",
             "refused_classes": {
               "water": "open water is not a surface that wets",
@@ -2916,6 +3890,312 @@
           0.7609
         ],
         "wetting_arm": "twomey",
+        "candidate_repairs": {
+          "why": "world-yxor offers a model change or a declared bracket, and the choice cannot be taken until the model change is priced: the repair this audit pre-registered for the same defect was measured wrong by two orders, so a proposed form is measured before it is adopted",
+          "criterion": "VIABLE when the absorbed-shortwave gap is inside 0.12 W m-2 at every saturation in the declared range; the criterion is the same bar the defect is measured against and predates the result",
+          "evaporation_knee": {
+            "fill_fraction": 0.4,
+            "source": "landmod.f90, real :: drhsfull",
+            "saturation": 0.30436,
+            "mapped_by": "config/planet.yaml soil_albedo_moisture saturation_at_empty_layer/saturation_at_full_layer, which is the map wetalb applies"
+          },
+          "forms": {
+            "as_built": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0009703869616263728,
+                    "maximum_absolute_gap": 0.010279708453427738
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0013302119805592625,
+                    "maximum_absolute_gap": 0.01507259088652374
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.001398008234383758,
+                    "maximum_absolute_gap": 0.01680971467411768
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0013178793525108522,
+                    "maximum_absolute_gap": 0.01667407248242181
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0011614117992883918,
+                    "maximum_absolute_gap": 0.01536329807785447
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0009664762207706292,
+                    "maximum_absolute_gap": 0.013299411781756032
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0007539805698660064,
+                    "maximum_absolute_gap": 0.010757803680835676
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.000535763704196423,
+                    "maximum_absolute_gap": 0.007897370185669883
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0008911427709375828,
+                    "maximum_absolute_gap": 0.010172829316643983
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0012280006446696524,
+                    "maximum_absolute_gap": 0.014906227010258732
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.0012965464600539073,
+                    "maximum_absolute_gap": 0.01654774041768431
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.001227173055798404,
+                    "maximum_absolute_gap": 0.01646057784168037
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.001085308943106427,
+                    "maximum_absolute_gap": 0.015215475756475916
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0009059673220367439,
+                    "maximum_absolute_gap": 0.013209469038177601
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0007087295847792603,
+                    "maximum_absolute_gap": 0.010707112628424054
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.000504848124065121,
+                    "maximum_absolute_gap": 0.007876486446558917
+                  }
+                ]
+              }
+            },
+            "staged_in_transform": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.008010147689498665,
+                    "maximum_absolute_gap": 0.1443291549085537
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.008190835039920654,
+                    "maximum_absolute_gap": 0.16685144373255512
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.008279858443601176,
+                    "maximum_absolute_gap": 0.18392007404837063
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.008316816953214876,
+                    "maximum_absolute_gap": 0.19731556080919754
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.008323534820691198,
+                    "maximum_absolute_gap": 0.2081164452157212
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.008312477599732363,
+                    "maximum_absolute_gap": 0.21701500660722833
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.00829100093793173,
+                    "maximum_absolute_gap": 0.2244762025351807
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.008263562469474219,
+                    "maximum_absolute_gap": 0.23082401097073257
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.008232916276458519,
+                    "maximum_absolute_gap": 0.23629164989715246
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0061982184397845995,
+                    "maximum_absolute_gap": 0.13456271650130425
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.006570271575648394,
+                    "maximum_absolute_gap": 0.15642366841396393
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.006810342078272308,
+                    "maximum_absolute_gap": 0.1731106665031581
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.0069699941539008515,
+                    "maximum_absolute_gap": 0.18627515281005524
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.007078278708994136,
+                    "maximum_absolute_gap": 0.1969325850490906
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.0071525370013538125,
+                    "maximum_absolute_gap": 0.20574136180492836
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.007203600344724879,
+                    "maximum_absolute_gap": 0.213146980278764
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.007238486721476666,
+                    "maximum_absolute_gap": 0.21946165827331138
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.007261885030102812,
+                    "maximum_absolute_gap": 0.22491121632184086
+                  }
+                ]
+              }
+            },
+            "three_point_knee": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.00028403378871875393,
+                    "maximum_absolute_gap": 0.0036955976438832194
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0002331882168700008,
+                    "maximum_absolute_gap": 0.003225441741079027
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -4.5620135765300397e-05,
+                    "maximum_absolute_gap": 0.0006632068699259641
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.00022264465316594606,
+                    "maximum_absolute_gap": 0.002463972391481828
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.00035616672129526835,
+                    "maximum_absolute_gap": 0.004125940097205405
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.00038703439641655005,
+                    "maximum_absolute_gap": 0.004667182571000794
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0003535137841277249,
+                    "maximum_absolute_gap": 0.00441768480327151
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.00027924670858582953,
+                    "maximum_absolute_gap": 0.0036048073767300792
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.00025749803276433724,
+                    "maximum_absolute_gap": 0.00362175707793172
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.00021260184770270353,
+                    "maximum_absolute_gap": 0.003192745041341538
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -4.179908395227549e-05,
+                    "maximum_absolute_gap": 0.0006620557907175972
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.00021305863713543533,
+                    "maximum_absolute_gap": 0.002473292072698585
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.00034180981338242103,
+                    "maximum_absolute_gap": 0.0041418706613539635
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0003723586566788416,
+                    "maximum_absolute_gap": 0.004688503801590582
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.00034084881512182663,
+                    "maximum_absolute_gap": 0.0044485276558531295
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.00026975629340194067,
+                    "maximum_absolute_gap": 0.0036438460628845926
+                  }
+                ]
+              }
+            }
+          }
+        },
         "cells_with_land": 44392,
         "cells_of_one_substrate_class": 15032,
         "one_class_control": {
@@ -3153,7 +4433,7 @@
               "twomey",
               "lekner"
             ],
-            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-ab6f3f520ad67d40a/analysis/soil_albedo_wetting.json",
             "generated": "2026-08-30",
             "refused_classes": {
               "water": "open water is not a surface that wets",
@@ -3701,6 +4981,312 @@
           0.7609
         ],
         "wetting_arm": "twomey",
+        "candidate_repairs": {
+          "why": "world-yxor offers a model change or a declared bracket, and the choice cannot be taken until the model change is priced: the repair this audit pre-registered for the same defect was measured wrong by two orders, so a proposed form is measured before it is adopted",
+          "criterion": "VIABLE when the absorbed-shortwave gap is inside 0.12 W m-2 at every saturation in the declared range; the criterion is the same bar the defect is measured against and predates the result",
+          "evaporation_knee": {
+            "fill_fraction": 0.4,
+            "source": "landmod.f90, real :: drhsfull",
+            "saturation": 0.30436,
+            "mapped_by": "config/planet.yaml soil_albedo_moisture saturation_at_empty_layer/saturation_at_full_layer, which is the map wetalb applies"
+          },
+          "forms": {
+            "as_built": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0008549182773573517,
+                    "maximum_absolute_gap": 0.010280062617684937
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0011789801013717912,
+                    "maximum_absolute_gap": 0.015084167709846219
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.0012455231091158285,
+                    "maximum_absolute_gap": 0.01681733033488425
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0011795110808984273,
+                    "maximum_absolute_gap": 0.016676627276758338
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0010437070520535553,
+                    "maximum_absolute_gap": 0.015355532925314275
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0008717068411742381,
+                    "maximum_absolute_gap": 0.013290654234234145
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0006823020916957164,
+                    "maximum_absolute_gap": 0.01075626796086493
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.00048629561931922896,
+                    "maximum_absolute_gap": 0.007915949784369491
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.0007988538171195984,
+                    "maximum_absolute_gap": 0.010266941679040298
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.0011068127699167159,
+                    "maximum_absolute_gap": 0.014931478208986299
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -0.0011740590999300229,
+                    "maximum_absolute_gap": 0.016568848081689902
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0011157863256267874,
+                    "maximum_absolute_gap": 0.016460576490828993
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.000990378163547104,
+                    "maximum_absolute_gap": 0.015215165415819354
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0008294096794965983,
+                    "maximum_absolute_gap": 0.013210969283276364
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0006507440778272116,
+                    "maximum_absolute_gap": 0.010707533871939512
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0004647817246185392,
+                    "maximum_absolute_gap": 0.007876661754543435
+                  }
+                ]
+              }
+            },
+            "staged_in_transform": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.007330399719635944,
+                    "maximum_absolute_gap": 0.1437205739755037
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.007541122180745999,
+                    "maximum_absolute_gap": 0.1702656879062569
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.007661707341972887,
+                    "maximum_absolute_gap": 0.19123097366637892
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.007729354375184592,
+                    "maximum_absolute_gap": 0.20822911974063646
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.0077649339501206045,
+                    "maximum_absolute_gap": 0.2223031468077617
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.007780607632069237,
+                    "maximum_absolute_gap": 0.23415751297216203
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.007783717707634851,
+                    "maximum_absolute_gap": 0.24428527301290104
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.00777883378007385,
+                    "maximum_absolute_gap": 0.25304199265366795
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.007768871559810582,
+                    "maximum_absolute_gap": 0.2606913572949826
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.005468442372607197,
+                    "maximum_absolute_gap": 0.12799125145433443
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": 0.005839876986414984,
+                    "maximum_absolute_gap": 0.1446847405030191
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": 0.00609215896128899,
+                    "maximum_absolute_gap": 0.16499295578274087
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": 0.006270040413805491,
+                    "maximum_absolute_gap": 0.1817528899756513
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": 0.006399185556878903,
+                    "maximum_absolute_gap": 0.19583093966442344
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": 0.006495169168138578,
+                    "maximum_absolute_gap": 0.207832450637552
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": 0.006567879818195874,
+                    "maximum_absolute_gap": 0.21819205566034716
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": 0.006623832918706759,
+                    "maximum_absolute_gap": 0.22722964269806267
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": 0.006667460160851257,
+                    "maximum_absolute_gap": 0.23518657583005798
+                  }
+                ]
+              }
+            },
+            "three_point_knee": {
+              "albedo_gap_by_band": {
+                "band1": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.00025629384528881637,
+                    "maximum_absolute_gap": 0.003629905054842175
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.00021160715638496948,
+                    "maximum_absolute_gap": 0.0031850050569150468
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -4.159762262259608e-05,
+                    "maximum_absolute_gap": 0.0006594259846015027
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.00019516152513129686,
+                    "maximum_absolute_gap": 0.0024599489817602738
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0003135425563320512,
+                    "maximum_absolute_gap": 0.004116202472766561
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.0003420443891224516,
+                    "maximum_absolute_gap": 0.004659072879492798
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.00031353314951396155,
+                    "maximum_absolute_gap": 0.004413257177681318
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0002484759835320385,
+                    "maximum_absolute_gap": 0.0036015392766735876
+                  }
+                ],
+                "band2": [
+                  {
+                    "saturation": 0.0,
+                    "land_mean_gap": 0.0,
+                    "maximum_absolute_gap": 0.0
+                  },
+                  {
+                    "saturation": 0.095113,
+                    "land_mean_gap": -0.000234612889056947,
+                    "maximum_absolute_gap": 0.0035472489380046213
+                  },
+                  {
+                    "saturation": 0.190225,
+                    "land_mean_gap": -0.00019469833853073042,
+                    "maximum_absolute_gap": 0.0031404485733649845
+                  },
+                  {
+                    "saturation": 0.285338,
+                    "land_mean_gap": -3.844634402081479e-05,
+                    "maximum_absolute_gap": 0.0006542859983523774
+                  },
+                  {
+                    "saturation": 0.38045,
+                    "land_mean_gap": -0.0001908024066316309,
+                    "maximum_absolute_gap": 0.0024761890526439068
+                  },
+                  {
+                    "saturation": 0.475562,
+                    "land_mean_gap": -0.0003072926823065132,
+                    "maximum_absolute_gap": 0.004150663141778199
+                  },
+                  {
+                    "saturation": 0.570675,
+                    "land_mean_gap": -0.00033592846760283627,
+                    "maximum_absolute_gap": 0.004700917705743102
+                  },
+                  {
+                    "saturation": 0.665787,
+                    "land_mean_gap": -0.0003084794100319067,
+                    "maximum_absolute_gap": 0.0044551386282513095
+                  },
+                  {
+                    "saturation": 0.7609,
+                    "land_mean_gap": -0.0002448483613489185,
+                    "maximum_absolute_gap": 0.0036423573776992457
+                  }
+                ]
+              }
+            }
+          }
+        },
         "cells_with_land": 76168,
         "cells_of_one_substrate_class": 30657,
         "one_class_control": {
@@ -3938,7 +5524,7 @@
               "twomey",
               "lekner"
             ],
-            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-ab6f3f520ad67d40a/analysis/soil_albedo_wetting.json",
             "generated": "2026-08-30",
             "refused_classes": {
               "water": "open water is not a surface that wets",

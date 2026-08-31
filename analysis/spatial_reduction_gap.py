@@ -175,7 +175,8 @@ from climatology import annual_mean                             # noqa: E402
 from paths import best_available_climatology                    # noqa: E402
 from stellar import band_fractions                              # noqa: E402
 sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
-from soil_albedo_wetting import sadeghi_mix                     # noqa: E402
+from soil_albedo_wetting import (kubelka_munk_transform,        # noqa: E402
+                                 sadeghi_mix)
 
 OUTPUT = PROJECT_ROOT / "analysis" / "spatial_reduction_gap.json"
 
@@ -842,6 +843,75 @@ def support_arm(config, rung: str, pedo) -> dict:
 # arm 7: the staged dry and saturated albedo pair through the model's mixing
 # --------------------------------------------------------------------------
 
+# The dispositions world-yxor names, priced against the SAME truth so that what
+# separates them is the staging and nothing else. `as_built` is the defect,
+# `staged_in_transform` is the repair the audit pre-registered and refuted, and
+# `three_point_knee` is the one-extra-field form of the model change. A
+# candidate is VIABLE when its absorbed-shortwave gap is inside the storage
+# tolerance at every saturation the modelled column reaches; a candidate that is
+# not is refuted, and that is a result rather than a reason to try another.
+CANDIDATE_REPAIRS = ("as_built", "staged_in_transform", "three_point_knee")
+
+LANDMOD = PROJECT_ROOT / "vendor/exoplasim/exoplasim/plasim/src/landmod.f90"
+_DRHSFULL = re.compile(r"^\s*real\s*::\s*drhsfull\s*=\s*([0-9.eEdD+-]+)", re.M)
+
+
+def evaporation_knee_fill_fraction(path: Path = LANDMOD) -> float:
+    """`drhsfull`, READ from the model source rather than copied beside it.
+
+    It is the fill fraction of the surface layer above which the evaporation
+    limiter's wetness factor reaches one, and it is landmod's own: nothing routes
+    it through a namelist, so a value written into this file would be a
+    declaration nothing re-derives and nothing objects to when the two disagree.
+
+    It matters here because it is where the modelled soil's albedo is evaluated
+    most often rather than where a gap happens to be largest. The limiter's knee
+    is the transition the limiter exists to describe, so a soil that wets and
+    dries through the limiter's ceiling crosses it every cycle.
+    """
+    text = path.read_text(encoding="utf-8")
+    match = _DRHSFULL.search(text)
+    if match is None:
+        raise SystemExit(
+            f"{path} declares no `real :: drhsfull = ...`; the evaporation "
+            "knee cannot be read and must not be guessed")
+    return float(match.group(1).replace("d", "e").replace("D", "e"))
+
+
+def _km_inverse(r):
+    """The Kubelka-Munk inverse `R = 1 + r - sqrt(r^2 + 2r)`.
+
+    `sadeghi_mix` applies it at the end of the mixing; here it is needed on its
+    own to build the staged-in-the-transform candidate, which is what the note's
+    refuted repair actually stages.
+    """
+    r = np.asarray(r, dtype=np.float64)
+    return 1.0 + r - np.sqrt(r * r + 2.0 * r)
+
+
+def _three_point_mix(a_dry, a_knee, a_wet, s, s_knee, sigma):
+    """Sadeghi's mixing in two segments through a third staged field.
+
+    THE FORM, and it is a declared model form rather than a fit. Each of the
+    three staged fields is an exact area mean of a per-region quantity -- the dry
+    albedo, the saturated albedo, and the cell's own mixed albedo at the knee --
+    so the composition is exact at all three saturations by construction, where
+    the two-field form is exact at two. Between them the model runs the same
+    Sadeghi curve on the saturation rescaled inside the segment it is in.
+
+    Nothing here is chosen to make a comparison come out. The only choice is
+    WHERE the third point sits, and that is the evaporation limiter's own knee,
+    read from `landmod.f90` and mapped through the declared saturation
+    endpoints.
+    """
+    s = np.asarray(s, dtype=np.float64)
+    lower = s <= s_knee
+    sub = np.where(lower, s / s_knee, (s - s_knee) / (1.0 - s_knee))
+    return np.where(lower,
+                    sadeghi_mix(a_dry, a_knee, sub, sigma),
+                    sadeghi_mix(a_knee, a_wet, sub, sigma))
+
+
 def _region_albedo_pair(mesh: Export, config: dict):
     """Per-region dry and saturated albedo, per band, as the builder forms them.
 
@@ -975,6 +1045,18 @@ def wet_albedo_arm(mesh: Export, cell, ncell, land, area, config,
     one_class = _one_class_cells(cell, ncell, rock, land)
     shortwave = band_downward_shortwave(grid)
 
+    # THE THIRD POINT'S SATURATION, derived rather than chosen. `drhsfull` is
+    # read from `landmod.f90` and mapped onto saturation by the same two declared
+    # endpoints `wetalb` maps a fill fraction through, so the knee is the image
+    # of a model constant under a config declaration and neither is written here.
+    fill_knee = evaporation_knee_fill_fraction()
+    s_knee = s_lo + fill_knee * (s_hi - s_lo)
+    if not s_lo < s_knee < s_hi:
+        raise SystemExit(
+            f"the evaporation knee maps to a saturation of {s_knee}, outside "
+            f"the declared range {s_lo} to {s_hi}; a third staged point outside "
+            "the range the column reaches is not a repair")
+
     land_area = np.bincount(cell[land], weights=area[land], minlength=ncell)
     covered = land_area > 0
     total_area = np.bincount(cell, weights=area, minlength=ncell)
@@ -983,9 +1065,27 @@ def wet_albedo_arm(mesh: Export, cell, ncell, land, area, config,
     worst_pure = 0.0
     bands: dict[str, dict] = {}
     watt_gap = {s: np.zeros(ncell) for s in sweep}
+    # Every candidate form is priced in the SAME terms as the defect and on the
+    # same truth, so what separates them is the staging and nothing else.
+    candidate_watts = {name: {s: np.zeros(ncell) for s in sweep}
+                       for name in CANDIDATE_REPAIRS}
+    candidate_albedo: dict[str, dict[str, list]] = {
+        name: {} for name in CANDIDATE_REPAIRS}
     for b, (d_r, w_r, sig) in enumerate(zip(dry, sat, sigma), start=1):
         a_dry, _, cov = cell_mean(cell, ncell, area, d_r, land)
         a_wet, _, _ = cell_mean(cell, ncell, area, w_r, land)
+        # The two extra stagings the candidates need, each a reduction of a
+        # per-region quantity and neither a free parameter.
+        r_dry_bar, _, _ = cell_mean(cell, ncell, area,
+                                    kubelka_munk_transform(d_r), land)
+        r_wet_bar, _, _ = cell_mean(cell, ncell, area,
+                                    kubelka_munk_transform(w_r), land)
+        a_dry_t, a_wet_t = _km_inverse(r_dry_bar), _km_inverse(r_wet_bar)
+        a_knee, _, _ = cell_expectation(
+            cell, ncell, area,
+            lambda values, w=w_r, sig=sig: sadeghi_mix(values, w, s_knee, sig),
+            d_r, land)
+        candidate_rows: dict[str, list] = {name: [] for name in CANDIDATE_REPAIRS}
         rows, stack = [], []
         for s in sweep:
             aggregate = sadeghi_mix(a_dry, a_wet, s, sig)
@@ -998,6 +1098,21 @@ def wet_albedo_arm(mesh: Export, cell, ncell, land, area, config,
                 d_r, land)
             gap = np.where(cov, expectation - aggregate, 0.0)
             stack.append(gap)
+            for name, form in (
+                    ("as_built", aggregate),
+                    ("staged_in_transform", sadeghi_mix(a_dry_t, a_wet_t, s, sig)),
+                    ("three_point_knee", _three_point_mix(
+                        a_dry, a_knee, a_wet, s, s_knee, sig))):
+                cgap = np.where(cov, expectation - form, 0.0)
+                if shortwave is not None:
+                    candidate_watts[name][s] = (candidate_watts[name][s]
+                                                + cgap * shortwave["bands"][b - 1])
+                cw, cg = land_area[cov], cgap[cov]
+                candidate_rows[name].append({
+                    "saturation": s,
+                    "land_mean_gap": float((cg * cw).sum() / cw.sum()),
+                    "maximum_absolute_gap": float(np.abs(cg).max()),
+                })
             pure = cov & one_class
             if pure.any():
                 worst_pure = max(worst_pure, float(np.abs(gap[pure]).max()))
@@ -1014,6 +1129,8 @@ def wet_albedo_arm(mesh: Export, cell, ncell, land, area, config,
                                  for p in (1, 50, 99)},
                 "maximum_absolute_gap": float(np.abs(g).max()),
             })
+        for name in CANDIDATE_REPAIRS:
+            candidate_albedo[name][f"band{b}"] = candidate_rows[name]
         # The pre-registered sign invariant, reported as what can falsify it:
         # the number of MIXED cells whose gap takes both signs across the
         # interior of the saturation sweep.
@@ -1026,10 +1143,44 @@ def wet_albedo_arm(mesh: Export, cell, ncell, land, area, config,
                 (both & cov & ~one_class).sum()),
         }
 
+    candidates: dict[str, dict] = {}
+    for name in CANDIDATE_REPAIRS:
+        row: dict = {"albedo_gap_by_band": candidate_albedo[name]}
+        if shortwave is not None:
+            watts = {str(s): float((candidate_watts[name][s] * land_area).sum()
+                                   / planet_area) for s in sweep}
+            peak = max(abs(v) for v in watts.values())
+            row["absorbed_shortwave_w_m2"] = watts
+            row["peak_absolute_w_m2"] = peak
+            row["saturations_past_the_bar"] = [
+                s for s in watts if abs(watts[s]) > STORAGE_TOLERANCE_W_M2]
+            row["inside_the_bar_everywhere"] = peak <= STORAGE_TOLERANCE_W_M2
+        candidates[name] = row
+
     result = {
         "saturation_endpoints": [s_lo, s_hi],
         "saturation_sweep": list(sweep),
         "wetting_arm": WETTING_ARM,
+        "candidate_repairs": {
+            "why": ("world-yxor offers a model change or a declared bracket, and "
+                    "the choice cannot be taken until the model change is priced: "
+                    "the repair this audit pre-registered for the same defect was "
+                    "measured wrong by two orders, so a proposed form is measured "
+                    "before it is adopted"),
+            "criterion": ("VIABLE when the absorbed-shortwave gap is inside "
+                          f"{STORAGE_TOLERANCE_W_M2} W m-2 at every saturation in "
+                          "the declared range; the criterion is the same bar the "
+                          "defect is measured against and predates the result"),
+            "evaporation_knee": {
+                "fill_fraction": fill_knee,
+                "source": "landmod.f90, real :: drhsfull",
+                "saturation": s_knee,
+                "mapped_by": ("config/planet.yaml soil_albedo_moisture "
+                              "saturation_at_empty_layer/saturation_at_full_layer, "
+                              "which is the map wetalb applies"),
+            },
+            "forms": candidates,
+        },
         "cells_with_land": int(covered.sum()),
         "cells_of_one_substrate_class": int((covered & one_class).sum()),
         "one_class_control": {
