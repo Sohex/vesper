@@ -183,8 +183,46 @@ boundary-condition questions -- what a 90%-land cell's ocean tile starts at --
 and they belong with `build_boundary_conditions.py`, which already emits code
 1720, rather than inside the model.
 
-One asymmetry makes the model side cheaper than it looks: `landmod` already
-gates on `dls(:) > 0.0`, strictly positive, so its form is already "advance
-wherever my share is positive" and only the binarisation makes that equivalent
-to a binary mask. `seamod`'s `dls(:) < 0.5` is a hard threshold and is not
-fraction-shaped; it has to become `dlf(:) < 1.0`.
+## Every site the first seam has to move
+
+Read off the model source. `landmod` gates on `dls(:) > 0.0` at thirty-odd
+sites, strictly positive, so its form is already "advance wherever my share is
+positive" and only the binarisation makes that equivalent to a binary mask.
+That asymmetry is what makes the model side cheaper than it looks, and it has
+ONE exception.
+
+  landmod.f90:2777  `wetalb`, `if (dls(jhor) > 0.5)`. The only hard threshold
+                    in landmod, and it is the wet-soil albedo: the land tile's
+                    shortwave. It has to become `dlf(jhor) > 0.0` with the
+                    rest, or the tile advances a soil moisture whose albedo
+                    never responds on any cell the ocean owns.
+  landmod.f90:1494  `dglac(:) > 0.5 .and. dls(:) > 0.0`. The 0.5 is the
+                    GLACIER fraction, not the ownership mask. It is a separate
+                    question and stays.
+
+`seamod` has seven sites, all `dls(:) < 0.5`, and every one of them has to
+become `dlf(:) < 1.0`:
+
+  seamod.f90:150   `seaini`, the transfer of cts, cicec, ciced, csnow, csst
+                   and cmld into the puma arrays. THIS IS THE INITIAL-STATE
+                   SITE, and it is why world-cp27 comes first.
+  seamod.f90:186   the cold-start sea-ice albedo ramp and sea saturation
+  seamod.f90:258   flux accumulation into the ice coupler
+  seamod.f90:278   the accumulated fluxes divided by the accumulation count
+  seamod.f90:315   `icestep`'s return into dsst, dts, dmld, dicec, diced,
+                   dsnow, dsmelt, dsndch
+  seamod.f90:330   the dependent surface variables: dt(:,NLEP), the ice albedo
+                   ramp, dqs, drhs, the Charnock roughness, dalb, dsalb, dz0
+  seamod.f90:391   `seaalbarchive`, the albedo diagnostic radmod actually used
+
+THE BINARISATION IS THREE SITES, NOT ONE. Each module rounds its own copy of
+the mask right after reading it, so removing one leaves the others rounding
+silently:
+
+  landmod.f90:1022  `dls`
+  oceanmod.f90:349  `yls`
+  icemod.f90:357    `xls`
+
+`analysis/partial_surface_decision_gate.py` checks all three and names the ones
+that remain.
+

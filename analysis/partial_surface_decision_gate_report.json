@@ -1,10 +1,15 @@
 {
   "contract_version": "vesper-partial-surface-decision-gate/1",
-  "generated": "2026-08-31T01:54:07+00:00",
+  "generated": "2026-08-31T01:58:02+00:00",
   "declaration": "config/partial_surface.yaml",
   "measurement": "analysis/coastline_flux_bracket.json",
   "implementation": {
     "hard_binary_boundary": true,
+    "hard_binarised_at": [
+      "icemod.f90:xls",
+      "landmod.f90:dls",
+      "oceanmod.f90:yls"
+    ],
     "required_seams": {
       "declared initial state for both tiles": false,
       "separate positive-fraction land state": false,
@@ -133,7 +138,7 @@
     {
       "name": "selected representation is implemented",
       "passed": false,
-      "detail": "tile selected; oceanmod.f90 still hard-binarises the boundary; next seam is declared initial state for both tiles; missing declared initial state for both tiles, separate positive-fraction land state, separate positive-fraction ocean state, tile restart records, area-weighted turbulent exchange, area-weighted radiative exchange, separate tile diagnostics"
+      "detail": "tile selected; still hard-binarised at icemod.f90:xls, landmod.f90:dls, oceanmod.f90:yls; next seam is declared initial state for both tiles; missing declared initial state for both tiles, separate positive-fraction land state, separate positive-fraction ocean state, tile restart records, area-weighted turbulent exchange, area-weighted radiative exchange, separate tile diagnostics"
     }
   ],
   "summary": {

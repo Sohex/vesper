@@ -139,9 +139,20 @@ def main() -> None:
           (f"code 1720, {boundary_report.get('land_fraction', {}).get('partial_cells')} "
            "partial T21 cells; immutable boundary is re-read on restart"))
 
-    hard_binary = ("where (yls(:) > 0.5)" in source_text
-                   and "yls(:) = 1.0" in source_text
-                   and "yls(:) = 0.0" in source_text)
+    # EACH MODULE BINARISES ITS OWN COPY, so there are three of these and not
+    # one. landmod rounds `dls`, oceanmod `yls` and icemod `xls`, all at 0.5 and
+    # all right after the mask is read. Checking oceanmod alone would report the
+    # boundary as fractional while the land tile still saw a rounded mask, which
+    # is the reading that costs the most: the seam would look taken.
+    binarised = sorted(
+        f"{unit}:{name}"
+        for unit, name in (("landmod.f90", "dls"), ("oceanmod.f90", "yls"),
+                           ("icemod.f90", "xls"))
+        if all(fragment in (model_source / unit).read_text(
+                   encoding="utf-8").lower()
+               for fragment in (f"where ({name}(:) > 0.5)", f"{name}(:) = 1.0",
+                                f"{name}(:) = 0.0")))
+    hard_binary = bool(binarised)
     implementation_sources = {
         name: (model_source / name).read_text(encoding="utf-8").lower()
         for name in ("fluxmod.f90", "radmod.f90", "landmod.f90",
@@ -258,7 +269,7 @@ def main() -> None:
     check("selected representation is implemented",
           (not expected_tile or (not hard_binary and not missing_seams)),
           ("tile selected; "
-           + ("oceanmod.f90 still hard-binarises the boundary; "
+           + (f"still hard-binarised at {', '.join(binarised)}; "
               if hard_binary else "")
            + (f"next seam is {next_seam}; missing " + ", ".join(missing_seams)
               if missing_seams else "all implementation seams present")))
@@ -271,6 +282,7 @@ def main() -> None:
         "measurement": str(measured_path.relative_to(ROOT)),
         "implementation": {
             "hard_binary_boundary": hard_binary,
+            "hard_binarised_at": binarised,
             "required_seams": required_seams,
             "seam_order": [name for name, _, _, _ in seam_order],
             "initial_state_contract": initial_state.get("contract_version"),
