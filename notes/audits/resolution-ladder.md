@@ -30,6 +30,7 @@ once so each section can be read for what it is:
 | halving the step moves the equilibrium further than doubling the rung | `run_8044646ea7f0`, `run_aaa95662e21a`, `run_4fe5e6050df5` | two of the three; **the T42 row is not re-readable at all** |
 | a conversion may double the truncation and no more, and T170 refuses dt 30 | 900-step beds, not runs | the beds are gone and were never runs; the arms tables here are the record |
 | the controlled T42 pair, and the ice finding | `run_88ed6f9d34ae`, `run_8d0ae7e2d02c`, `run_0d41aa82c287` | all three, in full: they are in the ledger with their payloads on disk |
+| the three-arm ice verdict, and the wet-soil measurement | `run_61c53dd52f13`, `run_2ef2d7cdd120`, `run_cb55276db72e` | all three, in full: in the ledger with their payloads on disk |
 
 **The load-bearing conclusion is the one that is fully checkable.** The
 controlled pair, its refutation of the cloud-state finding and the sea ice
@@ -371,97 +372,130 @@ which shows no detectable radiative or thermal consequence at the precision that
 sees it. That is the imprint the previous section could only guess at, now
 located in a specific field.
 
-Not established: whether the ice offset is the donor's imprint or a second ice
-margin the target rung would reach on its own, which a third arm converted from
-a DIFFERENT donor would separate; and whether it shrinks as the jump shrinks,
-which matters because the ladder's next hop is T42 to T85.
+### The settled ice tracks the INITIAL ice, and the donor's own equilibrium has nothing to do with it
 
-### The converted arm settles on its DONOR RUNG's ice fraction, not its target's
+*Measured 2026-08-31 on three T42 arms at dt 45, cut for this question and for
+nothing else. `canonical-10m-carve2`, `NWETSOIL` 2, `soil_water_source`
+uniform, `NFILTEREXP` 16 and `FILTERKAPPA` 8.0, 40 orbits each, one
+configuration across all three. Two p8 arms pinned one per die at a time under
+one host lock.*
 
-*Measured 2026-08-31 from the three runs' convergence reports; no run was cut
-for it.*
+The pair could not separate the donor's imprint from a second ice margin the
+target rung reaches on its own, because with two arms the initial ice has only
+two values and every reading fits both. A third initial ice does separate them,
+and the donor's own per-orbit restarts supply one for nothing.
 
-The three settled sea ice fractions, each the mean over the last twenty orbits:
+| arm | run | initial state | initial ice | settled ice |
+| --- | --- | --- | ---: | ---: |
+| A' | `run_61c53dd52f13` | cold | 0 | 0.06197 |
+| C' | `run_cb55276db72e` | `run_0d41aa82c287` at its fifth orbit, converted | 0.05636 | 0.07256 |
+| B' | `run_2ef2d7cdd120` | `run_0d41aa82c287` at its last, converted | 0.08898 | 0.07691 |
 
-| run | rung | initial state | settled sea ice fraction |
-| --- | --- | --- | ---: |
-| `run_0d41aa82c287` | T21 | cold | 0.07586, orbit scatter 0.00203 |
-| `run_8d0ae7e2d02c` | T42 | converted from the T21 run above | 0.07665 |
-| `run_88ed6f9d34ae` | T42 | cold | 0.06257 |
+Initial ice is the Gauss-weighted `xicec` of the state each arm opened from;
+settled ice is the mean over orbits 20 to 40, which is the window
+`compare_equilibria.py` reads and the one the 0.0018 bound was measured on.
+Every arm's ice slope over that window is inside 0.00014 in fraction an orbit,
+against a stationarity criterion of 0.001.
 
-**The converted arm's ice fraction is its donor's to within 0.00080**, which is
-under half the comparison's own bound of 0.0018 and under half the donor's
-orbit-to-orbit scatter. Its distance from the cold arm at the same rung is
-0.01408, eighteen times that.
+**The verdict is GRADED, on a threshold declared before the arms ran.** The
+linear expectation for C' at its own initial ice is 0.07143 and C' settled at
+0.07256, so `|f_C - L|` is 0.00113, which is 0.63 of the bound. The alternative
+needed C' to sit on one of the two attractors: it is 5.89 bounds from A' and
+2.42 bounds from B'. Bimodal is not close.
 
-The converted arm did not simply keep the field it was handed, and the restarts
-say so more sharply than the annual means do. Read as the Gauss-weighted mean of
-`xicec` off each restart, which compares end-of-run snapshots at one orbital
-phase:
+**AND THE DONOR'S OWN EQUILIBRIUM IS REFUTED AS THE EXPLANATION.** B' and C'
+were converted from the SAME donor, whose settled ice is 0.07586. If a
+converted arm settled where its donor settled, both would land there. B' lands
+0.58 bounds away and C' lands 1.83 bounds away, on opposite sides, and they
+differ from each other by 2.42 bounds. What the landing point tracks is the ice
+the arm was HANDED, not the equilibrium of the run that handed it over. The
+earlier reading of the pair -- that the converted arm settled on its donor
+rung's value -- was a two-point coincidence, and this is the measurement that
+removes it.
 
-| restart | ice cover |
-| --- | ---: |
-| `run_0d41aa82c287`'s final, T21 | 0.07459 |
-| `t42_dt45_converted.rest`, that restart remapped to T42 | 0.08898 |
-| `run_8d0ae7e2d02c`'s final, T42 after 89 orbits | 0.07478 |
-| `run_88ed6f9d34ae`'s final, T42 cold after 144 | 0.05897 |
+### The graded relation is the SOUTHERN margin; the northern one saturates
 
-**The remap raised the fraction by 0.0144 and the target rung took all of it
-back, stopping 0.00019 from where the donor was.** So the arm is not holding the
-field it was given: it moved 0.0142 away from its own initial condition, and
-where it settled is the donor rung's value rather than the remap's or the target
-rung's.
+The same three arms, banded over the same window rather than globally:
 
-This does not settle the row, and the reason is worth stating: two settled ice
-states at one rung would explain the pair equally well, and nothing here rules
-that out. What it does is price the coincidence. Under a second margin the
-target rung reaches on its own there is no reason for the upper state to land
-on the donor rung's value at a fifth of the resolving bound, and under the
-donor's imprint there is exactly one.
+| band | A' cold | C' | B' | C' - A' | B' - A' |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 60 to 90 N | 0.35676 | 0.43931 | 0.43803 | +0.08255 | +0.08127 |
+| 40 to 60 N | 0.14881 | 0.18888 | 0.19241 | +0.04007 | +0.04359 |
+| 40 S to 40 N | 0.00000 | 0.00000 | 0.00000 | +0.00000 | +0.00000 |
+| 40 to 60 S | 0.11853 | 0.11626 | 0.13498 | -0.00227 | +0.01645 |
+| 60 to 90 S | 0.11633 | 0.13070 | 0.15809 | +0.01436 | +0.04175 |
 
-### The ice question is a forty-orbit question, and the arms were bought for a longer one
+**North of 40 the two converted arms are the same arm.** They differ by 0.0013
+and 0.0035 in the two northern bands, against initial ice fields differing by
+0.0326. The northern margin reaches one converted state whatever it is handed,
+and that state is far from the cold one: 0.083 in fraction north of 60.
 
-The arms were sized by `lib/run_lengths.py`'s commissioning bracket, which is
-set by the temperature's memory time. The ice margin settles far sooner. Over
-orbits 20 to 40 both arms' sea ice series carry slopes of 4.7e-5 and 3.6e-5 in
+**South of 40 they are not.** The two southern bands separate the converted arms
+by 0.0187 and 0.0274, ten and fifteen bounds, and they order with the initial
+ice. The southern margin retains what it was given.
+
+So the global GRADED verdict is carried entirely by the southern hemisphere, and
+the two hemispheres are doing different things: **the northern margin behaves
+like a second state the target rung reaches from any conversion, and the
+southern margin behaves like an imprint.** Both readings the row was written to
+separate are true, of different hemispheres. That is why two arms could not
+settle it and why the global mean read as a coincidence.
+
+The consequence for the ladder is the one the row was asked for, and it is not
+symmetric. A conversion up the ladder carries a southern ice imprint that
+depends on the state handed over, so it ACCUMULATES and shrinks only as the
+handed-over state approaches the target's own. The northern offset does not
+accumulate in the same way, being a state the target reaches from any
+conversion, but it also does not go away by converting more gently. Neither is
+removed by a smaller jump on its own, which is what the T42 to T85 hop needed to
+know.
+
+### The ice question is a forty-orbit question, and the first pair was bought for a longer one
+
+The first pair was sized by `lib/run_lengths.py`'s commissioning bracket, which
+is set by the temperature's memory time. The ice margin settles far sooner. Over
+orbits 20 to 40 those arms' sea ice series carry slopes of 4.7e-5 and 3.6e-5 in
 fraction an orbit, inside the run's own stationarity criterion of 0.001 by a
 factor of twenty, and the window means sit 0.00046 and 0.00010 from each run's
-converged tail. The difference between the arms read over orbits 20-40 is
-+0.01444 against +0.01408 read over their tails, a gap of 0.00036 -- a fifth of
-the bound.
+converged tail. The difference between them read over orbits 20-40 is +0.01444
+against +0.01408 read over their tails, a gap of 0.00036 -- a fifth of the
+bound.
 
 `compare_equilibria.py` already reads a twenty-orbit window, so **a forty-orbit
-T42 arm reproduces this comparison at its declared instrument** and costs 63
-minutes at 94 s an orbit on eight pinned threads rather than the three and a
-half hours a commissioning-length arm costs. An arm bought to settle the ice
-question is not a commissioning arm and cannot carry an endurance row, which is
-a different purchase.
+T42 arm reproduces this comparison at its declared instrument**, and the three
+arms above are forty orbits each for that reason. An arm bought to settle the
+ice question is not a commissioning arm and cannot carry an endurance row, which
+is a different purchase.
 
-### What the wet-soil merge does to this comparison, in the units that judge it
+**Measured cost, with the load beside it.** A' ran 40 orbits in 50 min 50 s
+including startup, about 76 s an orbit, on the 96 MB die at loads 15 to 16. B'
+ran 40 in 56 min 38 s, about 85 s an orbit, on the 32 MB die at the same loads,
+concurrently. C' ran 40 in 45 min 2 s, about 68 s an orbit, on the 96 MB die at
+load 8 with the host otherwise idle. The 12 per cent gap between the two dies at
+equal load is the L3 difference and is a reason to record which die an arm ran
+on. All three are faster than the 94 s an orbit the first pair measured at loads
+11 to 28.
 
-The arms ran `NWETSOIL` 1, the two-point soil albedo mixing.
-`config/planet.yaml` now declares `surface.soil_albedo_moisture.three_point`,
-so a run cut today runs `NWETSOIL` 2. The question a third arm has to answer
-first is whether it can be compared against arms taken before that.
+### What the wet-soil merge is worth, predicted and then measured against a falsifier
+
+The first pair ran `NWETSOIL` 1, the two-point soil albedo mixing.
+`config/planet.yaml` now declares `surface.soil_albedo_moisture.three_point`, so
+a run cut today runs `NWETSOIL` 2.
 
 The model diff is additive and gated. Every line the merge added to
-`landmod.f90`, `landcolumn.f90` and `surfmod.f90` sits inside a
-`nwetsoil == 2` branch, a new staged-field read, or a new pure function, and
-the one ungated edit is `nwetsoil == 1` widened to `nwetsoil >= 1`, which is
-the same test at 1. **At `NWETSOIL` 1 the new executable is the old model.**
-The difference between the arms and a third arm is therefore the configuration
-change alone, and it has a measured size.
+`landmod.f90`, `landcolumn.f90` and `surfmod.f90` sits inside a `nwetsoil == 2`
+branch, a new staged-field read, or a new pure function, and the one ungated
+edit is `nwetsoil == 1` widened to `nwetsoil >= 1`, which is the same test at 1.
+**At `NWETSOIL` 1 the new executable is the old model.** So the difference is
+the configuration alone.
 
+**The size was derived before any new arm existed.**
 `notes/audits/nonlinear-spatial-reductions.md` section 7 measures the two-point
-staging's error against the three-point form at the same saturations, both
-signed the same way: the two-point form peaks at -0.147 W m-2 of global-mean
-absorbed shortwave and the three-point form at -0.042, so the configuration
-change is worth at most 0.105 W m-2, and less at every saturation away from the
-evaporation knee. Through `lib/sensitivity.py`'s conversion at the accepted
-baseline's planetary albedo that is 0.072 K.
-
-The ice cost of a kelvin is measurable from the settled flux arms this project
-already has. Taking each build's coldest and warmest settled T21 arm:
+staging peaking at -0.147 W m-2 of global-mean absorbed shortwave and the
+three-point form at -0.042, both signed the same way, so the change is worth at
+most 0.105 W m-2. Through `lib/sensitivity.py` at the accepted baseline's
+planetary albedo that is 0.0718 K. The settled flux arms give the ice cost of a
+kelvin:
 
 | build | span | d(sea ice fraction)/dT |
 | --- | --- | ---: |
@@ -469,20 +503,46 @@ already has. Taking each build's coldest and warmest settled T21 arm:
 | `canonical-10m-carve1` | 276.714 to 280.959 K | -0.00869 per K |
 | `canonical-10m-carve2` | 279.937 to 281.177 K | -0.00691 per K |
 
-So the merge is worth between 0.00050 and 0.00064 in sea ice fraction: between
-a quarter and a third of the comparison's 0.0018 bound, and between 3.5 and 4.5
-per cent of the 0.0141 effect. **The instrument that judges this row does not
-resolve the model change**, so a third arm cut on the current configuration is
-comparable to the pair, carrying that as a stated bias rather than a confound.
+So the prediction was 0.00050 to 0.00064 in sea ice fraction, one-sided, being a
+peak.
 
-The bound is on the GLOBAL MEAN channel, which is the channel the compared
-metric lives in. What it does not bound is a polar concentration of a land
-albedo change against a polar ocean ice margin. The argument that it is not
-concentrated there is that high-latitude land in these runs carries the
-modelled snow cover for most of the orbit, which masks the soil albedo the
-merge changed; that is an argument and not a measurement, and re-cutting all
-three arms on one configuration is what removes it.
+**Then it was measured, because A' and B' opened from the same initial states as
+the first pair.** B' opens at initial ice 0.08898, which is the converted
+restart the first pair's converted arm opened from, to the digit. Comparing each
+new arm against the OLD arm's orbits 20-40 window rather than its tail, so the
+settling residual cancels:
 
+| arm | first pair | new | shift |
+| --- | ---: | ---: | ---: |
+| cold | 0.06211 | 0.06197 | -0.00014 |
+| converted | 0.07655 | 0.07691 | +0.00036 |
+
+Both shifts are inside the derived bound, and the two independent estimates of
+the one shift agree to 0.00050, 0.28 of the resolving bound, so the change acts
+as the common-mode shift the derivation assumed.
+
+**THIS DOES NOT MEASURE THE BOUND AND WAS DECLARED NOT TO BEFORE THE RESULT.** A
+twenty-orbit window mean carries a standard error near 0.00064, which is the
+predicted effect itself; the 0.0018 bound is 2 sqrt(2) times it. A small
+measured difference is consistent with the prediction and cannot confirm it.
+What the comparison could do is REFUTE -- a shift past the resolving bound would
+have made "the instrument does not resolve the model change" false and required
+the comparability argument to be re-taken -- and it did not.
+`docs/src/practice/failure-modes.md` class 34.
+
+**And the polar caveat is answered by the bands, in the direction of no effect.**
+The bound is on the global-mean channel while the ice offset is polar, so a land
+albedo change concentrated poleward would evade it. Banded over the window, the
+configuration change moves the polar bands by +0.00367 and +0.00149 in the
+converted arm and by -0.00569 and +0.00082 in the cold one. **The two arms
+disagree in SIGN in the same band**, at magnitudes an order above the global
+shift, which is what weather scatter looks like and not what a systematic polar
+concentration looks like. What this bounds is therefore about 0.005 in a polar
+band rather than 0.0006, and within that it sees nothing.
+
+**The row's own effect reproduces on the current model.** B' - A' is +0.01494
+over orbits 20-40 against +0.01444 for the first pair over the same window. The
+offset is not an artifact of the superseded configuration.
 ### The relaxation is real and it is what the ladder is for
 
 The converted arm meets every convergence criterion at 89 orbits against the
@@ -518,7 +578,9 @@ also close the provenance half of it: their convergence reports carry a
 `source_build` and their rows are in the ledger, where `run_8044646ea7f0`'s
 window sweep survives as annual records with no run behind them.
 
-Whether the converted arm's ice offset is the donor's imprint or a second margin
-the target rung reaches on its own; a third arm converted from a different donor
-separates those. And whether it shrinks as the jump shrinks, which is what the
-T42-to-T85 hop needs to know.
+Whether the ice imprint shrinks as the jump shrinks. The three arms above settle
+WHAT the offset is -- a southern margin that retains the ice it was handed and a
+northern one that reaches a single converted state from anything -- and they say
+nothing about how either behaves at a smaller jump, because all three sit at the
+same T21 to T42 hop. That is what the T42 to T85 hop needs, and the arm that
+answers it is a T85 arm converted from T42 rather than another T42 arm.
