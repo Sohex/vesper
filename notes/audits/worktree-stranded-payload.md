@@ -142,3 +142,11 @@ line rather than as its contents.
 
 The first check catches the symptom in the one place it has already been paid
 for. The second catches the cause everywhere it can occur.
+
+## The other direction
+
+This audit is about the file a worktree CREATES, which lives only there. The
+same per-file linking has a second and sharper direction: an EXISTING linked
+file is a symlink into the main checkout, so a worktree that regenerates one
+writes through and invalidates whatever the main checkout built from those
+bytes. `notes/audits/worktree-write-through.md` audits it.

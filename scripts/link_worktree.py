@@ -40,13 +40,15 @@ it:
   the main checkout. Nothing reads it across a component boundary -- the record
   each gate argues lives in `biosphere/notes/`, which is tracked.
 - Everything compiled from tracked source that a worktree may have edited:
-  `vendor/exoplasim/` and `vendor/lpj-guess/build/`. This is rule 4's failure
-  mode with the safety off. A linked binary directory means the worktree runs
+  `vendor/exoplasim/`, `vendor/lpj-guess/build/` and `vendor/cgenie/`. This is
+  rule 4's failure mode with the safety off. A linked binary directory means the worktree runs
   the model the MAIN checkout compiled, so an edit under `vendor/exoplasim`
   looks like a no-op; and a rebuild inside the worktree writes its executables
   over the main checkout's, which is the arm of any A/B this project is running.
-  `--model-binaries` links them anyway, for a worktree that does not touch the
-  model. `vendor/orogen/node_modules` is NOT in this class -- it is an install,
+  Every ignored path under `vendor/cgenie/` is build output and there is no
+  ignored directory there at all, so the whole subtree is held back by one
+  prefix. `--model-binaries` links them anyway, for a worktree that does not
+  touch the model. `vendor/orogen/node_modules` is NOT in this class -- it is an install,
   not a build of tracked source -- and is linked.
 
 `.venv` IS linked, and it carries a caveat this script prints rather than
@@ -73,6 +75,20 @@ outlived their own artifacts; `exoplasim/runs/` and `source/` have the same
 shape, where the thing that dies is a climate run or an export payload. Reported
 and never moved: whether it belongs in the main checkout is a judgement.
 
+IT ALSO KEEPS A LINK LEDGER, and reports the OTHER direction of that same shape.
+A per-file link is a symlink INTO the main checkout, so a worktree that
+REGENERATES a linked file writes straight through, and every artifact the main
+checkout built from those bytes is invalidated at a moment nobody chose. That is
+worse than losing a file: the damage lands on a compiled binary or a staged
+field in a tree other agents are using, rather than on the file itself.
+`vendor/lpj-guess/framework/vesper.h` did exactly that on 2026-08-31. So every
+run records what each per-file link pointed at, into the worktree's own
+`.git/worktrees/<name>/link-ledger.json`, and reports any target whose bytes
+have moved since. It names the FACT and not the culprit, because from inside a
+worktree a write from here and a regeneration in the main checkout are
+indistinguishable and both matter. `scripts/check_worktree_links.py` asks the
+same question at the moment an agent commits.
+
 The last thing it does is check `git status` in the worktree. A symlink is a
 file, not a directory, so an ignore rule ending in `/` does not match the link
 that stands in for the directory it named -- which is why `.gitignore` carries a
@@ -85,6 +101,9 @@ else.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -98,8 +117,32 @@ SKIP_SELF = (".claude/",)
 SKIP_REGENERABLE = ("docs/book/", "maps/build/", "biosphere/generated/")
 
 # Held back because they are compiled from tracked source the worktree may have
-# edited. See the module docstring and CLAUDE.md rule 4.
-SKIP_COMPILED = ("vendor/exoplasim/", "vendor/lpj-guess/build/")
+# edited. See the module docstring and CLAUDE.md rule 4. `vendor/cgenie/` joined
+# on 2026-08-31: every ignored path under it is build output -- .o, .mod, .dep
+# and .a, and no ignored directory at all -- so a worktree that built the ocean
+# model wrote its objects and libraries straight over the main checkout's, which
+# is precisely what this tuple exists to prevent for the other two.
+SKIP_COMPILED = ("vendor/exoplasim/", "vendor/lpj-guess/build/", "vendor/cgenie/")
+
+# LINKED, and deliberately left out of the link ledger below. `.beads/` is the
+# issue tracker's shared state and every `bd` command in every tree writes it
+# through the link on purpose, so ledgering it would report the arrangement as
+# a fault on every single check and drown the finding the ledger exists to
+# make.
+LEDGER_SKIP = (".beads/",)
+
+# The ledger's hash budget: content is compared EXACTLY below it and by size
+# and mtime above it. Measured 2026-08-31 against the standing payload -- 516
+# of the 594 per-file links are under this and come to 74 MB altogether, which
+# hashes in well under a second, while the other 78 are 11.5 GB and hashing
+# them on every commit would cost more than the answer is worth. Above the
+# budget a rewrite that happened to produce identical bytes still reports, and
+# that is the instrument's honest resolution rather than a false positive: what
+# is being detected is the WRITE THROUGH THE LINK, not the difference in the
+# bytes.
+LEDGER_HASH_BUDGET = 4 * 1024 * 1024
+
+LEDGER_NAME = "link-ledger.json"
 
 
 def run(args: list[str], cwd: Path) -> str:
@@ -313,6 +356,136 @@ def stranded(wt: Path, main: Path, model_binaries: bool) -> list[str]:
     return sorted(line.strip() for line in out.stdout.splitlines() if line.strip())
 
 
+def ledger_path(wt: Path) -> Path:
+    """Where the link ledger lives: the worktree's PRIVATE git directory.
+
+    `.git/worktrees/<name>/` belongs to one worktree, is not a path git will
+    ever offer to commit, and `git worktree remove` deletes it along with the
+    tree it describes. So the ledger needs no ignore rule and cannot outlive
+    its subject -- which matters, because a ledger that survived its worktree
+    would go on to accuse the next one.
+    """
+    git_dir = run(["git", "rev-parse", "--path-format=absolute", "--git-dir"], wt)
+    return Path(git_dir.strip()) / LEDGER_NAME
+
+
+def stamp(src: Path) -> dict:
+    """What the ledger records for one link target: size, mtime, and content.
+
+    The digest is present only below `LEDGER_HASH_BUDGET`. Its absence is what
+    tells the comparison it may not claim more than "this was rewritten".
+    """
+    st = src.stat()
+    entry = {"size": st.st_size, "mtime_ns": st.st_mtime_ns}
+    if st.st_size <= LEDGER_HASH_BUDGET:
+        digest = hashlib.blake2b(digest_size=16)
+        with src.open("rb") as handle:
+            for block in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(block)
+        entry["digest"] = digest.hexdigest()
+    return entry
+
+
+def ledgered(rels: list[str], model_binaries: bool) -> list[str]:
+    """The per-file links the ledger covers.
+
+    DIRECTORY links are out of it, and the boundary is the point rather than an
+    omission. A wholly-ignored directory is linked as ONE symlink precisely so
+    that a worktree's write inside it lands in the main checkout and survives
+    the worktree -- that is the arrangement, not the failure, and the payload
+    under those links comes to hundreds of gigabytes. What the ledger covers is
+    the other shape: an EXISTING file, linked individually because its parent
+    holds tracked content, which a worktree regenerates in place and thereby
+    replaces under everything the main checkout built from it.
+    """
+    skip = LEDGER_SKIP + SKIP_SELF + SKIP_REGENERABLE
+    if not model_binaries:
+        skip += SKIP_COMPILED
+    return [r for r in rels if not any(r.startswith(pref) for pref in skip)]
+
+
+def read_ledger(wt: Path) -> dict | None:
+    """The ledger, or None if this worktree has never had one written."""
+    path = ledger_path(wt)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def write_ledger(wt: Path, main: Path, rels: list[str]) -> None:
+    """Record what every per-file link pointed at, as of now."""
+    entries: dict[str, dict] = {}
+    for rel in rels:
+        src = main / rel
+        try:
+            if src.is_file() and not src.is_symlink():
+                entries[rel] = stamp(src)
+        except OSError:
+            continue
+    payload = {
+        "main": str(main),
+        "linked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "hash_budget": LEDGER_HASH_BUDGET,
+        "entries": entries,
+    }
+    ledger_path(wt).write_text(json.dumps(payload, indent=1, sort_keys=True),
+                              encoding="utf-8")
+
+
+def changed_since_link(wt: Path, main: Path) -> tuple[list[str], str | None]:
+    """Link targets in the main checkout whose bytes have moved since linking.
+
+    THE WRITE-THROUGH DIRECTION. `stranded()` above catches a worktree's file
+    dying with the worktree. This catches the opposite and sharper one: a
+    per-file link is a symlink INTO THE MAIN CHECKOUT, so a worktree that
+    REGENERATES one writes through, and every artifact the main checkout built
+    from it is invalidated at a moment nobody chose.
+    `vendor/lpj-guess/framework/vesper.h` did exactly that on 2026-08-31 -- an
+    agent moved a generation timestamp out of it, correctly, and the write
+    landed in the main checkout whose LPJ binary had been built against the
+    previous bytes.
+
+    IT REPORTS THE FACT AND NOT THE CULPRIT, because from inside a worktree the
+    two readings are indistinguishable and BOTH matter. Either this worktree
+    wrote through -- and whatever the main checkout built from those bytes is
+    now stale -- or the main checkout regenerated legitimately, and this
+    worktree's own results were computed from bytes that no longer exist. The
+    disposition is the same either way: settle which it was, rebuild what
+    depended on it, and re-run this script to re-baseline.
+
+    Returns the findings and the timestamp they are measured against.
+    """
+    ledger = read_ledger(wt)
+    if ledger is None:
+        return [], None
+
+    findings = []
+    for rel, was in sorted(ledger.get("entries", {}).items()):
+        src = main / rel
+        if not src.exists():
+            findings.append(f"{rel}: GONE from the main checkout")
+            continue
+        try:
+            now = src.stat()
+        except OSError as exc:
+            findings.append(f"{rel}: unreadable in the main checkout ({exc})")
+            continue
+        if now.st_size != was["size"]:
+            findings.append(f"{rel}: CONTENT CHANGED, "
+                            f"{was['size']} -> {now.st_size} bytes")
+        elif "digest" in was and now.st_size <= LEDGER_HASH_BUDGET:
+            if stamp(src)["digest"] != was["digest"]:
+                findings.append(f"{rel}: CONTENT CHANGED, same size")
+        elif now.st_mtime_ns != was["mtime_ns"]:
+            budget = LEDGER_HASH_BUDGET // (1 << 20)
+            findings.append(f"{rel}: REWRITTEN, same size, content not compared "
+                            f"(over the {budget} MB hash budget)")
+    return findings, ledger.get("linked_at")
+
+
 def check_git_clean(wt: Path, created: list[str]) -> list[str]:
     """Links that git can see. Each one is a missing .gitignore pattern.
 
@@ -336,8 +509,8 @@ def main() -> None:
     ap.add_argument("--check", action="store_true",
                     help="like --dry-run, but exit 1 if anything is missing")
     ap.add_argument("--model-binaries", action="store_true",
-                    help="also link vendor/exoplasim and the LPJ-GUESS build "
-                         "(see the warning this prints)")
+                    help="also link vendor/exoplasim, the LPJ-GUESS build and "
+                         "vendor/cgenie (see the warning this prints)")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="name every path instead of counting them")
     args = ap.parse_args()
@@ -352,9 +525,14 @@ def main() -> None:
         print()
 
     states: dict[str, list[str]] = {}
+    per_file: list[str] = []
     for entry in ignored_entries(main_root, args.model_binaries):
         state, detail = link_one(entry, main_root, wt, dry)
         states.setdefault(state, []).append(detail)
+        # The ledger's subject is the per-file links, and only the ones that
+        # are actually standing: a "would link" in a dry run is not a link.
+        if not entry.endswith("/") and state in ("ok", "linked", "repaired"):
+            per_file.append(entry)
 
     for state in ("linked", "repaired", "ok", "conflict", "shadowed", "vanished"):
         items = states.get(state, [])
@@ -399,16 +577,36 @@ def main() -> None:
         for o in orphans:
             print(f"    {o}")
 
+    ledgered_rels = ledgered(per_file, args.model_binaries)
+    changed, linked_at = changed_since_link(wt, main_root)
+    if changed:
+        print(f"\n{len(changed)} linked target(s) in the main checkout have CHANGED since\n"
+              f"this worktree was linked ({linked_at}). A per-file link is a symlink INTO\n"
+              "the main checkout, so either something here regenerated one and wrote\n"
+              "straight through -- invalidating whatever the main checkout built from it,\n"
+              "at a moment nobody chose -- or the main checkout regenerated it and this\n"
+              "worktree's own results were computed from bytes that are gone. Settle which,\n"
+              "rebuild what depended on those bytes, and re-run this script to re-baseline:")
+        for c in changed:
+            print(f"    {c}")
+    elif linked_at is None and not dry:
+        print("\nno link ledger yet; writing one now, so the next run can say whether a\n"
+              "linked target was written through.")
+
+    if not dry:
+        write_ledger(wt, main_root, ledgered_rels)
+
     if not args.model_binaries:
-        print("\nvendor/exoplasim and vendor/lpj-guess/build were NOT linked: they are\n"
-              "compiled from tracked source this worktree may have edited, so a link\n"
-              "would both hide the edit and let a rebuild here overwrite the main\n"
-              "checkout's binaries. Build them in the worktree, or pass\n"
-              "--model-binaries if this worktree does not touch the model.")
+        print("\nvendor/exoplasim, vendor/lpj-guess/build and vendor/cgenie were NOT\n"
+              "linked: they are compiled from tracked source this worktree may have\n"
+              "edited, so a link would both hide the edit and let a rebuild here\n"
+              "overwrite the main checkout's binaries. Build them in the worktree, or\n"
+              "pass --model-binaries if this worktree does not touch the model.")
     else:
-        print("\n--model-binaries: vendor/exoplasim IS linked. A rebuild in this\n"
-              "worktree now writes over the main checkout's executables, and an edit\n"
-              "to the model source here does not change what runs. Do neither.")
+        print("\n--model-binaries: vendor/exoplasim, the LPJ-GUESS build and\n"
+              "vendor/cgenie ARE linked. A rebuild in this worktree now writes over\n"
+              "the main checkout's objects and executables, and an edit to the model\n"
+              "source here does not change what runs. Do neither.")
 
     if (wt / ".venv").is_symlink():
         print("\n.venv is linked, and ExoPlaSim is installed editable from the MAIN\n"
@@ -444,13 +642,14 @@ def main() -> None:
         # whether the worktree is in a state it can be thrown away from.
         missing = len(states.get("linked", [])) + len(states.get("repaired", []))
         blocked = len(states.get("conflict", [])) + len(states.get("shadowed", []))
-        if missing or blocked or misdirected or orphans:
+        if missing or blocked or misdirected or orphans or changed:
             print(f"\nINCOMPLETE: {missing} to link or repair, {blocked} blocked, "
                   f"{len(misdirected)} pointing somewhere else, "
-                  f"{len(orphans)} living only here.")
+                  f"{len(orphans)} living only here, "
+                  f"{len(changed)} changed since linking.")
             sys.exit(1)
-        print("\ncomplete: every ignored payload is linked, and none of it lives "
-              "only here.")
+        print("\ncomplete: every ignored payload is linked, none of it lives only "
+              "here, and no linked target has moved.")
 
 
 if __name__ == "__main__":
