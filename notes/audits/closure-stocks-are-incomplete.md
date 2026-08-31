@@ -96,24 +96,38 @@ two orders above the other three. `ntransform.cpp` flushes the aerobic
 fraction's nitrite into NO3 each day and leaves the anaerobic fraction's to be
 drained only by the denitrification gas term, so wet soils hold it.
 
-## Water: the losses omitted two of the three evaporation terms
+## Water: none of the three evaporative losses had a column the check could use
 
-The water rule reads precipitation from the pinned driver and subtracts
-`aaet.out` Total and `tot_runoff.out` Total. `aaet.out` Total is TRANSPIRATION:
-`commonoutput.cpp` builds it from `indiv.aaet` summed over individuals and
-patches. The model's own annual water record adds three terms, not one:
+The water rule read precipitation from the pinned driver and subtracted
+`aaet.out` Total and `tot_runoff.out` Total. Two of the three evaporative
+losses were missing outright and the third was the wrong quantity.
+
+**Soil evaporation and canopy interception reach no output table at all.** The
+model's own annual water record adds three terms, not one:
 
     patch.aaet_5.add(patch.aaet + patch.aevap + patch.aintercep)
 
-`patch.aevap`, bare soil evaporation, and `patch.aintercep`, canopy
-interception evaporation, reach no output table at all. `commonoutput.cpp`
-accumulates both from their monthly arrays and sends them only to the
-interactive `plot()`. The two monthly tables that do carry them, `mevap.out`
-and `mintercep.out`, are commented out in every `.ins` the port ships.
+`commonoutput.cpp` accumulates `patch.aevap` and `patch.aintercep` from their
+monthly arrays and sends them only to the interactive `plot()`. The two monthly
+tables that do carry them, `mevap.out` and `mintercep.out`, are commented out in
+every `.ins` the port ships.
+
+**`aaet.out` Total is the transpiration of the survivors.**
+`commonoutput.cpp` builds it from `indiv.aaet` summed over the individuals still
+in `patch.vegetation`, and `framework.cpp` runs `vegetation_dynamics` --
+establishment, mortality and disturbance by fire -- on the last day of the year,
+BEFORE `output_modules.outannual`. `indiv.aaet` is reset on day zero and
+accumulated daily, so an individual that transpired all year and was then killed
+contributes nothing to the column. `patch.maet` is incremented by the same
+`aet_total` as `patch.aaet` inside the hydrology, every day, and is unaffected;
+`maet.out` is therefore the column that reports what left the soil, and it
+reaches the gridcell by the same `to_gridcell_average` as `mevap`, `mintercep`
+and `tot_runoff`.
 
 So the water residual is not the implied storage change the contract calls it.
-It is soil evaporation plus interception plus the storage change, and the first
-two are ordinary-sized annual fluxes.
+It is soil evaporation plus interception plus the transpiration of everything
+that died plus the storage change, and the first two are ordinary-sized annual
+fluxes.
 
 **This has never been measured on a run.** The water block sat after carbon and
 nitrogen in a loop that raised on the first failing element, so every
@@ -160,26 +174,46 @@ no third missing flux: the check enforcing this in the model is compiled out
 under `DEBUG_SOIL_WATER`, but the identity it states is the one the hydrology
 is written to.
 
-Measured on `lpj_222316ba17494cb183b747c2cf0e5011`, a diagnostic run of 400
+Measured on `lpj_c0a9e36d42e54e7aaf245d211798e53d`, a diagnostic run of 1600
 spin-up cycles and 30 retained, over 1617 gridcells:
 
-| per-cycle residual | transpiration and runoff only | all four losses |
+| per-cycle residual | `aaet.out` Total and runoff only | all four losses |
 | --- | --- | --- |
-| population mean | 48.48 mm | 1.01 mm |
-| root mean square | 63.75 mm | 6.52 mm |
-| 99th percentile of magnitude | 223.5 mm | 27.4 mm |
-| gridcells failing the ten-cycle window | 1587 of 1617 | 306 of 1617 |
+| population mean | 49.30 mm | 0.96 mm |
+| root mean square | 65.90 mm | 6.28 mm |
+| 99th percentile of magnitude | 242.6 mm | 27.4 mm |
+| gridcells failing the ten-cycle window | 1584 of 1617 | 276 of 1617 |
 
-Soil evaporation averages 35.6 mm per cycle and canopy interception 11.9,
-against 96.8 of transpiration, 127.3 of runoff and 272.6 of precipitation. The
+Soil evaporation averages 36.2 mm per cycle and canopy interception 12.1,
+against 96.6 of transpiration, 126.7 of runoff and 272.6 of precipitation. The
 two omitted terms are 98 per cent of the mean bias.
 
-The 306 that still fail are stores that have not finished charging on a run
-deliberately cut to a twentieth of the derived spin-up, and the accumulation is
-not the one a soil gaining carbon under `iforganicsoilproperties` would show:
-the per-gridcell mean residual correlates with the soil carbon accumulation
-rate at only +0.27, and removing that relation takes the population root mean
-square from 2.52 mm to 2.43. The largest single residual belongs to a gridcell
-at 52.61 degrees with no soil carbon at all and a residual constant to four
-figures across both halves of the record, which is a snowpack filling at a
-fixed rate toward the model's 10000 mm cap.
+### What the residual left after those two was
+
+Not a store still charging. The same measurement at a quarter of the spin-up,
+on `lpj_222316ba17494cb183b747c2cf0e5011` at 400 cycles, gives 306 failing
+gridcells against 276 and a largest ten-cycle residual of 321 mm against 303,
+so quadrupling the spin-up barely moves it. Nor is it a soil gaining carbon and
+with it holding capacity under
+`iforganicsoilproperties`: the per-gridcell mean residual correlates with the
+soil carbon accumulation rate at +0.27, and removing that relation takes the
+population root mean square from 2.52 mm to 2.43.
+
+It is the transpiration `aaet.out` Total does not carry. At 1600 cycles the
+median gridcell closes at +0.04 mm per cycle and the 564 gridcells with under
+1 mm of transpiration at +0.02 mm, so the check closes wherever there is no
+vegetation to lose. What remains is a strictly positive tail on the vegetated
+gridcells, worth 0.7 per cent of transpiration at the median and 10.8 at the
+maximum, correlating with
+
+| against | correlation |
+| --- | --- |
+| burnt fraction | +0.66 |
+| transpiration | +0.59 |
+| leaf area index | +0.56 |
+| establishment carbon flux | -0.88 |
+| individual density | +0.02 |
+
+which is turnover and not water. 1382 of 1617 gridcells carry a positive mean
+residual and the most negative is -2.24 mm against a maximum of +19.14, so the
+systematic part has one sign, as a column that omits a loss must.
