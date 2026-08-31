@@ -1163,6 +1163,8 @@ def check_derived_config_values(rep: "Report", config: dict) -> None:
              "exoplasim/scripts/shortwave_band_weights.py"),
             ("model.h2o_sw_level", level, ("value",), False,
              "exoplasim/scripts/shortwave_band_weights.py --level"),
+            ("model.h2o_sw_level_bracket", level, ("bracket",), False,
+             "exoplasim/scripts/shortwave_band_weights.py --level"),
             ("model.cloud_absorption_scale", cloud, ("weight", "central"), False,
              "exoplasim/scripts/cloud_band_weight.py"),
             ("model.vegetation_albedo", veg, ("vegetation_albedo",), False,
