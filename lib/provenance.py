@@ -884,6 +884,30 @@ def _staged_reports(rung_dir: Path):
                 continue
 
 
+def staged_surface_records(codes, config: dict | None = None, *,
+                           root: Path | None = None) -> list[Path]:
+    """The provenance records beside the staged fields for these codes.
+
+    Deduplicated and sorted: one record can cover several codes, as
+    `albedo_report.json` covers seven. Returns paths and reads nothing else, so
+    a caller that wants to COPY the records rather than interpret them -- which
+    is what `run_exoplasim.py` does, because the staged record is overwritten
+    at the next staging while the run's copy of the field is not -- does not
+    have to know which of the directory's two naming conventions a generator
+    chose.
+    """
+    root = PROJECT_ROOT if root is None else Path(root)
+    if config is None:
+        import yaml
+        config = yaml.safe_load(
+            (root / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    rung_dir = (root / "exoplasim" / "inputs"
+                / str(config["model"]["resolution"]).lower())
+    wanted = {int(c) for c in codes}
+    return sorted({path for code, path, _ in _staged_reports(rung_dir)
+                   if code in wanted})
+
+
 def _record_build_name(rec: dict) -> str | None:
     """The build a staged-field record NAMES, wherever it put the name.
 
@@ -1009,12 +1033,18 @@ def run_surface_field(code: int, run: str, *, root: Path | None = None):
                      f"_surf_{int(code):04d}.sra")
     staged_sha = (hashlib.sha256(staged_path.read_bytes()).hexdigest()
                   if staged_path.is_file() else None)
+    # The generator's own record, if the run kept it. `run_exoplasim.py` copies
+    # it in beside the field; a run taken before that did not, and the staged
+    # original has been overwritten since, so None here means the derivation is
+    # gone rather than that it can be looked up. world-hl06.
+    kept = sorted({p for c, p, _ in _staged_reports(run_dir) if c == int(code)})
     return {
         "code": int(code),
         "run": str(run),
         "path": rel(path, root),
         "sha256": digest,
         "source_build": manifest.get("source_build"),
+        "provenance_record": rel(kept[0], root) if kept else None,
         "staged_path": rel(staged_path, root) if staged_sha else None,
         "staged_sha256": staged_sha,
         "matches_staged": None if staged_sha is None else staged_sha == digest,
@@ -1430,6 +1460,16 @@ def _selftest() -> int:
               "the staged tree has moved on",
               consumed["path"].endswith("N004_surf_0229.sra")
               and consumed["matches_staged"] is True, consumed["path"])
+        check("a run that kept no provenance record says so rather than "
+              "reaching for the staged one",
+              consumed["provenance_record"] is None)
+
+        shutil.copy(record, runs / record.name)
+        consumed = run_surface_field(229, "run_synthetic", root=root)
+        check("a run that kept the record names its own copy",
+              consumed["provenance_record"] is not None
+              and consumed["provenance_record"].endswith(record.name),
+              str(consumed["provenance_record"]))
 
         try:
             run_surface_field(1720, "run_synthetic", root=root)

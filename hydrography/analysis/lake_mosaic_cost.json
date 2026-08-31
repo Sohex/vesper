@@ -1,6 +1,6 @@
 {
   "title": "What the hydrologic mosaic costs at the crossing, and what the seasonal lake-energy omission is worth",
-  "measured_utc": "2026-08-31T06:50:33.439284+00:00",
+  "measured_utc": "2026-08-31T06:57:21.740176+00:00",
   "source_build": "canonical-10m-carve2",
   "rung": "T21",
   "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
@@ -157,6 +157,7 @@
       "path": "exoplasim/runs/run_67323a923013/N032_surf_0229.sra",
       "sha256": "0fd07c1c3f786537ee649126e0713c8c37c112936ea06d0ba3a30c0f393be4b5",
       "source_build": "canonical-10m-carve2",
+      "provenance_record": null,
       "staged_path": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
       "staged_sha256": "3e3af7935614cb2c6307f2fb60d7ccc1adaa1d280bd03edab8eb729ba8461d83",
       "matches_staged": false

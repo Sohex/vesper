@@ -3192,6 +3192,33 @@ def refuse_an_albedo_field_the_config_misdeclares(config: dict, inputs_dir) -> N
         "that silently duplicates the other reports its disagreement as zero."
     )
 
+def stage_surface_provenance(run_dir: Path, config: dict, codes) -> list[str]:
+    """Copy the provenance record beside each staged field into the run.
+
+    THE RECORD IS OVERWRITTEN BY DESIGN and the copy is not a duplicate for
+    that reason. `exoplasim/inputs/<rung>/` is keyed by the rung alone and the
+    builders rewrite it per build and per iteration, so the record that says
+    what a staged field IS survives only until the next staging. The `.sra`
+    bytes travel into the run directory and their sha256 into the manifest, so
+    WHICH field ran is recoverable; without this, WHAT it was is not. For
+    surface code 229 that is the lake blend's presence, the climatology the
+    soil column was weathered under, and the pedology states file the capacity
+    came from -- three facts an offline consumer has to refuse on rather than
+    assume once the staged record has moved on. world-hl06.
+
+    `lib/provenance.py:staged_surface_records` is what maps codes to records, so
+    the two naming conventions in the directory are handled in one place; a
+    record covering several codes is copied once, under its own name.
+    """
+    import provenance as _provenance
+    copied = []
+    for path in _provenance.staged_surface_records(codes, config,
+                                                   root=PROJECT_ROOT):
+        shutil.copyfile(path, run_dir / path.name)
+        copied.append(path.name)
+    return copied
+
+
 def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     """Copy the surface fields we generate into the run directory.
 
@@ -4225,6 +4252,11 @@ def main() -> None:
         interpolatetimes=False,
     )
     staged = stage_surface_extras(run_dir, config)
+    # Every intended code, not only the extras: the landmap and topomap
+    # `configure()` writes are covered by boundary_conditions_report.json,
+    # which is overwritten by the next staging like every other record.
+    staged_records = stage_surface_provenance(run_dir, config,
+                                              intended_surface_codes(config))
     spectrum = stage_stellar_spectrum(model, run_dir, stellar_spectrum_path(config))
     verify_stellar_spectrum(model, config)
     # Ozone column scaling, set through the namelist because the Python API does
@@ -4439,6 +4471,11 @@ def main() -> None:
             str(c): file_sha256(surface_sra(config, c))
             for c in sorted(intended_surface_codes(config))
             if surface_sra(config, c).is_file()},
+        # The generators' own records, copied in beside the fields. The hashes
+        # above say WHICH field ran; these say what it was, and the originals
+        # in exoplasim/inputs/<rung>/ are overwritten at the next staging.
+        # world-hl06.
+        "surface_field_provenance": staged_records,
         "stellar_spectrum": spectrum,
         # The spectrum by CONTENT, because the line above is a filename and the
         # file is regenerated in place. `continue_exoplasim.py` compares this on
