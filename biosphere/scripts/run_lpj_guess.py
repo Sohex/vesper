@@ -731,6 +731,20 @@ def main() -> None:
             f"LPJ-GUESS exited {result.returncode} after {elapsed:.0f} s. "
             f"See {run_dir / 'mpirun.log'} and {run_dir}/run*/guess.log")
 
+    # A run asked to save a state has to have saved one. The serializer writes
+    # at a named simulated instant and the model exits zero whether it reached
+    # that instant or not, so an empty state directory is how "the save point
+    # was never reached" arrives -- and it arrives as a run that looks complete
+    # and cannot be continued, discovered only when someone tries.
+    if state and state["save_state"]:
+        written = [p for p in Path(state["save_path"]).iterdir() if p.is_file()]
+        if not any(p.name == "meta.bin" for p in written):
+            raise SystemExit(
+                f"the run was asked to save a state covering year "
+                f"{state['save_year'] - 1} and {state['save_path']} holds "
+                f"{len(written)} files with no meta.bin. The save point was "
+                "not reached, so nothing can continue this run.")
+
     counts = merge_outputs(run_dir, args.ranks, outputs)
     cells = 0
     if (run_dir / "anpp.out").is_file():
