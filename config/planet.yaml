@@ -53,16 +53,15 @@ schema_version: 1
 # moves (rule 7); `python scripts/pipeline.py --purge orogen` is what says what.
 source_build: canonical-10m-carve2
 
-# DECLARED ABSENT AGAIN, and by the carve rather than by never having existed.
-# `run_893e276ee029` produced a baseline climatology and this pointed at it;
-# `source_build` then moved to `canonical-10m-carve1` and that climatology is a
-# property of terrain this project no longer holds. `climatology_path()` raises
-# rather than falling back, which is the designed state: a stale default returns
-# a plausible number from the wrong world, and here the wrong world is a
-# concrete one that existed an hour ago. Repoint it at the REGULAR climatology
-# of the new build's baseline when there is one, never at a bootstrap's;
-# `best_available_climatology` is what a step reads when either will do, and it
-# names the stage it chose.
+# THE REGULAR climatology of THIS build's baseline run, never a bootstrap's and
+# never another build's. A climatology is a property of the terrain it was
+# integrated on, so this key moves with `source_build` and goes back to a
+# declared absence whenever a carve lands before the new build has a baseline.
+# `climatology_path()` raises rather than falling back, which is the designed
+# state: a stale default returns a plausible number from the wrong world, and
+# the wrong world here is a concrete one that existed an hour ago.
+# `best_available_climatology` is what a step reads when either stage will do,
+# and it names the stage it chose.
 baseline_climatology: exoplasim/analysis/climatology/baseline_regular_climatology.nc
 
 # THE OTHER CLIMATOLOGY, and it is a different artifact rather than an earlier
@@ -1362,20 +1361,19 @@ model:
   h2o_sw_level_bracket: [1.128, 1.205]
   co2_sw_weight: 1.510
   roughness_source: lithology
-  # BOOTSTRAP: uniform. Soil water capacity comes from the pedology soil map as
-  # code 229, and that soil has to be weathered under a climatology. There is no
-  # climatology and no soil map on this build, so the field cannot exist and
-  # run_exoplasim refuses to start without it.
+  # UNIFORM FOR THE BOOTSTRAP, `pedology` for the baseline, and the flip goes
+  # between them. Soil water capacity comes from the pedology soil map as
+  # surface code 229, and that soil has to be weathered under a climatology, so
+  # a build with neither cannot have the field and the bootstrap exists to make
+  # it possible. With `pedology` set, run_exoplasim requires code 229 and
+  # refuses to start without it.
   #
-  # It goes back to `pedology` before the baseline run, and it has to be
-  # `pedology` before the run whose climatology the verdict uses rather than
-  # merely before the verdict: the land-mean capacity is well under ExoPlaSim's
-  # uniform 0.5 m bucket, which changes evaporation, which changes P - E, which
-  # is the numerator of the carve criterion. The flip moves config_sha256 and
-  # cannot happen mid-run. `docs/src/pipeline/sequencing.md` loop A has the order.
-  # UNIFORM FOR THE BOOTSTRAP, pedology for the baseline, and the flip goes
-  # between them. With `pedology` set, run_exoplasim requires surface code 229 --
-  # the one field the bootstrap exists to make possible. docs/src/pipeline/sequencing.md.
+  # It has to be `pedology` before the run whose climatology the carve verdict
+  # uses, rather than merely before the verdict: the land-mean capacity is well
+  # under ExoPlaSim's uniform 0.5 m bucket, which changes evaporation, which
+  # changes P - E, which is the numerator of the carve criterion. The flip moves
+  # config_sha256 and cannot happen mid-run.
+  # `docs/src/pipeline/sequencing.md` loop A has the order.
   soil_water_source: pedology
   # DECLARED. The bucket depth `build_surface_soil_water.py --lakes` writes over
   # the lake fraction of a land cell, metres of water, surface code 0229.
@@ -1385,15 +1383,27 @@ model:
   # it while config had never carried the key. The builder now has no fallback
   # and refuses without this line.
   #
-  # WHY SHALLOWER THAN THE 0.5 m DEFAULT AND NOT DEEPER. `drhs` reaches 1 once
-  # soil water exceeds 40% of `dwmax` (landmod.f90:103-104), so a shallower bucket
-  # saturates the wetness factor on less water and the cell evaporates at the
-  # potential rate; a deeper one needs proportionally more water to get there,
-  # and this planet's lakes sit in the arid cells where that water is not
-  # available. The direction is derived. THE VALUE IS NOT: the derivation is the
-  # depth at which a lake cell's own seasonal precipitation keeps it above
-  # 0.4 * dwmax through its driest bin, which needs per-cell seasonal P and E
-  # over the lake cells and therefore a baseline climatology. world-kvr.
+  # THE DIRECTION IS SHALLOWER THAN THE CAPACITY IT IS BLENDED INTO, AND THIS
+  # VALUE IS NOT. `drhs` reaches 1 once soil water exceeds `drhsfull` of `dwmax`
+  # -- `land_wetness` at landcolumn.f90:354-377, `drhsfull` declared 0.4 at
+  # landmod.f90:192 -- so a lake tile shallower than the soil tile saturates the
+  # wetness factor on less water and the cell evaporates at the potential rate,
+  # which is what a lake is for. A deeper one needs proportionally more water to
+  # get there, and this planet's lakes sit in the arid cells where that water is
+  # not available.
+  #
+  # THE COMPARISON IS AGAINST THE FIELD, NOT AGAINST 0.5 m. ExoPlaSim's uniform
+  # default is 0.5 m and `soil_water_source` is `pedology`, so 0.5 m is not what
+  # code 229 carries. Measured on both capacity fields in
+  # `notes/audits/land-mosaic-support-reductions.md`, this value EXCEEDS the
+  # soil capacity over most of the lake-bearing land area, so blending it in
+  # RAISES the capacity there and has the opposite effect to the one argued
+  # above. The direction argument stands and the value contradicts it.
+  #
+  # THE VALUE'S DERIVATION IS THE DEPTH at which a lake cell's own seasonal
+  # precipitation keeps it above `drhsfull * dwmax` through its driest bin,
+  # which needs per-cell seasonal P and E over the lake cells and therefore a
+  # baseline climatology. world-kvr owns it.
   lake_dwmax_m: 0.2
   land_albedo_source: vegetated
   # DERIVED 2026-08-19 by analysis/vegetation_albedo.py, which reproduces
