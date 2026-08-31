@@ -402,9 +402,9 @@ refused. Same statistic, same tolerance, opposite verdicts.
 ## What is still calibrated
 
 The PER-CELL half. It exists for the one case a spatial mean cannot see, and
-that job is real: on the 1000-cycle record a cancelling dipole at twice the
-tolerance is caught by the cell half in 42 of 64 fields and by the global half
-in 0 of 64.
+that job is real: measured on the 1000-cycle record's 64 columns, a cancelling
+dipole at twice the tolerance is caught by the cell half in 42 of them and by
+the global half in none.
 
 | acceptance window | cell half refuses | global half refuses |
 | --- | --- | --- |
@@ -412,13 +412,16 @@ in 0 of 64.
 | coherent drift at 2x the tolerance | 46 of 64 | 63 of 64 |
 | cancelling regional drift at 2x the tolerance | 42 of 64 | 0 of 64 |
 
-It is still a slope over `complete_forcing_cycles`, so it still sits inside one
-memory time, and its size is still absorbed into a limit measured from the run's
-own detrended windows rather than derived. Its family false-refusal rate is 0.34
-on 100 windows and about 0.24 on the 124 a 1253-cycle record leaves. That errs
-toward REFUSING, so a pass through it is evidence and a refusal through it is
-not, and its empirical-null construction needs many windows and therefore cannot
-adopt the whole-record statistic. world-4hlw holds the analytic replacement.
+It runs on the assessed quantities, at each quantity's own tolerance, exactly as
+the global half does. It is still a slope over `complete_forcing_cycles`, so it
+still sits inside one memory time, and its size is still absorbed into a limit
+measured from the run's own detrended windows rather than derived. Its family
+false-refusal rate is 0.34 on 100 windows and about 0.24 on the 124 a 1253-cycle
+record leaves; over eleven assessed quantities rather than 64 columns it is
+smaller than either, and it is still not derived. That errs toward REFUSING, so
+a pass through it is evidence and a refusal through it is not, and its
+empirical-null construction needs many windows and therefore cannot adopt the
+whole-record statistic. world-4hlw holds the analytic replacement.
 
 ## How long a run this world's ecology needs
 
@@ -572,13 +575,21 @@ a spin-up of 6.86325 times it, roughly 9850 cycles in total and about two and a
 half hours at npatch 5 on 16 ranks. The run this contract used to demand was
 33846 retained cycles and a spin-up of 232294, about seventy hours.
 
-The time base is correct and is not implicated in any of this. `vesper_pfts.ins`
-sets nyear_spinup 998 and freenyears 200, which at 0.5010172 Earth years per
-orbit are 500.0 and 100.2 Earth years and match LPJ-GUESS's convention exactly.
-The convention is Earth's, and this world's woody types and slow pools are not
-Earth's. `build_vesper_pfts.py` reads the derived spin-up floor from whatever
-acceptance artifacts exist and records which derivation produced it; the
-convention is reached only where there is no acceptance artifact to read at all.
+The time base is correct and is not implicated in any of this. The Earth
+convention that `nyear_spinup` used to carry is 500 simulation years, which at
+0.5010172 Earth years per orbit is 998 of this world's, and `freenyears` 200 is
+100.2 Earth years; both matched LPJ-GUESS's convention exactly. The convention is
+Earth's, and this world's woody types and slow pools are not Earth's.
+`build_vesper_pfts.py` reads the derived spin-up floor from whatever acceptance
+artifacts the live contract has produced and records which derivation gave it;
+the convention is reached only where there is no such artifact at all.
+
+AN ARTIFACT FROM A SUPERSEDED CONTRACT IS NOT POOLED. What a resolving length
+means is "the record at which THIS quantity closes on THAT tolerance", and both
+halves belong to the contract it was taken under, so pooling contract 4's
+artifacts would size every future run from the contract that no longer judges
+it. `ecological_timescale_brackets` names the superseded ones and refuses when
+none is current.
 
 ## What the contract cannot yet do, and what has never been staged
 
@@ -587,3 +598,17 @@ convention is reached only where there is no acceptance artifact to read at all.
 `read_foliar_cover` calls `require_lpj_acceptance` and no LPJ run in the tree is
 accepted. Every cover magnitude quoted from a run in this note is therefore from
 a refused run and is indicative of scale only.
+
+WHAT SEPARATES THE TREE FROM AN ACCEPTED RUN IS NOW ONE QUANTITY. Re-assessed
+under contract 5, `lpj_7d3c576ee4e342acb097b46fece976e0` settles ten of its
+eleven assessed quantities on the record it already has -- both the cover
+quantities the albedo consumer reads among them -- and is refused by
+`cpool.out` total carbon at 0.0503 against 0.05. That refusal is a drift and not
+a resolution: a settled series of its scatter closes inside the record it has,
+and the drift lives in vegetation carbon, which is what an under-spun run leaves
+behind. The run carried a 2318-cycle spin-up against the 8600 the minimax now
+derives.
+
+A run at the derived floors -- 8600 spin-up, 1253 retained, about two and a half
+hours -- is what would settle it, and it is the only thing between this tree and
+its first accepted LPJ run. It is not a purchase this note makes.

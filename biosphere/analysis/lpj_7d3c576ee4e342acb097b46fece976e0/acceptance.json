@@ -1,23 +1,64 @@
 {
   "contract_version": "vesper-lpj-acceptance/1",
-  "generated": "2026-08-31T04:47:28+00:00",
+  "generated": "2026-08-31T05:36:43+00:00",
   "run_id": "lpj_7d3c576ee4e342acb097b46fece976e0",
   "source_build": "canonical-10m-carve2",
   "manifest_sha256": "1436d7a88b8c736408c6b44a92d7b79d871280bc00a937df01e7726ffac1191c",
   "contract_sha256": "c1a86db8be4fc40ef74d93d5a0e16e4b0d1bc3c9e4b4f804b6ab8b6d5e587e62",
   "verdict": "FAIL",
-  "refusal": "anpp.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_7d3c576ee4e342acb097b46fece976e0/anpp.out's retained record does not bound its drift inside 0.05: BNE (drift 0.0008 +/- 0.0341 bounds at 0.0680 against a limit of 0.05; memory time 148.5 cycles leaves 4.2 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 3039 cycles); BINE (drift 0.0117 +/- 0.0307 bounds at 0.0742 against a limit of 0.05; memory time 183.4 cycles leaves 3.4 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 2821 cycles); BNS (drift 0.0929 +/- 0.0718 bounds at 0.3040 against a limit of 0.05; memory time 285.7 cycles leaves 2.2 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 6792 cycles); TeNE (drift 0.0740 +/- 0.0789 bounds at 0.2074 against a limit of 0.05; memory time 34.1 cycles leaves 18.4 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 19288 cycles); TeBS (drift 0.0357 +/- 0.0241 bounds at 0.0788 against a limit of 0.05; memory time 94.2 cycles leaves 6.6 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 2267 cycles); IBS (drift 0.1325 +/- 0.0863 bounds at 0.3032 against a limit of 0.05; memory time 161.1 cycles leaves 3.9 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 24982 cycles); TrBE (drift 0.0223 +/- 0.0389 bounds at 0.1292 against a limit of 0.05; memory time 274.9 cycles leaves 2.3 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 3410 cycles); TrIBE (drift 0.0984 +/- 0.0846 bounds at 0.2827 against a limit of 0.05; memory time 198.6 cycles leaves 3.2 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 25637 cycles); TrBR (drift 0.1409 +/- 0.1012 bounds at 0.4758 against a limit of 0.05; memory time 324.8 cycles leaves 1.9 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 33846 cycles); C4G (drift 0.0364 +/- 0.0327 bounds at 0.0937 against a limit of 0.05; memory time 74.0 cycles leaves 8.5 effective samples per half of a 1253-cycle record, and a SETTLED field of this scatter would resolve the limit at 2643 cycles)",
+  "refusal": "cpool.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_7d3c576ee4e342acb097b46fece976e0/cpool.out's retained record does not bound the drift of the quantities its consumers read inside their own tolerances: cpool.out total carbon (drift 0.0113 +/- 0.0113 bounds at 0.0503 against a limit of 0.05; memory time 319.5 cycles leaves 2.0 effective samples per half of a 1253-cycle record, and a SETTLED quantity of this scatter would resolve the limit at 1253 cycles)",
   "timescales": {
     "estimator": "lib/autocorrelation.py:integrated_time",
     "relaxation_estimator": "lib/lpj_output.py:relaxation_time",
     "reliable_span_multiple": 10.0,
     "drift_tolerance": 0.05,
-    "contract_version": "vesper-lpj-equilibrium-window/4",
+    "contract_version": "vesper-lpj-equilibrium-window/5",
     "tables": {
       "anpp.out": {
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
         "fields": {
+          "anpp.out total productivity": {
+            "memory": {
+              "tau_cycles": 62.21190897061571,
+              "effective_samples": 20.140838317496804,
+              "reliable": true,
+              "lag1": 0.8359696386014194
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -1.4125080761345776e-05,
+                0.0003363187854287797,
+                -0.0005806753720947744
+              ],
+              "step_standard_errors": [
+                0.0003204636489621384,
+                0.00033477138728555685,
+                0.0003315655995228224
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0005230957406956063,
+              "relative_standard_error": 0.0053969400396105685,
+              "upper_bound": 0.010673516308961527,
+              "tau_cycles": 130.9659405631886,
+              "effective_samples_per_half": 4.779868699510975,
+              "degrees_of_freedom": 7.358781229438137,
+              "critical_value": 1.8807732703656928,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.2727,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ]
+          }
+        },
+        "columns": {
           "BNE": {
             "memory": {
               "tau_cycles": 70.19318592894611,
@@ -49,6 +90,7 @@
               "degrees_of_freedom": 5.619029382682764,
               "critical_value": 1.9670316641756946,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 3039.4843893558796
             }
@@ -84,6 +126,7 @@
               "degrees_of_freedom": 4.819731827954155,
               "critical_value": 2.031816840017857,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 2821.099877949296
             }
@@ -119,6 +162,7 @@
               "degrees_of_freedom": 1.9818627196229615,
               "critical_value": 2.938291340066968,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 6791.666338707041
             }
@@ -154,6 +198,7 @@
               "degrees_of_freedom": 34.61764598534905,
               "critical_value": 1.69007985136991,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 19288.026046539795
             }
@@ -189,6 +234,7 @@
               "degrees_of_freedom": 11.284526871317,
               "critical_value": 1.791750149674835,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 2267.219804578054
             }
@@ -224,6 +270,7 @@
               "degrees_of_freedom": 5.463816066002174,
               "critical_value": 1.977870765919135,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 24982.150847025456
             }
@@ -259,6 +306,7 @@
               "degrees_of_freedom": 33.97201699937639,
               "critical_value": 1.6909632587727965,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -294,6 +342,7 @@
               "degrees_of_freedom": 2.1965564801875104,
               "critical_value": 2.749368507353188,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 3410.2983226135248
             }
@@ -329,6 +378,7 @@
               "degrees_of_freedom": 3.7221902782448164,
               "critical_value": 2.178395138335528,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 25637.486641172218
             }
@@ -364,6 +414,7 @@
               "degrees_of_freedom": 1.6972830934049463,
               "critical_value": 3.3080779239888884,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 33846.11597237604
             }
@@ -399,6 +450,7 @@
               "degrees_of_freedom": 46.09136746883242,
               "critical_value": 1.6785920296202266,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -434,6 +486,7 @@
               "degrees_of_freedom": 14.856033155000851,
               "critical_value": 1.7541666223349905,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 2643.3603171743694
             }
@@ -469,6 +522,7 @@
               "degrees_of_freedom": 7.358781229438137,
               "critical_value": 1.8807732703656928,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -479,6 +533,47 @@
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
         "fields": {
+          "lai.out total leaf area": {
+            "memory": {
+              "tau_cycles": 43.95906460511238,
+              "effective_samples": 28.503791226128087,
+              "reliable": true,
+              "lag1": 0.8616114856695759
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.005338187113358206,
+                0.0025831512622476183,
+                -0.005651934221263311
+              ],
+              "step_standard_errors": [
+                0.003352796378676882,
+                0.0035042377156537866,
+                0.0032989443547023324
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.004507718172199893,
+              "relative_standard_error": 0.0058981490755122285,
+              "upper_bound": 0.0151349702340082,
+              "tau_cycles": 99.2097952530066,
+              "effective_samples_per_half": 6.309860819726152,
+              "degrees_of_freedom": 10.619310941107537,
+              "critical_value": 1.8017944147817888,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.2727,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ]
+          }
+        },
+        "columns": {
           "BNE": {
             "memory": {
               "tau_cycles": 65.38599166591516,
@@ -510,6 +605,7 @@
               "degrees_of_freedom": 5.327308099181084,
               "critical_value": 1.9880198424828104,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 3408.692858928078
             }
@@ -545,6 +641,7 @@
               "degrees_of_freedom": 5.135125917373943,
               "critical_value": 2.0033943371432685,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 3975.5252840949906
             }
@@ -580,6 +677,7 @@
               "degrees_of_freedom": 1.8375087245365538,
               "critical_value": 3.1039296115095163,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 6957.075064758989
             }
@@ -615,6 +713,7 @@
               "degrees_of_freedom": 23.86832065475296,
               "critical_value": 1.7112608441190986,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 26294.226377508792
             }
@@ -650,6 +749,7 @@
               "degrees_of_freedom": 11.215759858809278,
               "critical_value": 1.7927286080305123,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 2586.1715171093815
             }
@@ -685,6 +785,7 @@
               "degrees_of_freedom": 5.919362930850163,
               "critical_value": 1.947931293158107,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 24909.755961513176
             }
@@ -720,6 +821,7 @@
               "degrees_of_freedom": 36.64156802623672,
               "critical_value": 1.6875174555528898,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -755,6 +857,7 @@
               "degrees_of_freedom": 2.086072308269629,
               "critical_value": 2.8394588153022,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 4481.711932806143
             }
@@ -790,6 +893,7 @@
               "degrees_of_freedom": 4.7796103822248295,
               "critical_value": 2.0357556665727126,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 20528.768209016307
             }
@@ -825,6 +929,7 @@
               "degrees_of_freedom": 1.676085008121447,
               "critical_value": 3.3436874467179254,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 31278.106216621196
             }
@@ -860,6 +965,7 @@
               "degrees_of_freedom": 50.18530576384718,
               "critical_value": 1.6757882216457218,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -895,6 +1001,7 @@
               "degrees_of_freedom": 18.222129676401956,
               "critical_value": 1.7329191582702783,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 2326.1502071636096
             }
@@ -930,6 +1037,7 @@
               "degrees_of_freedom": 10.619310941107537,
               "critical_value": 1.8017944147817888,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -940,6 +1048,166 @@
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
         "fields": {
+          "fpc.out tree cover": {
+            "memory": {
+              "tau_cycles": 60.47661173184945,
+              "effective_samples": 20.718753318319898,
+              "reliable": true,
+              "lag1": 0.9574367275964526
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0003821931909563092,
+                0.00026907399613926297,
+                -0.0012033327998640653
+              ],
+              "step_standard_errors": [
+                0.0011038232911700376,
+                0.0012771016693718877,
+                0.001200252825055432
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.0012656646412867781,
+              "relative_standard_error": 0.009488477733935295,
+              "upper_bound": 0.018567276898502884,
+              "tau_cycles": 108.12069786530466,
+              "effective_samples_per_half": 5.789825744371929,
+              "degrees_of_freedom": 9.439950882219836,
+              "critical_value": 1.823433931381568,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "exoplasim/scripts/build_surface_albedo.py",
+              "biosphere/scripts/score_prediction.py"
+            ]
+          },
+          "fpc.out grass cover": {
+            "memory": {
+              "tau_cycles": 21.045128166373633,
+              "effective_samples": 59.53872032017704,
+              "reliable": true,
+              "lag1": 0.8740534761300316
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0005293042572823425,
+                -0.0003427144892229339,
+                -0.0003001811819703104
+              ],
+              "step_standard_errors": [
+                0.00042940121808004625,
+                0.0003753538647608381,
+                0.00041724983381461145
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.020207512368004863,
+              "relative_standard_error": 0.012686093241593758,
+              "upper_bound": 0.04197778433310455,
+              "tau_cycles": 51.39107361754188,
+              "effective_samples_per_half": 12.181103758578038,
+              "degrees_of_freedom": 22.317004140523384,
+              "critical_value": 1.7160737786256948,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "exoplasim/scripts/build_surface_albedo.py",
+              "biosphere/scripts/score_prediction.py"
+            ]
+          },
+          "fpc.out C4 grass cover": {
+            "memory": {
+              "tau_cycles": 19.8557921767246,
+              "effective_samples": 63.10501181961375,
+              "reliable": true,
+              "lag1": 0.9110396004082888
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0004055591449475572,
+                -5.68085497341525e-05,
+                -0.000455308118019207
+              ],
+              "step_standard_errors": [
+                0.00027973889087242306,
+                0.00028254515704022857,
+                0.0002955847713692377
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.03734956377627833,
+              "relative_standard_error": 0.021873394268691358,
+              "upper_bound": 0.07440206521888526,
+              "tau_cycles": 36.74912272166827,
+              "effective_samples_per_half": 17.03442024293259,
+              "degrees_of_freedom": 31.95933745493954,
+              "critical_value": 1.6939529817574903,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.2727,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ]
+          },
+          "fpc.out boreal needleleaf cover": {
+            "memory": {
+              "tau_cycles": 50.84502106830501,
+              "effective_samples": 24.643514225645113,
+              "reliable": true,
+              "lag1": 0.9692044710394414
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00045016310328954007,
+                0.0001606493308912299,
+                -0.00055525457351107
+              ],
+              "step_standard_errors": [
+                0.00029539355358737854,
+                0.0002828397464890634,
+                0.00029885511056774766
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.021350955557551014,
+              "relative_standard_error": 0.024547113062051634,
+              "upper_bound": 0.0683140636749282,
+              "tau_cycles": 145.7258580527689,
+              "effective_samples_per_half": 4.295737272470331,
+              "degrees_of_freedom": 6.574652786403087,
+              "critical_value": 1.9131825399859075,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.2727,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ]
+          }
+        },
+        "columns": {
           "BNE": {
             "memory": {
               "tau_cycles": 68.48088720404611,
@@ -971,6 +1239,7 @@
               "degrees_of_freedom": 5.5383471735077325,
               "critical_value": 1.9725770679869,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 3606.2061676590897
             }
@@ -1006,6 +1275,7 @@
               "degrees_of_freedom": 5.414697980463125,
               "critical_value": 1.981453236635844,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 3139.556858769657
             }
@@ -1041,6 +1311,7 @@
               "degrees_of_freedom": 1.642333168218323,
               "critical_value": 3.4034297497595696,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 8686.682683547093
             }
@@ -1076,6 +1347,7 @@
               "degrees_of_freedom": 20.82769815788153,
               "critical_value": 1.7213994120786653,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 23260.11864210974
             }
@@ -1111,6 +1383,7 @@
               "degrees_of_freedom": 8.403824660357726,
               "critical_value": 1.8480299086446357,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 3693.0496012271724
             }
@@ -1146,6 +1419,7 @@
               "degrees_of_freedom": 5.955221978192646,
               "critical_value": 1.9458000974492244,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 24806.225924262853
             }
@@ -1181,6 +1455,7 @@
               "degrees_of_freedom": 15.30722503157286,
               "critical_value": 1.7507427815218024,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -1216,6 +1491,7 @@
               "degrees_of_freedom": 7.542163041653499,
               "critical_value": 1.8742880352184104,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 2634.9555404091916
             }
@@ -1251,6 +1527,7 @@
               "degrees_of_freedom": 5.467275028284523,
               "critical_value": 1.9776213340914823,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 16988.684580791574
             }
@@ -1286,6 +1563,7 @@
               "degrees_of_freedom": 1.5916566522037094,
               "critical_value": 3.5008773309875925,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 19555.806897189443
             }
@@ -1321,6 +1599,7 @@
               "degrees_of_freedom": 43.74847907029522,
               "critical_value": 1.6804377416820546,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -1356,6 +1635,7 @@
               "degrees_of_freedom": 31.95933745493954,
               "critical_value": 1.6939529817574903,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 1275.3972703326813
             }
@@ -1391,6 +1671,7 @@
               "degrees_of_freedom": 8.458146335409491,
               "critical_value": 1.8465738468461055,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -1401,6 +1682,86 @@
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
         "fields": {
+          "cpool.out soil carbon": {
+            "memory": {
+              "tau_cycles": 89.87882518774273,
+              "effective_samples": 13.940992190125762,
+              "reliable": true,
+              "lag1": 0.9989172455407254
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.011296820325575219,
+                0.00816363478298765,
+                0.013546055192334094
+              ],
+              "step_standard_errors": [
+                0.005653703886788342,
+                0.005447796529675612,
+                0.0019950998529396774
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.006012653896404758,
+              "relative_standard_error": 0.003038237909193068,
+              "upper_bound": 0.015262012958537293,
+              "tau_cycles": 483.54600901222966,
+              "effective_samples_per_half": 1.2946027644375977,
+              "degrees_of_freedom": 1.8857210952366714,
+              "critical_value": 3.044316916113094,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "pedology/scripts/build_soil.py"
+            ]
+          },
+          "cpool.out total carbon": {
+            "memory": {
+              "tau_cycles": 212.68499249184023,
+              "effective_samples": 5.891341863474791,
+              "reliable": false,
+              "lag1": 0.9971474443241286
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.03956138551848376,
+                0.03500367501052004,
+                0.08581240454357797
+              ],
+              "step_standard_errors": [
+                0.043008775303949656,
+                0.07559668368762022,
+                0.06625559431825744
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.011253778107297089,
+              "relative_standard_error": 0.011333094464492183,
+              "upper_bound": 0.05029712154718921,
+              "tau_cycles": 319.4898688462683,
+              "effective_samples_per_half": 1.9593735546625983,
+              "degrees_of_freedom": 1.6200493233144784,
+              "critical_value": 3.4450735024065287,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/config/lpj_acceptance.yaml closure.carbon"
+            ]
+          }
+        },
+        "columns": {
           "VegC": {
             "memory": {
               "tau_cycles": 184.13924314256468,
@@ -1432,6 +1793,7 @@
               "degrees_of_freedom": 2.6716903260769547,
               "critical_value": 2.4760730118642513,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 7412.091655981424
             }
@@ -1467,6 +1829,7 @@
               "degrees_of_freedom": 8.40190518238538,
               "critical_value": 1.8480817425310139,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 3728.3116787075755
             }
@@ -1502,6 +1865,7 @@
               "degrees_of_freedom": 1.8857210952366714,
               "critical_value": 3.044316916113094,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -1537,6 +1901,7 @@
               "degrees_of_freedom": 1.6200493233144784,
               "critical_value": 3.4450735024065287,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 1253.0
             }
@@ -1547,6 +1912,50 @@
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
         "fields": {
+          "npool.out total nitrogen": {
+            "memory": {
+              "tau_cycles": 90.8783328581162,
+              "effective_samples": 13.78766489869754,
+              "reliable": true,
+              "lag1": 0.9895202236912662
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0016268169074192818,
+                0.0016133475986968016,
+                0.001836723431748566
+              ],
+              "step_standard_errors": [
+                0.0003782369771314801,
+                0.00041500030035777956,
+                0.0003830801075005056
+              ],
+              "admissible": false,
+              "ratio": 0.9917204519690864,
+              "ratio_standard_error": 0.34386218305626387,
+              "lower_bound_cycles": Infinity,
+              "reason": "a contraction of 0.992 +/- 0.344 reaches one, so this record carries no curvature and the timescale it implies is a lower bound"
+            },
+            "drift": {
+              "relative_drift": 0.00925965276747794,
+              "relative_standard_error": 0.0034640360096197228,
+              "upper_bound": 0.01943502192761984,
+              "tau_cycles": 490.69977804265386,
+              "effective_samples_per_half": 1.2757291280975172,
+              "degrees_of_freedom": 1.9827034942287585,
+              "critical_value": 2.937431692939859,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/config/lpj_acceptance.yaml closure.nitrogen"
+            ]
+          }
+        },
+        "columns": {
           "VegN": {
             "memory": {
               "tau_cycles": 148.86959270376633,
@@ -1578,6 +1987,7 @@
               "degrees_of_freedom": 3.5364983139314377,
               "critical_value": 2.2147155876391693,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 2130.6894986167563
             }
@@ -1613,6 +2023,7 @@
               "degrees_of_freedom": 14.654302299396235,
               "critical_value": 1.755770046203238,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -1651,6 +2062,7 @@
               "degrees_of_freedom": 1.9668462151543267,
               "critical_value": 2.9538304712514583,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -1689,6 +2101,7 @@
               "degrees_of_freedom": 1.9827034942287585,
               "critical_value": 2.937431692939859,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -1699,6 +2112,47 @@
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
         "fields": {
+          "aaet.out total evapotranspiration": {
+            "memory": {
+              "tau_cycles": 66.24543202846752,
+              "effective_samples": 18.91451171246873,
+              "reliable": true,
+              "lag1": 0.8484026257672971
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0328646707012723,
+                0.21737833442990961,
+                -0.36932350169227846
+              ],
+              "step_standard_errors": [
+                0.2624993754136083,
+                0.31493771317761804,
+                0.297963671503764
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.0009770186990936027,
+              "relative_standard_error": 0.006099411856324421,
+              "upper_bound": 0.012529086048928927,
+              "tau_cycles": 134.8421752739414,
+              "effective_samples_per_half": 4.642464412400918,
+              "degrees_of_freedom": 7.015127117120719,
+              "critical_value": 1.8939641430930916,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/config/lpj_acceptance.yaml closure.water"
+            ]
+          }
+        },
+        "columns": {
           "BNE": {
             "memory": {
               "tau_cycles": 63.49053967945203,
@@ -1730,6 +2184,7 @@
               "degrees_of_freedom": 7.643260980962477,
               "critical_value": 1.8708623497944659,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 3440.7059036752116
             }
@@ -1765,6 +2220,7 @@
               "degrees_of_freedom": 6.202266020187403,
               "critical_value": 1.931890038956501,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 2643.7816972811665
             }
@@ -1800,6 +2256,7 @@
               "degrees_of_freedom": 1.9914541942093258,
               "critical_value": 2.9285488113540774,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 8865.905802348172
             }
@@ -1835,6 +2292,7 @@
               "degrees_of_freedom": 26.154719139223584,
               "critical_value": 1.7052454392286096,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 19698.38696384919
             }
@@ -1870,6 +2328,7 @@
               "degrees_of_freedom": 10.607096935845568,
               "critical_value": 1.8019916688509323,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 2706.508624860576
             }
@@ -1905,6 +2364,7 @@
               "degrees_of_freedom": 5.632897627210124,
               "critical_value": 1.9660971939102403,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 26128.10214049705
             }
@@ -1940,6 +2400,7 @@
               "degrees_of_freedom": 49.17711638963084,
               "critical_value": 1.6764345483184895,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -1975,6 +2436,7 @@
               "degrees_of_freedom": 3.3835589921421487,
               "critical_value": 2.2484890845513377,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 4594.205079436191
             }
@@ -2010,6 +2472,7 @@
               "degrees_of_freedom": 4.5500414109097855,
               "critical_value": 2.0599127666010406,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 16379.19332618219
             }
@@ -2045,6 +2508,7 @@
               "degrees_of_freedom": 1.6587892598294758,
               "critical_value": 3.3738179901215393,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 24801.097260848288
             }
@@ -2080,6 +2544,7 @@
               "degrees_of_freedom": 58.20332130607257,
               "critical_value": 1.6714579894738517,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -2115,6 +2580,7 @@
               "degrees_of_freedom": 37.90151378804575,
               "critical_value": 1.6860639171526208,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": false,
               "record_cycles_for_bound": 1256.6898077196772
             }
@@ -2150,6 +2616,7 @@
               "degrees_of_freedom": 7.015127117120719,
               "critical_value": 1.8939641430930916,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -2160,6 +2627,47 @@
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
         "fields": {
+          "tot_runoff.out total runoff": {
+            "memory": {
+              "tau_cycles": 11.465674126102478,
+              "effective_samples": 109.28271519137722,
+              "reliable": true,
+              "lag1": 0.6795444799861838
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.06476593541859188,
+                -0.09913894108325394,
+                0.14504416927965735
+              ],
+              "step_standard_errors": [
+                0.06364148918378326,
+                0.06461953020558857,
+                0.06959381893605425
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.0009196067077512375,
+              "relative_standard_error": 0.0012888558330747743,
+              "upper_bound": 0.0030961811119858563,
+              "tau_cycles": 32.84839446897379,
+              "effective_samples_per_half": 19.057248006178025,
+              "degrees_of_freedom": 35.626821013922246,
+              "critical_value": 1.688764831860246,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/config/lpj_acceptance.yaml closure.water"
+            ]
+          }
+        },
+        "columns": {
           "Surf": {
             "memory": {
               "tau_cycles": 72.02774769744242,
@@ -2191,6 +2699,7 @@
               "degrees_of_freedom": 5.836533593112716,
               "critical_value": 1.952970584838886,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -2226,6 +2735,7 @@
               "degrees_of_freedom": 10.383898013761197,
               "critical_value": 1.8056854778820173,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -2261,6 +2771,7 @@
               "degrees_of_freedom": 20.716006361372948,
               "critical_value": 1.7218310823320957,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
@@ -2296,6 +2807,7 @@
               "degrees_of_freedom": 35.626821013922246,
               "critical_value": 1.688764831860246,
               "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
               "settled": true,
               "record_cycles_for_bound": 1253.0
             }
