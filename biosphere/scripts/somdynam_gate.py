@@ -14,16 +14,22 @@ line of the same file.
 `biosphere/config/somdynam.yaml` is the declaration and this module is the
 enforcement. The subject is `modules/somdynam.cpp` with the `modules/soil.cpp`
 initialisation that pairs with it: the two saturation thresholds, the five
-`setptoc` calls that read them, the lines the phosphorus argument rests on, and
-every place this project's source departs from the vendored LPJ-GUESS-CNP fork.
+`setptoc` calls that read them, the lines the argument rests on, and every place
+this project's source departs from what it was given.
 
-THE REFERENCE POINT IS A SUBTREE COMMIT AND NOT A RELEASE. `ntransform_gate.py`
-checks divergences from LPJ-GUESS 4.1.1, which can be named by Zenodo record and
-SVN revision. LPJ-GUESS 4.1.1 has no phosphorus at all, so nothing here can be
-compared against a release: the whole path arrived with the CNP fork, and the
-only fixed point a divergence can be measured against is the commit that subtree
-was imported at. The declaration carries that commit and this module refuses a
-register that names none.
+THERE ARE TWO REFERENCE POINTS AND EACH DIVERGENCE NAMES ITS OWN.
+`ntransform_gate.py` checks one file that is stock LPJ-GUESS 4.1.1 throughout,
+so one release covers it. This file is not one thing. Its phosphorus path --
+pmass_labile, setptoc, the sorption isotherm, PMASS_SAT and PCONC_SAT -- exists
+in no LPJ-GUESS release: it arrived with the CNP fork, and the only fixed point
+a divergence in it can be measured against is the commit that subtree was
+imported at. The CENTURY carbon and nitrogen operator around it IS 4.1.1's,
+inherited byte-identical, so a divergence in that is a change to default-on
+behaviour in a widely used community model and is measured against the release.
+`measured_against` says which, per entry, and this module refuses an entry that
+says neither, a register naming no subtree commit, and a register whose entries
+measure themselves against a release it does not name. One reference point over
+the whole register would have to be the weaker of the two for every entry.
 
 It can fail:
 
@@ -40,7 +46,7 @@ It can fail:
                while the phosphorus-limitation-off pin reads the same symbol, so
                the pin going is the argument being reverted without the constant
                moving
-  divergence   a declared divergence from the vendored CNP fork whose form the
+  divergence   a declared divergence whose recorded form the
                model no longer records beside the changed one, which it has gone
                back to running, or whose changed line it no longer contains. All
                three are checked, because a divergence that is not recorded is a
@@ -122,6 +128,16 @@ MAINLINE_FORMS = ("line", "commented_out")
 # this project runs and waiting in the one it does not; `neither` is an entry
 # whose value the model overwrites before reading.
 BITES = ("both", "ifplim_0", "ifplim_1", "neither")
+
+# What a divergence is measured against, per entry. `modules/somdynam.cpp` is
+# not one thing: its phosphorus path arrived with the CNP fork and exists in no
+# LPJ-GUESS release, so a divergence in it can be measured against nothing but
+# the commit the subtree was imported at; the CENTURY carbon and nitrogen
+# operator around it is stock 4.1.1, which the fork inherited byte-identical, so
+# a divergence in that is a change to default-on behaviour in a widely used
+# community model and is measured against the release. One reference point over
+# the whole register would have to be the weaker of the two for every entry.
+MEASURED_AGAINST = ("fork", "release")
 
 
 def _strip_comments(text: str) -> str:
@@ -233,8 +249,19 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
     if not re.search(r"\b[0-9a-f]{40}\b", reference):
         bad("mainline_divergences",
             "the register's reference names no subtree commit. The phosphorus "
-            "path is not in any LPJ-GUESS release, so a divergence here can be "
+            "path is not in any LPJ-GUESS release, so a divergence in it can be "
             "measured against nothing else")
+    against = {e.get("measured_against") for e in register.get("entries", [])}
+    if "release" in against:
+        release = register.get("release") or ""
+        if not release:
+            bad("mainline_divergences",
+                "an entry is measured against the release and the register "
+                "names none")
+        elif not re.search(r"\b\d{6,}\b", release):
+            bad("mainline_divergences",
+                "the register's release names no Zenodo record, and an entry "
+                "measures itself against it")
     arms = register.get("execution_arms")
     if arms is None or not isinstance(arms, dict):
         bad("mainline_divergences",
@@ -254,6 +281,12 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
             bad(what, f"unknown divergence verdict {entry.get('verdict')!r}")
         if not entry.get("owner"):
             bad(what, "a divergence naming no owner")
+        if entry.get("measured_against") not in MEASURED_AGAINST:
+            bad(what, (f"unknown measured_against {entry.get('measured_against')!r}. "
+                       "This source file holds both the fork's own phosphorus "
+                       "path and stock 4.1.1's CENTURY operator, so an entry has "
+                       "to say which reference point its `mainline` is the form "
+                       "of"))
         if entry.get("bites_under") not in BITES:
             bad(what, (f"unknown bites_under {entry.get('bites_under')!r}. An entry "
                        "inert under the configuration this project runs is waiting, "
@@ -505,6 +538,13 @@ def _fixtures(declaration: dict, sources: dict) -> list[dict]:
          mutate(lambda d: d["mainline_divergences"]["execution_arms"]
                 .__setitem__("an_arm_nobody_claims", {})),
          "divergence"),
+        ("a divergence saying nothing about which reference point it is "
+         "measured against",
+         mutate(divergence_claim("passivesom_cton_ramp", "measured_against", None)),
+         "divergence"),
+        ("a divergence measured against a release the register does not name",
+         mutate(lambda d: d["mainline_divergences"].pop("release")),
+         "divergence"),
         ("a register whose reference names no subtree commit",
          mutate(lambda d: d["mainline_divergences"].__setitem__(
              "reference", "the CNP fork")),
@@ -575,6 +615,7 @@ def main() -> int:
          "owner": entry.get("owner", "?"),
          "source_file": entry.get("source_file", "?"),
          "bites_under": entry.get("bites_under", "?"),
+         "measured_against": entry.get("measured_against", "?"),
          "execution": entry.get("execution", "?")}
         for entry in register.get("entries", [])
     ]
@@ -592,6 +633,7 @@ def main() -> int:
         "sources": sorted(sources),
         "findings": findings,
         "fork_reference": register.get("reference"),
+        "release": register.get("release"),
         "divergences": divergences,
         "unsourced_constants": unsourced,
         "execution_arms": sorted(arms),
@@ -619,16 +661,22 @@ def main() -> int:
         else:
             print("  the declaration matches the source and every ramp holds its range")
         kept = [d for d in divergences if d["verdict"] == "keep"]
-        print(f"\n  {len(divergences)} declared divergence(s) from the vendored CNP fork,")
-        print(f"  {len(kept)} kept and {len(gated)} gated. The reference point is a")
-        print("  SUBTREE COMMIT and not a release: LPJ-GUESS 4.1.1 has no phosphorus,")
-        print(f"  so there is nothing else to measure these against.\n    {register.get('reference')}")
+        fork = [d for d in divergences if d["measured_against"] == "fork"]
+        print(f"\n  {len(divergences)} declared divergence(s) in this source file,")
+        print(f"  {len(kept)} kept and {len(gated)} gated, against TWO reference")
+        print(f"  points. {len(fork)} are measured against a SUBTREE COMMIT, because")
+        print("  LPJ-GUESS 4.1.1 has no phosphorus and there is nothing else to")
+        print(f"  measure those against:\n    {register.get('reference')}")
+        print(f"  {len(divergences) - len(fork)} are in the CENTURY operator the fork "
+              "inherited byte-identical,")
+        print(f"  and are measured against the release:\n    {register.get('release')}")
         print(f"  {len(executed)} of {len(divergences)} claim a matched "
               "execution arm, per entry and not per register. Each says for")
         print("  itself which arm covers it, or why none does.")
         for item in divergences:
             print(f"    [{item['verdict']}] {item['id']}  bites under "
-                  f"{item['bites_under']}  ({item['source_file']})  "
+                  f"{item['bites_under']}  vs {item['measured_against']}  "
+                  f"({item['source_file']})  "
                   f"[{item['owner']}]  execution: {item['execution']}")
         if unsourced:
             print(f"\n  {len(unsourced)} saturation constant(s) with no phosphorus source,")

@@ -26,26 +26,27 @@
 # The argument, and what each number is calibrated against, is
 # `biosphere/notes/phosphorus-cycle-parameterisation.md`.
 
-# EVERY DIVERGENCE FROM THE VENDORED CNP FORK, WITH ITS VERDICT.
+# EVERY DIVERGENCE IN THIS SOURCE FILE, WITH ITS VERDICT.
 #
-# THE REFERENCE POINT IS A SUBTREE COMMIT AND NOT A RELEASE, and that is the one
-# structural difference from `biosphere/config/ntransform.yaml`. The soil
-# nitrogen transformation operator is stock LPJ-GUESS 4.1.1, which can be named
-# by Zenodo record and SVN revision, so its register carries a `release`. The
-# phosphorus path does not exist in 4.1.1 at all: it is the CNP fork's own work,
-# vendored as a git subtree, so the only thing a divergence here can be measured
-# against is the commit that subtree was imported at. `reference` carries that
-# commit, and the gate refuses a register that names no reference.
+# THERE ARE TWO REFERENCE POINTS AND EACH ENTRY NAMES ITS OWN, which is the one
+# structural difference from `biosphere/config/ntransform.yaml`. That operator
+# is stock LPJ-GUESS 4.1.1 throughout, so one `release` covers it.
+# `modules/somdynam.cpp` is not one thing: its phosphorus path -- pmass_labile,
+# setptoc, the sorption isotherm, PMASS_SAT and PCONC_SAT -- does not exist in
+# 4.1.1 at all and arrived with the CNP fork, while the CENTURY carbon and
+# nitrogen operator around it is 4.1.1's. A divergence in the first can be
+# measured against nothing but the commit the subtree was imported at; a
+# divergence in the second is a change to default-on behaviour in a widely used
+# community model and is measured against the release. `measured_against` says
+# which, `reference` carries the subtree commit and `release` the record, and
+# the gate refuses an entry that claims neither and a register missing the one
+# its entries claim.
 #
-# The second difference follows from it. A divergence from a release is a change
-# to default-on behaviour in a widely used community model. A divergence here is
-# a change to a fork whose phosphorus arm this project does not yet run:
-# `data/ins/global.ins` keeps `ifplim 0` and `framework/parameters.cpp` refuses
-# `ifplim 1` outright. `bites_under` records which configuration each entry is
-# live in, because an entry that is inert under `ifplim 0` is not thereby
-# harmless -- it is waiting. Its vocabulary names the PHOSPHORUS switch, since
-# that is the one the entries below turn on; an entry armed by a different
-# switch says `both` and names its own in `settles`.
+# `bites_under` records which configuration each entry is live in, because an
+# entry that is inert under `ifplim 0` is not thereby harmless -- it is waiting.
+# Its vocabulary names the PHOSPHORUS switch, since that is the one most entries
+# below turn on; an entry armed by a different switch says `both` and names its
+# own in `settles`.
 #
 # `verdict` is what this project decided about the change, not what the
 # arithmetic says:
@@ -73,13 +74,17 @@
 #                 line that would support the stronger one
 mainline_divergences:
   reference: "LPJ-GUESS-CNP v1.0, mateusdp/LPJ-GUESS-NTD, subtree commit b368b893c4324840b43c56866e901c6916858afb, vendored at vendor/lpj-guess"
+  release: "LPJ-GUESS 4.1.1, Zenodo record 8065737, SVN r10118, MPL-2.0"
   not_a_release: >
-    LPJ-GUESS 4.1.1 has no phosphorus. The whole of this path -- pmass_labile,
+    LPJ-GUESS 4.1.1 has no phosphorus. The whole of that path -- pmass_labile,
     setptoc, the sorption isotherm, PMASS_SAT and PCONC_SAT -- arrived with the
-    CNP fork, so there is no release form to compare against and no Zenodo
-    record or SVN revision to name. The subtree commit is the reference point,
-    and `docs/src/reference/vendored-upstreams.md` carries the pull command that
-    reproduces it.
+    CNP fork, so an entry measured against `fork` has no release form to compare
+    against and no Zenodo record or SVN revision to name. The subtree commit is
+    that entry's reference point, and
+    `docs/src/reference/vendored-upstreams.md` carries the pull command that
+    reproduces it. An entry measured against `release` is one in the CENTURY
+    carbon and nitrogen operator this file also holds, which the fork inherited
+    byte-identical, and its reference point is the release above.
   # THE MATCHED ARMS THAT HAVE RUN, by name, and an entry below claims one of
   # these by name or declares that none covers it. WHETHER A DIVERGENCE HAS BEEN
   # EXECUTED IS A PROPERTY OF THE ENTRY: a boolean here would be one answer over
@@ -104,6 +109,7 @@ mainline_divergences:
     `biosphere/config/ntransform.yaml` describes.
   entries:
     - id: pmass_sat_labile_currency
+      measured_against: fork
       owner: world-z01o
       execution: none
       why_no_execution: >
@@ -153,6 +159,7 @@ mainline_divergences:
         pools ramp instead of saturating, and moving each from its minimum to
         the midpoint of its own range multiplies its C:P by 5.5, 1.61 and 1.83.
     - id: surfhumus_ptoc_ramp
+      measured_against: fork
       owner: world-shcp
       execution: none
       why_no_execution: >
@@ -193,6 +200,7 @@ mainline_divergences:
         three. transferdecomp reads sompool[receiver].ptoc with no ifplim guard,
         so this is the one entry of the three that is live in both.
     - id: surfhumus_ptoc_init
+      measured_against: fork
       owner: world-shcp
       execution: none
       why_no_execution: >
@@ -225,6 +233,7 @@ mainline_divergences:
         overwrote it. Reverting the ramp alone would make it load-bearing again,
         which is what the ramp entry's third check refuses.
     - id: labile_carbon_paths
+      measured_against: fork
       owner: world-vyvn
       execution: none
       why_no_execution: >
@@ -321,6 +330,54 @@ mainline_divergences:
         no visible change in what the simulated plants take up is expected.
         None of this is execution-verified and it cannot be until an LPJ run
         reaches acceptance: `world-qcse`.
+    - id: passivesom_cton_ramp
+      owner: world-xfif
+      measured_against: release
+      execution: none
+      why_no_execution: >
+        No LPJ-GUESS run this project has made has passed acceptance, so there
+        is no run whose soil nitrogen could carry a comparison arm.
+        `world-qcse` and `world-rnns` establish that none could have. The
+        divergence has not been run in either direction.
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/soil.cpp
+      mainline_form: line
+      mainline: ["sompool[PASSIVESOM].ntoc = 1.0 / 9.0;"]
+      live: "sompool[PASSIVESOM].ntoc = 1.0 / 10.0;"
+      bites_under: both
+      settles: >
+        Where 9 came from, which is nowhere, and what the model's own cited
+        source says instead. Smith et al. (2014) Table C1 and Appendix C, which
+        is LPJ-GUESS's own documentation of this scheme, states that the soil
+        passive pool has a fixed C:N ratio of 9 and attributes it to Parton et
+        al. (2010). This project holds and has read that paper: the string "C:N"
+        does not occur in it and nothing in it gives a pool C:N. The same
+        attribution carries the soil microbial, surface humus and slow bounds in
+        the same table. The phosphorus side of this fork hit the identical
+        citation and the identical paper under SDEC-2, so this is one
+        miscitation reaching both elements.
+        The two Parton papers this project does hold say two different things
+        and neither says 9. Parton, Stewart and Cole (1988) p. 114 fixes every
+        soil pool's C:N -- structural 150, active 8, slow 11, passive 11 -- and
+        ramps only C:P, in the Fig. 3 setptoc runs. Parton et al. (1993) Fig.
+        4(a), the figure setntoc and NMASS_SAT both cite, ramps the active, slow
+        AND passive pools against the mineral N pool; the passive line is the
+        one of its three this block never called setntoc for, and the fork's own
+        comment at the initialiser asked why. Its high end is 10 in the figure
+        and in the text on p. 791 alike, which is what this initialiser becomes.
+        The low end is 7 in the text and 3.2 in the figure and the ramp entry
+        under `invariants` carries which was compiled and the check that decided
+        it.
+      worth: >
+        Nothing on its own, and that is why it is paired with the ramp. setntoc
+        overwrites this on the first call to somfluxes, exactly as setptoc
+        overwrites the four C:P initialisers beside it, so the value is not
+        load-bearing while the ramp runs. It was load-bearing for the whole of a
+        run in mainline and in the fork, where nothing overwrote it. What the
+        PAIR is worth is at the ramp: 9 to 7 is 1.29 times as much nitrogen
+        immobilised per unit carbon entering the pool with the longest residence
+        time in the model.
 
 # The two saturation constants, checked against the source that declares them.
 # `declaration` is matched verbatim against modules/somdynam.cpp with comments
@@ -455,6 +512,47 @@ ramps:
 invariants:
   source_file: vendor/lpj-guess/modules/somdynam.cpp
   entries:
+    - name: passive_cton_is_re_derived
+      line: "setntoc(soil, nmin_mass, PASSIVESOM, 10.0, 7.0, 0.0, NMASS_SAT);"
+      why: >
+        This is the other half of `passivesom_cton_ramp` and it is an ADDED
+        line: mainline runs nothing here, so there is no form to record beside
+        it and the divergence register's three checks cannot reach it. Pinning
+        the whole call pins the pair as well, since both endpoints and the
+        saturation symbol are in it.
+        The pair is Parton et al. (1993) Fig. 4(a)'s passive line, and the two
+        ends are settled differently. The high end is 10 and is unambiguous: the
+        dash-dot line starts at 10.0 at zero mineral N and p. 791 states 10 as
+        the range's upper end. The low end is 7 in the text and 3.2 in the
+        figure, which is a disagreement inside one paper. Read off Fig. 4(a) at
+        600 dpi against its own ticks at 0, 5, 10, 15 and 20, the three lines
+        break at 2.0 gN/m2 and flatten at slow 12.06, passive 3.17 and active
+        2.14, where p. 791 gives the ranges as slow 12-20, passive 7-10 and
+        active 3-15; the slow line agrees exactly, so the disagreement is the
+        paper's and not a reading error.
+        7 IS COMPILED IN, ON A CHECK THAT COULD HAVE GONE THE OTHER WAY. This
+        model resolves the same conflict the same way for the pool where it does
+        implement the ramp: Smith et al. (2014) Table C1 gives the soil
+        microbial pool 5-15 where Fig. 4(a)'s active line reaches 2.14 and its
+        text says 3, so LPJ-GUESS took the text's arm, and the call above it in
+        the source takes 6. Following the figure here instead would put the
+        passive pool at a C:N of 3.2, below the C:N of soil microbial biomass
+        and so below anything the material it stands for is measured at, where
+        the text's 7 is not. The figure's own low ends are the part of it that
+        is schematic.
+        WHAT THE RAMP IS WORTH is not what its endpoints span, because
+        NMASS_SAT is 1.0e-4 kgN/m2 against the 2.0 gN/m2 at which Fig. 4(a)'s
+        lines break: on this fmax the pool sits at 7 over almost the whole
+        attainable range of the driver, so the change is worth close to 9/7 =
+        1.29 times as much nitrogen immobilised per unit carbon entering the
+        pool with the longest residence time in the model. WORLD-LNZN owns the
+        fmax and the ramp is right whichever way that row goes.
+        PASSIVESOM IS RE-DERIVED HERE AND NEVER FLEXED, which is the direction
+        that cannot ratchet: the N immobilisation branch scales SLOWSOM,
+        SOILMICRO and SURFHUMUS down and nothing else resets them, so adding
+        this call makes the re-derived set a superset of the flexed set. That is
+        the same asymmetry the phosphorus block records for this pool, and
+        WORLD-16PB is what happens in the other direction.
     - name: labile_p_pin_reads_the_threshold
       line: "soil.pmass_labile = PMASS_SAT;"
       why: >

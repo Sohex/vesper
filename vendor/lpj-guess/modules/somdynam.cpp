@@ -917,6 +917,61 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 
 	setntoc(soil, nmin_mass, SURFHUMUS, 30.0, 15.0, 0.0, NMASS_SAT);
 
+	// DECLARED DIVERGENCE FROM MAINLINE: passivesom_cton_ramp, owner
+	// WORLD-XFIF, registered in biosphere/config/somdynam.yaml. Mainline
+	// LPJ-GUESS 4.1.1 and the vendored CNP fork make no such call: the passive
+	// pool's C:N is initialised once in soil.cpp and never re-derived, which is
+	// the only one of Fig. 4(a)'s three lines this block does not run. The
+	// argument for the pair, and for where 9 came from, is at that initialiser.
+	//
+	// THE PAIR IS PARTON ET AL. (1993) Fig. 4(a)'s passive line, and its two
+	// ends are not settled the same way.
+	//
+	// The high end is 10 and is unambiguous: the figure's dash-dot line starts
+	// at 10.0 at zero mineral N, measured against its own axis calibration, and
+	// p. 791 states the passive range's upper end as 10 as well.
+	//
+	// The low end is 7 from p. 791 and 3.2 from the figure, and the two are the
+	// same paper. Read off Fig. 4(a) at 600 dpi against ticks at 0, 5, 10, 15
+	// and 20, the three lines break at 2.0 gN/m2 and flatten at slow 12.06,
+	// passive 3.17 and active 2.14; the text on the facing column gives the
+	// ranges as slow 12-20, passive 7-10 and active 3-15. The slow line agrees
+	// exactly and the other two do not, so the disagreement is the paper's own
+	// and not a reading error.
+	//
+	// 7 IS COMPILED IN, ON A CHECK THAT COULD HAVE GONE THE OTHER WAY. This
+	// model's own documentation resolves the same conflict the same way for the
+	// pool where it implements the ramp: Smith et al. (2014) Table C1 gives the
+	// soil microbial pool 5-15, where Fig. 4(a)'s active line reaches 2.14 and
+	// its text says 3. LPJ-GUESS took the text's arm and rounded away from the
+	// figure, and the call above takes 6. Following the figure here instead
+	// would give the passive pool a C:N of 3.2, which is below the C:N of soil
+	// microbial biomass itself and so below anything the material it stands for
+	// is measured at; the text's 7 is not. The figure's own low ends are the
+	// part of it that is schematic.
+	//
+	// WHAT IT IS WORTH. sompool[PASSIVESOM].ntoc is the N:C at which the
+	// passive pool RECEIVES carbon, applied in transferdecomp() to the flows
+	// from SLOWSOM and from SOILMICRO, so it sets the nitrogen immobilised into
+	// the slowest pool this model has: K_MAX 1.9e-6/day, of order 1400 years.
+	// NMASS_SAT is 1.0e-4 kgN/m2 against the 2.0 gN/m2 at which Fig. 4(a)'s
+	// lines break, so on this fmax the ramp saturates at a twentieth of the
+	// driver the figure saturates at and the pool sits at 7 over almost the
+	// whole attainable range of nmin_mass. The change is therefore worth close
+	// to its endpoint: 9/7 = 1.29 times as much nitrogen locked per unit carbon
+	// entering the passive pool, and the steady-state mineral nitrogen after
+	// equilsom falls by whatever that costs. WORLD-LNZN owns the fmax, and the
+	// ramp is right whichever way that row goes.
+	//
+	// PASSIVESOM IS RE-DERIVED HERE AND NEVER FLEXED. The N immobilisation
+	// branch below scales the ntoc of SLOWSOM, SOILMICRO and SURFHUMUS down and
+	// nothing resets them except these calls; the passive pool is not in that
+	// branch, so adding it here makes the re-derived set a superset of the
+	// flexed set rather than the other way round. That is the direction that
+	// cannot ratchet, and it is the same asymmetry the phosphorus block below
+	// records for this pool.
+	setntoc(soil, nmin_mass, PASSIVESOM, 10.0, 7.0, 0.0, NMASS_SAT);
+
 	// Set P:C ratios for the slow, passive and soil microbial pools from the
 	// labile P pool. The three (ctop_max, ctop_min) pairs are Parton, Stewart
 	// and Cole (1988) Fig. 3, p. 115, line for line. The saturating value of

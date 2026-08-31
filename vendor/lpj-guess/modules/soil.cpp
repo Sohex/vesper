@@ -110,8 +110,40 @@ void Soil::init_states() {
 	sompool[SLOWSOM].ptoc = 1.0 / 90.0;
 	sompool[SURFMICRO].ptoc = 1.0 / 35.0;*/
 
-	// passive has a fixed value (why? passive SOM should also vary.)
-	sompool[PASSIVESOM].ntoc = 1.0 / 9.0;
+	// DECLARED DIVERGENCE FROM MAINLINE: passivesom_cton_ramp, owner
+	// WORLD-XFIF, registered in biosphere/config/somdynam.yaml. Mainline
+	// LPJ-GUESS 4.1.1 and the vendored CNP fork both hold the passive pool's
+	// C:N at a fixed 9 for the whole of a run, under the fork's own unanswered
+	// question:
+	//     // passive has a fixed value (why? passive SOM should also vary.)
+	//     sompool[PASSIVESOM].ntoc = 1.0 / 9.0;
+	// It does vary, in the source the model cites for the other three pools.
+	//
+	// WHERE 9 COMES FROM, AND IT IS NOWHERE. Smith et al. (2014) Appendix C and
+	// Table C1, which is LPJ-GUESS's own documentation of this scheme, states
+	// "The soil passive pool has a fixed C:N ratio of 9 (Parton et al., 2010)".
+	// That paper is ForCent, references/pdf/parton2010-forcent.pdf, which this
+	// project holds and has read: the string "C:N" does not occur in it, and
+	// nothing in it gives a pool C:N ratio. The same paper is cited in Table C1
+	// for the soil microbial, surface humus and slow bounds, and contains those
+	// no more than it contains this one. The phosphorus side of this fork hit
+	// the identical citation and the identical paper, under SDEC-2.
+	//
+	// WHAT THE TWO PARTON PAPERS THIS PROJECT HOLDS ACTUALLY SAY. Parton,
+	// Stewart and Cole (1988) p. 114 assumes "the C:N ratio of structural
+	// (150), active (8), slow (11), and passive (11) soil fractions remain
+	// fixed", so that model fixes every pool's C:N and puts the passive one at
+	// 11; it ramps only C:P, in its Fig. 3, which is what setptoc() runs.
+	// Parton et al. (1993) Fig. 4(a) -- the figure setntoc() and NMASS_SAT both
+	// cite -- ramps the active, slow AND passive pools against the mineral N
+	// pool, and the passive line is the one this model never called setntoc()
+	// for. Its high end is 10 at zero mineral N in the figure and in the text
+	// on p. 791 alike.
+	//
+	// So this initialiser is the cton_max end of that line, and somdynam.cpp's
+	// setntoc() overwrites it on the first call to somfluxes(), which is the
+	// same construction the four C:P initialisers above have.
+	sompool[PASSIVESOM].ntoc = 1.0 / 10.0;
 
 	sompool[PASSIVESOM].ptoc = 1.0 / 200.0;
 	//sompool[PASSIVESOM].ptoc = 1.0 / 90.0;
