@@ -173,13 +173,37 @@ bucket, which changes evaporation, which changes P - E, which is the numerator
 of the carve criterion. With it set, `run_exoplasim.py` REFUSES to start
 without staged code 229.
 
-**Code 229 exists at T21 and nowhere else, and the step that writes it cannot
-be run at another rung.** `build_surface_soil_water.py` takes its grid and its
-land mask from a climatology -- it has no `--grid` -- and the only climatology
-on the active build is T21's. `config/pipeline.yaml` makes that an edge rather
-than an oversight: `surface_soil_water` needs `bootstrap_climatology`, because
-a staged surface field is an INPUT to the run whose output would otherwise
-build it.
+**Code 229 exists at T21 and nowhere else, and it is the ONLY field in the
+family in that position.** Every other staged field takes a `--grid` and can be
+cut at any exported rung; `exoplasim/inputs/t42` carries all thirteen of them.
+`build_surface_soil_water.py` takes no `--grid` at all. It reads the grid and
+the land mask off a climatology and calls `require_configured_grid` on it, so
+with `model.resolution: T42` it refuses every climatology this project has.
+
+**And the dependency is on the grid, not on the climate.** The builder says so
+itself: what it takes from the climatology "is the grid and the boundary land
+mask, and nothing else: the water capacity itself comes from the land column
+states, which pedology weathered under a climate of their own." The mask is a
+pure function of the terrain and `build_boundary_conditions.py` already writes
+it at every rung as code 172. So the field's content is rung-independent and
+only its CARRIER pins it to T21. WORLD-QGB6.
+
+`config/pipeline.yaml` makes the climatology edge real rather than an
+oversight -- `surface_soil_water` needs `bootstrap_climatology`, because a
+staged surface field is an INPUT to the run whose output would otherwise build
+it -- and that edge is about DETERMINATION, which the bootstrap satisfies. It
+is the grid coupling riding on the same argument that pins the rung.
+
+**The consequence reaches further than a cold start, because `dwmax` is
+`STATIC_GRID, TARGET`.** `restart_schema.py` takes field capacity from the
+TARGET TEMPLATE and never from the donor, which is correct -- a donor's
+capacity belongs to another soil column -- and it means a CONVERTED arm's
+capacity is its own rung's staging too. So the route cannot carry the pedology
+field up the ladder by conversion either: every rung above T21 runs the uniform
+0.5 m bucket, whichever initial condition it starts from, until 229 can be
+staged at that rung. `config/planet.yaml` argues at the key itself that the
+uniform bucket is materially wrong here -- the land-mean capacity is well under
+it, which changes evaporation, which changes P - E.
 
 So at every rung above T21 the two initial conditions are not
 interchangeable, and the asymmetry is one-signed:
