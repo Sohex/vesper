@@ -396,7 +396,16 @@ def verify(binary: Path = GUESS_BINARY) -> list[str]:
 
     problems = []
     recorded_sources = record.get("sources") or {}
-    current = source_set()
+    try:
+        current = source_set()
+    except SystemExit as exc:
+        # `declared()` and the BUILD_INPUTS loop raise when the build files name
+        # something that is not on disk. Returned rather than propagated for the
+        # reason `build_file_shape` is: `check_consistency.py` catches
+        # `Exception`, and `SystemExit` is not one, so a raise here would kill
+        # the whole gate instead of failing this check.
+        return [f"the source set cannot be read, so nothing can be said about "
+                f"{binary.name}: {exc}"]
     changed = [r for r in sorted(set(recorded_sources) | set(current))
                if recorded_sources.get(r) != current.get(r)]
     if changed:
