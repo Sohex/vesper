@@ -145,12 +145,42 @@ void CommonOutput::init() {
 void CommonOutput::define_output_tables() {
 
 	//Extra number of decimals when output for benchmarks
-#ifdef RUN_BENCHMARKS	
+#ifdef RUN_BENCHMARKS
 	const int bm_extra_prec = 2;
 #else
 	const int bm_extra_prec = 0;
 #endif
-	
+
+	// VESPER DIVERGENCE: the six columns a conservation check differences are
+	// written at a precision that can resolve the tolerance they are held to.
+	//
+	// `biosphere/config/lpj_acceptance.yaml` closes cumulative carbon, nitrogen
+	// and water over a ten-cycle window by differencing an end-of-record pool
+	// against a summed flux. At the release's precision the nitrogen pool total
+	// is four decimals in kgN/m2 and the rule converts it by 1e4, so ONE
+	// LEAST-SIGNIFICANT DIGIT OF THAT COLUMN IS 1.0 kgN/ha against a declared
+	// 2.0 kgN/ha floor: a model conserving nitrogen exactly still reports up to
+	// 1.0 from the two rounded endpoints alone, and the cells such a rule fails
+	// are the cells that rounded worst. Carbon sat at ten times its floor and
+	// water at under four, both thin for the same reason.
+	//
+	// The release itself concedes the point by widening these same columns
+	// under RUN_BENCHMARKS; two extra decimals is not enough for the nitrogen
+	// conversion, so the closure columns are set outright. This is a change to
+	// the WRITTEN REPRESENTATION only. No simulated quantity moves, and nothing
+	// but file size depends on it.
+	//
+	// The gate does not trust this comment: `assess_lpj_run.py:written_quantum`
+	// measures each column's decimal step from the output table it read and
+	// refuses a tolerance under `minimum_resolution_margin` times it, so a
+	// revert here refuses the next run rather than silently restoring a
+	// tolerance that discriminates on rounding.
+	const int closure_width = 13;
+	const int closure_prec_pool_n = 7;   // kgN/m2, converted by 1e4 to kgN/ha
+	const int closure_prec_pool_c = 6;   // kgC/m2
+	const int closure_prec_flux_n = 5;   // kgN/ha
+	const int closure_prec_water = 4;    // mm
+
 	// create a vector with the pft names
 	std::vector<std::string> pfts;
 
@@ -215,7 +245,7 @@ void CommonOutput::define_output_tables() {
 	// AET
 	ColumnDescriptors aaet_columns;
 	aaet_columns += ColumnDescriptors(pfts,                8, 2);
-	aaet_columns += ColumnDescriptor("Total",              8, 2);
+	aaet_columns += ColumnDescriptor("Total",   closure_width, closure_prec_water);
 	aaet_columns += ColumnDescriptors(landcovers,         13, 2);
 
 	// DENS
@@ -262,7 +292,7 @@ void CommonOutput::define_output_tables() {
 	if (run_landcover && ifslowharvestpool) {
 		 cpool_columns += ColumnDescriptor("HarvSlowC",   10, 3);
 	}
-	cpool_columns += ColumnDescriptor("Total",            10 + bm_extra_prec, 3 + bm_extra_prec);
+	cpool_columns += ColumnDescriptor("Total",  closure_width, closure_prec_pool_c + bm_extra_prec);
 
 	// CLITTER
 	ColumnDescriptors clitter_columns = cmass_columns;
@@ -290,7 +320,7 @@ void CommonOutput::define_output_tables() {
 	runoff_columns += ColumnDescriptor("Surf",             8, 1);
 	runoff_columns += ColumnDescriptor("Drain",            8, 1);
 	runoff_columns += ColumnDescriptor("Base",             8, 1);
-	runoff_columns += ColumnDescriptor("Total",            9, 1);
+	runoff_columns += ColumnDescriptor("Total", closure_width, closure_prec_water);
 
 	// SPECIESHEIGHTS
 	ColumnDescriptors speciesheights_columns;
@@ -333,7 +363,7 @@ void CommonOutput::define_output_tables() {
 		npool_columns += ColumnDescriptor("HarvSlowN",    10, 4);
 	}
 
-	npool_columns += ColumnDescriptor("Total",            10 + bm_extra_prec, 4 + bm_extra_prec);
+	npool_columns += ColumnDescriptor("Total",  closure_width, closure_prec_pool_n + bm_extra_prec);
 
 	// NMASS
 	ColumnDescriptors nmass_columns;
@@ -367,7 +397,7 @@ void CommonOutput::define_output_tables() {
 		nflux_columns += ColumnDescriptor("LU_ch",         8, 3);
 		nflux_columns += ColumnDescriptor("Slow_h",        8, 3);
 	}
-	nflux_columns += ColumnDescriptor("NEE",               8 + bm_extra_prec, 2 + bm_extra_prec);
+	nflux_columns += ColumnDescriptor("NEE",    closure_width, closure_prec_flux_n + bm_extra_prec);
 
 	// PFLUX
 	ColumnDescriptors pflux_columns;

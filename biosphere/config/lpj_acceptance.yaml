@@ -59,6 +59,22 @@ stability_outputs:
 
 closure:
   window_complete_forcing_cycles: 10
+  # HOW FAR ABOVE ITS OWN QUANTISATION A TOLERANCE HAS TO SIT.
+  #
+  # Every residual below differences columns LPJ-GUESS writes at a compiled-in
+  # fixed decimal precision, so a model that conserves exactly still reports a
+  # residual of order the written quantum. Under that quantum an absolute floor
+  # is not a tolerance at all: it fails cells for how they were written down,
+  # and the failures it names are whichever cells rounded worst.
+  #
+  # Ten is one order of magnitude, which is what this project calls negligible
+  # elsewhere in its numerics; at ten the instrument owns at most a tenth of the
+  # tolerance and the rest is the simulation. It is applied identically to
+  # carbon, nitrogen and water, and `assess_lpj_run.py:closure_resolution`
+  # MEASURES the quantum from the output tables rather than reading it from the
+  # model source, so raising a column's precision and forgetting to say so still
+  # gives the honest margin, and dropping one back refuses.
+  minimum_resolution_margin: 10.0
   carbon:
     pool_output: cpool.out
     pool_field: Total
