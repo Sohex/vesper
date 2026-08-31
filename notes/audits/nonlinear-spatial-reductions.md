@@ -38,6 +38,8 @@ criterion.
 | parent texture through weathering | a factor 1.35 in the weathering intensity, Dunne's `S_y.x` of 0.13 log units carried in `pedology/config/pedogenesis.yaml` |
 | erodibility through the regolith depth law | `regolith.minimum_depth_m`, the thinnest profile the pedogenesis model distinguishes |
 | subgrid elevation through Clausius-Clapeyron | 1% of the saturation vapour pressure, declared rather than sourced. It is the one bar here that is not an instrument, and it has not been moved: there is nothing sourced to move it to, and a bar placed after the result it judges is not a criterion |
+| the staged albedo pair through the model's wetting | the accepted baseline's 0.12 W m-2 state-storage tolerance, which `config/partial_surface.yaml` selected the tile operator against. An albedo error reaches it as `delta_alpha * S_down` |
+| the aeolian roughness mixture | each class's own declared `bracket` in `aeolian/config/dust.yaml`, the level uncertainty its measurement set supports, converted into a factor on the power of `u*` the arm reports |
 
 Two further cases are not Jensen gaps at all and are reported as what they are:
 a calibration that moves with the support, and a statistic that carries a length
@@ -53,6 +55,8 @@ from the mesh.
 | parent texture mixed before weathering | `soil` | **NOT material, and the premise is wrong** | the clay total is exactly 0.0 at every intensity and every rung; sand and silt trade at most 0.0047 of the land mean, inside Dunne's own scatter everywhere |
 | the orographic term across the ladder | `surface_roughness` | DERIVED, and flat where it used to be a calibration | the land mean spreads by 0.9% from T21 to T170, where the solved coefficient it replaced moved by a factor of 1.98 |
 | `subgrid_slope` as an elevation spread over the mesh spacing | `soil` | a length carried from the MESH, not a gap | doubled between this project's two builds while the spread it is built from moved 1.6%; the run is now declared, and 11.8% of regolith depth at the land mean rests on the change |
+| the staged dry and saturated albedo pair through the model's mixing | `surface_albedo`, then `landmod:wetalb` | **MATERIAL over the middle of the wetting range, and no two-field repair exists** | 0.147 W m-2 of global absorbed shortwave against a 0.12 W m-2 bar, past it from 0.10 to 0.47 of the saturation range and peaking on the model's own evaporation knee |
+| the aeolian roughness of a mixed erodible patchwork | `build_dust`, then the in-model emission | NOT material, and the operation was right for the wrong reason | exact for MB95's drag partition, 4.9% on `u*` cubed against the 62.8% the class's own declared bracket carries |
 
 ## 1. Erodibility mixed before the regolith depth law. The large one
 
@@ -433,13 +437,107 @@ from the climatology rather than assumed.
 - Refinement must shrink it, because in the limit of one region per cell the
   two orders are the same computation.
 
-**The correction, if the gap is material, is exact and is not an expectation
-operator.** The mixing is linear in the transform at every saturation, so
+### The result
+
+Measured 2026-08-30 on `canonical-10m-carve2`, terrain hash `f496ae9f`, at every
+rung, with the watts taken on the accepted baseline climatology, which is T21.
+
+**The one-class control passes.** A cell holding a single substrate class gives
+the same answer in both orders to 1.8e-15 in albedo against a 1e-12 bar, at
+every rung, and the gap is exactly zero at both ends of the saturation axis
+because `sadeghi_mix` returns the staged fields there on their own branch. That
+is the arm that could have failed.
+
+| rung | land cells | of one class | band 1 land-mean gap | band 2 | worst cell |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| T21 | 1,639 | 147 | -1.974e-03 | -1.766e-03 | 1.55e-02 |
+| T42 | 5,754 | 848 | -1.821e-03 | -1.641e-03 | 1.65e-02 |
+| T85 | 20,719 | 5,283 | -1.587e-03 | -1.450e-03 | 1.68e-02 |
+| T127 | 44,392 | 15,032 | -1.398e-03 | -1.297e-03 | 1.68e-02 |
+| T170 | 76,168 | 30,657 | -1.246e-03 | -1.174e-03 | 1.68e-02 |
+
+All at the sweep's worst saturation, 0.2853 of the 0 to 0.7609 range the model's
+declared endpoints allow. The gap is NEGATIVE, so the modelled wet ground is
+brighter than the cell's own mixture of rocks would be and the surface absorbs
+less than it should. That is concavity, as pre-registered.
+
+**The pre-registered sign holds on the population and not on every cell.** The
+invariant said the gap does not change sign along the saturation axis within a
+cell, because the curvature of a single saturating function does not change. It
+is violated on 7 of the 1,492 mixed cells at T21 and on 62 of 45,511 at T170 --
+0.47 per cent falling to 0.14 -- and that is reported rather than rounded away.
+The mechanism is that the mixing is concave in the PAIR and the pair does not
+move together: a cell whose two classes have very different wetting ratios has
+a saturated spread of a different shape from its dry one, and the curvature of
+the composition can change sign between them. The claim was too strong as
+stated; what survives it is the land mean, which is one-signed at every
+saturation and every rung.
+
+**Refinement shrinks the land mean and does not touch the worst cell.** The land
+mean falls by a factor 1.6 from T21 to T170 while the worst cell rises slightly,
+because a finer grid has more cells of one class -- 9.0 per cent at T21 against
+40.2 at T170 -- and the mixed cells that remain are no less mixed.
+
+**MATERIAL over the middle of the wetting range.** The gap reaches 0.147 W m-2
+of global-mean absorbed shortwave against the accepted baseline's 0.12 W m-2
+storage tolerance, and stays past it from about 0.10 to about 0.47 of the
+saturation range:
+
+| saturation | 0.000 | 0.095 | 0.190 | 0.285 | 0.380 | 0.476 | 0.571 | 0.666 | 0.761 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| W m-2 | 0.000 | -0.105 | -0.142 | **-0.147** | **-0.137** | -0.120 | -0.099 | -0.076 | -0.054 |
+
+Taken on the accepted baseline's own downward shortwave per band, land-area
+weighted at 79.3 and 92.6 W m-2, and weighted by each cell's land area over the
+whole planet so the number is directly comparable with a global storage
+tolerance.
+
+**The peak sits on the model's own evaporation knee, which is what settles the
+materiality rather than a guess about how wet this world is.** `landmod.f90:181`
+puts `drhsfull` at 0.4 of capacity, the fraction above which the wetness factor
+reaches one, and `config/planet.yaml` maps a full surface layer to a saturation
+of 0.7609. So the knee is at a saturation of 0.304 and the gap peaks at 0.285.
+The modelled soil crosses that point every time it wets or dries through the
+limiter's ceiling, which is the transition the limiter exists to describe.
+
+### The pre-registered repair does not work, and the reason is a boundary condition
+
+The pre-registration said the mixing is linear in the Kubelka-Munk transform, so
 staging the albedo whose transform is the cell's area mean of the per-region
-transforms makes the composition exact for the whole saturation axis at once,
-with no residual. That is the same shape as section 3's roughness repair --
-reduce in the quantity the model is linear in, write back the value that
-reproduces it -- and it costs one transform per staged field.
+transforms would make the composition exact at every saturation with no
+residual. That is wrong at first order and the test is what says so.
+
+| saturation | truth | staged in albedo | staged in the transform |
+| ---: | ---: | ---: | ---: |
+| 0.000 | 0.275000 | +0.0 | -1.14e-01 |
+| 0.285 | 0.239999 | +1.0e-03 | -1.07e-01 |
+| 0.761 | 0.199963 | +5.0e-04 | -9.7e-02 |
+
+On a cell of two classes at equal area with albedos 0.10 and 0.45. Staging in
+the transform is a hundred times worse than the defect it was meant to remove,
+and it fails hardest at zero saturation.
+
+**The two staged fields are not free parameters.** Code 174 IS the dry albedo:
+`sadeghi_mix` returns it unchanged at zero saturation and the radiation reads
+the same field on dry ground, so it is pinned to the cell's area-mean dry
+albedo by a boundary condition that has nothing to do with wetting. The
+saturated pair is pinned at the other end by the same argument. There is
+therefore no two-field staging that is exact across the saturation axis: what
+the model would need is the cell's own curvature, and two numbers do not carry
+it.
+
+The mixing is linear in the transform of ITS ARGUMENT and the inverse transform
+is applied afterwards, which is the step the pre-registration missed. Reducing
+in the transform makes the argument exact and leaves the inverse's own Jensen
+term, which is convex where the measured one is concave -- so the two available
+stagings bracket the truth from opposite sides rather than one of them reaching
+it.
+
+**The disposition is therefore a model change or a declared bracket, and not a
+builder change.** Either `wetalb` reads a third staged field carrying the cell's
+curvature, or the measured gap is carried as declared model-form error with the
+table above as its bracket. Nothing in `build_surface_albedo.py` can fix it,
+which is why this finding does not move that builder.
 
 ## 8. The aeolian roughness mixture. Right operation, wrong reason, and immaterial
 

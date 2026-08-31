@@ -1,14 +1,15 @@
 {
-  "generated": "2026-08-26T21:07:41+00:00",
+  "generated": "2026-08-31T04:57:07+00:00",
   "issue": "SPAT-7",
-  "build": "canonical-10m-base",
-  "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
+  "build": "canonical-10m-carve2",
+  "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
   "regions": 10000005,
   "bars": {
     "roughness_exchange": "the step's own z_ref bracket over 273.15-313.15 K",
-    "clay_conversion": "a factor 1.35 in the weathering intensity, Dunne's S_y.x carried in pedogenesis.yaml",
+    "clay_conversion": "a factor 1.3489628825916535 in the weathering intensity, Dunne's S_y.x carried in pedogenesis.yaml",
     "regolith_erodibility": "regolith.minimum_depth_m",
-    "saturation_deficit": "0.01 of e_sat, declared; unchanged since the first measurement crossed it"
+    "saturation_deficit": "0.01 of e_sat, declared; unchanged since the first measurement crossed it",
+    "wet_albedo_mixing": "0.12 W m-2, the accepted baseline state-storage tolerance the tile operator was selected against, reached by an albedo error as delta_alpha * S_down"
   },
   "by_rung": {
     "T21": {
@@ -17,124 +18,124 @@
         64
       ],
       "roughness_exchange": {
-        "derived_land_mean_z0_m": 0.480035,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 0.0003460750724995677,
+        "derived_land_mean_z0_m": 0.561418,
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 0.0003232094465102973,
         "mesh_spacing_m_land_mean": 9848.7,
         "land_cells": 1639,
-        "subgrid_stdev_m_land_median": 153.57,
-        "barren_land_area_fraction": 0.283595,
+        "subgrid_stdev_m_land_median": 144.71,
+        "barren_land_area_fraction": 0.153244,
         "z_ref_bracket_m": [
           106.18,
           121.73
         ],
         "by_reference_air_k": {
           "273.15": {
-            "ce_aggregate_then_process_land_mean": 0.005438,
-            "ce_process_then_aggregate_land_mean": 0.004878,
-            "land_mean_relative_gap": -0.102895,
+            "ce_aggregate_then_process_land_mean": 0.005779,
+            "ce_process_then_aggregate_land_mean": 0.005479,
+            "land_mean_relative_gap": -0.052027,
             "per_cell_relative_gap": {
-              "1": -0.319777,
-              "25": -0.121521,
-              "50": -0.070751,
-              "75": -0.006812,
+              "1": -0.315025,
+              "25": -0.088723,
+              "50": -0.012646,
+              "75": -0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.810644,
+            "land_area_fraction_gap_beyond_instrument": 0.426762,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1961
+                  0.0448
                 ],
-                "land_area_weighted_relative_gap": -0.038338,
+                "land_area_weighted_relative_gap": -0.002001,
                 "per_cell_relative_gap": {
-                  "1": -0.073186,
-                  "50": -0.009858,
+                  "1": -0.015828,
+                  "50": -0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1961,
-                  0.5045
+                  0.0448,
+                  0.4354
                 ],
-                "land_area_weighted_relative_gap": -0.120918,
+                "land_area_weighted_relative_gap": -0.080823,
                 "per_cell_relative_gap": {
-                  "1": -0.200349,
-                  "50": -0.114883,
-                  "99": -0.075635
+                  "1": -0.171176,
+                  "50": -0.077611,
+                  "99": -0.017265
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.5045,
+                  0.4354,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.244965,
+                "land_area_weighted_relative_gap": -0.222127,
                 "per_cell_relative_gap": {
-                  "1": -0.34367,
-                  "50": -0.241961,
+                  "1": -0.343488,
+                  "50": -0.217904,
                   "99": 0.0
                 }
               }
             }
           },
           "313.15": {
-            "ce_aggregate_then_process_land_mean": 0.005172,
-            "ce_process_then_aggregate_land_mean": 0.004636,
-            "land_mean_relative_gap": -0.103606,
+            "ce_aggregate_then_process_land_mean": 0.005489,
+            "ce_process_then_aggregate_land_mean": 0.005201,
+            "land_mean_relative_gap": -0.052466,
             "per_cell_relative_gap": {
-              "1": -0.318695,
-              "25": -0.122276,
-              "50": -0.071337,
-              "75": -0.006879,
+              "1": -0.31473,
+              "25": -0.089079,
+              "50": -0.012771,
+              "75": -0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.810644,
+            "land_area_fraction_gap_beyond_instrument": 0.427973,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1961
+                  0.0448
                 ],
-                "land_area_weighted_relative_gap": -0.038658,
+                "land_area_weighted_relative_gap": -0.00202,
                 "per_cell_relative_gap": {
-                  "1": -0.073809,
-                  "50": -0.009953,
+                  "1": -0.015974,
+                  "50": -0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1961,
-                  0.5045
+                  0.0448,
+                  0.4354
                 ],
-                "land_area_weighted_relative_gap": -0.121654,
+                "land_area_weighted_relative_gap": -0.081379,
                 "per_cell_relative_gap": {
-                  "1": -0.201109,
-                  "50": -0.115656,
-                  "99": -0.076219
+                  "1": -0.171979,
+                  "50": -0.078192,
+                  "99": -0.017425
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.5045,
+                  0.4354,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.245146,
+                "land_area_weighted_relative_gap": -0.222468,
                 "per_cell_relative_gap": {
-                  "1": -0.342374,
-                  "50": -0.241639,
+                  "1": -0.342207,
+                  "50": -0.218587,
                   "99": 0.0
                 }
               }
             }
           }
         },
-        "instrument_z_ref_bracket_relative": 0.051265
+        "instrument_z_ref_bracket_relative": 0.052816
       },
       "clay_conversion": {
         "intensity_sweep": [
@@ -150,30 +151,30 @@
         "by_intensity": {
           "0.02": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.443664,
-              "process_then_aggregate_land_mean": 0.443678,
-              "land_mean_gap": 1.404e-05,
+              "aggregate_then_process_land_mean": 0.481141,
+              "process_then_aggregate_land_mean": 0.481147,
+              "land_mean_gap": 5.53e-06,
               "per_cell_gap": {
-                "1": -9.268e-05,
-                "50": 2.67e-06,
-                "99": 7.195e-05
+                "1": -8.739e-05,
+                "50": 0.0,
+                "99": 7.157e-05
               },
-              "max_abs_cell_gap": 0.00010634
+              "max_abs_cell_gap": 0.00010656
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.320629,
-              "process_then_aggregate_land_mean": 0.320614,
-              "land_mean_gap": -1.404e-05,
+              "aggregate_then_process_land_mean": 0.307588,
+              "process_then_aggregate_land_mean": 0.307583,
+              "land_mean_gap": -5.53e-06,
               "per_cell_gap": {
-                "1": -7.195e-05,
-                "50": -2.67e-06,
-                "99": 9.268e-05
+                "1": -7.157e-05,
+                "50": 0.0,
+                "99": 8.739e-05
               },
-              "max_abs_cell_gap": 0.00010634
+              "max_abs_cell_gap": 0.00010656
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.235511,
-              "process_then_aggregate_land_mean": 0.235511,
+              "aggregate_then_process_land_mean": 0.211051,
+              "process_then_aggregate_land_mean": 0.211051,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -185,30 +186,30 @@
           },
           "0.2": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.427371,
-              "process_then_aggregate_land_mean": 0.427504,
-              "land_mean_gap": 0.00013365,
+              "aggregate_then_process_land_mean": 0.463789,
+              "process_then_aggregate_land_mean": 0.463842,
+              "land_mean_gap": 5.263e-05,
               "per_cell_gap": {
-                "1": -0.0008825,
-                "50": 2.546e-05,
-                "99": 0.00068507
+                "1": -0.0008321,
+                "50": 0.0,
+                "99": 0.00068152
               },
-              "max_abs_cell_gap": 0.00101258
+              "max_abs_cell_gap": 0.00101465
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.308782,
-              "process_then_aggregate_land_mean": 0.308649,
-              "land_mean_gap": -0.00013365,
+              "aggregate_then_process_land_mean": 0.29642,
+              "process_then_aggregate_land_mean": 0.296367,
+              "land_mean_gap": -5.263e-05,
               "per_cell_gap": {
-                "1": -0.00068507,
-                "50": -2.546e-05,
-                "99": 0.0008825
+                "1": -0.00068152,
+                "50": -0.0,
+                "99": 0.0008321
               },
-              "max_abs_cell_gap": 0.00101258
+              "max_abs_cell_gap": 0.00101465
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.263651,
-              "process_then_aggregate_land_mean": 0.263651,
+              "aggregate_then_process_land_mean": 0.239572,
+              "process_then_aggregate_land_mean": 0.239572,
               "land_mean_gap": -0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -220,30 +221,30 @@
           },
           "1.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.371638,
-              "process_then_aggregate_land_mean": 0.372181,
-              "land_mean_gap": 0.00054281,
+              "aggregate_then_process_land_mean": 0.404438,
+              "process_then_aggregate_land_mean": 0.404652,
+              "land_mean_gap": 0.00021376,
               "per_cell_gap": {
-                "1": -0.00358411,
-                "50": 0.00010339,
-                "99": 0.00278227
+                "1": -0.00337941,
+                "50": 0.0,
+                "99": 0.00276786
               },
-              "max_abs_cell_gap": 0.00411242
+              "max_abs_cell_gap": 0.00412081
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.268262,
-              "process_then_aggregate_land_mean": 0.267719,
-              "land_mean_gap": -0.00054281,
+              "aggregate_then_process_land_mean": 0.258216,
+              "process_then_aggregate_land_mean": 0.258002,
+              "land_mean_gap": -0.00021376,
               "per_cell_gap": {
-                "1": -0.00278227,
-                "50": -0.00010339,
-                "99": 0.00358411
+                "1": -0.00276786,
+                "50": 0.0,
+                "99": 0.00337941
               },
-              "max_abs_cell_gap": 0.00411242
+              "max_abs_cell_gap": 0.00412081
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.359904,
-              "process_then_aggregate_land_mean": 0.359904,
+              "aggregate_then_process_land_mean": 0.337127,
+              "process_then_aggregate_land_mean": 0.337127,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -255,31 +256,31 @@
           },
           "2.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.328979,
-              "process_then_aggregate_land_mean": 0.329835,
-              "land_mean_gap": 0.00085599,
+              "aggregate_then_process_land_mean": 0.359009,
+              "process_then_aggregate_land_mean": 0.359346,
+              "land_mean_gap": 0.00033709,
               "per_cell_gap": {
-                "1": -0.00565195,
-                "50": 0.00016305,
-                "99": 0.00438749
+                "1": -0.00532917,
+                "50": 0.0,
+                "99": 0.00436477
               },
-              "max_abs_cell_gap": 0.00648508
+              "max_abs_cell_gap": 0.00649831
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.237247,
-              "process_then_aggregate_land_mean": 0.236391,
-              "land_mean_gap": -0.00085599,
+              "aggregate_then_process_land_mean": 0.228974,
+              "process_then_aggregate_land_mean": 0.228637,
+              "land_mean_gap": -0.00033709,
               "per_cell_gap": {
-                "1": -0.00438749,
-                "50": -0.00016305,
-                "99": 0.00565195
+                "1": -0.00436477,
+                "50": 0.0,
+                "99": 0.00532917
               },
-              "max_abs_cell_gap": 0.00648508
+              "max_abs_cell_gap": 0.00649831
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.433578,
-              "process_then_aggregate_land_mean": 0.433578,
-              "land_mean_gap": -0.0,
+              "aggregate_then_process_land_mean": 0.411798,
+              "process_then_aggregate_land_mean": 0.411798,
+              "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
                 "50": 0.0,
@@ -290,30 +291,30 @@
           },
           "6.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.277248,
-              "process_then_aggregate_land_mean": 0.278483,
-              "land_mean_gap": 0.00123577,
+              "aggregate_then_process_land_mean": 0.303919,
+              "process_then_aggregate_land_mean": 0.304406,
+              "land_mean_gap": 0.00048664,
               "per_cell_gap": {
-                "1": -0.00815958,
-                "50": 0.00023539,
-                "99": 0.00633411
+                "1": -0.00769358,
+                "50": 0.0,
+                "99": 0.00630131
               },
-              "max_abs_cell_gap": 0.00936235
+              "max_abs_cell_gap": 0.00938144
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.199636,
-              "process_then_aggregate_land_mean": 0.1984,
-              "land_mean_gap": -0.00123577,
+              "aggregate_then_process_land_mean": 0.193513,
+              "process_then_aggregate_land_mean": 0.193026,
+              "land_mean_gap": -0.00048664,
               "per_cell_gap": {
-                "1": -0.00633411,
-                "50": -0.00023539,
-                "99": 0.00815958
+                "1": -0.00630131,
+                "50": -0.0,
+                "99": 0.00769358
               },
-              "max_abs_cell_gap": 0.00936235
+              "max_abs_cell_gap": 0.00938144
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.52292,
-              "process_then_aggregate_land_mean": 0.52292,
+              "aggregate_then_process_land_mean": 0.502349,
+              "process_then_aggregate_land_mean": 0.502349,
               "land_mean_gap": -0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -324,32 +325,32 @@
             }
           }
         },
-        "instrument_dunne_scatter": 1.35,
+        "instrument_dunne_scatter": 1.3489628825916535,
         "instrument_land_mean_shift": {
           "0.02": {
-            "sand": 0.00066424,
-            "silt": 0.00048294,
-            "clay": 0.00114718
+            "sand": 0.00070528,
+            "silt": 0.00045398,
+            "clay": 0.00115926
           },
           "0.2": {
-            "sand": 0.00591335,
-            "silt": 0.00429929,
-            "clay": 0.01021264
+            "sand": 0.006279,
+            "silt": 0.00404171,
+            "clay": 0.01032071
           },
           "1.0": {
-            "sand": 0.01765701,
-            "silt": 0.01283749,
-            "clay": 0.0304945
+            "sand": 0.01875292,
+            "silt": 0.01207101,
+            "clay": 0.03082393
           },
           "2.0": {
-            "sand": 0.01859058,
-            "silt": 0.01351624,
-            "clay": 0.03210681
+            "sand": 0.01974953,
+            "silt": 0.01271251,
+            "clay": 0.03246204
           },
           "6.0": {
-            "sand": 0.00441531,
-            "silt": 0.00321014,
-            "clay": 0.00762545
+            "sand": 0.00469458,
+            "silt": 0.00302184,
+            "clay": 0.00771642
           }
         }
       },
@@ -360,7 +361,7 @@
           0.25,
           3.5
         ],
-        "land_mean_erodibility": 1.6716,
+        "land_mean_erodibility": 1.4633,
         "rho_sweep": [
           0.01,
           0.1,
@@ -373,87 +374,87 @@
         "by_rho": {
           "0.01": {
             "depth_aggregate_then_process_m": 6.633663,
-            "depth_process_then_aggregate_land_mean_m": 6.633963,
-            "land_mean_gap_m": 0.000299,
+            "depth_process_then_aggregate_land_mean_m": 6.633969,
+            "land_mean_gap_m": 0.000306,
             "per_cell_gap_m": {
-              "50": 0.000224,
-              "75": 0.000395,
-              "95": 0.000597,
-              "99": 0.000712
+              "50": 0.00022,
+              "75": 0.000398,
+              "95": 0.000615,
+              "99": 0.00071
             },
             "land_area_fraction_above_bar": 0.0
           },
           "0.1": {
             "depth_aggregate_then_process_m": 6.090909,
-            "depth_process_then_aggregate_land_mean_m": 6.113215,
-            "land_mean_gap_m": 0.022306,
+            "depth_process_then_aggregate_land_mean_m": 6.113175,
+            "land_mean_gap_m": 0.022266,
             "per_cell_gap_m": {
-              "50": 0.017522,
-              "75": 0.029423,
-              "95": 0.042214,
-              "99": 0.048633
+              "50": 0.016835,
+              "75": 0.029046,
+              "95": 0.042764,
+              "99": 0.048562
             },
-            "land_area_fraction_above_bar": 0.596184
+            "land_area_fraction_above_bar": 0.565294
           },
           "0.5": {
             "depth_aggregate_then_process_m": 4.466667,
-            "depth_process_then_aggregate_land_mean_m": 4.679395,
-            "land_mean_gap_m": 0.212728,
+            "depth_process_then_aggregate_land_mean_m": 4.66825,
+            "land_mean_gap_m": 0.201583,
             "per_cell_gap_m": {
-              "50": 0.178877,
-              "75": 0.283464,
-              "95": 0.36707,
-              "99": 0.40318
+              "50": 0.167655,
+              "75": 0.271789,
+              "95": 0.365802,
+              "99": 0.401374
             },
-            "land_area_fraction_above_bar": 0.860125
+            "land_area_fraction_above_bar": 0.857438
           },
           "1.0": {
             "depth_aggregate_then_process_m": 3.35,
-            "depth_process_then_aggregate_land_mean_m": 3.721654,
-            "land_mean_gap_m": 0.371654,
+            "depth_process_then_aggregate_land_mean_m": 3.691688,
+            "land_mean_gap_m": 0.341688,
             "per_cell_gap_m": {
-              "50": 0.323406,
-              "75": 0.487982,
-              "95": 0.615948,
-              "99": 0.659663
+              "50": 0.293753,
+              "75": 0.45878,
+              "95": 0.60659,
+              "99": 0.654769
             },
-            "land_area_fraction_above_bar": 0.871271
+            "land_area_fraction_above_bar": 0.872039
           },
           "3.0": {
             "depth_aggregate_then_process_m": 1.675,
-            "depth_process_then_aggregate_land_mean_m": 2.159566,
-            "land_mean_gap_m": 0.484566,
+            "depth_process_then_aggregate_land_mean_m": 2.099946,
+            "land_mean_gap_m": 0.424946,
             "per_cell_gap_m": {
-              "50": 0.427235,
-              "75": 0.628729,
-              "95": 0.76877,
-              "99": 0.819338
+              "50": 0.358299,
+              "75": 0.566503,
+              "95": 0.751376,
+              "99": 0.813147
             },
-            "land_area_fraction_above_bar": 0.879503
+            "land_area_fraction_above_bar": 0.880316
           },
           "10.0": {
             "depth_aggregate_then_process_m": 0.609091,
-            "depth_process_then_aggregate_land_mean_m": 0.919066,
-            "land_mean_gap_m": 0.309975,
+            "depth_process_then_aggregate_land_mean_m": 0.871195,
+            "land_mean_gap_m": 0.262104,
             "per_cell_gap_m": {
-              "50": 0.268242,
-              "75": 0.389956,
-              "95": 0.492646,
-              "99": 0.524659
+              "50": 0.218549,
+              "75": 0.345108,
+              "95": 0.477654,
+              "99": 0.518907
             },
-            "land_area_fraction_above_bar": 0.87324
+            "land_area_fraction_above_bar": 0.870485
           },
           "100.0": {
             "depth_aggregate_then_process_m": 0.066337,
-            "depth_process_then_aggregate_land_mean_m": 0.112223,
-            "land_mean_gap_m": 0.045886,
+            "depth_process_then_aggregate_land_mean_m": 0.104265,
+            "land_mean_gap_m": 0.037929,
             "per_cell_gap_m": {
-              "50": 0.038827,
-              "75": 0.056947,
-              "95": 0.073895,
-              "99": 0.079003
+              "50": 0.03103,
+              "75": 0.050159,
+              "95": 0.070649,
+              "99": 0.078045
             },
-            "land_area_fraction_above_bar": 0.813124
+            "land_area_fraction_above_bar": 0.736954
           }
         }
       },
@@ -470,8 +471,8 @@
           313.15
         ],
         "critical_lapse_k_per_km": {
-          "273.15": 3.7823,
-          "313.15": 4.4413
+          "273.15": 3.8603,
+          "313.15": 4.5296
         },
         "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
         "magnus_teten_coefficients": {
@@ -485,45 +486,331 @@
         },
         "by_bracket_corner": {
           "lapse4_t273.15": {
-            "land_mean_relative_gap": 0.011434,
+            "land_mean_relative_gap": 0.010894,
             "per_cell_relative_gap": {
-              "50": 1.6e-05,
-              "75": 0.006826,
-              "95": 0.048512,
-              "99": 0.079412
+              "50": 4e-06,
+              "75": 0.005993,
+              "95": 0.04581,
+              "99": 0.075994
             },
-            "land_area_fraction_above_bar": 0.303024
+            "land_area_fraction_above_bar": 0.294607
           },
           "lapse4_t313.15": {
-            "land_mean_relative_gap": 0.008167,
+            "land_mean_relative_gap": 0.007859,
             "per_cell_relative_gap": {
-              "50": 0.000447,
-              "75": 0.00621,
-              "95": 0.03189,
-              "99": 0.04923
+              "50": 0.000395,
+              "75": 0.005708,
+              "95": 0.02995,
+              "99": 0.047259
             },
-            "land_area_fraction_above_bar": 0.277745
+            "land_area_fraction_above_bar": 0.273215
           },
           "lapse12.7476_t273.15": {
-            "land_mean_relative_gap": 0.131561,
+            "land_mean_relative_gap": 0.127502,
             "per_cell_relative_gap": {
-              "50": 0.004657,
-              "75": 0.089116,
-              "95": 0.519912,
-              "99": 0.941434
+              "50": 0.0035,
+              "75": 0.080668,
+              "95": 0.502462,
+              "99": 0.900839
             },
-            "land_area_fraction_above_bar": 0.584249
+            "land_area_fraction_above_bar": 0.581263
           },
           "lapse12.7476_t313.15": {
-            "land_mean_relative_gap": 0.074298,
+            "land_mean_relative_gap": 0.071928,
             "per_cell_relative_gap": {
-              "50": 0.004276,
-              "75": 0.054959,
-              "95": 0.29011,
-              "99": 0.488208
+              "50": 0.003713,
+              "75": 0.049706,
+              "95": 0.278089,
+              "99": 0.470329
             },
-            "land_area_fraction_above_bar": 0.559413
+            "land_area_fraction_above_bar": 0.556547
           }
+        }
+      },
+      "wet_albedo_mixing": {
+        "saturation_endpoints": [
+          0.0,
+          0.7609
+        ],
+        "saturation_sweep": [
+          0.0,
+          0.095113,
+          0.190225,
+          0.285338,
+          0.38045,
+          0.475562,
+          0.570675,
+          0.665787,
+          0.7609
+        ],
+        "wetting_arm": "twomey",
+        "cells_with_land": 1639,
+        "cells_of_one_substrate_class": 147,
+        "one_class_control": {
+          "worst_absolute_gap": 1.8041124150158794e-15,
+          "tolerance": 1e-12,
+          "passes": true
+        },
+        "bands": {
+          "band1": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.22443088339779493,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.0014218297713390784,
+                "land_mean_aggregate_then_process": 0.1923269188147039,
+                "per_cell_gap": {
+                  "1": -0.007608587165974293,
+                  "50": -0.0004007990685473972,
+                  "99": 6.411537967210128e-17
+                },
+                "maximum_absolute_gap": 0.009655973053669442
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0019105391587112839,
+                "land_mean_aggregate_then_process": 0.1685649671950824,
+                "per_cell_gap": {
+                  "1": -0.010713396977517897,
+                  "50": -0.0004908656645196685,
+                  "99": 4.163336342344337e-16
+                },
+                "maximum_absolute_gap": 0.014037713838316979
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.0019739451794214265,
+                "land_mean_aggregate_then_process": 0.1501890194119019,
+                "per_cell_gap": {
+                  "1": -0.011510364441591179,
+                  "50": -0.00047311057775405174,
+                  "99": 2.7755575615628914e-17
+                },
+                "maximum_absolute_gap": 0.015470287144861594
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.0018333576670083397,
+                "land_mean_aggregate_then_process": 0.13551735083351601,
+                "per_cell_gap": {
+                  "1": -0.011037906239376892,
+                  "50": -0.0004045292641381565,
+                  "99": 8.690270725253398e-16
+                },
+                "maximum_absolute_gap": 0.015168780782622127
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.0015946186345532816,
+                "land_mean_aggregate_then_process": 0.12351283496846788,
+                "per_cell_gap": {
+                  "1": -0.009860114631902669,
+                  "50": -0.0003317102796043109,
+                  "99": 2.7755575615628914e-17
+                },
+                "maximum_absolute_gap": 0.013819878286534054
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0013115042666018905,
+                "land_mean_aggregate_then_process": 0.11349770178306583,
+                "per_cell_gap": {
+                  "1": -0.008294453004515381,
+                  "50": -0.00025619491561224006,
+                  "99": 2.0816681711721685e-17
+                },
+                "maximum_absolute_gap": 0.011833310209564046
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.0010123935625014915,
+                "land_mean_aggregate_then_process": 0.10500888658601351,
+                "per_cell_gap": {
+                  "1": -0.006528448396232993,
+                  "50": -0.00018706510502197737,
+                  "99": 2.7755575615628914e-17
+                },
+                "maximum_absolute_gap": 0.00946343122679677
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.0007125166298980114,
+                "land_mean_aggregate_then_process": 0.0977179422709078,
+                "per_cell_gap": {
+                  "1": -0.004673234884934381,
+                  "50": -0.00012505822172238779,
+                  "99": 2.7755575615628914e-17
+                },
+                "maximum_absolute_gap": 0.006872596860939245
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 7
+          },
+          "band2": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.28432554947512456,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.001255078350062177,
+                "land_mean_aggregate_then_process": 0.2473494221539415,
+                "per_cell_gap": {
+                  "1": -0.006588291929309439,
+                  "50": -0.0006000629712309413,
+                  "99": 1.1102230246251565e-16
+                },
+                "maximum_absolute_gap": 0.009049081137070147
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0016988968188334083,
+                "land_mean_aggregate_then_process": 0.21937419726138402,
+                "per_cell_gap": {
+                  "1": -0.009368398878117625,
+                  "50": -0.0007560855811442058,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.013201719137124257
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.0017664081224193868,
+                "land_mean_aggregate_then_process": 0.19734882105156334,
+                "per_cell_gap": {
+                  "1": -0.010090097463084166,
+                  "50": -0.0007308461291714169,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.014589581776799476
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.0016495902622613778,
+                "land_mean_aggregate_then_process": 0.1794982129015802,
+                "per_cell_gap": {
+                  "1": -0.009733069551012219,
+                  "50": -0.0006249151615348586,
+                  "99": 1.3877787807814457e-16
+                },
+                "maximum_absolute_gap": 0.01433770384139943
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.0014416199106745912,
+                "land_mean_aggregate_then_process": 0.16470574195760257,
+                "per_cell_gap": {
+                  "1": -0.008707218236503006,
+                  "50": -0.0005170533847958514,
+                  "99": 5.551115123125783e-17
+                },
+                "maximum_absolute_gap": 0.013087294794250415
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0011906218897565293,
+                "land_mean_aggregate_then_process": 0.15222875651403794,
+                "per_cell_gap": {
+                  "1": -0.007347114435029434,
+                  "50": -0.0004007985352312837,
+                  "99": 5.023759186428682e-17
+                },
+                "maximum_absolute_gap": 0.01122381543267717
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.0009224686672086966,
+                "land_mean_aggregate_then_process": 0.1415518874083576,
+                "per_cell_gap": {
+                  "1": -0.00580722943192629,
+                  "50": -0.0002940177885048523,
+                  "99": 5.551115123125783e-17
+                },
+                "maximum_absolute_gap": 0.008988170132930018
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.0006513546918314442,
+                "land_mean_aggregate_then_process": 0.1323043689680191,
+                "per_cell_gap": {
+                  "1": -0.004172944082658768,
+                  "50": -0.00019763811468294368,
+                  "99": 8.967826481409687e-16
+                },
+                "maximum_absolute_gap": 0.0065350968569861945
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 8
+          }
+        },
+        "inputs": {
+          "band_fractions": [
+            0.3823719935950933,
+            0.6176280064049068
+          ],
+          "lithology_albedo_overrides": {
+            "playa_clastic": {
+              "rock_id": 19,
+              "albedo": 0.23,
+              "regions": 602552
+            }
+          },
+          "wetting": {
+            "arm": "twomey",
+            "arms_available": [
+              "twomey",
+              "lekner"
+            ],
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "generated": "2026-08-30",
+            "refused_classes": {
+              "water": "open water is not a surface that wets",
+              "evaporite": "the sign is disputed: two in-situ pyranometer pairs make a wetted halite crust much darker and a twenty-year MODIS series makes wet years brighter, and the Fresnel term is too small by an order of magnitude to be the second effect"
+            },
+            "held_pair_bracket_passes": true,
+            "band2_liquid_absorption_direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it"
+          }
+        },
+        "absorbed_shortwave": {
+          "available": true,
+          "stage": "baseline",
+          "bar_w_m2": 0.12,
+          "bar_source": "config/partial_surface.yaml, the accepted baseline state-storage tolerance the tile operator was selected against",
+          "global_mean_by_saturation": {
+            "0.0": 0.0,
+            "0.095113": -0.10505403933528508,
+            "0.190225": -0.14182648383088922,
+            "0.285338": -0.14711739370934065,
+            "0.38045": -0.13710579198420791,
+            "0.475562": -0.11960385105428763,
+            "0.570675": -0.0986222595872686,
+            "0.665787": -0.07630227845774824,
+            "0.7609": -0.053808958477202594
+          },
+          "land_mean_downward_shortwave_w_m2": [
+            79.25922982887684,
+            92.56186417216296
+          ]
         }
       }
     },
@@ -533,124 +820,124 @@
         128
       ],
       "roughness_exchange": {
-        "derived_land_mean_z0_m": 0.48127,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 0.00014368660525444622,
+        "derived_land_mean_z0_m": 0.562289,
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 0.0001398185421930151,
         "mesh_spacing_m_land_mean": 9848.7,
         "land_cells": 5754,
-        "subgrid_stdev_m_land_median": 74.77,
-        "barren_land_area_fraction": 0.283595,
+        "subgrid_stdev_m_land_median": 69.9,
+        "barren_land_area_fraction": 0.153244,
         "z_ref_bracket_m": [
           106.18,
           121.73
         ],
         "by_reference_air_k": {
           "273.15": {
-            "ce_aggregate_then_process_land_mean": 0.00541,
-            "ce_process_then_aggregate_land_mean": 0.004881,
-            "land_mean_relative_gap": -0.097816,
+            "ce_aggregate_then_process_land_mean": 0.005762,
+            "ce_process_then_aggregate_land_mean": 0.005481,
+            "land_mean_relative_gap": -0.048843,
             "per_cell_relative_gap": {
-              "1": -0.340353,
-              "25": -0.127342,
-              "50": -0.062207,
-              "75": -0.0,
+              "1": -0.337712,
+              "25": -0.086042,
+              "50": -0.000593,
+              "75": 0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.735528,
+            "land_area_fraction_gap_beyond_instrument": 0.379332,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1875
+                  0.0212
                 ],
-                "land_area_weighted_relative_gap": -0.030274,
+                "land_area_weighted_relative_gap": -0.00042,
                 "per_cell_relative_gap": {
-                  "1": -0.07042,
-                  "50": -0.0,
+                  "1": -0.006497,
+                  "50": 0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1875,
-                  0.6377
+                  0.0212,
+                  0.5637
                 ],
-                "land_area_weighted_relative_gap": -0.132696,
+                "land_area_weighted_relative_gap": -0.087167,
                 "per_cell_relative_gap": {
-                  "1": -0.257117,
-                  "50": -0.123027,
-                  "99": -0.072934
+                  "1": -0.220807,
+                  "50": -0.079932,
+                  "99": -0.008844
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.6377,
+                  0.5637,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.265316,
+                "land_area_weighted_relative_gap": -0.248601,
                 "per_cell_relative_gap": {
-                  "1": -0.344649,
-                  "50": -0.277961,
+                  "1": -0.344599,
+                  "50": -0.247052,
                   "99": 0.0
                 }
               }
             }
           },
           "313.15": {
-            "ce_aggregate_then_process_land_mean": 0.005146,
-            "ce_process_then_aggregate_land_mean": 0.004639,
-            "land_mean_relative_gap": -0.098506,
+            "ce_aggregate_then_process_land_mean": 0.005472,
+            "ce_process_then_aggregate_land_mean": 0.005203,
+            "land_mean_relative_gap": -0.049262,
             "per_cell_relative_gap": {
-              "1": -0.339005,
-              "25": -0.12813,
-              "50": -0.06275,
-              "75": -0.0,
+              "1": -0.336562,
+              "25": -0.086615,
+              "50": -0.000599,
+              "75": 0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.736426,
+            "land_area_fraction_gap_beyond_instrument": 0.380948,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1875
+                  0.0212
                 ],
-                "land_area_weighted_relative_gap": -0.03053,
+                "land_area_weighted_relative_gap": -0.000424,
                 "per_cell_relative_gap": {
-                  "1": -0.071003,
-                  "50": -0.0,
+                  "1": -0.006559,
+                  "50": 0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1875,
-                  0.6377
+                  0.0212,
+                  0.5637
                 ],
-                "land_area_weighted_relative_gap": -0.133417,
+                "land_area_weighted_relative_gap": -0.087716,
                 "per_cell_relative_gap": {
-                  "1": -0.257556,
-                  "50": -0.123781,
-                  "99": -0.073496
+                  "1": -0.221475,
+                  "50": -0.080564,
+                  "99": -0.008927
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.6377,
+                  0.5637,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.264803,
+                "land_area_weighted_relative_gap": -0.248354,
                 "per_cell_relative_gap": {
-                  "1": -0.343244,
-                  "50": -0.277896,
+                  "1": -0.343228,
+                  "50": -0.247568,
                   "99": 0.0
                 }
               }
             }
           }
         },
-        "instrument_z_ref_bracket_relative": 0.05129
+        "instrument_z_ref_bracket_relative": 0.052832
       },
       "clay_conversion": {
         "intensity_sweep": [
@@ -666,31 +953,31 @@
         "by_intensity": {
           "0.02": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.443666,
-              "process_then_aggregate_land_mean": 0.443678,
-              "land_mean_gap": 1.203e-05,
+              "aggregate_then_process_land_mean": 0.481142,
+              "process_then_aggregate_land_mean": 0.481147,
+              "land_mean_gap": 4.17e-06,
               "per_cell_gap": {
-                "1": -8.547e-05,
-                "50": 9.7e-07,
-                "99": 7.296e-05
+                "1": -7.23e-05,
+                "50": 0.0,
+                "99": 7.253e-05
               },
               "max_abs_cell_gap": 0.00010655
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.320627,
-              "process_then_aggregate_land_mean": 0.320614,
-              "land_mean_gap": -1.203e-05,
+              "aggregate_then_process_land_mean": 0.307587,
+              "process_then_aggregate_land_mean": 0.307583,
+              "land_mean_gap": -4.17e-06,
               "per_cell_gap": {
-                "1": -7.296e-05,
-                "50": -9.7e-07,
-                "99": 8.547e-05
+                "1": -7.253e-05,
+                "50": -0.0,
+                "99": 7.23e-05
               },
               "max_abs_cell_gap": 0.00010655
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.235511,
-              "process_then_aggregate_land_mean": 0.235511,
-              "land_mean_gap": -0.0,
+              "aggregate_then_process_land_mean": 0.211051,
+              "process_then_aggregate_land_mean": 0.211051,
+              "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
                 "50": 0.0,
@@ -701,31 +988,31 @@
           },
           "0.2": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.42739,
-              "process_then_aggregate_land_mean": 0.427504,
-              "land_mean_gap": 0.00011459,
+              "aggregate_then_process_land_mean": 0.463802,
+              "process_then_aggregate_land_mean": 0.463842,
+              "land_mean_gap": 3.973e-05,
               "per_cell_gap": {
-                "1": -0.0008138,
-                "50": 9.26e-06,
-                "99": 0.00069471
+                "1": -0.00068842,
+                "50": 0.0,
+                "99": 0.00069064
               },
-              "max_abs_cell_gap": 0.00101454
+              "max_abs_cell_gap": 0.00101455
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.308763,
-              "process_then_aggregate_land_mean": 0.308649,
-              "land_mean_gap": -0.00011459,
+              "aggregate_then_process_land_mean": 0.296407,
+              "process_then_aggregate_land_mean": 0.296367,
+              "land_mean_gap": -3.973e-05,
               "per_cell_gap": {
-                "1": -0.00069471,
-                "50": -9.26e-06,
-                "99": 0.0008138
+                "1": -0.00069064,
+                "50": -0.0,
+                "99": 0.00068842
               },
-              "max_abs_cell_gap": 0.00101454
+              "max_abs_cell_gap": 0.00101455
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.263651,
-              "process_then_aggregate_land_mean": 0.263651,
-              "land_mean_gap": -0.0,
+              "aggregate_then_process_land_mean": 0.239572,
+              "process_then_aggregate_land_mean": 0.239572,
+              "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
                 "50": 0.0,
@@ -736,30 +1023,30 @@
           },
           "1.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.371715,
-              "process_then_aggregate_land_mean": 0.372181,
-              "land_mean_gap": 0.00046539,
+              "aggregate_then_process_land_mean": 0.40449,
+              "process_then_aggregate_land_mean": 0.404652,
+              "land_mean_gap": 0.00016136,
               "per_cell_gap": {
-                "1": -0.00330508,
-                "50": 3.761e-05,
-                "99": 0.00282143
+                "1": -0.0027959,
+                "50": 0.0,
+                "99": 0.00280491
               },
-              "max_abs_cell_gap": 0.00412035
+              "max_abs_cell_gap": 0.0041204
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.268184,
-              "process_then_aggregate_land_mean": 0.267719,
-              "land_mean_gap": -0.00046539,
+              "aggregate_then_process_land_mean": 0.258163,
+              "process_then_aggregate_land_mean": 0.258002,
+              "land_mean_gap": -0.00016136,
               "per_cell_gap": {
-                "1": -0.00282143,
-                "50": -3.761e-05,
-                "99": 0.00330508
+                "1": -0.00280491,
+                "50": 0.0,
+                "99": 0.0027959
               },
-              "max_abs_cell_gap": 0.00412035
+              "max_abs_cell_gap": 0.0041204
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.359904,
-              "process_then_aggregate_land_mean": 0.359904,
+              "aggregate_then_process_land_mean": 0.337127,
+              "process_then_aggregate_land_mean": 0.337127,
               "land_mean_gap": -0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -771,30 +1058,30 @@
           },
           "2.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.329101,
-              "process_then_aggregate_land_mean": 0.329835,
-              "land_mean_gap": 0.0007339,
+              "aggregate_then_process_land_mean": 0.359092,
+              "process_then_aggregate_land_mean": 0.359346,
+              "land_mean_gap": 0.00025446,
               "per_cell_gap": {
-                "1": -0.00521195,
-                "50": 5.93e-05,
-                "99": 0.00444925
+                "1": -0.00440899,
+                "50": 0.0,
+                "99": 0.0044232
               },
-              "max_abs_cell_gap": 0.00649759
+              "max_abs_cell_gap": 0.00649767
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.237125,
-              "process_then_aggregate_land_mean": 0.236391,
-              "land_mean_gap": -0.0007339,
+              "aggregate_then_process_land_mean": 0.228891,
+              "process_then_aggregate_land_mean": 0.228637,
+              "land_mean_gap": -0.00025446,
               "per_cell_gap": {
-                "1": -0.00444925,
-                "50": -5.93e-05,
-                "99": 0.00521195
+                "1": -0.0044232,
+                "50": -0.0,
+                "99": 0.00440899
               },
-              "max_abs_cell_gap": 0.00649759
+              "max_abs_cell_gap": 0.00649767
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.433578,
-              "process_then_aggregate_land_mean": 0.433578,
+              "aggregate_then_process_land_mean": 0.411798,
+              "process_then_aggregate_land_mean": 0.411798,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -806,30 +1093,30 @@
           },
           "6.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.277424,
-              "process_then_aggregate_land_mean": 0.278483,
-              "land_mean_gap": 0.00105952,
+              "aggregate_then_process_land_mean": 0.304038,
+              "process_then_aggregate_land_mean": 0.304406,
+              "land_mean_gap": 0.00036736,
               "per_cell_gap": {
-                "1": -0.00752436,
-                "50": 8.561e-05,
-                "99": 0.00642327
+                "1": -0.00636515,
+                "50": 0.0,
+                "99": 0.00638567
               },
-              "max_abs_cell_gap": 0.0093804
+              "max_abs_cell_gap": 0.00938051
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.199459,
-              "process_then_aggregate_land_mean": 0.1984,
-              "land_mean_gap": -0.00105952,
+              "aggregate_then_process_land_mean": 0.193394,
+              "process_then_aggregate_land_mean": 0.193026,
+              "land_mean_gap": -0.00036736,
               "per_cell_gap": {
-                "1": -0.00642327,
-                "50": -8.561e-05,
-                "99": 0.00752436
+                "1": -0.00638567,
+                "50": -0.0,
+                "99": 0.00636515
               },
-              "max_abs_cell_gap": 0.0093804
+              "max_abs_cell_gap": 0.00938051
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.52292,
-              "process_then_aggregate_land_mean": 0.52292,
+              "aggregate_then_process_land_mean": 0.502349,
+              "process_then_aggregate_land_mean": 0.502349,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -840,32 +1127,32 @@
             }
           }
         },
-        "instrument_dunne_scatter": 1.35,
+        "instrument_dunne_scatter": 1.3489628825916535,
         "instrument_land_mean_shift": {
           "0.02": {
-            "sand": 0.00066355,
-            "silt": 0.00048363,
-            "clay": 0.00114718
+            "sand": 0.00070481,
+            "silt": 0.00045445,
+            "clay": 0.00115926
           },
           "0.2": {
-            "sand": 0.00590716,
-            "silt": 0.00430548,
-            "clay": 0.01021264
+            "sand": 0.00627482,
+            "silt": 0.00404589,
+            "clay": 0.01032071
           },
           "1.0": {
-            "sand": 0.01763852,
-            "silt": 0.01285597,
-            "clay": 0.0304945
+            "sand": 0.01874044,
+            "silt": 0.01208349,
+            "clay": 0.03082393
           },
           "2.0": {
-            "sand": 0.01857111,
-            "silt": 0.0135357,
-            "clay": 0.03210681
+            "sand": 0.01973638,
+            "silt": 0.01272565,
+            "clay": 0.03246204
           },
           "6.0": {
-            "sand": 0.00441069,
-            "silt": 0.00321476,
-            "clay": 0.00762545
+            "sand": 0.00469145,
+            "silt": 0.00302496,
+            "clay": 0.00771642
           }
         }
       },
@@ -876,7 +1163,7 @@
           0.25,
           3.5
         ],
-        "land_mean_erodibility": 1.6716,
+        "land_mean_erodibility": 1.4633,
         "rho_sweep": [
           0.01,
           0.1,
@@ -889,87 +1176,87 @@
         "by_rho": {
           "0.01": {
             "depth_aggregate_then_process_m": 6.633663,
-            "depth_process_then_aggregate_land_mean_m": 6.633963,
-            "land_mean_gap_m": 0.0003,
+            "depth_process_then_aggregate_land_mean_m": 6.633931,
+            "land_mean_gap_m": 0.000267,
             "per_cell_gap_m": {
-              "50": 0.000173,
-              "75": 0.000405,
-              "95": 0.00067,
-              "99": 0.000788
+              "50": 0.000142,
+              "75": 0.000371,
+              "95": 0.000656,
+              "99": 0.000783
             },
             "land_area_fraction_above_bar": 0.0
           },
           "0.1": {
             "depth_aggregate_then_process_m": 6.090909,
-            "depth_process_then_aggregate_land_mean_m": 6.112814,
-            "land_mean_gap_m": 0.021905,
+            "depth_process_then_aggregate_land_mean_m": 6.110067,
+            "land_mean_gap_m": 0.019157,
             "per_cell_gap_m": {
-              "50": 0.013562,
-              "75": 0.030016,
-              "95": 0.046633,
-              "99": 0.053001
+              "50": 0.010797,
+              "75": 0.02732,
+              "95": 0.045135,
+              "99": 0.052658
             },
-            "land_area_fraction_above_bar": 0.548791
+            "land_area_fraction_above_bar": 0.463884
           },
           "0.5": {
             "depth_aggregate_then_process_m": 4.466667,
-            "depth_process_then_aggregate_land_mean_m": 4.66757,
-            "land_mean_gap_m": 0.200904,
+            "depth_process_then_aggregate_land_mean_m": 4.635753,
+            "land_mean_gap_m": 0.169087,
             "per_cell_gap_m": {
-              "50": 0.139889,
-              "75": 0.278921,
-              "95": 0.389585,
-              "99": 0.422954
+              "50": 0.104907,
+              "75": 0.24579,
+              "95": 0.379714,
+              "99": 0.417528
             },
-            "land_area_fraction_above_bar": 0.780992
+            "land_area_fraction_above_bar": 0.735416
           },
           "1.0": {
             "depth_aggregate_then_process_m": 3.35,
-            "depth_process_then_aggregate_land_mean_m": 3.694131,
-            "land_mean_gap_m": 0.344131,
+            "depth_process_then_aggregate_land_mean_m": 3.63355,
+            "land_mean_gap_m": 0.28355,
             "per_cell_gap_m": {
-              "50": 0.24921,
-              "75": 0.478593,
-              "95": 0.644309,
-              "99": 0.690431
+              "50": 0.181042,
+              "75": 0.414849,
+              "95": 0.623497,
+              "99": 0.684215
             },
-            "land_area_fraction_above_bar": 0.8012
+            "land_area_fraction_above_bar": 0.758631
           },
           "3.0": {
             "depth_aggregate_then_process_m": 1.675,
-            "depth_process_then_aggregate_land_mean_m": 2.111431,
-            "land_mean_gap_m": 0.436431,
+            "depth_process_then_aggregate_land_mean_m": 2.022968,
+            "land_mean_gap_m": 0.347968,
             "per_cell_gap_m": {
-              "50": 0.322445,
-              "75": 0.596845,
-              "95": 0.79868,
-              "99": 0.84886
+              "50": 0.223408,
+              "75": 0.513334,
+              "95": 0.77125,
+              "99": 0.838996
             },
-            "land_area_fraction_above_bar": 0.809305
+            "land_area_fraction_above_bar": 0.765166
           },
           "10.0": {
             "depth_aggregate_then_process_m": 0.609091,
-            "depth_process_then_aggregate_land_mean_m": 0.882739,
-            "land_mean_gap_m": 0.273648,
+            "depth_process_then_aggregate_land_mean_m": 0.821813,
+            "land_mean_gap_m": 0.212722,
             "per_cell_gap_m": {
-              "50": 0.199767,
-              "75": 0.371467,
-              "95": 0.504748,
-              "99": 0.540875
+              "50": 0.134986,
+              "75": 0.309147,
+              "95": 0.484133,
+              "99": 0.537716
             },
-            "land_area_fraction_above_bar": 0.79988
+            "land_area_fraction_above_bar": 0.750111
           },
           "100.0": {
             "depth_aggregate_then_process_m": 0.066337,
-            "depth_process_then_aggregate_land_mean_m": 0.106347,
-            "land_mean_gap_m": 0.04001,
+            "depth_process_then_aggregate_land_mean_m": 0.096952,
+            "land_mean_gap_m": 0.030615,
             "per_cell_gap_m": {
-              "50": 0.02869,
-              "75": 0.05333,
-              "95": 0.07542,
-              "99": 0.082139
+              "50": 0.019167,
+              "75": 0.043935,
+              "95": 0.071644,
+              "99": 0.081264
             },
-            "land_area_fraction_above_bar": 0.721475
+            "land_area_fraction_above_bar": 0.5949
           }
         }
       },
@@ -986,8 +1273,8 @@
           313.15
         ],
         "critical_lapse_k_per_km": {
-          "273.15": 4.1634,
-          "313.15": 4.9307
+          "273.15": 4.28,
+          "313.15": 5.0669
         },
         "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
         "magnus_teten_coefficients": {
@@ -1001,45 +1288,314 @@
         },
         "by_bracket_corner": {
           "lapse4_t273.15": {
-            "land_mean_relative_gap": 0.00907,
+            "land_mean_relative_gap": 0.008471,
             "per_cell_relative_gap": {
-              "50": -1.7e-05,
-              "75": 0.001633,
-              "95": 0.040866,
-              "99": 0.078995
+              "50": -1.6e-05,
+              "75": 0.001331,
+              "95": 0.038851,
+              "99": 0.075609
             },
-            "land_area_fraction_above_bar": 0.232627
+            "land_area_fraction_above_bar": 0.227536
           },
           "lapse4_t313.15": {
-            "land_mean_relative_gap": 0.006644,
+            "land_mean_relative_gap": 0.006297,
             "per_cell_relative_gap": {
-              "50": 0.000109,
-              "75": 0.002807,
-              "95": 0.027361,
-              "99": 0.049233
+              "50": 9.5e-05,
+              "75": 0.002576,
+              "95": 0.026325,
+              "99": 0.047122
             },
-            "land_area_fraction_above_bar": 0.214278
+            "land_area_fraction_above_bar": 0.208062
           },
           "lapse12.7476_t273.15": {
-            "land_mean_relative_gap": 0.114501,
+            "land_mean_relative_gap": 0.108592,
             "per_cell_relative_gap": {
-              "50": 6.6e-05,
-              "75": 0.040123,
-              "95": 0.466138,
-              "99": 1.00219
+              "50": 4.5e-05,
+              "75": 0.035815,
+              "95": 0.440898,
+              "99": 0.939397
             },
-            "land_area_fraction_above_bar": 0.470929
+            "land_area_fraction_above_bar": 0.467649
           },
           "lapse12.7476_t313.15": {
-            "land_mean_relative_gap": 0.063205,
+            "land_mean_relative_gap": 0.060076,
             "per_cell_relative_gap": {
-              "50": 0.001086,
-              "75": 0.026079,
-              "95": 0.255497,
-              "99": 0.505672
+              "50": 0.00095,
+              "75": 0.023677,
+              "95": 0.242337,
+              "99": 0.473584
             },
-            "land_area_fraction_above_bar": 0.454278
+            "land_area_fraction_above_bar": 0.450305
           }
+        }
+      },
+      "wet_albedo_mixing": {
+        "saturation_endpoints": [
+          0.0,
+          0.7609
+        ],
+        "saturation_sweep": [
+          0.0,
+          0.095113,
+          0.190225,
+          0.285338,
+          0.38045,
+          0.475562,
+          0.570675,
+          0.665787,
+          0.7609
+        ],
+        "wetting_arm": "twomey",
+        "cells_with_land": 5754,
+        "cells_of_one_substrate_class": 848,
+        "one_class_control": {
+          "worst_absolute_gap": 1.8457457784393227e-15,
+          "tolerance": 1e-12,
+          "passes": true
+        },
+        "bands": {
+          "band1": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.224430883397795,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.001298447981498655,
+                "land_mean_aggregate_then_process": 0.19220353702486345,
+                "per_cell_gap": {
+                  "1": -0.008576212307507753,
+                  "50": -0.0001956481063581511,
+                  "99": 3.3306690738754696e-16
+                },
+                "maximum_absolute_gap": 0.010145943386826006
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0017544086389038244,
+                "land_mean_aggregate_then_process": 0.16840883667527493,
+                "per_cell_gap": {
+                  "1": -0.012340746169157136,
+                  "50": -0.00023440162411290932,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.014877020277349218
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.001821155475456123,
+                "land_mean_aggregate_then_process": 0.1500362297079366,
+                "per_cell_gap": {
+                  "1": -0.013423613565187264,
+                  "50": -0.00021696284354254247,
+                  "99": 8.326672684688674e-17
+                },
+                "maximum_absolute_gap": 0.01652236509065763
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.0016983437526628818,
+                "land_mean_aggregate_then_process": 0.1353823369191706,
+                "per_cell_gap": {
+                  "1": -0.01302672850489426,
+                  "50": -0.00018294755473358126,
+                  "99": 8.391898287385437e-16
+                },
+                "maximum_absolute_gap": 0.01633505869891827
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.0014824852761047731,
+                "land_mean_aggregate_then_process": 0.12340070161001938,
+                "per_cell_gap": {
+                  "1": -0.011758405444607194,
+                  "50": -0.0001451589943249898,
+                  "99": 1.1102230246251565e-16
+                },
+                "maximum_absolute_gap": 0.015064105844129705
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0012231749265128025,
+                "land_mean_aggregate_then_process": 0.11340937244297675,
+                "per_cell_gap": {
+                  "1": -0.009976446546274496,
+                  "50": -0.00011022431955978046,
+                  "99": 2.7755575615628914e-17
+                },
+                "maximum_absolute_gap": 0.013050216840592266
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.0009469213681873457,
+                "land_mean_aggregate_then_process": 0.10494341439169934,
+                "per_cell_gap": {
+                  "1": -0.007913989380590737,
+                  "50": -7.873863395353731e-05,
+                  "99": 8.743006318923108e-16
+                },
+                "maximum_absolute_gap": 0.010548499642440201
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.0006681722691644496,
+                "land_mean_aggregate_then_process": 0.09767359791017423,
+                "per_cell_gap": {
+                  "1": -0.0057207460084444575,
+                  "50": -5.1479621667897824e-05,
+                  "99": 9.159339953157541e-16
+                },
+                "maximum_absolute_gap": 0.007735993888215387
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 24
+          },
+          "band2": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.28432554947512456,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.0011551774480025334,
+                "land_mean_aggregate_then_process": 0.24724952125188185,
+                "per_cell_gap": {
+                  "1": -0.008113037538691857,
+                  "50": -0.0003806680441194171,
+                  "99": 1.7957857423312614e-16
+                },
+                "maximum_absolute_gap": 0.00989132712601487
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0015713982458292971,
+                "land_mean_aggregate_then_process": 0.2192466986883799,
+                "per_cell_gap": {
+                  "1": -0.011675085516834433,
+                  "50": -0.00047103382295572704,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.01456691317278097
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.0016407666359746578,
+                "land_mean_aggregate_then_process": 0.19722317956511862,
+                "per_cell_gap": {
+                  "1": -0.012762947444904419,
+                  "50": -0.00044725841899111163,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.016309463902890065
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.0015379312347968271,
+                "land_mean_aggregate_then_process": 0.17938655387411562,
+                "per_cell_gap": {
+                  "1": -0.01238647041751169,
+                  "50": -0.00039310549282893514,
+                  "99": 4.163336342344337e-16
+                },
+                "maximum_absolute_gap": 0.01621618926973467
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.001348446926892343,
+                "land_mean_aggregate_then_process": 0.16461256897382034,
+                "per_cell_gap": {
+                  "1": -0.01119210662745008,
+                  "50": -0.00032313771888398124,
+                  "99": 2.220446049250313e-16
+                },
+                "maximum_absolute_gap": 0.014999837501392776
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0011169419656622498,
+                "land_mean_aggregate_then_process": 0.15215507658994365,
+                "per_cell_gap": {
+                  "1": -0.009524229940442223,
+                  "50": -0.00025140683613411596,
+                  "99": 2.0733414984875505e-16
+                },
+                "maximum_absolute_gap": 0.013048136677046351
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.0008676780595447554,
+                "land_mean_aggregate_then_process": 0.1414970968006937,
+                "per_cell_gap": {
+                  "1": -0.007564487607775629,
+                  "50": -0.00018397416100848774,
+                  "99": 1.1102230246251565e-16
+                },
+                "maximum_absolute_gap": 0.010590600073990486
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.0006141445667677768,
+                "land_mean_aggregate_then_process": 0.1322671588429554,
+                "per_cell_gap": {
+                  "1": -0.005458780237898229,
+                  "50": -0.00012257209501678745,
+                  "99": 8.881784197001252e-16
+                },
+                "maximum_absolute_gap": 0.0077961286251620465
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 22
+          }
+        },
+        "inputs": {
+          "band_fractions": [
+            0.3823719935950933,
+            0.6176280064049068
+          ],
+          "lithology_albedo_overrides": {
+            "playa_clastic": {
+              "rock_id": 19,
+              "albedo": 0.23,
+              "regions": 602552
+            }
+          },
+          "wetting": {
+            "arm": "twomey",
+            "arms_available": [
+              "twomey",
+              "lekner"
+            ],
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "generated": "2026-08-30",
+            "refused_classes": {
+              "water": "open water is not a surface that wets",
+              "evaporite": "the sign is disputed: two in-situ pyranometer pairs make a wetted halite crust much darker and a twenty-year MODIS series makes wet years brighter, and the Fresnel term is too small by an order of magnitude to be the second effect"
+            },
+            "held_pair_bracket_passes": true,
+            "band2_liquid_absorption_direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it"
+          }
+        },
+        "absorbed_shortwave": {
+          "available": false,
+          "reason": "the accepted climatology is not on this rung, and there is no fallback onto another one"
         }
       }
     },
@@ -1049,64 +1605,64 @@
         256
       ],
       "roughness_exchange": {
-        "derived_land_mean_z0_m": 0.482584,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 5.3080721065711954e-05,
+        "derived_land_mean_z0_m": 0.56318,
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 5.0771640647273525e-05,
         "mesh_spacing_m_land_mean": 9848.7,
         "land_cells": 20719,
-        "subgrid_stdev_m_land_median": 42.29,
-        "barren_land_area_fraction": 0.283595,
+        "subgrid_stdev_m_land_median": 39.97,
+        "barren_land_area_fraction": 0.153244,
         "z_ref_bracket_m": [
           106.18,
           121.73
         ],
         "by_reference_air_k": {
           "273.15": {
-            "ce_aggregate_then_process_land_mean": 0.005375,
-            "ce_process_then_aggregate_land_mean": 0.004884,
-            "land_mean_relative_gap": -0.091306,
+            "ce_aggregate_then_process_land_mean": 0.005741,
+            "ce_process_then_aggregate_land_mean": 0.005482,
+            "land_mean_relative_gap": -0.045065,
             "per_cell_relative_gap": {
-              "1": -0.342111,
-              "25": -0.134862,
-              "50": -0.048086,
-              "75": -0.0,
+              "1": -0.340526,
+              "25": -0.081413,
+              "50": -0.0,
+              "75": 0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.643773,
+            "land_area_fraction_gap_beyond_instrument": 0.332698,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1767
+                  0.0
                 ],
-                "land_area_weighted_relative_gap": -0.021136,
+                "land_area_weighted_relative_gap": -0.0,
                 "per_cell_relative_gap": {
-                  "1": -0.065764,
-                  "50": -0.0,
+                  "1": -0.0,
+                  "50": 0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1767,
-                  0.7974
+                  0.0,
+                  0.7148
                 ],
-                "land_area_weighted_relative_gap": -0.151773,
+                "land_area_weighted_relative_gap": -0.045657,
                 "per_cell_relative_gap": {
-                  "1": -0.31999,
-                  "50": -0.138682,
-                  "99": -0.06875
+                  "1": -0.274346,
+                  "50": -0.0,
+                  "99": 0.0
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.7974,
+                  0.7148,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.22261,
+                "land_area_weighted_relative_gap": -0.229186,
                 "per_cell_relative_gap": {
-                  "1": -0.34464,
+                  "1": -0.344622,
                   "50": -0.0,
                   "99": 0.0
                 }
@@ -1114,51 +1670,51 @@
             }
           },
           "313.15": {
-            "ce_aggregate_then_process_land_mean": 0.005112,
-            "ce_process_then_aggregate_land_mean": 0.004642,
-            "land_mean_relative_gap": -0.091966,
+            "ce_aggregate_then_process_land_mean": 0.005452,
+            "ce_process_then_aggregate_land_mean": 0.005204,
+            "land_mean_relative_gap": -0.045459,
             "per_cell_relative_gap": {
-              "1": -0.340706,
-              "25": -0.13561,
-              "50": -0.048484,
-              "75": -0.0,
+              "1": -0.339092,
+              "25": -0.082029,
+              "50": -0.0,
+              "75": 0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.645106,
+            "land_area_fraction_gap_beyond_instrument": 0.333686,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1767
+                  0.0
                 ],
-                "land_area_weighted_relative_gap": -0.021318,
+                "land_area_weighted_relative_gap": 0.0,
                 "per_cell_relative_gap": {
-                  "1": -0.06632,
-                  "50": -0.0,
+                  "1": -0.0,
+                  "50": 0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1767,
-                  0.7974
+                  0.0,
+                  0.7148
                 ],
-                "land_area_weighted_relative_gap": -0.152422,
+                "land_area_weighted_relative_gap": -0.045895,
                 "per_cell_relative_gap": {
-                  "1": -0.319588,
-                  "50": -0.139489,
-                  "99": -0.06928
+                  "1": -0.274626,
+                  "50": -0.0,
+                  "99": 0.0
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.7974,
+                  0.7148,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.221571,
+                "land_area_weighted_relative_gap": -0.228435,
                 "per_cell_relative_gap": {
-                  "1": -0.343244,
+                  "1": -0.343222,
                   "50": -0.0,
                   "99": 0.0
                 }
@@ -1166,7 +1722,7 @@
             }
           }
         },
-        "instrument_z_ref_bracket_relative": 0.051316
+        "instrument_z_ref_bracket_relative": 0.052848
       },
       "clay_conversion": {
         "intensity_sweep": [
@@ -1182,30 +1738,30 @@
         "by_intensity": {
           "0.02": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.443668,
-              "process_then_aggregate_land_mean": 0.443678,
-              "land_mean_gap": 1.057e-05,
+              "aggregate_then_process_land_mean": 0.481143,
+              "process_then_aggregate_land_mean": 0.481147,
+              "land_mean_gap": 3.9e-06,
               "per_cell_gap": {
-                "1": -6.426e-05,
+                "1": -5.565e-05,
                 "50": 0.0,
-                "99": 7.414e-05
+                "99": 7.363e-05
               },
               "max_abs_cell_gap": 0.00010657
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.320625,
-              "process_then_aggregate_land_mean": 0.320614,
-              "land_mean_gap": -1.057e-05,
+              "aggregate_then_process_land_mean": 0.307587,
+              "process_then_aggregate_land_mean": 0.307583,
+              "land_mean_gap": -3.9e-06,
               "per_cell_gap": {
-                "1": -7.414e-05,
+                "1": -7.363e-05,
                 "50": -0.0,
-                "99": 6.426e-05
+                "99": 5.565e-05
               },
               "max_abs_cell_gap": 0.00010657
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.235511,
-              "process_then_aggregate_land_mean": 0.235511,
+              "aggregate_then_process_land_mean": 0.211051,
+              "process_then_aggregate_land_mean": 0.211051,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -1217,30 +1773,30 @@
           },
           "0.2": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.427404,
-              "process_then_aggregate_land_mean": 0.427504,
-              "land_mean_gap": 0.00010065,
+              "aggregate_then_process_land_mean": 0.463805,
+              "process_then_aggregate_land_mean": 0.463842,
+              "land_mean_gap": 3.709e-05,
               "per_cell_gap": {
-                "1": -0.00061187,
+                "1": -0.00052991,
                 "50": 0.0,
-                "99": 0.00070593
+                "99": 0.00070109
               },
               "max_abs_cell_gap": 0.00101471
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.308749,
-              "process_then_aggregate_land_mean": 0.308649,
-              "land_mean_gap": -0.00010065,
+              "aggregate_then_process_land_mean": 0.296404,
+              "process_then_aggregate_land_mean": 0.296367,
+              "land_mean_gap": -3.709e-05,
               "per_cell_gap": {
-                "1": -0.00070593,
+                "1": -0.00070109,
                 "50": -0.0,
-                "99": 0.00061187
+                "99": 0.00052991
               },
               "max_abs_cell_gap": 0.00101471
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.263651,
-              "process_then_aggregate_land_mean": 0.263651,
+              "aggregate_then_process_land_mean": 0.239572,
+              "process_then_aggregate_land_mean": 0.239572,
               "land_mean_gap": -0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -1252,31 +1808,31 @@
           },
           "1.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.371772,
-              "process_then_aggregate_land_mean": 0.372181,
-              "land_mean_gap": 0.00040876,
+              "aggregate_then_process_land_mean": 0.404501,
+              "process_then_aggregate_land_mean": 0.404652,
+              "land_mean_gap": 0.00015064,
               "per_cell_gap": {
-                "1": -0.00248499,
+                "1": -0.00215211,
                 "50": 0.0,
-                "99": 0.002867
+                "99": 0.00284735
               },
               "max_abs_cell_gap": 0.00412104
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.268128,
-              "process_then_aggregate_land_mean": 0.267719,
-              "land_mean_gap": -0.00040876,
+              "aggregate_then_process_land_mean": 0.258153,
+              "process_then_aggregate_land_mean": 0.258002,
+              "land_mean_gap": -0.00015064,
               "per_cell_gap": {
-                "1": -0.002867,
-                "50": -0.0,
-                "99": 0.00248499
+                "1": -0.00284735,
+                "50": 0.0,
+                "99": 0.00215211
               },
               "max_abs_cell_gap": 0.00412104
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.359904,
-              "process_then_aggregate_land_mean": 0.359904,
-              "land_mean_gap": -0.0,
+              "aggregate_then_process_land_mean": 0.337127,
+              "process_then_aggregate_land_mean": 0.337127,
+              "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
                 "50": 0.0,
@@ -1287,30 +1843,30 @@
           },
           "2.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.32919,
-              "process_then_aggregate_land_mean": 0.329835,
-              "land_mean_gap": 0.0006446,
+              "aggregate_then_process_land_mean": 0.359109,
+              "process_then_aggregate_land_mean": 0.359346,
+              "land_mean_gap": 0.00023755,
               "per_cell_gap": {
-                "1": -0.0039187,
+                "1": -0.00339377,
                 "50": 0.0,
-                "99": 0.00452112
+                "99": 0.00449013
               },
-              "max_abs_cell_gap": 0.00649867
+              "max_abs_cell_gap": 0.00649868
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.237035,
-              "process_then_aggregate_land_mean": 0.236391,
-              "land_mean_gap": -0.0006446,
+              "aggregate_then_process_land_mean": 0.228874,
+              "process_then_aggregate_land_mean": 0.228637,
+              "land_mean_gap": -0.00023755,
               "per_cell_gap": {
-                "1": -0.00452112,
+                "1": -0.00449013,
                 "50": -0.0,
-                "99": 0.0039187
+                "99": 0.00339377
               },
-              "max_abs_cell_gap": 0.00649867
+              "max_abs_cell_gap": 0.00649868
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.433578,
-              "process_then_aggregate_land_mean": 0.433578,
+              "aggregate_then_process_land_mean": 0.411798,
+              "process_then_aggregate_land_mean": 0.411798,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -1322,30 +1878,30 @@
           },
           "6.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.277553,
-              "process_then_aggregate_land_mean": 0.278483,
-              "land_mean_gap": 0.00093059,
+              "aggregate_then_process_land_mean": 0.304063,
+              "process_then_aggregate_land_mean": 0.304406,
+              "land_mean_gap": 0.00034295,
               "per_cell_gap": {
-                "1": -0.00565733,
+                "1": -0.0048995,
                 "50": 0.0,
-                "99": 0.00652702
+                "99": 0.00648228
               },
-              "max_abs_cell_gap": 0.00938196
+              "max_abs_cell_gap": 0.00938197
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.199331,
-              "process_then_aggregate_land_mean": 0.1984,
-              "land_mean_gap": -0.00093059,
+              "aggregate_then_process_land_mean": 0.193369,
+              "process_then_aggregate_land_mean": 0.193026,
+              "land_mean_gap": -0.00034295,
               "per_cell_gap": {
-                "1": -0.00652702,
+                "1": -0.00648228,
                 "50": -0.0,
-                "99": 0.00565733
+                "99": 0.0048995
               },
-              "max_abs_cell_gap": 0.00938196
+              "max_abs_cell_gap": 0.00938197
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.52292,
-              "process_then_aggregate_land_mean": 0.52292,
+              "aggregate_then_process_land_mean": 0.502349,
+              "process_then_aggregate_land_mean": 0.502349,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -1356,32 +1912,32 @@
             }
           }
         },
-        "instrument_dunne_scatter": 1.35,
+        "instrument_dunne_scatter": 1.3489628825916535,
         "instrument_land_mean_shift": {
           "0.02": {
-            "sand": 0.00066304,
-            "silt": 0.00048414,
-            "clay": 0.00114718
+            "sand": 0.00070471,
+            "silt": 0.00045454,
+            "clay": 0.00115926
           },
           "0.2": {
-            "sand": 0.00590263,
-            "silt": 0.00431001,
-            "clay": 0.01021264
+            "sand": 0.00627397,
+            "silt": 0.00404674,
+            "clay": 0.01032071
           },
           "1.0": {
-            "sand": 0.017625,
-            "silt": 0.0128695,
-            "clay": 0.0304945
+            "sand": 0.01873789,
+            "silt": 0.01208604,
+            "clay": 0.03082393
           },
           "2.0": {
-            "sand": 0.01855687,
-            "silt": 0.01354994,
-            "clay": 0.03210681
+            "sand": 0.0197337,
+            "silt": 0.01272834,
+            "clay": 0.03246204
           },
           "6.0": {
-            "sand": 0.0044073,
-            "silt": 0.00321815,
-            "clay": 0.00762545
+            "sand": 0.00469081,
+            "silt": 0.0030256,
+            "clay": 0.00771642
           }
         }
       },
@@ -1392,7 +1948,7 @@
           0.25,
           3.5
         ],
-        "land_mean_erodibility": 1.6716,
+        "land_mean_erodibility": 1.4633,
         "rho_sweep": [
           0.01,
           0.1,
@@ -1405,87 +1961,87 @@
         "by_rho": {
           "0.01": {
             "depth_aggregate_then_process_m": 6.633663,
-            "depth_process_then_aggregate_land_mean_m": 6.633943,
-            "land_mean_gap_m": 0.00028,
+            "depth_process_then_aggregate_land_mean_m": 6.633879,
+            "land_mean_gap_m": 0.000216,
             "per_cell_gap_m": {
-              "50": 8.5e-05,
-              "75": 0.000386,
-              "95": 0.000705,
-              "99": 0.000828
+              "50": 2.8e-05,
+              "75": 0.000299,
+              "95": 0.00067,
+              "99": 0.000813
             },
             "land_area_fraction_above_bar": 0.0
           },
           "0.1": {
             "depth_aggregate_then_process_m": 6.090909,
-            "depth_process_then_aggregate_land_mean_m": 6.110992,
-            "land_mean_gap_m": 0.020083,
+            "depth_process_then_aggregate_land_mean_m": 6.106242,
+            "land_mean_gap_m": 0.015333,
             "per_cell_gap_m": {
-              "50": 0.006639,
-              "75": 0.028488,
-              "95": 0.048368,
-              "99": 0.054599
+              "50": 0.002159,
+              "75": 0.022117,
+              "95": 0.046066,
+              "99": 0.053798
             },
-            "land_area_fraction_above_bar": 0.47126
+            "land_area_fraction_above_bar": 0.348936
           },
           "0.5": {
             "depth_aggregate_then_process_m": 4.466667,
-            "depth_process_then_aggregate_land_mean_m": 4.645194,
-            "land_mean_gap_m": 0.178528,
+            "depth_process_then_aggregate_land_mean_m": 4.600056,
+            "land_mean_gap_m": 0.133389,
             "per_cell_gap_m": {
-              "50": 0.070292,
-              "75": 0.262762,
-              "95": 0.395602,
-              "99": 0.430346
+              "50": 0.021813,
+              "75": 0.204352,
+              "95": 0.378059,
+              "99": 0.424333
             },
-            "land_area_fraction_above_bar": 0.704141
+            "land_area_fraction_above_bar": 0.599549
           },
           "1.0": {
             "depth_aggregate_then_process_m": 3.35,
-            "depth_process_then_aggregate_land_mean_m": 3.65134,
-            "land_mean_gap_m": 0.30134,
+            "depth_process_then_aggregate_land_mean_m": 3.572449,
+            "land_mean_gap_m": 0.222449,
             "per_cell_gap_m": {
-              "50": 0.12876,
-              "75": 0.44869,
-              "95": 0.651215,
-              "99": 0.697235
+              "50": 0.036993,
+              "75": 0.34726,
+              "95": 0.621534,
+              "99": 0.690323
             },
-            "land_area_fraction_above_bar": 0.722936
+            "land_area_fraction_above_bar": 0.619012
           },
           "3.0": {
             "depth_aggregate_then_process_m": 1.675,
-            "depth_process_then_aggregate_land_mean_m": 2.049982,
-            "land_mean_gap_m": 0.374982,
+            "depth_process_then_aggregate_land_mean_m": 1.946464,
+            "land_mean_gap_m": 0.271464,
             "per_cell_gap_m": {
-              "50": 0.168203,
-              "75": 0.556717,
-              "95": 0.803605,
-              "99": 0.859066
+              "50": 0.045074,
+              "75": 0.424784,
+              "95": 0.765281,
+              "99": 0.8501
             },
-            "land_area_fraction_above_bar": 0.730087
+            "land_area_fraction_above_bar": 0.625143
           },
           "10.0": {
             "depth_aggregate_then_process_m": 0.609091,
-            "depth_process_then_aggregate_land_mean_m": 0.841464,
-            "land_mean_gap_m": 0.232373,
+            "depth_process_then_aggregate_land_mean_m": 0.774712,
+            "land_mean_gap_m": 0.165621,
             "per_cell_gap_m": {
-              "50": 0.106337,
-              "75": 0.340497,
-              "95": 0.50708,
-              "99": 0.551965
+              "50": 0.026401,
+              "75": 0.255983,
+              "95": 0.479138,
+              "99": 0.542814
             },
-            "land_area_fraction_above_bar": 0.715173
+            "land_area_fraction_above_bar": 0.603539
           },
           "100.0": {
             "depth_aggregate_then_process_m": 0.066337,
-            "depth_process_then_aggregate_land_mean_m": 0.100111,
-            "land_mean_gap_m": 0.033774,
+            "depth_process_then_aggregate_land_mean_m": 0.090174,
+            "land_mean_gap_m": 0.023837,
             "per_cell_gap_m": {
-              "50": 0.01537,
-              "75": 0.048727,
-              "95": 0.075627,
-              "99": 0.083181
+              "50": 0.003641,
+              "75": 0.035931,
+              "95": 0.071078,
+              "99": 0.081839
             },
-            "land_area_fraction_above_bar": 0.618907
+            "land_area_fraction_above_bar": 0.466187
           }
         }
       },
@@ -1502,8 +2058,8 @@
           313.15
         ],
         "critical_lapse_k_per_km": {
-          "273.15": 4.6827,
-          "313.15": 5.59
+          "273.15": 4.8659,
+          "313.15": 5.8092
         },
         "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
         "magnus_teten_coefficients": {
@@ -1517,45 +2073,314 @@
         },
         "by_bracket_corner": {
           "lapse4_t273.15": {
-            "land_mean_relative_gap": 0.006755,
+            "land_mean_relative_gap": 0.006121,
             "per_cell_relative_gap": {
-              "50": -2.9e-05,
-              "75": 6.6e-05,
-              "95": 0.033734,
-              "99": 0.072865
+              "50": -2.8e-05,
+              "75": 5.6e-05,
+              "95": 0.030296,
+              "99": 0.068117
             },
-            "land_area_fraction_above_bar": 0.177863
+            "land_area_fraction_above_bar": 0.169135
           },
           "lapse4_t313.15": {
-            "land_mean_relative_gap": 0.005166,
+            "land_mean_relative_gap": 0.004789,
             "per_cell_relative_gap": {
-              "50": 3.5e-05,
-              "75": 0.001461,
-              "95": 0.023496,
-              "99": 0.045692
+              "50": 3.1e-05,
+              "75": 0.001326,
+              "95": 0.021381,
+              "99": 0.043208
             },
-            "land_area_fraction_above_bar": 0.167686
+            "land_area_fraction_above_bar": 0.159026
           },
           "lapse12.7476_t273.15": {
-            "land_mean_relative_gap": 0.093636,
+            "land_mean_relative_gap": 0.086035,
             "per_cell_relative_gap": {
-              "50": 0.0,
-              "75": 0.018743,
-              "95": 0.410978,
-              "99": 0.956523
+              "50": -4e-06,
+              "75": 0.016863,
+              "95": 0.374188,
+              "99": 0.889729
             },
-            "land_area_fraction_above_bar": 0.384287
+            "land_area_fraction_above_bar": 0.379566
           },
           "lapse12.7476_t313.15": {
-            "land_mean_relative_gap": 0.050986,
+            "land_mean_relative_gap": 0.047186,
             "per_cell_relative_gap": {
-              "50": 0.000353,
-              "75": 0.014008,
-              "95": 0.226256,
-              "99": 0.482615
+              "50": 0.000316,
+              "75": 0.012773,
+              "95": 0.204903,
+              "99": 0.446648
             },
-            "land_area_fraction_above_bar": 0.371297
+            "land_area_fraction_above_bar": 0.365976
           }
+        }
+      },
+      "wet_albedo_mixing": {
+        "saturation_endpoints": [
+          0.0,
+          0.7609
+        ],
+        "saturation_sweep": [
+          0.0,
+          0.095113,
+          0.190225,
+          0.285338,
+          0.38045,
+          0.475562,
+          0.570675,
+          0.665787,
+          0.7609
+        ],
+        "wetting_arm": "twomey",
+        "cells_with_land": 20719,
+        "cells_of_one_substrate_class": 5283,
+        "one_class_control": {
+          "worst_absolute_gap": 1.8735013540549517e-15,
+          "tolerance": 1e-12,
+          "passes": true
+        },
+        "bands": {
+          "band1": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.224430883397795,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.0011148654532517786,
+                "land_mean_aggregate_then_process": 0.19201995449661657,
+                "per_cell_gap": {
+                  "1": -0.00896253905920449,
+                  "50": -9.916601574977424e-05,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.010276859373003544
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0015185502534200608,
+                "land_mean_aggregate_then_process": 0.16817297828979116,
+                "per_cell_gap": {
+                  "1": -0.012992750744741063,
+                  "50": -0.000117134570400107,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.015059816026615935
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.0015871989706759723,
+                "land_mean_aggregate_then_process": 0.14980227320315645,
+                "per_cell_gap": {
+                  "1": -0.014338038947259598,
+                  "50": -0.00010791403219459483,
+                  "99": 1.1102230246251565e-16
+                },
+                "maximum_absolute_gap": 0.016810151455033395
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.001489036832616017,
+                "land_mean_aggregate_then_process": 0.13517302999912373,
+                "per_cell_gap": {
+                  "1": -0.014093367039962218,
+                  "50": -9.042528058293697e-05,
+                  "99": 4.996003610813204e-16
+                },
+                "maximum_absolute_gap": 0.01667398179096513
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.0013066483997555614,
+                "land_mean_aggregate_then_process": 0.12322486473367017,
+                "per_cell_gap": {
+                  "1": -0.0128494303295247,
+                  "50": -7.171125863145167e-05,
+                  "99": 8.049116928532385e-16
+                },
+                "maximum_absolute_gap": 0.015351758392013137
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0010831724068117953,
+                "land_mean_aggregate_then_process": 0.11326936992327576,
+                "per_cell_gap": {
+                  "1": -0.011058015962584168,
+                  "50": -5.4114015575854046e-05,
+                  "99": 8.326672684688674e-17
+                },
+                "maximum_absolute_gap": 0.01327215748408106
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.000842091532936406,
+                "land_mean_aggregate_then_process": 0.1048385845564484,
+                "per_cell_gap": {
+                  "1": -0.008884677280726814,
+                  "50": -3.861941302785166e-05,
+                  "99": 8.881784197001252e-16
+                },
+                "maximum_absolute_gap": 0.01070863272079256
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.000596484368283481,
+                "land_mean_aggregate_then_process": 0.09760191000929325,
+                "per_cell_gap": {
+                  "1": -0.006454094807250925,
+                  "50": -2.5292563995055195e-05,
+                  "99": 9.298117831235686e-16
+                },
+                "maximum_absolute_gap": 0.007840935025098528
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 38
+          },
+          "band2": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.28432554947512456,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.001007001722041568,
+                "land_mean_aggregate_then_process": 0.24710134552592086,
+                "per_cell_gap": {
+                  "1": -0.008982168812906617,
+                  "50": -8.28529217322127e-05,
+                  "99": 2.7755575615628914e-16
+                },
+                "maximum_absolute_gap": 0.010002743234489853
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0013797758884483392,
+                "land_mean_aggregate_then_process": 0.21905507633099897,
+                "per_cell_gap": {
+                  "1": -0.013032481293861775,
+                  "50": -0.00010405501361715475,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.014772660448026831
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.0014496590236636898,
+                "land_mean_aggregate_then_process": 0.19703207195280767,
+                "per_cell_gap": {
+                  "1": -0.014458389546732687,
+                  "50": -0.00010076366143321747,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.016536763965164736
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.0013661971223449883,
+                "land_mean_aggregate_then_process": 0.1792148197616638,
+                "per_cell_gap": {
+                  "1": -0.014204965511243348,
+                  "50": -8.767568570033912e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.016458714652280215
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.0012036462978877681,
+                "land_mean_aggregate_then_process": 0.16446776834481577,
+                "per_cell_gap": {
+                  "1": -0.01293450554219337,
+                  "50": -7.196616769458708e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.015199301015215771
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0010013031716946286,
+                "land_mean_aggregate_then_process": 0.15203943779597603,
+                "per_cell_gap": {
+                  "1": -0.01110439591094089,
+                  "50": -5.578076157805589e-05,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.01320084790672793
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.0007808760573281393,
+                "land_mean_aggregate_then_process": 0.14141029479847708,
+                "per_cell_gap": {
+                  "1": -0.008881711117639333,
+                  "50": -4.0908250565893645e-05,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.010706574642995514
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.0005546635973595937,
+                "land_mean_aggregate_then_process": 0.1322076778735472,
+                "per_cell_gap": {
+                  "1": -0.006463303269356706,
+                  "50": -2.7409956138924052e-05,
+                  "99": 8.743006318923108e-16
+                },
+                "maximum_absolute_gap": 0.007876451351878033
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 38
+          }
+        },
+        "inputs": {
+          "band_fractions": [
+            0.3823719935950933,
+            0.6176280064049068
+          ],
+          "lithology_albedo_overrides": {
+            "playa_clastic": {
+              "rock_id": 19,
+              "albedo": 0.23,
+              "regions": 602552
+            }
+          },
+          "wetting": {
+            "arm": "twomey",
+            "arms_available": [
+              "twomey",
+              "lekner"
+            ],
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "generated": "2026-08-30",
+            "refused_classes": {
+              "water": "open water is not a surface that wets",
+              "evaporite": "the sign is disputed: two in-situ pyranometer pairs make a wetted halite crust much darker and a twenty-year MODIS series makes wet years brighter, and the Fresnel term is too small by an order of magnitude to be the second effect"
+            },
+            "held_pair_bracket_passes": true,
+            "band2_liquid_absorption_direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it"
+          }
+        },
+        "absorbed_shortwave": {
+          "available": false,
+          "reason": "the accepted climatology is not on this rung, and there is no fallback onto another one"
         }
       }
     },
@@ -1565,64 +2390,64 @@
         384
       ],
       "roughness_exchange": {
-        "derived_land_mean_z0_m": 0.483638,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 2.7249771014707858e-05,
+        "derived_land_mean_z0_m": 0.563907,
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 2.586552092588108e-05,
         "mesh_spacing_m_land_mean": 9848.7,
         "land_cells": 44392,
-        "subgrid_stdev_m_land_median": 31.09,
-        "barren_land_area_fraction": 0.283595,
+        "subgrid_stdev_m_land_median": 29.96,
+        "barren_land_area_fraction": 0.153244,
         "z_ref_bracket_m": [
           106.18,
           121.73
         ],
         "by_reference_air_k": {
           "273.15": {
-            "ce_aggregate_then_process_land_mean": 0.005346,
-            "ce_process_then_aggregate_land_mean": 0.004887,
-            "land_mean_relative_gap": -0.085961,
+            "ce_aggregate_then_process_land_mean": 0.005725,
+            "ce_process_then_aggregate_land_mean": 0.005484,
+            "land_mean_relative_gap": -0.042132,
             "per_cell_relative_gap": {
-              "1": -0.342853,
-              "25": -0.137321,
-              "50": -0.032036,
+              "1": -0.341392,
+              "25": -0.071594,
+              "50": -0.0,
               "75": 0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.579773,
+            "land_area_fraction_gap_beyond_instrument": 0.297831,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1589
+                  0.0
                 ],
-                "land_area_weighted_relative_gap": -0.014694,
+                "land_area_weighted_relative_gap": 0.0,
                 "per_cell_relative_gap": {
-                  "1": -0.05843,
-                  "50": -0.0,
+                  "1": -0.0,
+                  "50": 0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1589,
-                  0.8966
+                  0.0,
+                  0.8153
                 ],
-                "land_area_weighted_relative_gap": -0.164515,
+                "land_area_weighted_relative_gap": -0.046334,
                 "per_cell_relative_gap": {
-                  "1": -0.344351,
-                  "50": -0.151421,
-                  "99": -0.06194
+                  "1": -0.314136,
+                  "50": -0.0,
+                  "99": 0.0
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.8966,
+                  0.8153,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.154103,
+                "land_area_weighted_relative_gap": -0.185003,
                 "per_cell_relative_gap": {
-                  "1": -0.343692,
+                  "1": -0.344633,
                   "50": 0.0,
                   "99": 0.0
                 }
@@ -1630,51 +2455,51 @@
             }
           },
           "313.15": {
-            "ce_aggregate_then_process_land_mean": 0.005084,
-            "ce_process_then_aggregate_land_mean": 0.004644,
-            "land_mean_relative_gap": -0.086594,
+            "ce_aggregate_then_process_land_mean": 0.005437,
+            "ce_process_then_aggregate_land_mean": 0.005206,
+            "land_mean_relative_gap": -0.042505,
             "per_cell_relative_gap": {
-              "1": -0.341547,
-              "25": -0.138112,
-              "50": -0.032336,
+              "1": -0.33997,
+              "25": -0.072183,
+              "50": -0.0,
               "75": 0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.581045,
+            "land_area_fraction_gap_beyond_instrument": 0.298936,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1589
+                  0.0
                 ],
-                "land_area_weighted_relative_gap": -0.014823,
+                "land_area_weighted_relative_gap": -0.0,
                 "per_cell_relative_gap": {
-                  "1": -0.058911,
-                  "50": -0.0,
+                  "1": -0.0,
+                  "50": 0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1589,
-                  0.8966
+                  0.0,
+                  0.8153
                 ],
-                "land_area_weighted_relative_gap": -0.165064,
+                "land_area_weighted_relative_gap": -0.046532,
                 "per_cell_relative_gap": {
-                  "1": -0.342972,
-                  "50": -0.152232,
-                  "99": -0.062458
+                  "1": -0.313855,
+                  "50": -0.0,
+                  "99": 0.0
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.8966,
+                  0.8153,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.153099,
+                "land_area_weighted_relative_gap": -0.184094,
                 "per_cell_relative_gap": {
-                  "1": -0.34212,
+                  "1": -0.343241,
                   "50": 0.0,
                   "99": 0.0
                 }
@@ -1682,7 +2507,7 @@
             }
           }
         },
-        "instrument_z_ref_bracket_relative": 0.051337
+        "instrument_z_ref_bracket_relative": 0.052861
       },
       "clay_conversion": {
         "intensity_sweep": [
@@ -1698,31 +2523,31 @@
         "by_intensity": {
           "0.02": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.443669,
-              "process_then_aggregate_land_mean": 0.443678,
-              "land_mean_gap": 9.4e-06,
+              "aggregate_then_process_land_mean": 0.481143,
+              "process_then_aggregate_land_mean": 0.481147,
+              "land_mean_gap": 3.63e-06,
               "per_cell_gap": {
-                "1": -5.587e-05,
+                "1": -5.312e-05,
                 "50": 0.0,
-                "99": 7.416e-05
+                "99": 7.366e-05
               },
               "max_abs_cell_gap": 0.00010974
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.320624,
-              "process_then_aggregate_land_mean": 0.320614,
-              "land_mean_gap": -9.4e-06,
+              "aggregate_then_process_land_mean": 0.307587,
+              "process_then_aggregate_land_mean": 0.307583,
+              "land_mean_gap": -3.63e-06,
               "per_cell_gap": {
-                "1": -7.416e-05,
-                "50": -0.0,
-                "99": 5.587e-05
+                "1": -7.366e-05,
+                "50": 0.0,
+                "99": 5.312e-05
               },
               "max_abs_cell_gap": 0.00010974
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.235511,
-              "process_then_aggregate_land_mean": 0.235511,
-              "land_mean_gap": -0.0,
+              "aggregate_then_process_land_mean": 0.211051,
+              "process_then_aggregate_land_mean": 0.211051,
+              "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
                 "50": 0.0,
@@ -1733,30 +2558,30 @@
           },
           "0.2": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.427415,
-              "process_then_aggregate_land_mean": 0.427504,
-              "land_mean_gap": 8.95e-05,
+              "aggregate_then_process_land_mean": 0.463808,
+              "process_then_aggregate_land_mean": 0.463842,
+              "land_mean_gap": 3.455e-05,
               "per_cell_gap": {
-                "1": -0.00053195,
+                "1": -0.00050577,
                 "50": 0.0,
-                "99": 0.00070611
+                "99": 0.00070138
               },
               "max_abs_cell_gap": 0.00104489
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.308738,
-              "process_then_aggregate_land_mean": 0.308649,
-              "land_mean_gap": -8.95e-05,
+              "aggregate_then_process_land_mean": 0.296401,
+              "process_then_aggregate_land_mean": 0.296367,
+              "land_mean_gap": -3.455e-05,
               "per_cell_gap": {
-                "1": -0.00070611,
+                "1": -0.00070138,
                 "50": -0.0,
-                "99": 0.00053195
+                "99": 0.00050577
               },
               "max_abs_cell_gap": 0.00104489
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.263651,
-              "process_then_aggregate_land_mean": 0.263651,
+              "aggregate_then_process_land_mean": 0.239572,
+              "process_then_aggregate_land_mean": 0.239572,
               "land_mean_gap": -0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -1768,31 +2593,31 @@
           },
           "1.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.371817,
-              "process_then_aggregate_land_mean": 0.372181,
-              "land_mean_gap": 0.0003635,
+              "aggregate_then_process_land_mean": 0.404511,
+              "process_then_aggregate_land_mean": 0.404652,
+              "land_mean_gap": 0.00014034,
               "per_cell_gap": {
-                "1": -0.0021604,
+                "1": -0.00205407,
                 "50": 0.0,
-                "99": 0.00286771
+                "99": 0.00284853
               },
               "max_abs_cell_gap": 0.00424363
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.268082,
-              "process_then_aggregate_land_mean": 0.267719,
-              "land_mean_gap": -0.0003635,
+              "aggregate_then_process_land_mean": 0.258142,
+              "process_then_aggregate_land_mean": 0.258002,
+              "land_mean_gap": -0.00014034,
               "per_cell_gap": {
-                "1": -0.00286771,
-                "50": -0.0,
-                "99": 0.0021604
+                "1": -0.00284853,
+                "50": 0.0,
+                "99": 0.00205407
               },
               "max_abs_cell_gap": 0.00424363
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.359904,
-              "process_then_aggregate_land_mean": 0.359904,
-              "land_mean_gap": -0.0,
+              "aggregate_then_process_land_mean": 0.337127,
+              "process_then_aggregate_land_mean": 0.337127,
+              "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
                 "50": 0.0,
@@ -1803,30 +2628,30 @@
           },
           "2.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.329262,
-              "process_then_aggregate_land_mean": 0.329835,
-              "land_mean_gap": 0.00057321,
+              "aggregate_then_process_land_mean": 0.359125,
+              "process_then_aggregate_land_mean": 0.359346,
+              "land_mean_gap": 0.0002213,
               "per_cell_gap": {
-                "1": -0.00340685,
+                "1": -0.00323917,
                 "50": 0.0,
-                "99": 0.00452224
+                "99": 0.00449199
               },
               "max_abs_cell_gap": 0.006692
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.236964,
-              "process_then_aggregate_land_mean": 0.236391,
-              "land_mean_gap": -0.00057321,
+              "aggregate_then_process_land_mean": 0.228858,
+              "process_then_aggregate_land_mean": 0.228637,
+              "land_mean_gap": -0.0002213,
               "per_cell_gap": {
-                "1": -0.00452224,
+                "1": -0.00449199,
                 "50": -0.0,
-                "99": 0.00340685
+                "99": 0.00323917
               },
               "max_abs_cell_gap": 0.006692
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.433578,
-              "process_then_aggregate_land_mean": 0.433578,
+              "aggregate_then_process_land_mean": 0.411798,
+              "process_then_aggregate_land_mean": 0.411798,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -1838,30 +2663,30 @@
           },
           "6.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.277656,
-              "process_then_aggregate_land_mean": 0.278483,
-              "land_mean_gap": 0.00082753,
+              "aggregate_then_process_land_mean": 0.304086,
+              "process_then_aggregate_land_mean": 0.304406,
+              "land_mean_gap": 0.00031949,
               "per_cell_gap": {
-                "1": -0.00491838,
+                "1": -0.00467631,
                 "50": 0.0,
-                "99": 0.00652864
+                "99": 0.00648497
               },
               "max_abs_cell_gap": 0.00966106
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.199227,
-              "process_then_aggregate_land_mean": 0.1984,
-              "land_mean_gap": -0.00082753,
+              "aggregate_then_process_land_mean": 0.193346,
+              "process_then_aggregate_land_mean": 0.193026,
+              "land_mean_gap": -0.00031949,
               "per_cell_gap": {
-                "1": -0.00652864,
+                "1": -0.00648497,
                 "50": -0.0,
-                "99": 0.00491838
+                "99": 0.00467631
               },
               "max_abs_cell_gap": 0.00966106
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.52292,
-              "process_then_aggregate_land_mean": 0.52292,
+              "aggregate_then_process_land_mean": 0.502349,
+              "process_then_aggregate_land_mean": 0.502349,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -1872,32 +2697,32 @@
             }
           }
         },
-        "instrument_dunne_scatter": 1.35,
+        "instrument_dunne_scatter": 1.3489628825916535,
         "instrument_land_mean_shift": {
           "0.02": {
-            "sand": 0.00066263,
-            "silt": 0.00048455,
-            "clay": 0.00114718
+            "sand": 0.00070462,
+            "silt": 0.00045464,
+            "clay": 0.00115926
           },
           "0.2": {
-            "sand": 0.00589901,
-            "silt": 0.00431363,
-            "clay": 0.01021264
+            "sand": 0.00627314,
+            "silt": 0.00404756,
+            "clay": 0.01032071
           },
           "1.0": {
-            "sand": 0.01761419,
-            "silt": 0.01288031,
-            "clay": 0.0304945
+            "sand": 0.01873544,
+            "silt": 0.0120885,
+            "clay": 0.03082393
           },
           "2.0": {
-            "sand": 0.01854549,
-            "silt": 0.01356132,
-            "clay": 0.03210681
+            "sand": 0.01973111,
+            "silt": 0.01273093,
+            "clay": 0.03246204
           },
           "6.0": {
-            "sand": 0.0044046,
-            "silt": 0.00322085,
-            "clay": 0.00762545
+            "sand": 0.0046902,
+            "silt": 0.00302622,
+            "clay": 0.00771642
           }
         }
       },
@@ -1908,7 +2733,7 @@
           0.25,
           3.5
         ],
-        "land_mean_erodibility": 1.6716,
+        "land_mean_erodibility": 1.4633,
         "rho_sweep": [
           0.01,
           0.1,
@@ -1921,87 +2746,87 @@
         "by_rho": {
           "0.01": {
             "depth_aggregate_then_process_m": 6.633663,
-            "depth_process_then_aggregate_land_mean_m": 6.633918,
-            "land_mean_gap_m": 0.000255,
+            "depth_process_then_aggregate_land_mean_m": 6.633846,
+            "land_mean_gap_m": 0.000183,
             "per_cell_gap_m": {
-              "50": 2.9e-05,
-              "75": 0.000353,
-              "95": 0.000707,
-              "99": 0.000825
+              "50": 4e-06,
+              "75": 0.000248,
+              "95": 0.000661,
+              "99": 0.000812
             },
             "land_area_fraction_above_bar": 0.0
           },
           "0.1": {
             "depth_aggregate_then_process_m": 6.090909,
-            "depth_process_then_aggregate_land_mean_m": 6.109087,
-            "land_mean_gap_m": 0.018178,
+            "depth_process_then_aggregate_land_mean_m": 6.103858,
+            "land_mean_gap_m": 0.012949,
             "per_cell_gap_m": {
-              "50": 0.002252,
-              "75": 0.026121,
-              "95": 0.04819,
-              "99": 0.054668
+              "50": 0.000299,
+              "75": 0.018531,
+              "95": 0.045081,
+              "99": 0.053624
             },
-            "land_area_fraction_above_bar": 0.419288
+            "land_area_fraction_above_bar": 0.28846
           },
           "0.5": {
             "depth_aggregate_then_process_m": 4.466667,
-            "depth_process_then_aggregate_land_mean_m": 4.626211,
-            "land_mean_gap_m": 0.159545,
+            "depth_process_then_aggregate_land_mean_m": 4.579112,
+            "land_mean_gap_m": 0.112446,
             "per_cell_gap_m": {
-              "50": 0.024144,
-              "75": 0.241314,
-              "95": 0.39209,
-              "99": 0.428161
+              "50": 0.002944,
+              "75": 0.172823,
+              "95": 0.37115,
+              "99": 0.421128
             },
-            "land_area_fraction_above_bar": 0.646198
+            "land_area_fraction_above_bar": 0.515277
           },
           "1.0": {
             "depth_aggregate_then_process_m": 3.35,
-            "depth_process_then_aggregate_land_mean_m": 3.617958,
-            "land_mean_gap_m": 0.267958,
+            "depth_process_then_aggregate_land_mean_m": 3.537624,
+            "land_mean_gap_m": 0.187624,
             "per_cell_gap_m": {
-              "50": 0.044557,
-              "75": 0.409341,
-              "95": 0.643035,
-              "99": 0.698035
+              "50": 0.004967,
+              "75": 0.294299,
+              "95": 0.611384,
+              "99": 0.687031
             },
-            "land_area_fraction_above_bar": 0.664773
+            "land_area_fraction_above_bar": 0.534513
           },
           "3.0": {
             "depth_aggregate_then_process_m": 1.675,
-            "depth_process_then_aggregate_land_mean_m": 2.006831,
-            "land_mean_gap_m": 0.331831,
+            "depth_process_then_aggregate_land_mean_m": 1.904634,
+            "land_mean_gap_m": 0.229634,
             "per_cell_gap_m": {
-              "50": 0.057224,
-              "75": 0.503212,
-              "95": 0.795348,
-              "99": 0.858591
+              "50": 0.005591,
+              "75": 0.357383,
+              "95": 0.751845,
+              "99": 0.845251
             },
-            "land_area_fraction_above_bar": 0.671563
+            "land_area_fraction_above_bar": 0.540933
           },
           "10.0": {
             "depth_aggregate_then_process_m": 0.609091,
-            "depth_process_then_aggregate_land_mean_m": 0.814496,
-            "land_mean_gap_m": 0.205405,
+            "depth_process_then_aggregate_land_mean_m": 0.749777,
+            "land_mean_gap_m": 0.140686,
             "per_cell_gap_m": {
-              "50": 0.035587,
-              "75": 0.30796,
-              "95": 0.504705,
-              "99": 0.550415
+              "50": 0.00299,
+              "75": 0.211129,
+              "95": 0.471856,
+              "99": 0.540045
             },
-            "land_area_fraction_above_bar": 0.657747
+            "land_area_fraction_above_bar": 0.521343
           },
           "100.0": {
             "depth_aggregate_then_process_m": 0.066337,
-            "depth_process_then_aggregate_land_mean_m": 0.096217,
-            "land_mean_gap_m": 0.02988,
+            "depth_process_then_aggregate_land_mean_m": 0.086661,
+            "land_mean_gap_m": 0.020325,
             "per_cell_gap_m": {
-              "50": 0.005016,
-              "75": 0.044274,
-              "95": 0.075215,
-              "99": 0.08329
+              "50": 0.000387,
+              "75": 0.029396,
+              "95": 0.069814,
+              "99": 0.08178
             },
-            "land_area_fraction_above_bar": 0.547416
+            "land_area_fraction_above_bar": 0.391213
           }
         }
       },
@@ -2018,8 +2843,8 @@
           313.15
         ],
         "critical_lapse_k_per_km": {
-          "273.15": 5.1529,
-          "313.15": 6.1821
+          "273.15": 5.4034,
+          "313.15": 6.4831
         },
         "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
         "magnus_teten_coefficients": {
@@ -2033,45 +2858,314 @@
         },
         "by_bracket_corner": {
           "lapse4_t273.15": {
-            "land_mean_relative_gap": 0.005266,
+            "land_mean_relative_gap": 0.004643,
             "per_cell_relative_gap": {
               "50": -2.2e-05,
-              "75": 4e-05,
-              "95": 0.026468,
-              "99": 0.065942
+              "75": 3.7e-05,
+              "95": 0.022821,
+              "99": 0.060988
             },
-            "land_area_fraction_above_bar": 0.146682
+            "land_area_fraction_above_bar": 0.134734
           },
           "lapse4_t313.15": {
-            "land_mean_relative_gap": 0.004215,
+            "land_mean_relative_gap": 0.003839,
             "per_cell_relative_gap": {
-              "50": 1.9e-05,
-              "75": 0.000939,
-              "95": 0.019273,
-              "99": 0.041854
+              "50": 1.8e-05,
+              "75": 0.000851,
+              "95": 0.017169,
+              "99": 0.039084
             },
-            "land_area_fraction_above_bar": 0.139272
+            "land_area_fraction_above_bar": 0.126777
           },
           "lapse12.7476_t273.15": {
-            "land_mean_relative_gap": 0.077868,
+            "land_mean_relative_gap": 0.069886,
             "per_cell_relative_gap": {
-              "50": -2.5e-05,
-              "75": 0.010528,
-              "95": 0.345111,
-              "99": 0.87679
+              "50": -3.3e-05,
+              "75": 0.00921,
+              "95": 0.304244,
+              "99": 0.796911
             },
-            "land_area_fraction_above_bar": 0.340383
+            "land_area_fraction_above_bar": 0.33458
           },
           "lapse12.7476_t313.15": {
-            "land_mean_relative_gap": 0.04236,
+            "land_mean_relative_gap": 0.038421,
             "per_cell_relative_gap": {
-              "50": 0.000193,
-              "75": 0.00919,
-              "95": 0.18848,
-              "99": 0.441069
+              "50": 0.000179,
+              "75": 0.00833,
+              "95": 0.167979,
+              "99": 0.405391
             },
-            "land_area_fraction_above_bar": 0.329836
+            "land_area_fraction_above_bar": 0.322498
           }
+        }
+      },
+      "wet_albedo_mixing": {
+        "saturation_endpoints": [
+          0.0,
+          0.7609
+        ],
+        "saturation_sweep": [
+          0.0,
+          0.095113,
+          0.190225,
+          0.285338,
+          0.38045,
+          0.475562,
+          0.570675,
+          0.665787,
+          0.7609
+        ],
+        "wetting_arm": "twomey",
+        "cells_with_land": 44392,
+        "cells_of_one_substrate_class": 15032,
+        "one_class_control": {
+          "worst_absolute_gap": 1.8457457784393227e-15,
+          "tolerance": 1e-12,
+          "passes": true
+        },
+        "bands": {
+          "band1": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.22443088339779493,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.0009703869616263728,
+                "land_mean_aggregate_then_process": 0.1918754760049912,
+                "per_cell_gap": {
+                  "1": -0.009051305401297,
+                  "50": -5.2455054559849557e-05,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.010279708453427738
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0013302119805592625,
+                "land_mean_aggregate_then_process": 0.16798464001693036,
+                "per_cell_gap": {
+                  "1": -0.01313211875031276,
+                  "50": -6.191078886588763e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.01507259088652374
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.001398008234383758,
+                "land_mean_aggregate_then_process": 0.14961308246686425,
+                "per_cell_gap": {
+                  "1": -0.014502874340195924,
+                  "50": -5.711084367002878e-05,
+                  "99": 1.1102230246251565e-16
+                },
+                "maximum_absolute_gap": 0.01680971467411768
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.0013178793525108522,
+                "land_mean_aggregate_then_process": 0.13500187251901855,
+                "per_cell_gap": {
+                  "1": -0.014231401883415542,
+                  "50": -4.788579452813524e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.01667407248242181
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.0011614117992883918,
+                "land_mean_aggregate_then_process": 0.12307962813320303,
+                "per_cell_gap": {
+                  "1": -0.013030748094724397,
+                  "50": -3.798468165978203e-05,
+                  "99": 8.881784197001252e-16
+                },
+                "maximum_absolute_gap": 0.01536329807785447
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0009664762207706292,
+                "land_mean_aggregate_then_process": 0.11315267373723456,
+                "per_cell_gap": {
+                  "1": -0.011209423243337891,
+                  "50": -2.872512739184041e-05,
+                  "99": 8.326672684688674e-17
+                },
+                "maximum_absolute_gap": 0.013299411781756032
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.0007539805698660064,
+                "land_mean_aggregate_then_process": 0.10475047359337801,
+                "per_cell_gap": {
+                  "1": -0.008978966587842299,
+                  "50": -2.0489284881287234e-05,
+                  "99": 9.020562075079397e-16
+                },
+                "maximum_absolute_gap": 0.010757803680835676
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.000535763704196423,
+                "land_mean_aggregate_then_process": 0.0975411893452062,
+                "per_cell_gap": {
+                  "1": -0.006566880101088175,
+                  "50": -1.3423868024990682e-05,
+                  "99": 9.159339953157541e-16
+                },
+                "maximum_absolute_gap": 0.007897370185669883
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 59
+          },
+          "band2": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.28432554947512456,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.0008911427709375828,
+                "land_mean_aggregate_then_process": 0.2469854865748169,
+                "per_cell_gap": {
+                  "1": -0.00922511021236868,
+                  "50": -3.286240329176959e-05,
+                  "99": 2.7755575615628914e-16
+                },
+                "maximum_absolute_gap": 0.010172829316643983
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0012280006446696524,
+                "land_mean_aggregate_then_process": 0.21890330108722025,
+                "per_cell_gap": {
+                  "1": -0.013526346669465195,
+                  "50": -4.0989572919772344e-05,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.014906227010258732
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.0012965464600539073,
+                "land_mean_aggregate_then_process": 0.19687895938919783,
+                "per_cell_gap": {
+                  "1": -0.015026806537918717,
+                  "50": -3.955719370971056e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.01654774041768431
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.001227173055798404,
+                "land_mean_aggregate_then_process": 0.1790757956951172,
+                "per_cell_gap": {
+                  "1": -0.014819459586488152,
+                  "50": -3.446971902361373e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.01646057784168037
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.001085308943106427,
+                "land_mean_aggregate_then_process": 0.1643494309900344,
+                "per_cell_gap": {
+                  "1": -0.013592916025528848,
+                  "50": -2.8234001401172826e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.015215475756475916
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0009059673220367439,
+                "land_mean_aggregate_then_process": 0.15194410194631816,
+                "per_cell_gap": {
+                  "1": -0.01173308638011687,
+                  "50": -2.1957450319146088e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.013209469038177601
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.0007087295847792603,
+                "land_mean_aggregate_then_process": 0.14133814832592817,
+                "per_cell_gap": {
+                  "1": -0.009452412153536847,
+                  "50": -1.6047902795655877e-05,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.010707112628424054
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.000504848124065121,
+                "land_mean_aggregate_then_process": 0.13215786240025276,
+                "per_cell_gap": {
+                  "1": -0.0068962298363786645,
+                  "50": -1.0734204079071441e-05,
+                  "99": 8.743006318923108e-16
+                },
+                "maximum_absolute_gap": 0.007876486446558917
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 45
+          }
+        },
+        "inputs": {
+          "band_fractions": [
+            0.3823719935950933,
+            0.6176280064049068
+          ],
+          "lithology_albedo_overrides": {
+            "playa_clastic": {
+              "rock_id": 19,
+              "albedo": 0.23,
+              "regions": 602552
+            }
+          },
+          "wetting": {
+            "arm": "twomey",
+            "arms_available": [
+              "twomey",
+              "lekner"
+            ],
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "generated": "2026-08-30",
+            "refused_classes": {
+              "water": "open water is not a surface that wets",
+              "evaporite": "the sign is disputed: two in-situ pyranometer pairs make a wetted halite crust much darker and a twenty-year MODIS series makes wet years brighter, and the Fresnel term is too small by an order of magnitude to be the second effect"
+            },
+            "held_pair_bracket_passes": true,
+            "band2_liquid_absorption_direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it"
+          }
+        },
+        "absorbed_shortwave": {
+          "available": false,
+          "reason": "the accepted climatology is not on this rung, and there is no fallback onto another one"
         }
       }
     },
@@ -2081,64 +3175,64 @@
         512
       ],
       "roughness_exchange": {
-        "derived_land_mean_z0_m": 0.484507,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 1.6601664090286853e-05,
+        "derived_land_mean_z0_m": 0.564533,
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 1.5642616326007398e-05,
         "mesh_spacing_m_land_mean": 9848.7,
         "land_cells": 76168,
-        "subgrid_stdev_m_land_median": 25.58,
-        "barren_land_area_fraction": 0.283595,
+        "subgrid_stdev_m_land_median": 24.61,
+        "barren_land_area_fraction": 0.153244,
         "z_ref_bracket_m": [
           106.18,
           121.73
         ],
         "by_reference_air_k": {
           "273.15": {
-            "ce_aggregate_then_process_land_mean": 0.00532,
-            "ce_process_then_aggregate_land_mean": 0.004888,
-            "land_mean_relative_gap": -0.081218,
+            "ce_aggregate_then_process_land_mean": 0.005711,
+            "ce_process_then_aggregate_land_mean": 0.005485,
+            "land_mean_relative_gap": -0.039543,
             "per_cell_relative_gap": {
-              "1": -0.343292,
-              "25": -0.135563,
-              "50": -0.013509,
+              "1": -0.341796,
+              "25": -0.057666,
+              "50": -0.0,
               "75": 0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.528326,
+            "land_area_fraction_gap_beyond_instrument": 0.272652,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1404
+                  0.0
                 ],
-                "land_area_weighted_relative_gap": -0.00969,
+                "land_area_weighted_relative_gap": 0.0,
                 "per_cell_relative_gap": {
-                  "1": -0.051035,
+                  "1": -0.0,
                   "50": 0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1404,
-                  0.9493
+                  0.0,
+                  0.8825
                 ],
-                "land_area_weighted_relative_gap": -0.173377,
+                "land_area_weighted_relative_gap": -0.046814,
                 "per_cell_relative_gap": {
-                  "1": -0.344415,
-                  "50": -0.160815,
-                  "99": -0.055123
+                  "1": -0.336843,
+                  "50": -0.0,
+                  "99": 0.0
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.9493,
+                  0.8825,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.076656,
+                "land_area_weighted_relative_gap": -0.132301,
                 "per_cell_relative_gap": {
-                  "1": -0.31322,
+                  "1": -0.344625,
                   "50": 0.0,
                   "99": 0.0
                 }
@@ -2146,51 +3240,51 @@
             }
           },
           "313.15": {
-            "ce_aggregate_then_process_land_mean": 0.005059,
-            "ce_process_then_aggregate_land_mean": 0.004645,
-            "land_mean_relative_gap": -0.081826,
+            "ce_aggregate_then_process_land_mean": 0.005423,
+            "ce_process_then_aggregate_land_mean": 0.005207,
+            "land_mean_relative_gap": -0.039897,
             "per_cell_relative_gap": {
-              "1": -0.341968,
-              "25": -0.136339,
-              "50": -0.013637,
+              "1": -0.340408,
+              "25": -0.058136,
+              "50": -0.0,
               "75": 0.0,
               "95": 0.0,
               "99": 0.0
             },
-            "land_area_fraction_gap_beyond_instrument": 0.529998,
+            "land_area_fraction_gap_beyond_instrument": 0.273419,
             "by_barren_share": {
               "barren_share_q0.0_0.5": {
                 "barren_share_range": [
                   0.0,
-                  0.1404
+                  0.0
                 ],
-                "land_area_weighted_relative_gap": -0.009776,
+                "land_area_weighted_relative_gap": 0.0,
                 "per_cell_relative_gap": {
-                  "1": -0.051486,
+                  "1": -0.0,
                   "50": 0.0,
                   "99": 0.0
                 }
               },
               "barren_share_q0.5_0.9": {
                 "barren_share_range": [
-                  0.1404,
-                  0.9493
+                  0.0,
+                  0.8825
                 ],
-                "land_area_weighted_relative_gap": -0.173811,
+                "land_area_weighted_relative_gap": -0.046972,
                 "per_cell_relative_gap": {
-                  "1": -0.343044,
-                  "50": -0.161619,
-                  "99": -0.05558
+                  "1": -0.335982,
+                  "50": -0.0,
+                  "99": 0.0
                 }
               },
               "barren_share_q0.9_1.0": {
                 "barren_share_range": [
-                  0.9493,
+                  0.8825,
                   1.0
                 ],
-                "land_area_weighted_relative_gap": -0.07605,
+                "land_area_weighted_relative_gap": -0.131496,
                 "per_cell_relative_gap": {
-                  "1": -0.311117,
+                  "1": -0.343216,
                   "50": 0.0,
                   "99": 0.0
                 }
@@ -2198,7 +3292,7 @@
             }
           }
         },
-        "instrument_z_ref_bracket_relative": 0.051354
+        "instrument_z_ref_bracket_relative": 0.052873
       },
       "clay_conversion": {
         "intensity_sweep": [
@@ -2214,31 +3308,31 @@
         "by_intensity": {
           "0.02": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.44367,
-              "process_then_aggregate_land_mean": 0.443678,
-              "land_mean_gap": 8.57e-06,
+              "aggregate_then_process_land_mean": 0.481143,
+              "process_then_aggregate_land_mean": 0.481147,
+              "land_mean_gap": 3.42e-06,
               "per_cell_gap": {
-                "1": -5.351e-05,
+                "1": -5.206e-05,
                 "50": 0.0,
-                "99": 7.394e-05
+                "99": 7.316e-05
               },
               "max_abs_cell_gap": 0.00010657
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.320623,
-              "process_then_aggregate_land_mean": 0.320614,
-              "land_mean_gap": -8.57e-06,
+              "aggregate_then_process_land_mean": 0.307586,
+              "process_then_aggregate_land_mean": 0.307583,
+              "land_mean_gap": -3.42e-06,
               "per_cell_gap": {
-                "1": -7.394e-05,
-                "50": -0.0,
-                "99": 5.351e-05
+                "1": -7.316e-05,
+                "50": 0.0,
+                "99": 5.206e-05
               },
               "max_abs_cell_gap": 0.00010657
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.235511,
-              "process_then_aggregate_land_mean": 0.235511,
-              "land_mean_gap": -0.0,
+              "aggregate_then_process_land_mean": 0.211051,
+              "process_then_aggregate_land_mean": 0.211051,
+              "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
                 "50": 0.0,
@@ -2249,30 +3343,30 @@
           },
           "0.2": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.427423,
-              "process_then_aggregate_land_mean": 0.427504,
-              "land_mean_gap": 8.159e-05,
+              "aggregate_then_process_land_mean": 0.46381,
+              "process_then_aggregate_land_mean": 0.463842,
+              "land_mean_gap": 3.253e-05,
               "per_cell_gap": {
-                "1": -0.00050948,
+                "1": -0.00049567,
                 "50": 0.0,
-                "99": 0.00070405
+                "99": 0.00069658
               },
               "max_abs_cell_gap": 0.00101471
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.30873,
-              "process_then_aggregate_land_mean": 0.308649,
-              "land_mean_gap": -8.159e-05,
+              "aggregate_then_process_land_mean": 0.296399,
+              "process_then_aggregate_land_mean": 0.296367,
+              "land_mean_gap": -3.253e-05,
               "per_cell_gap": {
-                "1": -0.00070405,
-                "50": -0.0,
-                "99": 0.00050948
+                "1": -0.00069658,
+                "50": 0.0,
+                "99": 0.00049567
               },
               "max_abs_cell_gap": 0.00101471
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.263651,
-              "process_then_aggregate_land_mean": 0.263651,
+              "aggregate_then_process_land_mean": 0.239572,
+              "process_then_aggregate_land_mean": 0.239572,
               "land_mean_gap": -0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -2284,30 +3378,30 @@
           },
           "1.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.371849,
-              "process_then_aggregate_land_mean": 0.372181,
-              "land_mean_gap": 0.00033136,
+              "aggregate_then_process_land_mean": 0.404519,
+              "process_then_aggregate_land_mean": 0.404652,
+              "land_mean_gap": 0.00013212,
               "per_cell_gap": {
-                "1": -0.00206914,
+                "1": -0.00201308,
                 "50": 0.0,
-                "99": 0.00285936
+                "99": 0.00282905
               },
-              "max_abs_cell_gap": 0.00412105
+              "max_abs_cell_gap": 0.00412106
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.26805,
-              "process_then_aggregate_land_mean": 0.267719,
-              "land_mean_gap": -0.00033136,
+              "aggregate_then_process_land_mean": 0.258134,
+              "process_then_aggregate_land_mean": 0.258002,
+              "land_mean_gap": -0.00013212,
               "per_cell_gap": {
-                "1": -0.00285936,
-                "50": -0.0,
-                "99": 0.00206914
+                "1": -0.00282905,
+                "50": 0.0,
+                "99": 0.00201308
               },
-              "max_abs_cell_gap": 0.00412105
+              "max_abs_cell_gap": 0.00412106
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.359904,
-              "process_then_aggregate_land_mean": 0.359904,
+              "aggregate_then_process_land_mean": 0.337127,
+              "process_then_aggregate_land_mean": 0.337127,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -2319,30 +3413,30 @@
           },
           "2.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.329312,
-              "process_then_aggregate_land_mean": 0.329835,
-              "land_mean_gap": 0.00052254,
+              "aggregate_then_process_land_mean": 0.359138,
+              "process_then_aggregate_land_mean": 0.359346,
+              "land_mean_gap": 0.00020834,
               "per_cell_gap": {
-                "1": -0.00326293,
+                "1": -0.00317452,
                 "50": 0.0,
-                "99": 0.00450906
+                "99": 0.00446127
               },
-              "max_abs_cell_gap": 0.0064987
+              "max_abs_cell_gap": 0.00649871
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.236913,
-              "process_then_aggregate_land_mean": 0.236391,
-              "land_mean_gap": -0.00052254,
+              "aggregate_then_process_land_mean": 0.228845,
+              "process_then_aggregate_land_mean": 0.228637,
+              "land_mean_gap": -0.00020834,
               "per_cell_gap": {
-                "1": -0.00450906,
-                "50": -0.0,
-                "99": 0.00326293
+                "1": -0.00446127,
+                "50": 0.0,
+                "99": 0.00317452
               },
-              "max_abs_cell_gap": 0.0064987
+              "max_abs_cell_gap": 0.00649871
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.433578,
-              "process_then_aggregate_land_mean": 0.433578,
+              "aggregate_then_process_land_mean": 0.411798,
+              "process_then_aggregate_land_mean": 0.411798,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -2354,30 +3448,30 @@
           },
           "6.0": {
             "sand": {
-              "aggregate_then_process_land_mean": 0.277729,
-              "process_then_aggregate_land_mean": 0.278483,
-              "land_mean_gap": 0.00075438,
+              "aggregate_then_process_land_mean": 0.304105,
+              "process_then_aggregate_land_mean": 0.304406,
+              "land_mean_gap": 0.00030078,
               "per_cell_gap": {
-                "1": -0.0047106,
+                "1": -0.00458297,
                 "50": 0.0,
-                "99": 0.00650962
+                "99": 0.00644062
               },
-              "max_abs_cell_gap": 0.009382
+              "max_abs_cell_gap": 0.00938201
             },
             "silt": {
-              "aggregate_then_process_land_mean": 0.199154,
-              "process_then_aggregate_land_mean": 0.1984,
-              "land_mean_gap": -0.00075438,
+              "aggregate_then_process_land_mean": 0.193327,
+              "process_then_aggregate_land_mean": 0.193026,
+              "land_mean_gap": -0.00030078,
               "per_cell_gap": {
-                "1": -0.00650962,
-                "50": -0.0,
-                "99": 0.0047106
+                "1": -0.00644062,
+                "50": 0.0,
+                "99": 0.00458297
               },
-              "max_abs_cell_gap": 0.009382
+              "max_abs_cell_gap": 0.00938201
             },
             "clay": {
-              "aggregate_then_process_land_mean": 0.52292,
-              "process_then_aggregate_land_mean": 0.52292,
+              "aggregate_then_process_land_mean": 0.502349,
+              "process_then_aggregate_land_mean": 0.502349,
               "land_mean_gap": 0.0,
               "per_cell_gap": {
                 "1": -0.0,
@@ -2388,32 +3482,32 @@
             }
           }
         },
-        "instrument_dunne_scatter": 1.35,
+        "instrument_dunne_scatter": 1.3489628825916535,
         "instrument_land_mean_shift": {
           "0.02": {
-            "sand": 0.00066234,
-            "silt": 0.00048484,
-            "clay": 0.00114718
+            "sand": 0.00070455,
+            "silt": 0.00045471,
+            "clay": 0.00115926
           },
           "0.2": {
-            "sand": 0.00589644,
-            "silt": 0.0043162,
-            "clay": 0.01021264
+            "sand": 0.00627249,
+            "silt": 0.00404822,
+            "clay": 0.01032071
           },
           "1.0": {
-            "sand": 0.01760651,
-            "silt": 0.01288798,
-            "clay": 0.0304945
+            "sand": 0.01873348,
+            "silt": 0.01209045,
+            "clay": 0.03082393
           },
           "2.0": {
-            "sand": 0.01853741,
-            "silt": 0.0135694,
-            "clay": 0.03210681
+            "sand": 0.01972905,
+            "silt": 0.01273299,
+            "clay": 0.03246204
           },
           "6.0": {
-            "sand": 0.00440268,
-            "silt": 0.00322277,
-            "clay": 0.00762545
+            "sand": 0.00468971,
+            "silt": 0.00302671,
+            "clay": 0.00771642
           }
         }
       },
@@ -2424,7 +3518,7 @@
           0.25,
           3.5
         ],
-        "land_mean_erodibility": 1.6716,
+        "land_mean_erodibility": 1.4633,
         "rho_sweep": [
           0.01,
           0.1,
@@ -2437,87 +3531,87 @@
         "by_rho": {
           "0.01": {
             "depth_aggregate_then_process_m": 6.633663,
-            "depth_process_then_aggregate_land_mean_m": 6.633893,
-            "land_mean_gap_m": 0.00023,
+            "depth_process_then_aggregate_land_mean_m": 6.633822,
+            "land_mean_gap_m": 0.000159,
             "per_cell_gap_m": {
-              "50": 1e-05,
-              "75": 0.000308,
-              "95": 0.000697,
-              "99": 0.000815
+              "50": 2e-06,
+              "75": 0.000195,
+              "95": 0.000646,
+              "99": 0.000806
             },
             "land_area_fraction_above_bar": 0.0
           },
           "0.1": {
             "depth_aggregate_then_process_m": 6.090909,
-            "depth_process_then_aggregate_land_mean_m": 6.107253,
-            "land_mean_gap_m": 0.016343,
+            "depth_process_then_aggregate_land_mean_m": 6.102158,
+            "land_mean_gap_m": 0.011249,
             "per_cell_gap_m": {
-              "50": 0.000758,
-              "75": 0.022911,
-              "95": 0.047345,
-              "99": 0.053905
+              "50": 0.000142,
+              "75": 0.014671,
+              "95": 0.044281,
+              "99": 0.053386
             },
-            "land_area_fraction_above_bar": 0.372864
+            "land_area_fraction_above_bar": 0.248421
           },
           "0.5": {
             "depth_aggregate_then_process_m": 4.466667,
-            "depth_process_then_aggregate_land_mean_m": 4.609459,
-            "land_mean_gap_m": 0.142792,
+            "depth_process_then_aggregate_land_mean_m": 4.56434,
+            "land_mean_gap_m": 0.097673,
             "per_cell_gap_m": {
-              "50": 0.007556,
-              "75": 0.215407,
-              "95": 0.385373,
-              "99": 0.42607
+              "50": 0.001395,
+              "75": 0.141617,
+              "95": 0.362691,
+              "99": 0.419456
             },
-            "land_area_fraction_above_bar": 0.598923
+            "land_area_fraction_above_bar": 0.457063
           },
           "1.0": {
             "depth_aggregate_then_process_m": 3.35,
-            "depth_process_then_aggregate_land_mean_m": 3.589541,
-            "land_mean_gap_m": 0.239541,
+            "depth_process_then_aggregate_land_mean_m": 3.513116,
+            "land_mean_gap_m": 0.163116,
             "per_cell_gap_m": {
-              "50": 0.012908,
-              "75": 0.369127,
-              "95": 0.632213,
-              "99": 0.693921
+              "50": 0.002349,
+              "75": 0.244913,
+              "95": 0.596837,
+              "99": 0.682109
             },
-            "land_area_fraction_above_bar": 0.617599
+            "land_area_fraction_above_bar": 0.475388
           },
           "3.0": {
             "depth_aggregate_then_process_m": 1.675,
-            "depth_process_then_aggregate_land_mean_m": 1.971675,
-            "land_mean_gap_m": 0.296675,
+            "depth_process_then_aggregate_land_mean_m": 1.875203,
+            "land_mean_gap_m": 0.200203,
             "per_cell_gap_m": {
-              "50": 0.014559,
-              "75": 0.460182,
-              "95": 0.783174,
-              "99": 0.854979
+              "50": 0.002643,
+              "75": 0.302224,
+              "95": 0.734665,
+              "99": 0.839467
             },
-            "land_area_fraction_above_bar": 0.625025
+            "land_area_fraction_above_bar": 0.481985
           },
           "10.0": {
             "depth_aggregate_then_process_m": 0.609091,
-            "depth_process_then_aggregate_land_mean_m": 0.793137,
-            "land_mean_gap_m": 0.184046,
+            "depth_process_then_aggregate_land_mean_m": 0.73223,
+            "land_mean_gap_m": 0.123139,
             "per_cell_gap_m": {
-              "50": 0.007815,
-              "75": 0.280503,
-              "95": 0.497558,
-              "99": 0.549051
+              "50": 0.001413,
+              "75": 0.180615,
+              "95": 0.462296,
+              "99": 0.537695
             },
-            "land_area_fraction_above_bar": 0.609503
+            "land_area_fraction_above_bar": 0.465156
           },
           "100.0": {
             "depth_aggregate_then_process_m": 0.066337,
-            "depth_process_then_aggregate_land_mean_m": 0.093186,
-            "land_mean_gap_m": 0.026849,
+            "depth_process_then_aggregate_land_mean_m": 0.084194,
+            "land_mean_gap_m": 0.017857,
             "per_cell_gap_m": {
-              "50": 0.001006,
-              "75": 0.040024,
-              "95": 0.074432,
-              "99": 0.083381
+              "50": 0.000183,
+              "75": 0.025339,
+              "95": 0.068576,
+              "99": 0.081531
             },
-            "land_area_fraction_above_bar": 0.489361
+            "land_area_fraction_above_bar": 0.340901
           }
         }
       },
@@ -2534,8 +3628,8 @@
           313.15
         ],
         "critical_lapse_k_per_km": {
-          "273.15": 5.592,
-          "313.15": 6.7349
+          "273.15": 5.8958,
+          "313.15": 7.102
         },
         "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
         "magnus_teten_coefficients": {
@@ -2549,45 +3643,314 @@
         },
         "by_bracket_corner": {
           "lapse4_t273.15": {
-            "land_mean_relative_gap": 0.004232,
+            "land_mean_relative_gap": 0.003662,
             "per_cell_relative_gap": {
               "50": -1.7e-05,
-              "75": 3.1e-05,
-              "95": 0.021297,
-              "99": 0.059362
+              "75": 2.9e-05,
+              "95": 0.01814,
+              "99": 0.054281
             },
-            "land_area_fraction_above_bar": 0.122767
+            "land_area_fraction_above_bar": 0.11128
           },
           "lapse4_t313.15": {
-            "land_mean_relative_gap": 0.003545,
+            "land_mean_relative_gap": 0.003194,
             "per_cell_relative_gap": {
-              "50": 1.3e-05,
-              "75": 0.000643,
-              "95": 0.016348,
-              "99": 0.038486
+              "50": 1.2e-05,
+              "75": 0.000575,
+              "95": 0.01444,
+              "99": 0.035343
             },
-            "land_area_fraction_above_bar": 0.116123
+            "land_area_fraction_above_bar": 0.104248
           },
           "lapse12.7476_t273.15": {
-            "land_mean_relative_gap": 0.065766,
+            "land_mean_relative_gap": 0.058235,
             "per_cell_relative_gap": {
-              "50": -3.3e-05,
-              "75": 0.005983,
-              "95": 0.29375,
-              "99": 0.799804
+              "50": -4.1e-05,
+              "75": 0.005024,
+              "95": 0.255449,
+              "99": 0.715709
             },
-            "land_area_fraction_above_bar": 0.306259
+            "land_area_fraction_above_bar": 0.299141
           },
           "lapse12.7476_t313.15": {
-            "land_mean_relative_gap": 0.035946,
+            "land_mean_relative_gap": 0.032223,
             "per_cell_relative_gap": {
-              "50": 0.00013,
-              "75": 0.006333,
-              "95": 0.161587,
-              "99": 0.402216
+              "50": 0.00012,
+              "75": 0.005673,
+              "95": 0.142338,
+              "99": 0.366423
             },
-            "land_area_fraction_above_bar": 0.29667
+            "land_area_fraction_above_bar": 0.289388
           }
+        }
+      },
+      "wet_albedo_mixing": {
+        "saturation_endpoints": [
+          0.0,
+          0.7609
+        ],
+        "saturation_sweep": [
+          0.0,
+          0.095113,
+          0.190225,
+          0.285338,
+          0.38045,
+          0.475562,
+          0.570675,
+          0.665787,
+          0.7609
+        ],
+        "wetting_arm": "twomey",
+        "cells_with_land": 76168,
+        "cells_of_one_substrate_class": 30657,
+        "one_class_control": {
+          "worst_absolute_gap": 1.8318679906315083e-15,
+          "tolerance": 1e-12,
+          "passes": true
+        },
+        "bands": {
+          "band1": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.22443088339779493,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.0008549182773573517,
+                "land_mean_aggregate_then_process": 0.19176000732072215,
+                "per_cell_gap": {
+                  "1": -0.009093248278398693,
+                  "50": -2.1586067197279513e-05,
+                  "99": 4.440892098500626e-16
+                },
+                "maximum_absolute_gap": 0.010280062617684937
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0011789801013717912,
+                "land_mean_aggregate_then_process": 0.16783340813774292,
+                "per_cell_gap": {
+                  "1": -0.013217950029719237,
+                  "50": -2.5986679707545868e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.015084167709846219
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.0012455231091158285,
+                "land_mean_aggregate_then_process": 0.1494605973415963,
+                "per_cell_gap": {
+                  "1": -0.014607530167207672,
+                  "50": -2.431203069394594e-05,
+                  "99": 8.326672684688674e-17
+                },
+                "maximum_absolute_gap": 0.01681733033488425
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.0011795110808984273,
+                "land_mean_aggregate_then_process": 0.13486350424740615,
+                "per_cell_gap": {
+                  "1": -0.014379120854251786,
+                  "50": -2.062829957534887e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.016676627276758338
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.0010437070520535553,
+                "land_mean_aggregate_then_process": 0.12296192338596816,
+                "per_cell_gap": {
+                  "1": -0.013146639706815563,
+                  "50": -1.6485488670794912e-05,
+                  "99": 8.881784197001252e-16
+                },
+                "maximum_absolute_gap": 0.015355532925314275
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0008717068411742381,
+                "land_mean_aggregate_then_process": 0.11305790435763818,
+                "per_cell_gap": {
+                  "1": -0.011316011431162837,
+                  "50": -1.2562063312022975e-05,
+                  "99": 5.551115123125783e-17
+                },
+                "maximum_absolute_gap": 0.013290654234234145
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.0006823020916957164,
+                "land_mean_aggregate_then_process": 0.10467879511520771,
+                "per_cell_gap": {
+                  "1": -0.00908287937951378,
+                  "50": -9.034019186608677e-06,
+                  "99": 9.020562075079397e-16
+                },
+                "maximum_absolute_gap": 0.01075626796086493
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.00048629561931922896,
+                "land_mean_aggregate_then_process": 0.09749172126032901,
+                "per_cell_gap": {
+                  "1": -0.006635217206149967,
+                  "50": -5.945436676459137e-06,
+                  "99": 9.159339953157541e-16
+                },
+                "maximum_absolute_gap": 0.007915949784369491
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 62
+          },
+          "band2": {
+            "shape_sigma": 1.0,
+            "by_saturation": [
+              {
+                "saturation": 0.0,
+                "land_mean_gap": 0.0,
+                "land_mean_aggregate_then_process": 0.28432554947512456,
+                "per_cell_gap": {
+                  "1": 0.0,
+                  "50": 0.0,
+                  "99": 0.0
+                },
+                "maximum_absolute_gap": 0.0
+              },
+              {
+                "saturation": 0.095113,
+                "land_mean_gap": -0.0007988538171195984,
+                "land_mean_aggregate_then_process": 0.24689319762099887,
+                "per_cell_gap": {
+                  "1": -0.009340790096109176,
+                  "50": -1.598824778990815e-05,
+                  "99": 2.7755575615628914e-16
+                },
+                "maximum_absolute_gap": 0.010266941679040298
+              },
+              {
+                "saturation": 0.190225,
+                "land_mean_gap": -0.0011068127699167159,
+                "land_mean_aggregate_then_process": 0.2187821132124673,
+                "per_cell_gap": {
+                  "1": -0.013716053681460673,
+                  "50": -1.9761127718301297e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.014931478208986299
+              },
+              {
+                "saturation": 0.285338,
+                "land_mean_gap": -0.0011740590999300229,
+                "land_mean_aggregate_then_process": 0.19675647202907398,
+                "per_cell_gap": {
+                  "1": -0.015284849584128724,
+                  "50": -1.9001366649507023e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.016568848081689902
+              },
+              {
+                "saturation": 0.38045,
+                "land_mean_gap": -0.0011157863256267874,
+                "land_mean_aggregate_then_process": 0.1789644089649456,
+                "per_cell_gap": {
+                  "1": -0.01510734981294237,
+                  "50": -1.65159763227396e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.016460576490828993
+              },
+              {
+                "saturation": 0.475562,
+                "land_mean_gap": -0.000990378163547104,
+                "land_mean_aggregate_then_process": 0.16425450021047508,
+                "per_cell_gap": {
+                  "1": -0.013864195059610328,
+                  "50": -1.352897132940456e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.015215165415819354
+              },
+              {
+                "saturation": 0.570675,
+                "land_mean_gap": -0.0008294096794965983,
+                "land_mean_aggregate_then_process": 0.15186754430377802,
+                "per_cell_gap": {
+                  "1": -0.011985007541393582,
+                  "50": -1.052744594597782e-05,
+                  "99": 4.718447854656915e-16
+                },
+                "maximum_absolute_gap": 0.013210969283276364
+              },
+              {
+                "saturation": 0.665787,
+                "land_mean_gap": -0.0006507440778272116,
+                "land_mean_aggregate_then_process": 0.14128016281897615,
+                "per_cell_gap": {
+                  "1": -0.009662936661637589,
+                  "50": -7.698838937642005e-06,
+                  "99": 4.532485498032686e-16
+                },
+                "maximum_absolute_gap": 0.010707533871939512
+              },
+              {
+                "saturation": 0.7609,
+                "land_mean_gap": -0.0004647817246185392,
+                "land_mean_aggregate_then_process": 0.13211779600080617,
+                "per_cell_gap": {
+                  "1": -0.007075609681221052,
+                  "50": -5.141990988388745e-06,
+                  "99": 8.743006318923108e-16
+                },
+                "maximum_absolute_gap": 0.007876661754543435
+              }
+            ],
+            "cells_whose_gap_changes_sign_along_saturation": 63
+          }
+        },
+        "inputs": {
+          "band_fractions": [
+            0.3823719935950933,
+            0.6176280064049068
+          ],
+          "lithology_albedo_overrides": {
+            "playa_clastic": {
+              "rock_id": 19,
+              "albedo": 0.23,
+              "regions": 602552
+            }
+          },
+          "wetting": {
+            "arm": "twomey",
+            "arms_available": [
+              "twomey",
+              "lekner"
+            ],
+            "source": "/home/cfutro/docs/world/.claude/worktrees/agent-a89de4f28b6db2262/analysis/soil_albedo_wetting.json",
+            "generated": "2026-08-30",
+            "refused_classes": {
+              "water": "open water is not a surface that wets",
+              "evaporite": "the sign is disputed: two in-situ pyranometer pairs make a wetted halite crust much darker and a twenty-year MODIS series makes wet years brighter, and the Fresnel term is too small by an order of magnitude to be the second effect"
+            },
+            "held_pair_bracket_passes": true,
+            "band2_liquid_absorption_direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it"
+          }
+        },
+        "absorbed_shortwave": {
+          "available": false,
+          "reason": "the accepted climatology is not on this rung, and there is no fallback onto another one"
         }
       }
     }
@@ -2596,42 +3959,42 @@
     "reference_rung": "T42",
     "namelist_fallback_m": 2.0,
     "note": "the derived orographic term carries no solved coefficient, so a difference between two rungs is terrain and aggregation alone. The land means here are this arm's AGGREGATE-THEN-PROCESS side -- the cover roughness is a linear mean of lengths, which is the reduction the gap exists to measure against -- so they are not the field's own land mean, which build_surface_roughness.py reduces in ce at the blending height and reports per rung. `namelist_fallback_m` is the model's uniform default over land and is neither a target nor an anchor.",
-    "ratio_spread": 0.009292,
+    "ratio_spread": 0.00554,
     "by_rung": {
       "T21": {
-        "aggregate_then_process_land_mean_z0_m": 0.480035,
-        "ratio_to_reference": 0.997434,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 0.0003460750724995677,
-        "subgrid_stdev_m_land_median": 153.57
+        "aggregate_then_process_land_mean_z0_m": 0.561418,
+        "ratio_to_reference": 0.998451,
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 0.0003232094465102973,
+        "subgrid_stdev_m_land_median": 144.71
       },
       "T42": {
-        "aggregate_then_process_land_mean_z0_m": 0.48127,
+        "aggregate_then_process_land_mean_z0_m": 0.562289,
         "ratio_to_reference": 1.0,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 0.00014368660525444622,
-        "subgrid_stdev_m_land_median": 74.77
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 0.0001398185421930151,
+        "subgrid_stdev_m_land_median": 69.9
       },
       "T85": {
-        "aggregate_then_process_land_mean_z0_m": 0.482584,
-        "ratio_to_reference": 1.00273,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 5.3080721065711954e-05,
-        "subgrid_stdev_m_land_median": 42.29
+        "aggregate_then_process_land_mean_z0_m": 0.56318,
+        "ratio_to_reference": 1.001585,
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 5.0771640647273525e-05,
+        "subgrid_stdev_m_land_median": 39.97
       },
       "T127": {
-        "aggregate_then_process_land_mean_z0_m": 0.483638,
-        "ratio_to_reference": 1.00492,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 2.7249771014707858e-05,
-        "subgrid_stdev_m_land_median": 31.09
+        "aggregate_then_process_land_mean_z0_m": 0.563907,
+        "ratio_to_reference": 1.002878,
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 2.586552092588108e-05,
+        "subgrid_stdev_m_land_median": 29.96
       },
       "T170": {
-        "aggregate_then_process_land_mean_z0_m": 0.484507,
-        "ratio_to_reference": 1.006726,
-        "cover_land_mean_z0_m": 0.448604,
-        "slope_variance_land_median": 1.6601664090286853e-05,
-        "subgrid_stdev_m_land_median": 25.58
+        "aggregate_then_process_land_mean_z0_m": 0.564533,
+        "ratio_to_reference": 1.003991,
+        "cover_land_mean_z0_m": 0.529682,
+        "slope_variance_land_median": 1.5642616326007398e-05,
+        "subgrid_stdev_m_land_median": 24.61
       }
     }
   },
