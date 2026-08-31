@@ -53,6 +53,47 @@ Writes `data/<source_build>/soilmap.txt`, which is LPJ-GUESS's own `SoilInput`
 format, and `analysis/soil_report.json`. The soil map is per build, because
 texture derives from lithology.
 
+## The exchange complex
+
+`pedogenesis.yaml`'s `exchange` block and `build_soil.py:exchange_properties`
+derive the colloid surface a gridcell presents and who is sitting on it. The
+soil map carries the capacity as its `cec` column, in cmol(+) per kg of fine
+earth, and `soil_report.json` carries the base saturation, the exchangeable
+pool per element and the bound those imply.
+
+**Three quantities, kept apart, because they fail in different ways.**
+CAPACITY is a surface: clay and organic matter present it, additively and with
+no intercept, since a soil with neither has none. BASE SATURATION is who is on
+that surface, and pH decides the whole of it. The POOL is capacity times
+saturation times the element's share, over the root zone
+`biosphere/config/abiotic_nutrients.yaml` declares, which is read rather than
+restated so both sides count the same column.
+
+**What it exists for.** The ANUT-8 adequacy screen takes an above-ground
+standing pool to the whole circulating pool with a multiplier, and no artifact
+in this pipeline carried an exchange field, so that multiplier was a declared
+bracket. The report's `exchange_complex.multiplier_bound` is what this world's
+own soil implies for it, one-signed upward at every step, and `build_soil.py`
+REFUSES a declaration below it: a key called an upper bound that sits under the
+field it bounds makes the screen permissive rather than conservative.
+
+**The check that could fail.** The two capacity coefficients are one region's
+regression slopes, and what licenses carrying them anywhere is that they
+reproduce a different continent's measured split between organic and mineral
+surfaces. `exchange_properties` evaluates that on every call and refuses a pair
+that lands outside it. The emitted field is separately refused for leaving the
+capacity envelope those measurements span.
+
+**What it is blind to, and it is this component's own pH field.** The capacity
+relation is one fit over soils spanning pH 3.5 to 7.9 that does not resolve pH,
+so the emitted capacity does not move when the pH block moves a cell. pH
+reaches the pool through base saturation instead, which is where it decides
+whether a site holds a nutrient or aluminium. world-n4i0 owns the pH-resolved
+relation that would close it.
+
+`pedogenesis.yaml` carries every source, what each does and does not license,
+and which parts are an exposure rather than a number.
+
 ## Derived surface classes
 
 `build_surface_classes.py` answers a different question from `build_soil.py`.
