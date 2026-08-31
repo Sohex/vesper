@@ -2056,8 +2056,16 @@ steps:
       artifact name the parent and the chain back to bare ground. What may be
       continued is guarded by `run_lpj_guess.py:continuation_refusals` against
       the parent's pinned inputs, its physical settings and the hashes of the
-      state files it wrote; that the resumed run reproduces the run it continues
-      is `verify_lpj_restart_continuity.py`.
+      state files it wrote.
+
+      `--continue-from` is additionally REFUSED unless
+      `verify_lpj_restart_continuity.py` has reported that this binary
+      reproduces the run it continues; an absent report is a refusal, because an
+      absent measurement is not a pass. It refuses today: world-glu7 records
+      every retained table differing after a year-boundary restart, at around
+      1e-04 relative in the pools and grossly in `tot_runoff.out`'s components
+      for the first resumed year (world-lus4). `--save-state` is not gated,
+      since writing a state file changes no number in the run that writes it.
 
   - id: lpj_acceptance
     script: biosphere/scripts/assess_lpj_run.py

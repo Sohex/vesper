@@ -678,6 +678,11 @@ def main() -> None:
         "ranks": args.ranks, "npatch": args.npatch,
         "wetlands_active": active,
         "tables_compared": list(tables) if mode == "annual" else [],
+        # WHICH EXECUTABLE THIS VERDICT IS ABOUT. A continuity verdict is a
+        # statement about serialization code, so it travels with the binary
+        # that ran it; `run_lpj_guess.py` refuses --continue-from unless a
+        # verdict here says `continuous` for the binary it is about to run.
+        "binary_sha256": run_lpj_guess.sha256(GUESS_BINARY),
         "continuous": not failures,
         "failures": failures,
     }

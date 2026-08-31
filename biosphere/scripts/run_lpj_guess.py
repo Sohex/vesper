@@ -279,6 +279,55 @@ def continuation_refusals(parent: dict, inputs: dict, physical: dict,
     return refusals
 
 
+CONTINUITY_REPORT = GENERATED / "lpj_restart_continuity.json"
+
+
+def continuity_verdict(binary: Path) -> None:
+    """Refuse to continue a run unless this model reproduces the run it continues.
+
+    A saved state that does not restore what it saved is WORSE than no saved
+    state: the continuation reports a spin-up it did not integrate, and every
+    number downstream is attributed to years the model never ran that way. So
+    the mechanism is gated on the measurement rather than on the mechanism
+    having been built, and the measurement is
+    `verify_lpj_restart_continuity.py` in its default mode -- two runs over the
+    same forcing, one whole and one split, compared row for row over the
+    output tables from the split onwards.
+
+    The verdict travels with the BINARY. It is a statement about serialization
+    code, so a verdict taken against a different executable says nothing about
+    this one.
+
+    `--save-state` is deliberately not gated. Writing a state file changes no
+    number in the run that writes it; only reading one can.
+    """
+    if not CONTINUITY_REPORT.is_file():
+        raise SystemExit(
+            f"{CONTINUITY_REPORT} does not exist, so it is not known whether a "
+            "run resumed from a state file reproduces the run it continues. "
+            "Take the measurement first:\n  python "
+            "biosphere/scripts/verify_lpj_restart_continuity.py\n\nAn absent "
+            "measurement is not a pass, and a continuation that silently "
+            "differs reports a spin-up it did not integrate.")
+    report = json.loads(CONTINUITY_REPORT.read_text(encoding="utf-8"))
+    if report.get("binary_sha256") != sha256(binary):
+        raise SystemExit(
+            f"{CONTINUITY_REPORT} records a verdict for a different "
+            "executable, so it says nothing about the model this run would "
+            "use. Re-run biosphere/scripts/verify_lpj_restart_continuity.py "
+            "against this binary.")
+    if not report.get("continuous"):
+        raise SystemExit(
+            "Refusing to continue a run: this model does not reproduce the run "
+            "it continues.\n  "
+            + "\n  ".join(report.get("failures") or ["(no detail recorded)"])
+            + f"\n\nMeasured in {CONTINUITY_REPORT} over "
+            f"{report.get('nyear')} retained years behind a spin-up of "
+            f"{report.get('nyear_spinup')}, split at simulated year "
+            f"{report.get('state_year')}. A continuation taken now would "
+            "report a spin-up it did not integrate. world-glu7.")
+
+
 def state_block(spinup: int, nyear: int, run_dir: Path,
                 parent: dict | None, parent_state: Path | None = None,
                 save_state: bool = True) -> dict:
@@ -730,6 +779,10 @@ def main() -> None:
     continuation = None
     state = None
     if args.continue_from:
+        # Before anything else about the parent: does this model reproduce the
+        # run it continues at all? If it does not, no amount of provenance on
+        # the state file makes the continuation the experiment it claims.
+        continuity_verdict(args.binary)
         parent_dir = RUNS / args.continue_from
         parent_manifest_path = parent_dir / "run_manifest.json"
         parent_state = parent_dir / "state"
