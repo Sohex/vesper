@@ -1,6 +1,6 @@
 {
   "contract_version": "vesper-partial-surface-decision-gate/1",
-  "generated": "2026-08-30T17:03:01+00:00",
+  "generated": "2026-08-31T01:53:40+00:00",
   "declaration": "config/partial_surface.yaml",
   "measurement": "analysis/coastline_flux_bracket.json",
   "implementation": {
@@ -99,7 +99,7 @@
     {
       "name": "selected fractional support reaches every model start",
       "passed": true,
-      "detail": "code 1720, 1053 partial T21 cells; immutable boundary is re-read on restart"
+      "detail": "code 1720, 1053 partial T21 cells; staged from canonical-10m-carve2; immutable boundary is re-read on restart"
     },
     {
       "name": "implementation seams are taken in dependency order",
