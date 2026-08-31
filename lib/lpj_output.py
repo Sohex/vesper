@@ -416,6 +416,26 @@ def cycles_for_bound(relative_standard_error: float, cycles: int, tau: float,
     return high
 
 
+def record_cycles_for_bound(series, cycles: int, alpha: float, limit: float,
+                            floor: float) -> float:
+    """The record a series of THIS scatter would need if it were settled.
+
+    The question a refusal has to answer is how long the next run must be, and
+    that is a question about a SETTLED field: a drift still present in the record
+    inflates both the scatter and the memory time `drift_bound` reads off the raw
+    halves, which is the right conservatism for the TEST and the wrong input for
+    the LENGTH. So the standard error handed to `cycles_for_bound` is taken about
+    the series' own linear fit, which removes the approach and leaves the
+    variability the next record would still have to see through.
+    """
+    x = np.arange(np.asarray(series, dtype=float).size, dtype=float)
+    flat = (np.asarray(series, dtype=float)
+            - np.polyval(np.polyfit(x, series, 1), x) + np.mean(series))
+    settled = drift_bound(flat, alpha, floor)
+    return cycles_for_bound(settled["relative_standard_error"], cycles,
+                            settled["tau_cycles"], alpha, limit)
+
+
 def relaxation_time(series: np.ndarray, tau_memory: float,
                     blocks: int = 4) -> dict:
     """The e-folding time of an approach, measured WITHOUT its asymptote.
@@ -558,9 +578,9 @@ def timescale_report(run_dir: Path, *, policy_path: Path = POLICY_PATH) -> dict:
                 # its own.
                 "drift": {**bound,
                           "settled": bool(bound["upper_bound"] <= limit),
-                          "record_cycles_for_bound": float(cycles_for_bound(
-                              bound["relative_standard_error"], span,
-                              bound["tau_cycles"], alpha, limit))},
+                          "record_cycles_for_bound": float(
+                              record_cycles_for_bound(spatial, span, alpha,
+                                                      limit, floor))},
             }
         tables[output] = {"record_cycles": int(span),
                           "forcing_cycle_years": int(cycle_years),
@@ -612,8 +632,7 @@ def _settled_within(record: np.ndarray, names: list[str],
                           "carries no drift to bound"})
             continue
         bound = drift_bound(spatial, alpha, floor)
-        needed = cycles_for_bound(bound["relative_standard_error"], span,
-                                  bound["tau_cycles"], alpha, limit)
+        needed = record_cycles_for_bound(spatial, span, alpha, limit, floor)
         settled = bool(bound["upper_bound"] <= limit)
         # What the REPORTED value is worth, in the units the tolerance is in, so
         # a consumer never has to reconstruct it. This is the one standard error

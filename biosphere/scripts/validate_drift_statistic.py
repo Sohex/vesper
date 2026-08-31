@@ -53,8 +53,8 @@ import _paths  # noqa: F401  (puts lib/ on the path)
 from autocorrelation import integrated_time  # noqa: E402
 
 from lpj_output import (ACCEPTANCE_PATH, POLICY_PATH, _manifest_for,  # noqa: E402
-                        _read_rows, cycles_for_bound, drift_bound,
-                        forcing_cycle_years, read_policy)
+                        _read_rows, drift_bound, forcing_cycle_years,
+                        read_policy, record_cycles_for_bound)
 
 PROJECT_ROOT = _paths.PROJECT_ROOT
 
@@ -174,7 +174,7 @@ def known_answer(rng, cycles: int, trials: int, alpha: float,
 
 
 def model_scales(run_dir: Path, outputs: list[str], policy: dict,
-                 cycle_years: int) -> dict:
+                 cycle_years: int, alpha: float, limit: float) -> dict:
     """Per field, the scatter and memory time this model actually has.
 
     Read from the run's own retained record so the cost arm is quoted at this
@@ -202,6 +202,11 @@ def model_scales(run_dir: Path, outputs: list[str], policy: dict,
                 "relative_scatter": float(np.std(flat, ddof=1) / level),
                 "tau_cycles": float(integrated_time(
                     flat + spatial.mean())["tau"]),
+                # Through the same helper the reducer uses, so the length this
+                # instrument quotes and the length a refusal quotes are one
+                # number rather than two that agree by inspection.
+                "cycles_for_bound": float(record_cycles_for_bound(
+                    spatial, span, alpha, limit, floor)),
             }
     return scales
 
@@ -230,7 +235,7 @@ def main() -> int:
     outputs = yaml.safe_load(ACCEPTANCE_PATH.read_text())["stability_outputs"]
     cycle_years, _ = forcing_cycle_years(
         args.run / outputs[0], _manifest_for(args.run / outputs[0])[1])
-    scales = model_scales(args.run, outputs, policy, cycle_years)
+    scales = model_scales(args.run, outputs, policy, cycle_years, alpha, limit)
     family_size = len(scales)
     level = sidak_level(args.family_rate, family_size)
 
@@ -243,15 +248,7 @@ def main() -> int:
             rows.append(arm(rng, tau, args.cycles, args.trials, level, alpha,
                             limit, floor, args.scatter, multiple))
 
-    model_rows = []
-    for name, scale in sorted(scales.items()):
-        needed = cycles_for_bound(
-            # The standard error a settled field of this scatter and memory
-            # carries over its own record, before any drift is injected.
-            scale["relative_scatter"] * 2.0
-            * np.sqrt(2.0 * scale["tau_cycles"] / (scale["record_cycles"] // 2)),
-            scale["record_cycles"], scale["tau_cycles"], alpha, limit)
-        model_rows.append({"field": name, **scale, "cycles_for_bound": needed})
+    model_rows = [{"field": name, **scale} for name, scale in sorted(scales.items())]
 
     report = {
         "contract_version": policy["contract_version"],
