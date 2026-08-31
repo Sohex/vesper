@@ -2043,6 +2043,18 @@ steps:
       and water closure must pass. Exit status alone never produces a usable
       run; PASS or FAIL is recorded in acceptance.json.
 
+      `--save-state` writes the simulated state of the last year into
+      `runs/<run_id>/state/`, and `--continue-from <run_id>` resumes from it, so
+      a refused run is answered by integrating more record rather than by
+      re-buying the spin-up in front of it. The continuation is a new run with a
+      new id whose manifest and acceptance artifact name the parent and the
+      chain back to bare ground; `--nyear` is the year it ends at, not the years
+      it adds. What may be continued is guarded by
+      `run_lpj_guess.py:continuation_refusals` against the parent's pinned
+      inputs, its physical settings and the hashes of the state files it wrote;
+      that the resumed run reproduces the run it continues is
+      `verify_lpj_restart_continuity.py`.
+
   - id: lpj_acceptance
     script: biosphere/scripts/assess_lpj_run.py
     loop: B
