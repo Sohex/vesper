@@ -690,8 +690,9 @@ def main() -> None:
 
     # THE STATE FILE, and every instant in it is a `date.year` -- the model's
     # own count, from zero, THROUGH the spin-up. A run of `--nyear N` therefore
-    # ends at simulated year `spinup + N - 1`, and `total` below is the whole of
-    # what it integrated.
+    # ends at simulated year `spinup + N - 1`. `state_block` is where every one
+    # of these instants is computed, and it is the function --self-test holds
+    # against `framework/framework.cpp`.
     #
     # `--save-state` writes the state covering the END of the last simulated
     # year, which is where every annual accumulator has flushed and where the
@@ -713,7 +714,6 @@ def main() -> None:
     # A run that both reads and writes needs the two directories distinct: the
     # serializer truncates what it opens and it opens before the deserializer
     # reads (`framework/parameters.cpp` refuses the collision).
-    total = spinup + args.nyear
     continuation = None
     state = None
     if args.continue_from:
@@ -781,7 +781,6 @@ def main() -> None:
         spinup = parent_total
         settings["nyear_spinup"] = spinup
         physical["nyear_spinup"] = spinup
-        total = spinup + args.nyear
         continuation = {
             "parent_run_id": parent.get("run_id", args.continue_from),
             "parent_manifest_sha256": sha256(parent_manifest_path),
