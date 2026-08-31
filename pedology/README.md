@@ -69,6 +69,13 @@ saturation times the element's share, over the root zone
 `biosphere/config/abiotic_nutrients.yaml` declares, which is read rather than
 restated so both sides count the same column.
 
+**And a fourth for the anions.** Sulfate is not held on a cation complex at
+all, so sulfur's pool comes from the ANION exchange capacity of variable-charge
+andic material, keyed on the `andic` fraction. That term is small over most of
+this world's land and is worth several times the above-ground sulfur pool on a
+strongly andic cell, so it is in the arithmetic rather than assumed away: the
+bound is a land maximum, and a maximum is where the term stops being small.
+
 **What it exists for.** The ANUT-8 adequacy screen takes an above-ground
 standing pool to the whole circulating pool with a multiplier, and no artifact
 in this pipeline carried an exchange field, so that multiplier was a declared

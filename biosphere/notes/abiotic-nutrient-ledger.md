@@ -304,11 +304,13 @@ Directions, each chosen so that it runs against the conclusion:
   a screen permissive where it advertises conservatism. The repair is the larger
   number and not a narrower one.
 - THE FOUR ELEMENTS DIFFER BY MORE THAN THE SCALAR CAN CARRY. Sulfate is an
-  ANION and the cation exchange complex holds none of it, so sulfur's whole
-  below-ground term is roots and its true multiplier is far below the cations'.
-  `belowground_and_exchangeable_by_element` records each; the scalar this
-  script reads is the maximum over them and is conservative for every element
-  until world-vf8j moves the read onto the map.
+  ANION and the cation exchange complex holds none of it, so sulfur's soil term
+  is not the cations' at all: it is the anion exchange capacity of
+  variable-charge andic material, small over most of this world's land and worth
+  several times the above-ground sulfur pool where the andic fraction is high.
+  `belowground_and_exchangeable_by_element` records each element's bound; the
+  scalar this script reads is the maximum over them and is conservative for
+  every element until world-vf8j moves the read onto the map.
 - AND IT CANNOT GO STALE. `build_soil.py` refuses when the declaration, or any
   entry in the map beside it, falls below what the emitted field implies. Soil
   carbon grows the capacity's organic term through loop A, so the check fires on
