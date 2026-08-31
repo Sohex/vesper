@@ -72,10 +72,38 @@ worst gridcell's mean per-cycle residual is -0.0046 kgN/ha, which over the whole
 gridcell's nitrogen throughput -- inside the contract's own
 `relative_throughput_limit` of 0.001 by a factor of three.
 
-The gridcell-years that do exceed the quantisation bound associate with fire and
-not with the soil nitrogen operator: 71.7 per cent of them carry a fire gas
+Two further signatures say the same thing. The per-cycle residual's lag-one
+autocorrelation is -0.40 pooled over every gridcell, and -0.43 among the pairs
+that begin with a residual over the bound. A first difference of independent
+rounding errors has a lag-one autocorrelation of exactly -0.5, which is what
+this series is: the pool term is `(P[y] - P[y-1])` with both endpoints rounded.
+
+And the gridcell-years that DO exceed the quantisation bound associate with fire
+and not with the soil nitrogen operator: 71.7 per cent of them carry a fire gas
 emission against a 44.4 per cent base rate, and their mean fire gas nitrogen is
 2.51 kgN/ha against 0.87 over all gridcell-years.
+
+## What is left after the quantisation is removed
+
+Two of the four refused gridcells are quantisation and nothing else. The other
+two carry a residual near -5.0 and near -3.6 that is flat in window length from
+ten cycles to twelve hundred, which is larger than the 1.0 kgN/ha bound and is
+therefore real. It is still not a leak: flat in window length is the one thing a
+leak cannot be.
+
+The mechanism is that `npool.out` Total is an instantaneous end-of-cycle
+SNAPSHOT while `nflux.out` NEE is an integral over the cycle, so a pool that
+swings within a cycle enters the residual at whatever value the snapshot caught.
+In the 2329 gridcell-cycles whose residual exceeds the quantisation bound, the
+cycle-to-cycle change in the soil mineral nitrogen snapshot,
+`soil_npool.out` NH4+NO3, averages 5.70 kgN/ha against 0.29 elsewhere -- a
+factor of nineteen, and the same magnitude as the excess.
+
+Over ten cycles that jitter does not average out; over the record it does, which
+is why the worst gridcell's whole-record accumulation is -5.75 kgN/ha and its
+ten-cycle window reads -4.95. So the closure rule's window is shorter than the
+variability of the pools it differences, and a re-run will refuse on this once
+the write-out quantisation stops masking it. `world-w89k` holds that.
 
 ## What the symmetry was
 
