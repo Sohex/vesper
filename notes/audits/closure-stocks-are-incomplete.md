@@ -217,3 +217,24 @@ maximum, correlating with
 which is turnover and not water. 1382 of 1617 gridcells carry a positive mean
 residual and the most negative is -2.24 mm against a maximum of +19.14, so the
 systematic part has one sign, as a column that omits a loss must.
+
+## Whether the repaired checks still resolve their own tolerances
+
+Completing a stock or a loss adds every new column's written quantum to the
+residual an exactly conserving model reports, so the question
+`notes/audits/closure-tolerance-under-written-precision.md` settled has to be
+asked again of the wider form. Measured from
+`lpj_c0a9e36d42e54e7aaf245d211798e53d`, which carries the precisions
+`commonoutput.cpp` writes today:
+
+| element | columns differenced | resolution bound | floor | margin |
+| --- | --- | --- | --- | --- |
+| nitrogen | npool.out Total plus four soil_npool.out pools against nflux.out NEE | 0.001445 kgN/ha | 2.0 kgN/ha | 1384 |
+| carbon | cpool.out Total against cflux.out NEE | 4.6e-5 kgC/m2 | 0.01 kgC/m2 | 217 |
+| water | thirty-six monthly loss columns and tot_runoff.out Total | 0.1805 mm | 2.0 mm | 11.1 |
+
+All three clear the contract's required tenfold margin. Water is the tight one,
+because its thirty-six columns are written at the three decimals mainline gives
+a monthly table rather than at the `closure_prec_water` the annual closure
+columns were raised to. The margin is measured from the artifact on every
+assessment, so a precision that drops back refuses rather than passing quietly.
