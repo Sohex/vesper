@@ -403,7 +403,11 @@ COMMISSIONING_EVIDENCE = {
                        "gathers that identity, and it is not a record either: "
                        "it carries no orbit count and no status. So this row "
                        "is evidence that cannot be checked rather than "
-                       "evidence that has been. WORLD-WW6Z.",
+                       "evidence that has been. It is one of forty runs in "
+                       "that position, enumerated in "
+                       "archive/runs/RECORDLESS.json; "
+                       "notes/audits/run-identity.md carries the finding and "
+                       "the registration that closed the leak. WORLD-WW6Z.",
     },
 }
 

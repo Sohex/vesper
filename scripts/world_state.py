@@ -229,12 +229,20 @@ def climate_runs(active: str, index: list) -> list:
     """Runs on the active build only.
 
     Runs on a superseded terrain describe a world we no longer model. They stay
-    on disk and stay in `exoplasim/runs/INDEX.json`, which is the record of what
-    exists; this file is the record of what is true.
+    on disk and stay in `exoplasim/runs/INDEX.json`, which is the record of
+    every run that has EXISTED; this file is the record of what is true.
+
+    So a row is skipped unless its payload is still there. The index is a ledger
+    (world-ww6z): it keeps the row of a run whose directory has gone, which is
+    what makes a deleted run identifiable, and a row whose manifest is no longer
+    readable cannot answer what this file asks of it. Its identity is in
+    `archive/runs/`, which is where a reader who wants it should go.
     """
     rows = []
     for row in index:
         if row.get("source_build") != active:
+            continue
+        if not row.get("payload_present", True):
             continue
         run = ROOT / "exoplasim" / "runs" / row["directory"]
         d = json.loads((run / "run_manifest.json").read_text(encoding="utf-8"))

@@ -239,9 +239,9 @@ python exoplasim/scripts/build_climatology.py exoplasim/runs/<run_id> \
 python exoplasim/scripts/analyze_climatology.py
 ```
 
-Current results are in `world_state.json`, never here. What each completed run
-was is in `exoplasim/runs/INDEX.json`; run ids are UUIDs, so that index is the
-only thing that maps one to its physics.
+Current results are in `world_state.json`, never here. What each run was, whether
+or not its output still exists, is in `exoplasim/runs/INDEX.json`; run ids are
+UUIDs, so that index is the only thing that maps one to its physics.
 
 Principal products are in `exoplasim/analysis/climatology/`:
 
@@ -769,10 +769,20 @@ dimensions it encodes, and a UUID collides with nothing, including along
 dimensions nothing here models.
 
 What a run *was* lives in `run_manifest.json`, which gains a `physical` block, and
-in `exoplasim/runs/INDEX.json`, generated from those manifests by
-`index_runs.py`. That index is tracked even though `runs/` is not, because it is
-the only record that survives deleting the output. A continuation must now be
-given `--run`; it cannot recompute a name, which is the safer direction.
+in `exoplasim/runs/INDEX.json`, built from those manifests by `index_runs.py`.
+That index is tracked even though `runs/` is not, because it is the only record
+that survives deleting the output. A continuation must now be given `--run`; it
+cannot recompute a name, which is the safer direction.
+
+**The index is a LEDGER of every run that has existed, not a listing of what is
+on disk.** `run_exoplasim.py` registers a run the moment its manifest is written
+and again when the block ends however it ends; `continue_exoplasim.py`
+re-registers after each segment; and a rescan merges over the ledger rather than
+replacing it, so a run whose payload has gone keeps its row and gains
+`payload_present: false`. That distinction is not bookkeeping taste: while the
+index was a scan, forty runs were created and deleted between two scans and left
+nothing tracked anywhere. `notes/audits/run-identity.md` carries the finding and
+`archive/runs/RECORDLESS.json` the enumeration.
 
 `model.energy_diagnostics` adds PlaSim's 28-term energy decomposition on codes
 360-387. The postprocessor ships 119 codes and none of those, so

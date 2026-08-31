@@ -376,11 +376,20 @@ def test_identity(alpha: float = 0.3, cfg: dict | None = None) -> None:
 
 
 def _live_entries() -> dict[str, dict]:
-    """The runs that still EXIST, keyed by id. Empty if there is no index."""
+    """The runs that still EXIST, keyed by id. Empty if there is no index.
+
+    FILTERED ON `payload_present`, and that is the whole of what makes this
+    "live". `exoplasim/runs/INDEX.json` is a LEDGER of every run that has
+    existed rather than a listing of what is on disk (world-ww6z), so a row
+    being in it says the run once ran and not that it can be read. Taking every
+    row would merge the archived runs back into the live set and reinstate
+    exactly the defect `_archived_entries` below is separated to prevent: a
+    bracket measured on two deleted runs going on reproducing its own constant.
+    """
     if not RUN_INDEX.is_file():
         return {}
     runs = json.loads(RUN_INDEX.read_text(encoding="utf-8"))["runs"]
-    return {e.get("run_id"): e for e in runs}
+    return {e.get("run_id"): e for e in runs if e.get("payload_present", True)}
 
 
 def _archived_entries() -> dict[str, dict]:

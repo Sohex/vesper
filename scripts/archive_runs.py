@@ -41,13 +41,14 @@ archives the lot. It is DECLARED rather than inferred for the same reason a
 segment's purpose is.
 
 Nothing is decided by directory name or sort order. The run set comes from
-`exoplasim/runs/INDEX.json`.
+`exoplasim/runs/INDEX.json`, and from the part of it that still has a payload:
+that file is a LEDGER of every run that has existed, so most of its rows are
+runs this script has already dealt with and nothing about them is a work item.
 """
 
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import json
 from pathlib import Path
 import shutil
@@ -132,7 +133,13 @@ def main() -> None:
     cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     active = cfg.get("source_build")
 
-    rows = load_index()
+    # THE LEDGER OUTLIVES THE PAYLOAD, so most of it is not a work list. Since
+    # world-ww6z, `exoplasim/runs/INDEX.json` keeps the row of every run that
+    # has existed and marks the ones whose directory has gone, which is what
+    # makes a run identifiable after deletion. A row with no payload has nothing
+    # left to extract and nothing left to delete, so it is not a candidate here:
+    # counting it would report the same archived run as dead on every pass.
+    rows = [r for r in load_index() if r.get("payload_present", True)]
     if args.include_live:
         live, dead = [], list(rows)
     else:
@@ -196,31 +203,25 @@ def main() -> None:
         print("dry run; pass --execute to do it")
         return
 
-    # INDEX.json is generated from the run directories, so archiving invalidates
-    # it the moment a directory goes. Regenerate here rather than leaving a
-    # stale index that lists runs which no longer exist -- the record of an
-    # archived run is archive/runs/<dir>/INDEX_ENTRY.json, which is tracked.
+    # A row's payload flags come from the run directories, so archiving moves
+    # them the moment a directory goes. Reindex here so the ledger says which
+    # runs still have a payload; it KEEPS the row of every run whose directory
+    # this pass deleted and marks it, so nothing is lost by running it. The
+    # extracted products live in archive/runs/<dir>/, which is tracked.
     reindex = ROOT / "exoplasim" / "scripts" / "index_runs.py"
     if reindex.is_file():
         subprocess.run([sys.executable, str(reindex)], check=True,
                        stdout=subprocess.DEVNULL)
         print("reindexed exoplasim/runs/INDEX.json")
 
-    (ARCHIVE / "README.md").write_text(
-        "# Archived runs\n\n"
-        "Derived products from runs this project no longer models: either the\n"
-        "terrain under them was superseded, or the climatology below them was,\n"
-        "which by CLAUDE.md rule 7 makes them worthless rather than stale. The\n"
-        "raw NetCDF is gone -- it was 50 GB. What remains is what anything ever\n"
-        "cited: the manifest, the convergence assessment, the climate series,\n"
-        "and the namelists.\n\n"
-        "`INDEX_ENTRY.json` in each directory is that run's row from\n"
-        "`exoplasim/runs/INDEX.json` at the time it was archived, so a result\n"
-        "computed from one of these stays readable and datable without the\n"
-        "output being present.\n\n"
-        f"Archived {datetime.now(timezone.utc).date().isoformat()}.\n",
-        encoding="utf-8")
-    print(f"wrote {ARCHIVE.relative_to(ROOT)}")
+    # `archive/runs/README.md` IS NOT WRITTEN HERE. It is a tracked document
+    # that says what the three record shapes under this directory are -- the
+    # INDEX_ENTRY.json stub, the RECONSTRUCTED.json for a run that was never
+    # registered, and the RECORDLESS.json enumeration -- and only one of the
+    # three is anything this script knows about. Rewriting it from here reverted
+    # every hand edit on the next archive pass, and stamped an "Archived <date>"
+    # line whose date named no run and identified nothing.
+    print(f"archive is {ARCHIVE.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

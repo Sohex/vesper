@@ -634,7 +634,17 @@ steps:
     script: exoplasim/scripts/index_runs.py
     cost: seconds
     needs: [bootstrap_run]
-    writes: [exoplasim/runs/INDEX.json]
+    writes: [exoplasim/runs/INDEX.json, archive/runs/RECORDLESS.json]
+    gate: >
+      the LEDGER of every run that has existed, not a listing of what is on
+      disk. `run_exoplasim.py` and `continue_exoplasim.py` call
+      `index_runs.register` at creation and after every segment, and a rescan
+      merges over the ledger rather than replacing it, so a run whose payload
+      has gone keeps its row and is marked. That is what makes CLAUDE.md rule
+      6 true: a run id is a UUID, and this is the only thing that says what it
+      was. `--recordless` writes the enumeration of the ids that got neither,
+      which measures the remaining damage from before the ledger existed;
+      `notes/audits/run-identity.md` is the finding.
 
   - id: land_water_ledger
     script: hydrography/scripts/land_water_ledger.py
