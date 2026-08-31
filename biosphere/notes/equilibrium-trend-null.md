@@ -9,21 +9,26 @@ is the argument.
 
 ## What the rule is
 
-A field is SETTLED when the upper confidence bound on its end-to-end relative
-drift, taken over the whole retained record, is inside
-`relative_end_to_end_limit`. A run is accepted when every assessed field of
-every stability table is settled and no field's per-cell half refuses.
+A QUANTITY A CONSUMER READS is SETTLED when the upper confidence bound on its
+end-to-end relative drift, taken over the whole retained record, is inside the
+tolerance that quantity's own consumer owes. A run is accepted when every
+assessed quantity is settled and none of their per-cell halves refuses.
+
+WHAT THE ACCEPTANCE ARTIFACT CLAIMS IS THEREFORE NARROWER THAN "THE SIMULATED
+BIOSPHERE HAS SETTLED", and it says so in those words. Every column of every
+stability table keeps a drift bound on the artifact as a diagnostic, so what
+the claim leaves out is visible rather than absent.
 
 What the contract declares is `maximum_false_acceptance_rate`: the probability
-that a field whose true drift is AT the limit is nonetheless accepted. That is
-the error an acceptance gate has to control, because an acceptance gate asserts
-that a run HAS settled. It is a per-field rate and it is also the run-level
-rate, with no multiplicity correction: a run passes only when every field
-passes, so by the intersection-union principle the probability of accepting a
-run in which any field truly drifts at the limit is bounded by the per-field
-level. The rate at which a SETTLED run is refused is not declared. It is the
-instrument's cost, it is reported per field, and it is what sizes the retained
-record.
+that a quantity whose true drift is AT its limit is nonetheless accepted. That
+is the error an acceptance gate has to control, because an acceptance gate
+asserts that a run HAS settled. It is a per-quantity rate and it is also the
+run-level rate, with no multiplicity correction: a run passes only when every
+quantity passes, so by the intersection-union principle the probability of
+accepting a run in which any quantity truly drifts at its limit is bounded by
+the per-quantity level. The rate at which a SETTLED run is refused is not
+declared. It is the instrument's cost, it is reported per quantity, and it is
+what sizes the retained record.
 
 Reproduce the statistic's size and cost with
 `biosphere/scripts/validate_drift_statistic.py <run>`, and the timescales with
@@ -335,9 +340,64 @@ in the same breath that the honest claim is a factor of two, and the single
 measured point is 0.3045 from one paired arm. world-ckbt is open to measure it.
 Until it closes, 0.05 stays a declared tolerance with this bracket recorded.
 
-THAT DERIVATION IS ABOUT AGGREGATE COVER AND THE CONTRACT APPLIES ITS NUMBER TO
-ALL 64 ASSESSED FIELDS, including each plant functional type's own column.
-world-mxmr holds that, and it is what sizes the next run.
+## What each quantity owes, and the twenty-seven-fold it was costing
+
+THAT DERIVATION IS ABOUT AGGREGATE COVER, and the contract used to apply its
+number to all 64 columns of the seven stability tables, each plant functional
+type's own column included. The binding column was `anpp.out` TrBR at 33846
+cycles -- about eight and three quarter hours of retained record before any
+spin-up -- and no consumer reads it. The consumer quantities it was buying that
+record for resolve on the 1253 cycles already on disk.
+
+THE RULE, and it comes from the consumer list rather than from any measurement.
+`require_lpj_acceptance` has exactly three callers, and the acceptance contract's
+own closure block is a fourth reader.
+
+  1. The assessed set is the set of consumer quantities. A quantity is a table
+     plus the columns a consumer SUMS.
+  2. A COLUMN THAT ENTERS A CONSUMER QUANTITY ONLY THROUGH A SUM OWES NOTHING
+     BEYOND WHAT THE SUM OWES. The sum's own cycle series carries that column's
+     drift at its own share, with every cancellation and every reinforcement
+     already in it, and the drift bound applied to the sum bounds the sum
+     exactly. Bounding each column separately at the sum's tolerance is a
+     strictly stronger claim than any consumer makes.
+  3. A quantity's tolerance is the TIGHTEST among the consumers that read it,
+     each derived through that consumer's own chain.
+  4. A column no consumer reads is not assessed. It keeps a reported drift bound
+     as a diagnostic, and the artifact claims what it measured.
+
+| consumer | quantity | tolerance | derivation |
+| --- | --- | --- | --- |
+| `build_surface_albedo.py --mode modelled` | `fpc.out` tree cover, grass cover | 0.05 | the albedo chain above, which is ABOUT these two |
+| `build_soil.py` | `cpool.out` SoilC | 0.05 | the tightest derived in this tree, applied conservatively to an unpriced chain |
+| `lpj_acceptance.yaml` closure | `cpool.out`, `npool.out`, `aaet.out`, `tot_runoff.out` Totals | 0.05 | the same, and the closure imposes no drift tolerance of its own |
+| `score_prediction.py` | `anpp.out` Total, `lai.out` Total, `fpc.out` tree, grass, C4G and boreal cover | 0.2727 | tightest half-width over centre of the ten pre-registered bands |
+
+The albedo chain's number is the one derived above and it applies to the two
+quantities it was derived for. `build_soil.py`'s own chain -- soil carbon to
+organic mass fraction to volumetric water capacity to the model's `dwmax` --
+has not been priced, so SoilC and the closure's four pool and flux totals take
+the tightest tolerance derived anywhere in this tree. That is conservative and
+is recorded as conservative rather than as a derivation.
+
+`score_prediction.py`'s tolerance IS derived, from bands fixed in
+`notes/productivity-prediction.md` before the model ran a Vesper gridcell: a
+drift must not carry a value at a band's centre out of the band, which is the
+band's half-width over its centre. The tightest of the ten is 0.2727, set by
+line 3 (1.6 to 2.8) and line 5 (0.40 to 0.70); the loosest is 1.0. Reading the
+drift against the record MEAN rather than against any point in the record would
+double it, and the stricter reading is taken.
+
+ADDING A CONSUMER ADDS A ROW to `assessed.quantities`. That is the whole of the
+maintenance rule, and it is what makes the assessed set a derived thing rather
+than a list: a new reader that forms a sum the block does not name is a sum this
+contract has not certified.
+
+`equilibrium_window_gate.py` tests the rule against a pair that can fail either
+way. One fixture's two columns drift in opposite directions and one fixture's
+drift together, at the same size; judged on the sum a consumer forms the first
+is accepted and the second refused, and judged column by column both are
+refused. Same statistic, same tolerance, opposite verdicts.
 
 ## What is still calibrated
 
@@ -372,36 +432,50 @@ every reading.
 
 ### The retained record
 
-The record floor is `cycles_for_bound`'s answer for the field that needs the
-most, and it is written onto the acceptance artifact whatever the verdict --
-because a run refused for not resolving its own drift is exactly the run that
-says how long the next one has to be. It is a floor for one reason only: the
-memory time is held at the value its own record read, and a longer record may
-read a larger one. That moves the answer rather than preventing one, which is
-the difference between it and the span multiple it replaced.
+The record floor is `cycles_for_bound`'s answer for the assessed quantity that
+needs the most, and it is written onto the acceptance artifact whatever the
+verdict -- because a run refused for not resolving its own drift is exactly the
+run that says how long the next one has to be. It is a floor for one reason
+only: the memory time is held at the value its own record read, and a longer
+record may read a larger one. That moves the answer rather than preventing one,
+which is the difference between it and the span multiple it replaced.
 
 WHAT IT IS SET BY IS SCATTER, NOT MEMORY TIME, and that is the finding the
-earlier form could not see. The record a field needs is proportional to its
-variance times its memory time, so `cpool.out` Total, at a memory time of 212.7
-and a relative scatter of 0.0055, resolves the tolerance on the 1253 cycles
-already on disk, while `anpp.out` TrBR, at 169.8 and 0.0485, does not until
-33846. Twenty-two of the 64 assessed fields resolve on the record on disk --
-every Total column, both soil pools, the grasses, and the one broadleaf
-evergreen type -- and 42 do not. Every one of the 42 is an individual plant
-functional type's own column.
+earlier form could not see. The record a series needs is proportional to its
+variance times its memory time, so `cpool.out` SoilC, at a memory time of 483.5
+and a relative scatter of 0.0030, resolves its tolerance on the 1253 cycles
+already on disk, while `anpp.out` TrBR, at 324.8 and 0.1012, does not until
+33846.
 
-| what needs it | resolving length, cycles |
-| --- | --- |
-| every aggregate, both soil pools, the grasses | inside the 1253 on disk |
-| the temperate and boreal types | 2100 to 9000 |
-| the tropical and intermediate types | 16000 to 33900 |
-| binding field, anpp.out TrBR | 33846 |
+THE ASSESSED QUANTITIES ARE MUCH QUIETER THAN THE COLUMNS THEY ARE BUILT FROM,
+and that is the finding rather than an assumption. A sum over the plant
+functional types averages out the competitive shuffling between them, and the
+shuffling is most of each column's variance. Measured on the 1253-cycle record
+of `lpj_7d3c576ee4e342acb097b46fece976e0`:
 
-At the measured throughput that binding length is about eight and three quarter
-hours of retained record at npatch 5 on 16 ranks, before any spin-up. So the
-assessed set is what buys the run, and whether every per-PFT column belongs in
-it is world-mxmr rather than a question to settle by looking at what the
-current run needs.
+| series | drift bound | needs |
+| --- | --- | --- |
+| fpc.out tree cover, the albedo consumer's own quantity | 0.0186 | inside 1253 |
+| fpc.out grass cover, the albedo consumer's own quantity | 0.0420 | inside 1253 |
+| cpool.out SoilC, the soil consumer's quantity and loop B's exit | 0.0153 | inside 1253 |
+| every other assessed quantity | 0.0031 to 0.0744 against 0.05 or 0.2727 | inside 1253 |
+| cpool.out Total, the carbon closure's pool | 0.0503 against 0.05 | inside 1253 |
+| anpp.out TrBR, a column no consumer reads | 0.4758 | 33846 |
+| aaet.out IBS, a column no consumer reads | 0.3105 | 26128 |
+
+Every assessed quantity resolves its own tolerance on the record on disk, and
+every column that does not is an individual plant functional type's. So the
+record floor is the record on disk, and the eight and three quarter hours the
+old assessed set asked for is not owed.
+
+ONE ASSESSED QUANTITY IS STILL REFUSED, and it is refused for drifting rather
+than for being unresolved: `cpool.out` Total bounds at 0.0503 against 0.05, on
+a drift estimate of 0.0113 that a settled series of its scatter would resolve
+inside the record it already has. The drift lives in `cpool.out` VegC, which
+bounds at 0.1495 -- vegetation carbon is still redistributing between the woody
+types while the COVER those types present has settled. That is a refusal a
+longer record does not answer and a longer spin-up does, which is the
+distinction the two floors exist to keep apart.
 
 ### The relaxation time, measured without its asymptote
 
@@ -434,14 +508,11 @@ contraction has an uncertainty reaching one -- the best being 0.584 +/- 0.331.
 The bracket of 59.7 to 846.8 cycles that the 2318-cycle spin-up was derived from
 rested on ratios whose interval spanned the whole answer.
 
-So THE RELAXATION TIME OF THIS MODEL IS NOT MEASURED, and until it is there is
-no derived spin-up floor. `lib/run_lengths.py:ecological_run_cycles` returns none
-and names the estimator and the count; `build_vesper_pfts.py` falls back to the
-rescaled convention and records that it did. The RECORD floor is unaffected,
-because it never depended on the relaxation time; the two are independent and
-one being unmeasurable was hiding the other.
+So THE RELAXATION TIME OF THIS MODEL IS NOT MEASURED. It does not have to be,
+and the section below is why. The RECORD floor never depended on it; the two
+are independent and one being unmeasurable was hiding the other.
 
-### The spin-up
+### The spin-up, derived from the tolerance and nothing else
 
 The spin-up floor takes its residual from the criterion that judges what
 follows, exactly as `SETTLING_RESIDUAL_K` takes 0.15 K from the offset criterion
@@ -453,18 +524,40 @@ end-to-end change exceeds `relative_end_to_end_limit`, so
 
     exp(-S/tau) x (1 - exp(-L/tau)) <= 0.05
 
-and the module returns the smallest `S` that satisfies it. Starting from bare
-ground is the conservative reading and is stated rather than hidden: a pool the
-CENTURY accelerator hands over part-grown begins closer than a full level away
-and needs less.
+and `ecological_spinup_cycles` returns the smallest `S` that satisfies it.
+Starting from bare ground is the conservative reading and is stated rather than
+hidden: a pool the CENTURY accelerator hands over part-grown begins closer than a
+full level away and needs less.
 
-IT RETURNS NOTHING TODAY, because `tau` is what no record has measured. That is
-the honest state and it is checked as one: the gate asserts that a derived
-spin-up satisfies the inequality it came from AND that an absent one names the
-estimator that declined and the count, so a default fails in either place. What
-would lift it is a record long enough for a block difference to be several times
-its own memory-corrected standard error, which is the same currency the record
-floor is bought in.
+THAT REQUIREMENT IS BOUNDED OVER ALL RELAXATION TIMES, which is what makes the
+unmeasurable `tau` stop mattering. Substituting `u = L / tau`,
+
+    S(tau) = L x ln((1 - exp(-u)) / 0.05) / u
+
+falls away at both ends: an approach far slower than the record puts almost none
+of itself into the record, and one far faster has finished. So it has a finite
+maximum, and because the left-hand side of the requirement is decreasing in `S`,
+any `S` at or above that maximum satisfies it at EVERY `tau`. The maximum is the
+smallest such `S`, so it is the minimax answer rather than a guess at a length.
+
+`ecological_spinup_multiple` returns it, and it is exactly proportional to the
+retained record with a constant fixed by the tolerance alone: 6.86325 records at
+a tolerance of 0.05, attained at a relaxation time of 7.3519 records; 17.896 at
+0.02 and 3.1901 at 0.10. The proportionality is checked against
+`ecological_spinup_cycles` itself by sweeping `tau` at three record lengths.
+
+A MEASURED RELAXATION TIME COULD ONLY ASK FOR LESS, so the minimax is a ceiling
+on the floor and the module prefers a measured value where one is admissible.
+The gate checks the claim rather than reporting it: the returned spin-up must
+hold the residual drift inside the tolerance across eight relaxation times
+spanning five decades around the worst case, and one per cent shorter must fail
+at the worst case.
+
+WHAT THE SPIN-UP BUYS IS NOT CORRECTNESS. A residual transient enters the very
+statistic the acceptance contract gates on, so an under-spun run is REFUSED
+rather than silently accepted. What `S*` buys is that the run is not refused for
+that reason, and at 6.86 records it is most of a run's cost -- which is what
+makes it worth deriving rather than typing.
 
 ### What it costs
 
@@ -474,13 +567,18 @@ seconds per simulated year at npatch 5 on 16 ranks over 1617 cells: 990.7 s for
 imply a negligible fixed cost. Multiply the total cycle count by that; npatch 20
 is about four times it.
 
+On the record on disk that prices the next run at about 1253 retained cycles and
+a spin-up of 6.86325 times it, roughly 9850 cycles in total and about two and a
+half hours at npatch 5 on 16 ranks. The run this contract used to demand was
+33846 retained cycles and a spin-up of 232294, about seventy hours.
+
 The time base is correct and is not implicated in any of this. `vesper_pfts.ins`
 sets nyear_spinup 998 and freenyears 200, which at 0.5010172 Earth years per
 orbit are 500.0 and 100.2 Earth years and match LPJ-GUESS's convention exactly.
 The convention is Earth's, and this world's woody types and slow pools are not
-Earth's. `build_vesper_pfts.py` reads the derived spin-up floor when an assessed
-run carries one and falls back to the rescaled convention only when none does,
-recording which it used.
+Earth's. `build_vesper_pfts.py` reads the derived spin-up floor from whatever
+acceptance artifacts exist and records which derivation produced it; the
+convention is reached only where there is no acceptance artifact to read at all.
 
 ## What the contract cannot yet do, and what has never been staged
 

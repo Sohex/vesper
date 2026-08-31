@@ -65,7 +65,7 @@ class ReducedTable:
 
 def read_policy(path: Path = POLICY_PATH) -> dict:
     policy = yaml.safe_load(path.read_text())
-    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/4":
+    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/5":
         raise EquilibriumWindowError("unsupported equilibrium-window contract")
     cycles = policy.get("complete_forcing_cycles")
     if not isinstance(cycles, int) or cycles < 3:
@@ -100,7 +100,120 @@ def read_policy(path: Path = POLICY_PATH) -> dict:
     if trend.get("memory_estimator") != MEMORY_ESTIMATOR:
         raise EquilibriumWindowError(
             f"trend.memory_estimator must name {MEMORY_ESTIMATOR}")
+    _check_assessed(policy)
     return policy
+
+
+def _check_assessed(policy: dict) -> None:
+    """The assessed set is a list of consumer quantities and has to read as one.
+
+    Every refusal here is a way the declaration could stop meaning what the
+    contract claims: a quantity with no reader is not a consumer quantity, a
+    quantity with no tolerance is the defect world-mxmr names, and a
+    `relative_end_to_end_limit` that is not the tightest of them is a second
+    number to keep in step with the first. The spin-up floor is derived at that
+    tightest limit, so the two drifting apart would size a spin-up against a
+    tolerance nothing is judged at.
+    """
+    assessed = policy.get("assessed")
+    if not isinstance(assessed, dict):
+        raise EquilibriumWindowError(
+            "the contract needs an `assessed` block: the acceptance claim is "
+            "about the quantities a consumer reads, and a column no consumer "
+            "reads is a different claim from the one the tolerance was derived "
+            "for")
+    if assessed.get("reduction") != "sum":
+        raise EquilibriumWindowError(
+            "assessed.reduction names the one way a consumer forms a quantity "
+            "out of columns, and this contract knows summation")
+    quantities = assessed.get("quantities")
+    if not isinstance(quantities, list) or not quantities:
+        raise EquilibriumWindowError("assessed.quantities must list at least one")
+    seen = set()
+    for quantity in quantities:
+        identity = quantity.get("id")
+        if not isinstance(identity, str) or identity in seen:
+            raise EquilibriumWindowError(
+                f"every assessed quantity needs a unique id; {identity!r} is not")
+        seen.add(identity)
+        if not isinstance(quantity.get("table"), str):
+            raise EquilibriumWindowError(f"{identity} names no table")
+        explicit = quantity.get("columns")
+        excluded = quantity.get("columns_excluding")
+        if (explicit is None) == (excluded is None):
+            raise EquilibriumWindowError(
+                f"{identity} names its columns either explicitly or by exclusion, "
+                "and exactly one of the two")
+        for value in (explicit if explicit is not None else excluded):
+            if not isinstance(value, str):
+                raise EquilibriumWindowError(f"{identity} has a nonstring column")
+        limit = quantity.get("relative_end_to_end_limit")
+        if not isinstance(limit, (int, float)) or not 0 < limit < 1:
+            raise EquilibriumWindowError(
+                f"{identity} needs its own tolerance in (0, 1): applying one "
+                "consumer's number to a quantity another consumer reads is the "
+                "defect this block exists to end")
+        readers = quantity.get("read_by")
+        if not isinstance(readers, list) or not readers:
+            raise EquilibriumWindowError(
+                f"{identity} names no reader, so it is not a consumer quantity")
+        if not isinstance(quantity.get("derivation"), str):
+            raise EquilibriumWindowError(f"{identity} does not say where its "
+                                         "tolerance came from")
+    tightest = min(float(q["relative_end_to_end_limit"]) for q in quantities)
+    declared = float(policy["trend"]["relative_end_to_end_limit"])
+    if abs(tightest - declared) > 1.0e-12:
+        raise EquilibriumWindowError(
+            f"trend.relative_end_to_end_limit is {declared:g} and the tightest "
+            f"assessed quantity's is {tightest:g}. It is not a separate number: "
+            "it is what a spin-up has to leave below, and a spin-up precedes "
+            "every quantity")
+
+
+def assessed_quantities(policy: dict, table: str) -> list[dict]:
+    """The consumer quantities this contract assesses on one output table."""
+    return [quantity for quantity in policy["assessed"]["quantities"]
+            if quantity["table"] == table]
+
+
+def assess(cube: np.ndarray, names: list[str], quantities: list[dict]
+           ) -> tuple[np.ndarray, list[str], np.ndarray]:
+    """Replace a table's COLUMN axis with the consumer quantities built from it.
+
+    `cube` is anything whose last axis is the table's columns; the same array
+    comes back with that axis holding one entry per quantity, summed exactly as
+    the consumer sums it. Every test in this contract then runs on the quantity
+    a consumer will read rather than on a column that only enters one, which is
+    what makes the acceptance claim and the consumer's claim the same claim.
+    """
+    cube = np.asarray(cube)
+    if not quantities:
+        return cube[..., :0], [], np.zeros(0)
+    columns, labels, limits = [], [], []
+    for quantity in quantities:
+        explicit = quantity.get("columns")
+        if explicit is not None:
+            missing = [name for name in explicit if name not in names]
+            if missing:
+                raise EquilibriumWindowError(
+                    f"{quantity['id']} needs columns {missing} that "
+                    f"{quantity['table']} does not have")
+            chosen = [names.index(name) for name in explicit]
+        else:
+            excluded = set(quantity["columns_excluding"])
+            missing = [name for name in excluded if name not in names]
+            if missing:
+                raise EquilibriumWindowError(
+                    f"{quantity['id']} excludes columns {missing} that "
+                    f"{quantity['table']} does not have, so the exclusion no "
+                    "longer describes the table it is taken on")
+            chosen = [i for i, name in enumerate(names) if name not in excluded]
+        if not chosen:
+            raise EquilibriumWindowError(f"{quantity['id']} selects no column")
+        columns.append(cube[..., chosen].sum(axis=-1))
+        labels.append(quantity["id"])
+        limits.append(float(quantity["relative_end_to_end_limit"]))
+    return np.stack(columns, axis=-1), labels, np.asarray(limits, dtype=float)
 
 
 def sha256(path: Path) -> str:
@@ -225,7 +338,8 @@ def _read_rows(path: Path) -> tuple[list[str], list[tuple[float, float]],
     return names, cells, years, cube
 
 
-def _cell_fraction(cycle_means: np.ndarray, policy: dict) -> np.ndarray:
+def _cell_fraction(cycle_means: np.ndarray, policy: dict,
+                   tolerances: np.ndarray | None = None) -> np.ndarray:
     """Per field, the share of the cells it OCCUPIES whose own series is trending.
 
     The denominator is the occupied cells and not every cell, so the statistic
@@ -251,7 +365,10 @@ def _cell_fraction(cycle_means: np.ndarray, policy: dict) -> np.ndarray:
     with np.errstate(divide="ignore", invalid="ignore"):
         significance = np.where(slope_se > 0, np.abs(slope) / slope_se,
                                 np.where(np.abs(slope) > 0, np.inf, 0.0))
-    trending = ((relative > policy["trend"]["relative_end_to_end_limit"])
+    if tolerances is None:
+        tolerances = np.full(cycle_means.shape[2],
+                             float(policy["trend"]["relative_end_to_end_limit"]))
+    trending = ((relative > np.asarray(tolerances, dtype=float)[None, :])
                 & (significance > float(policy["trend"]["slope_standard_errors"])))
     occupied = np.abs(intercept) > floor
     counts = occupied.sum(axis=0)
@@ -260,6 +377,7 @@ def _cell_fraction(cycle_means: np.ndarray, policy: dict) -> np.ndarray:
 
 
 def _trend(cycle_means: np.ndarray, policy: dict,
+           tolerances: np.ndarray,
            limits: np.ndarray) -> tuple[list[dict], bool]:
     """The PER-CELL half: drift that leaves the spatial mean flat.
 
@@ -275,7 +393,7 @@ def _trend(cycle_means: np.ndarray, policy: dict,
     """
     # cycle_means: cycle, cell, field
     nfield = cycle_means.shape[2]
-    fractions = _cell_fraction(cycle_means, policy)
+    fractions = _cell_fraction(cycle_means, policy, tolerances)
     rejected = fractions > limits
     diagnostics = [{
         "trending_cell_fraction": float(fractions[i]),
@@ -539,17 +657,22 @@ def relaxation_time(series: np.ndarray, tau_memory: float,
 
 
 def timescale_report(run_dir: Path, *, policy_path: Path = POLICY_PATH) -> dict:
-    """Both ecological timescales, per field, for every assessed table.
+    """Both ecological timescales, per CONSUMER QUANTITY, for every table.
 
     Recorded on a run's acceptance artifact whatever its verdict, because a run
     that is refused for not having settled is exactly the run whose timescales say
     how long the next one has to be. `lib/run_lengths.py` reads this and states no
     number of its own, on the same terms as the climate relaxation bracket.
+
+    `fields` HOLDS THE ASSESSED QUANTITIES AND NOTHING ELSE, because it is what
+    sizes the next run: a record bought for a column no consumer reads is a
+    record bought for a claim nobody makes. Every column's own timescales are in
+    `columns` beside it, which nothing reads and a reader can.
     """
     run_dir = Path(run_dir)
     policy = read_policy(policy_path)
     floor = float(policy["trend"]["absolute_scale_floor"])
-    limit = float(policy["trend"]["relative_end_to_end_limit"])
+    tightest = float(policy["trend"]["relative_end_to_end_limit"])
     alpha = float(policy["trend"]["maximum_false_acceptance_rate"])
     outputs = yaml.safe_load(ACCEPTANCE_PATH.read_text())["stability_outputs"]
     tables = {}
@@ -565,35 +688,52 @@ def timescale_report(run_dir: Path, *, policy_path: Path = POLICY_PATH) -> dict:
             usable // cycle_years, cycle_years, len(cells), len(names)).mean(axis=1)
         span = record.shape[0]
         x = np.arange(span, dtype=float)
-        fields = {}
-        for index, name in enumerate(names):
-            spatial = record[:, :, index].mean(axis=1)
+        quantities = assessed_quantities(policy, output)
+        assessed, labels, limits = (
+            assess(record, names, quantities) if quantities
+            else (record[:, :, :0], [], np.zeros(0)))
+
+        def timescales(spatial: np.ndarray, limit: float) -> dict | None:
             if (abs(float(spatial.mean())) <= floor
                     or not np.isfinite(spatial).all() or spatial.std() == 0):
-                continue
-            flat = spatial - np.polyval(np.polyfit(x, spatial, 1), x) + spatial.mean()
+                return None
+            flat = (spatial - np.polyval(np.polyfit(x, spatial, 1), x)
+                    + spatial.mean())
             memory = integrated_time(flat)
             bound = drift_bound(spatial, alpha, floor)
-            fields[name] = {
+            return {
                 "memory": {"tau_cycles": float(memory["tau"]),
                            "effective_samples": float(memory["effective_sample_size"]),
                            "reliable": bool(memory["reliable"]),
                            "lag1": float(memory["lag1"])},
                 "relaxation": relaxation_time(spatial, memory["tau"]),
-                # The RECORD this field needs, recorded on a refusal as well as
-                # on a pass because a run refused for not resolving its own
+                # The RECORD this quantity needs, recorded on a refusal as well
+                # as on a pass because a run refused for not resolving its own
                 # drift is exactly the run that says how long the next one has
                 # to be. `lib/run_lengths.py` reads it and states no number of
                 # its own.
                 "drift": {**bound,
+                          "relative_end_to_end_limit": float(limit),
                           "settled": bool(bound["upper_bound"] <= limit),
                           "record_cycles_for_bound": float(
                               record_cycles_for_bound(spatial, span, alpha,
                                                       limit, floor))},
             }
+
+        fields = {}
+        for index, (label, limit) in enumerate(zip(labels, limits)):
+            entry = timescales(assessed[:, :, index].mean(axis=1), float(limit))
+            if entry is not None:
+                entry["read_by"] = list(quantities[index]["read_by"])
+                fields[label] = entry
+        columns = {}
+        for index, name in enumerate(names):
+            entry = timescales(record[:, :, index].mean(axis=1), tightest)
+            if entry is not None:
+                columns[name] = entry
         tables[output] = {"record_cycles": int(span),
                           "forcing_cycle_years": int(cycle_years),
-                          "fields": fields}
+                          "fields": fields, "columns": columns}
     return {"estimator": MEMORY_ESTIMATOR,
             "relaxation_estimator": "lib/lpj_output.py:relaxation_time",
             "reliable_span_multiple": float(RELIABLE_SPAN_MULTIPLE),
@@ -607,9 +747,28 @@ def timescale_report(run_dir: Path, *, policy_path: Path = POLICY_PATH) -> dict:
             "tables": tables}
 
 
-def _settled_within(record: np.ndarray, names: list[str],
-                    policy: dict) -> tuple[list[dict], list[str]]:
-    """Is every assessed field's drift demonstrably inside the tolerance?
+def _bound_series(spatial: np.ndarray, span: int, limit: float, alpha: float,
+                  floor: float) -> tuple[dict | None, float]:
+    """The drift bound on one series, and the record a settled one would need."""
+    level = float(abs(spatial.mean()))
+    if level <= floor or not np.isfinite(spatial).all() or spatial.std() == 0:
+        return None, float("nan")
+    bound = drift_bound(spatial, alpha, floor)
+    needed = record_cycles_for_bound(spatial, span, alpha, limit, floor)
+    # What the REPORTED value is worth, in the units the tolerance is in, so a
+    # consumer never has to reconstruct it. This is the one standard error of a
+    # mean over a series with memory, at the same memory time the bound was taken
+    # at, over the same span the bound certifies.
+    bound["reported_mean_relative_standard_error"] = float(
+        mean_standard_error(spatial, bound["tau_cycles"]) / level)
+    bound["record_cycles"] = int(span)
+    bound["record_cycles_for_bound"] = float(needed)
+    return bound, needed
+
+
+def _settled_within(record: np.ndarray, names: list[str], policy: dict,
+                    quantities: list[dict]) -> tuple[list[dict], list[dict], list[str]]:
+    """Is every CONSUMER QUANTITY's drift demonstrably inside its own tolerance?
 
     THE GLOBAL HALF OF THE CONTRACT, and it runs on the WHOLE RETAINED RECORD
     rather than on the reported window. Those are two different spans and only
@@ -618,59 +777,79 @@ def _settled_within(record: np.ndarray, names: list[str],
     is made from. A drift test on the window was a slope fitted inside one
     memory time, which is what `drift_bound` replaces.
 
-    A field is settled when the upper bound on its end-to-end relative drift is
-    inside `relative_end_to_end_limit`, and it is REFUSED otherwise, whether the
-    bound is wide because the field is drifting or wide because the record is
-    short. Those two are the same refusal on purpose: an acceptance gate that
-    passes a run it cannot resolve is asserting something it did not measure.
-    The refusal names which of the two it is, by carrying both the drift
-    estimate and the record that would answer it.
+    IT RUNS ON THE QUANTITY AND NOT ON THE COLUMN. A consumer sums columns and
+    reads the sum, and the sum's own series carries each column's drift at that
+    column's share, with every cancellation and every reinforcement in it. So the
+    bound applied to the sum bounds the sum exactly and the columns beneath it
+    owe nothing further; bounding each separately at the sum's tolerance is a
+    stronger claim than any consumer makes, and it cost this contract a
+    twenty-seven-fold record. The columns keep a bound as a DIAGNOSTIC, returned
+    separately, so what is outside the claim is visible rather than absent.
+
+    A quantity is settled when the upper bound on its end-to-end relative drift
+    is inside ITS OWN tolerance, and it is REFUSED otherwise, whether the bound
+    is wide because the quantity is drifting or wide because the record is short.
+    Those two are the same refusal on purpose: an acceptance gate that passes a
+    run it cannot resolve is asserting something it did not measure. The refusal
+    names which of the two it is, by carrying both the drift estimate and the
+    record that would answer it.
     """
     floor = float(policy["trend"]["absolute_scale_floor"])
-    limit = float(policy["trend"]["relative_end_to_end_limit"])
     alpha = float(policy["trend"]["maximum_false_acceptance_rate"])
-    diagnostics, refused = [], []
     span = record.shape[0]
-    for index, name in enumerate(names):
-        spatial = record[:, :, index].mean(axis=1)
-        level = float(abs(spatial.mean()))
-        if level <= floor or not np.isfinite(spatial).all() or spatial.std() == 0:
+    assessed, labels, limits = assess(record, names, quantities)
+    diagnostics, refused = [], []
+    for index, (label, limit) in enumerate(zip(labels, limits)):
+        spatial = assessed[:, :, index].mean(axis=1)
+        bound, needed = _bound_series(spatial, span, float(limit), alpha, floor)
+        if bound is None:
             diagnostics.append({
-                "field": name, "assessed": False,
+                "field": label, "assessed": False,
+                "relative_end_to_end_limit": float(limit),
                 "reason": "the spatial mean is zero or exactly constant, so it "
                           "carries no drift to bound"})
             continue
-        bound = drift_bound(spatial, alpha, floor)
-        needed = record_cycles_for_bound(spatial, span, alpha, limit, floor)
-        settled = bool(bound["upper_bound"] <= limit)
-        # What the REPORTED value is worth, in the units the tolerance is in, so
-        # a consumer never has to reconstruct it. This is the one standard error
-        # of a mean over a series with memory, at the same memory time the bound
-        # was taken at, over the same span the bound certifies.
-        reported_error = mean_standard_error(spatial, bound["tau_cycles"]) / level
-        diagnostics.append({"field": name, "assessed": True, "settled": settled,
-                            "record_cycles": int(span), **bound,
-                            "reported_mean_relative_standard_error":
-                                float(reported_error),
-                            "record_cycles_for_bound": float(needed)})
+        settled = bool(bound["upper_bound"] <= float(limit))
+        diagnostics.append({"field": label, "assessed": True, "settled": settled,
+                            "relative_end_to_end_limit": float(limit),
+                            "read_by": list(quantities[index]["read_by"]),
+                            "derivation": quantities[index]["derivation"],
+                            **bound})
         if settled:
             continue
         length = ("no finite record" if not np.isfinite(needed)
                   else f"{needed:.0f} cycles")
         refused.append(
-            f"{name} (drift {bound['relative_drift']:.4f} +/- "
+            f"{label} (drift {bound['relative_drift']:.4f} +/- "
             f"{bound['relative_standard_error']:.4f} bounds at "
-            f"{bound['upper_bound']:.4f} against a limit of {limit:g}; memory "
-            f"time {bound['tau_cycles']:.1f} cycles leaves "
+            f"{bound['upper_bound']:.4f} against a limit of {float(limit):g}; "
+            f"memory time {bound['tau_cycles']:.1f} cycles leaves "
             f"{bound['effective_samples_per_half']:.1f} effective samples per "
-            f"half of a {span}-cycle record, and a SETTLED field of this "
+            f"half of a {span}-cycle record, and a SETTLED quantity of this "
             f"scatter would resolve the limit at {length})")
-    return diagnostics, refused
+    # THE COLUMNS, at the tightest limit any assessed quantity carries, so the
+    # diagnostic is comparable across tables. Nothing is gated on these: they
+    # exist so a reader can see what the claim does NOT cover.
+    tightest = float(policy["trend"]["relative_end_to_end_limit"])
+    columns = []
+    for index, name in enumerate(names):
+        spatial = record[:, :, index].mean(axis=1)
+        bound, _ = _bound_series(spatial, span, tightest, alpha, floor)
+        if bound is None:
+            columns.append({"field": name, "bounded": False,
+                            "reason": "the spatial mean is zero or exactly "
+                                      "constant, so it carries no drift to bound"})
+            continue
+        columns.append({"field": name, "bounded": True,
+                        "compared_against": tightest, **bound})
+    return diagnostics, columns, refused
 
 
 def _cell_fraction_null(cube: np.ndarray, years: list[int], window_years: int,
-                        cycle_years: int, policy: dict) -> tuple[np.ndarray, dict]:
-    """Per field, the trending-cell fraction this run reaches with no trend left.
+                        cycle_years: int, policy: dict,
+                        tolerances: np.ndarray | None = None
+                        ) -> tuple[np.ndarray, dict]:
+    """Per quantity, the trending-cell fraction this run reaches with no trend left.
 
     The limit on the trending-cell fraction cannot be one declared number. Measured
     on a run at fixed forcing, the fraction a field reaches when nothing is drifting
@@ -721,7 +900,8 @@ def _cell_fraction_null(cube: np.ndarray, years: list[int], window_years: int,
     flat = block - x[:, None, None] * slope[None]
     windows = flat.reshape(nwindow, ncycle, cycle_years,
                            block.shape[1], block.shape[2]).mean(axis=2)
-    fractions = np.stack([_cell_fraction(window, policy) for window in windows])
+    fractions = np.stack([_cell_fraction(window, policy, tolerances)
+                          for window in windows])
     limits = fractions.max(axis=0)
     return limits, {
         "statistic": policy["trend"]["cell_fraction"]["null_statistic"],
@@ -798,20 +978,32 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
     reported = cube[:usable]
     mean = reported.mean(axis=0)
     temporal_std = reported.std(axis=0, ddof=1)
-    drift, unsettled = _settled_within(record, names, policy)
+    # THE CLAIM IS ABOUT THE QUANTITIES A CONSUMER READS, so both halves run on
+    # the sums the consumers form rather than on this table's columns. A table
+    # nothing reads carries no quantity and makes no claim, which is a pass and
+    # is recorded as one rather than as an assessment of nothing.
+    quantities = assessed_quantities(policy, path.name)
+    drift, column_drift, unsettled = _settled_within(
+        record, names, policy, quantities)
     if unsettled:
         raise EquilibriumWindowError(
-            f"{path}'s retained record does not bound its drift inside "
-            f"{policy['trend']['relative_end_to_end_limit']:g}: "
+            f"{path}'s retained record does not bound the drift of the "
+            f"quantities its consumers read inside their own tolerances: "
             f"{'; '.join(unsettled)}")
-    limits, null = _cell_fraction_null(cube, years, window_years, cycle_years, policy)
-    trends, rejected = _trend(cycle_means, policy, limits)
-    for name, diagnostic in zip(names, trends):
-        diagnostic["field"] = name
-    if rejected:
-        failed = [item["field"] for item in trends if item["rejected"]]
-        raise EquilibriumWindowError(
-            f"{path}'s end window is still trending in {', '.join(failed)}")
+    trends, null = [], None
+    if quantities:
+        cycle_quantities, labels, tolerances = assess(
+            cycle_means, names, quantities)
+        null_cube, _, _ = assess(cube, names, quantities)
+        limits, null = _cell_fraction_null(
+            null_cube, years, window_years, cycle_years, policy, tolerances)
+        trends, rejected = _trend(cycle_quantities, policy, tolerances, limits)
+        for label, diagnostic in zip(labels, trends):
+            diagnostic["field"] = label
+        if rejected:
+            failed = [item["field"] for item in trends if item["rejected"]]
+            raise EquilibriumWindowError(
+                f"{path}'s end window is still trending in {', '.join(failed)}")
 
     peer_records = []
     ensembles = [(path, manifest, mean)]
@@ -879,7 +1071,9 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
 
     report = {
         "contract_version": policy["contract_version"],
-        "policy": str(policy_path.relative_to(PROJECT_ROOT)),
+        "policy": str(policy_path.relative_to(PROJECT_ROOT)
+                      if policy_path.is_relative_to(PROJECT_ROOT)
+                      else policy_path),
         "policy_sha256": sha256(policy_path),
         "identity": {"table": str(path), "run_manifest": str(manifest_path),
                      "run_id": manifest.get("run_id"),
@@ -898,8 +1092,19 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
                    "annual_values": window_years,
                    "complete_forcing_cycles": policy["complete_forcing_cycles"],
                    "forcing_cycle_years": cycle_years},
+        # WHAT THE PASS ASSERTS, in the words the claim is made in: these
+        # quantities, each inside the tolerance its own consumer owes. It is not
+        # an assertion that the simulated biosphere has settled, and
+        # `column_drift` carries every column's bound so a reader can see what
+        # the claim leaves out rather than having to notice its absence.
         "trend": {"rule": policy["trend"], "cell_fraction_null": null,
                   "record_cycles": int(record.shape[0]), "drift": drift,
+                  "assessed": [q["id"] for q in quantities],
+                  "claim": ("the quantities named in `drift` are inside the "
+                            "tolerance each owes its own consumer over the whole "
+                            "retained record; no claim is made about a column "
+                            "no consumer reads"),
+                  "column_drift": column_drift,
                   "fields": trends, "verdict": "PASS"},
         "uncertainty": uncertainty,
         "peers": peer_records,

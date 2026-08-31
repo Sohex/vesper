@@ -15,8 +15,9 @@ SCRIPT = Path(__file__).resolve()
 PROJECT_ROOT = SCRIPT.parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "lib"))
 
-from lpj_output import (EquilibriumWindowError, cycles_for_bound, drift_bound,
-                        read_policy, reduce_table, relaxation_time)
+from lpj_output import (POLICY_PATH, EquilibriumWindowError, cycles_for_bound,
+                        drift_bound, read_policy, relaxation_time)
+from lpj_output import reduce_table as shipped_reduce_table
 import run_lengths
 
 
@@ -49,7 +50,8 @@ FIXTURE_CYCLES = 210
 def write_run(root: Path, name: str, *, seed: int = 1, npatch: int = 5,
               cycle_years: int = 2, cycles: int = FIXTURE_CYCLES,
               trend: float = 0.0, offset: float = 0.0, dipole: bool = False,
-              jitter: float = 0.0, omit: tuple[int, int] | None = None) -> Path:
+              jitter: float = 0.0, omit: tuple[int, int] | None = None,
+              opposed: bool = False) -> Path:
     run = root / name
     run.mkdir()
     manifest = {
@@ -91,13 +93,43 @@ def write_run(root: Path, name: str, *, seed: int = 1, npatch: int = 5,
             # a mean it has already raised.
             drift = trend * max(0, cycle - (cycles - 10))
             wobble = noise[cell, cycle]
+            # `opposed` makes B's drift exactly cancel A's, so the two columns
+            # each drift while their SUM does not. It is the case that separates
+            # assessing a consumer quantity from assessing a column: a
+            # competitive shift between two things a consumer only ever adds
+            # together is not a drift in what the consumer reads.
+            b_drift = -1.0 if opposed else 3.0
             a = 10.0 + base + phase + sign * drift + offset + wobble
-            b = (100.0 + 2.0 * base + 0.5 * phase + sign * 3.0 * drift + offset
-                 + 3.0 * wobble)
+            b = (100.0 + 2.0 * base + 0.5 * phase + sign * b_drift * drift
+                 + offset + 3.0 * wobble)
             lines.append(f"{lon} {lat} {year} {a:.8f} {b:.8f}\n")
     table = run / "fixture.out"
     table.write_text("".join(lines))
     return table
+
+
+def write_policy(root: Path, name: str, quantities: list[dict]) -> Path:
+    """The shipped contract with a different assessed set, for the fixtures.
+
+    The fixtures write a table the shipped contract names no quantity on, and
+    that is the point: the assessed set is a DECLARATION and the thing to
+    exercise is what different declarations do to the same numbers. Everything
+    else is copied from the shipped file, so a fixture cannot pass by relaxing
+    something the shipped contract enforces.
+    """
+    import yaml
+    policy = yaml.safe_load(POLICY_PATH.read_text())
+    policy["assessed"] = {"reduction": "sum", "quantities": quantities}
+    path = root / f"{name}.yaml"
+    path.write_text(yaml.safe_dump(policy, sort_keys=False))
+    return path
+
+
+def quantity(identity: str, limit: float, **columns) -> dict:
+    return {"id": identity, "table": "fixture.out",
+            "relative_end_to_end_limit": limit,
+            "read_by": ["biosphere/scripts/equilibrium_window_gate.py"],
+            "derivation": "a fixture's declared tolerance", **columns}
 
 
 def main() -> None:
@@ -116,6 +148,17 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory(prefix="vesper-equilibrium-") as directory:
         root = Path(directory)
+        # The shipped contract names no quantity on `fixture.out`, so every
+        # fixture below is judged against a declared assessed set of its own.
+        # Two single-column quantities is the same judgement the contract used
+        # to make on every column, which is what the older fixtures test.
+        columnwise = write_policy(root, "columnwise", [
+            quantity("fixture.out A", 0.05, columns=["A"]),
+            quantity("fixture.out B", 0.05, columns=["B"])])
+
+        def reduce_table(table, peers=(), *, policy_path=columnwise):
+            return shipped_reduce_table(table, peers, policy_path=policy_path)
+
         baseline = write_run(root, "baseline")
         reduced = reduce_table(baseline)
         check("complete-cycle mean", np.allclose(
@@ -163,16 +206,91 @@ def main() -> None:
         # series has memory to widen the error.
         memoryful = write_run(root, "memoryful", jitter=0.0, trend=1.0)
         refuses("a drifting record is refused by its own drift bound",
-                lambda: reduce_table(memoryful), "does not bound its drift")
+                lambda: reduce_table(memoryful), "does not bound the drift")
         trending = write_run(root, "trending", trend=1.0, jitter=2.0)
         refuses("a drifting record with memory is refused too",
-                lambda: reduce_table(trending), "does not bound its drift")
+                lambda: reduce_table(trending), "does not bound the drift")
         # The one case a spatial mean cannot see, and the reason the per-cell
         # half exists: the two cells drift in opposite directions, so the global
         # half has nothing to bound and hands the record on.
         dipole = write_run(root, "dipole", trend=1.0, dipole=True, jitter=0.5)
         refuses("cancelling regional drift refused, though the mean is flat",
                 lambda: reduce_table(dipole), "still trending")
+
+        # THE ASSESSED SET IS THE CLAIM, and this pair is what says so. Both
+        # fixtures drift in both columns at the same size; they differ only in
+        # whether the two drifts cancel in the sum a consumer forms. Judged on
+        # that sum, the cancelling one is accepted and the reinforcing one is
+        # refused, and judged column by column both are refused. Same statistic,
+        # same tolerance, opposite verdicts, and the difference is exactly what
+        # assessing a consumer quantity rather than a column means.
+        summed = write_policy(root, "summed", [
+            quantity("fixture.out A+B", 0.05, columns=["A", "B"])])
+        opposed = write_run(root, "opposed", trend=1.0, opposed=True, jitter=0.5)
+        refuses("a column-level drift is refused where the column is the claim",
+                lambda: reduce_table(opposed), "does not bound the drift")
+        try:
+            summed_report = reduce_table(opposed, policy_path=summed).report
+        except EquilibriumWindowError as exc:
+            check("a drift that cancels in the sum is not the sum's drift",
+                  False, str(exc))
+        else:
+            bound = summed_report["trend"]["drift"][0]
+            check("a drift that cancels in the sum is not the sum's drift",
+                  summed_report["trend"]["verdict"] == "PASS"
+                  and bound["field"] == "fixture.out A+B"
+                  and bound["upper_bound"] <= 0.05,
+                  f"the sum bounds at {bound['upper_bound']:.5f} while its "
+                  "columns drift by 0.0800 and 0.0080 in opposite directions")
+        refuses("a drift that does NOT cancel is still the sum's drift",
+                lambda: reduce_table(memoryful, policy_path=summed),
+                "does not bound the drift")
+        # Every column keeps a bound whether or not it is inside the claim, so
+        # what the claim leaves out is visible rather than absent.
+        check("the columns outside the claim still carry a bound",
+              [item["field"] for item in summed_report["trend"]["column_drift"]]
+              == ["A", "B"]
+              and summed_report["trend"]["assessed"] == ["fixture.out A+B"]
+              and "no claim is made about a column no consumer reads"
+              in summed_report["trend"]["claim"],
+              "one assessed quantity, two columns reported beside it")
+        # An exclusion has to describe the table it is taken on, or it silently
+        # selects a different set than the consumer does.
+        excluding = write_policy(root, "excluding", [
+            quantity("fixture.out not B", 0.05, columns_excluding=["B"])])
+        wobbly = write_run(root, "wobbly", jitter=0.5)
+        try:
+            per_column = reduce_table(wobbly).report["trend"]["drift"]
+            only_a = reduce_table(wobbly, policy_path=excluding).report
+        except EquilibriumWindowError as exc:
+            check("an exclusion selects what the consumer sums", False, str(exc))
+        else:
+            check("an exclusion selects what the consumer sums",
+                  len(only_a["trend"]["drift"]) == 1
+                  and np.isclose(only_a["trend"]["drift"][0]["relative_drift"],
+                                 per_column[0]["relative_drift"]),
+                  "excluding B leaves the A column's own series")
+        stale = write_policy(root, "stale", [
+            quantity("fixture.out not C", 0.05, columns_excluding=["C"])])
+        refuses("an exclusion that no longer describes the table is refused",
+                lambda: reduce_table(wobbly, policy_path=stale),
+                "no longer describes the table")
+        # The declaration itself has to read as a set of consumer quantities.
+        readerless = write_policy(root, "readerless", [
+            {"id": "fixture.out A", "table": "fixture.out", "columns": ["A"],
+             "relative_end_to_end_limit": 0.05,
+             "derivation": "none", "read_by": []}])
+        refuses("a quantity with no reader is not a consumer quantity",
+                lambda: read_policy(readerless), "names no reader")
+        loose = write_policy(root, "loose", [
+            quantity("fixture.out A", 0.5, columns=["A"])])
+        refuses("the declared limit must be the tightest assessed one",
+                lambda: read_policy(loose), "is not a separate number")
+        ambiguous = write_policy(root, "ambiguous", [
+            quantity("fixture.out A", 0.05, columns=["A"],
+                     columns_excluding=["B"])])
+        refuses("a quantity names its columns one way or the other",
+                lambda: read_policy(ambiguous), "exactly one of the two")
         starved = write_run(root, "starved", cycle_years=1, cycles=100)
         refuses("a record too short to measure the null is refused, not passed",
                 lambda: reduce_table(starved), "retain at least 200 years")
