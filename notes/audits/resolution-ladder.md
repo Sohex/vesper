@@ -394,10 +394,23 @@ under half the comparison's own bound of 0.0018 and under half the donor's
 orbit-to-orbit scatter. Its distance from the cold arm at the same rung is
 0.01408, eighteen times that.
 
-The converted arm did not simply keep the field it was handed. The remap put
-0.08933 on the target grid and the arm relaxed 0.0127 out of it over about
-fifteen orbits, so the ice adjusted and stopped, and where it stopped is the
-rung it came FROM rather than the rung it is on.
+The converted arm did not simply keep the field it was handed, and the restarts
+say so more sharply than the annual means do. Read as the Gauss-weighted mean of
+`xicec` off each restart, which compares end-of-run snapshots at one orbital
+phase:
+
+| restart | ice cover |
+| --- | ---: |
+| `run_0d41aa82c287`'s final, T21 | 0.07459 |
+| `t42_dt45_converted.rest`, that restart remapped to T42 | 0.08898 |
+| `run_8d0ae7e2d02c`'s final, T42 after 89 orbits | 0.07478 |
+| `run_88ed6f9d34ae`'s final, T42 cold after 144 | 0.05897 |
+
+**The remap raised the fraction by 0.0144 and the target rung took all of it
+back, stopping 0.00019 from where the donor was.** So the arm is not holding the
+field it was given: it moved 0.0142 away from its own initial condition, and
+where it settled is the donor rung's value rather than the remap's or the target
+rung's.
 
 This does not settle the row, and the reason is worth stating: two settled ice
 states at one rung would explain the pair equally well, and nothing here rules
