@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
-"""Validate and record a completed segment after post-run bookkeeping failed."""
+"""Validate and record a completed segment after post-run bookkeeping failed.
+
+TWO THINGS FAIL TOGETHER when a run is killed mid-block, and this recovers both.
+`run_exoplasim.py` writes the segment record AND the derived-constant stamp from
+inside the same `if args.run_years:` block, so a run that does not reach the end
+of that block has neither. The segment was recovered here from the start; the
+stamp was not, and `check_consistency.py`'s "runs vs the constants the model
+derived" is what noticed -- a run that staged `VDIFF_LAMM`, `RCRITWIDTH` or
+`GAMMA` at its negative sentinel records only that the model chose, and without
+the stamp nobody can say which number it integrated. WORLD-ET25.
+
+The stamp is read from the run's own `MOST_DIAG`, which survives a kill, so this
+is recovery and not reconstruction. `--constants-only` does that half alone, for
+a run whose segment record is intact and whose stamp is missing.
+"""
 
 from __future__ import annotations
 
@@ -13,20 +27,48 @@ import yaml
 from _paths import CONFIG
 
 from continue_exoplasim import validate_year, year_diagnostics
-from run_exoplasim import stellar_spectrum_digest
+from run_exoplasim import read_derived_constants, stellar_spectrum_digest
 from segments import SEGMENT_PURPOSES
+
+
+def record_derived_constants(run_dir: Path) -> str:
+    """Stamp `derived_model_constants` from the run's own diag. Idempotent.
+
+    Returns a line saying what it did. Recovery, not reconstruction: every value
+    is read back out of the model's own initialisation print, which is the same
+    source `run_exoplasim.py` reads.
+    """
+    manifest_path = run_dir / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("derived_model_constants"):
+        return f"{run_dir.name}: derived_model_constants already recorded"
+    manifest["derived_model_constants"] = read_derived_constants(run_dir)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n",
+                             encoding="utf-8")
+    named = ", ".join(f"{k} {v['value']:g} ({v['branch']})" for k, v
+                      in manifest["derived_model_constants"].items())
+    return f"{run_dir.name}: recovered derived_model_constants -- {named}"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path)
-    parser.add_argument("--start-year", type=int, required=True)
-    parser.add_argument("--end-year", type=int, required=True)
+    # `--constants-only` recovers the derived-constant stamp and nothing else,
+    # so the two halves of a failed bookkeeping are separately recoverable: a
+    # run whose segment IS recorded and whose stamp is not must not have a
+    # second segment appended to reach the stamp.
+    parser.add_argument("--constants-only", action="store_true",
+                        help="record only what the model derived for the "
+                             "sentinel-selected constants, from this run's own "
+                             "MOST_DIAG, and leave the segments alone. For a "
+                             "run whose segment record is intact")
+    parser.add_argument("--start-year", type=int, default=None)
+    parser.add_argument("--end-year", type=int, default=None)
     parser.add_argument("--seasonal-output", action="store_true")
     # Declared, not inferred, for the same reason continue_exoplasim.py declares
     # it: seasonal output plus a run past its cutoff was taken to mean
     # climatology input, and that mislabelled a low-I/O verification segment.
-    parser.add_argument("--purpose", required=True, choices=SEGMENT_PURPOSES,
+    parser.add_argument("--purpose", default=None, choices=SEGMENT_PURPOSES,
                         help="what the recovered segment was for; see "
                              "continue_exoplasim.py --purpose")
     # Tri-state on purpose. Omitting both leaves the key out, and an orbit with
@@ -42,6 +84,12 @@ def main() -> None:
     parser.add_argument("--config", type=Path, default=CONFIG)
     args = parser.parse_args()
     run_dir = args.run_dir.resolve()
+    if args.constants_only:
+        raise SystemExit(record_derived_constants(run_dir))
+    for name in ("start_year", "end_year", "purpose"):
+        if getattr(args, name) is None:
+            raise SystemExit(f"--{name.replace('_', '-')} is required unless "
+                             "--constants-only is given")
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     model = config["model"]
     diagnostics = []
@@ -94,6 +142,10 @@ def main() -> None:
     elif args.purpose == "spinup":
         manifest["status"] = "spinup_in_progress"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    # THE OTHER HALF OF THE SAME FAILURE. See the module docstring: the runner
+    # writes the segment and this stamp from one block, so a recovery that
+    # restores only the segment leaves the run unable to say what it integrated.
+    print(record_derived_constants(run_dir))
     print(json.dumps(diagnostics, indent=2))
 
 

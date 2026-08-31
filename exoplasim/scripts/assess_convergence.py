@@ -258,11 +258,27 @@ def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
 # endorheic share of land from 74 to 51 -- so the larger variability that first
 # appeared during approach remains in the settled climate and now counts.
 #
+# 0.117 to 0.124, on run_0d41aa82c287, the T21 arm at dt 45 cut as the donor for
+# the T42 ladder comparison. It reads 0.123493 K over a 52-orbit window and
+# passes all six criteria on the same build and the same rung as the 0.117
+# reading, so the difference is not the world: it is the WINDOW. That reading
+# was taken over 57 orbits and this one over 108, and a longer settled window
+# admits more of the low-frequency variability the short one could not see. The
+# same effect is what
+# `exoplasim/notes/memory-time-and-the-production-span.md` measures on the
+# memory time, and it is why this is a bound over reports rather than a property
+# of the process.
+#
+# THE FINER RUNG IS QUIETER, which is worth recording because it bounds how far
+# this can run. The two T42 arms at the same step and build read 0.074925 and
+# 0.079107 over the same window length, so the ladder's expensive rungs are not
+# where this bound is set; T21 is.
+#
 # The bound therefore has to cover the noisiest world this project judges and
 # not the most comfortable, per the asymmetry argued above: a nominal below
 # what a run reads under-sizes the window that run is judged in, and a nominal
 # above only buys orbits.
-NOMINAL_ORBIT_SCATTER_K = 0.117
+NOMINAL_ORBIT_SCATTER_K = 0.124
 
 # THE MEMORY TIME STATES NO NUMBER HERE. `lib/run_lengths.py` declares the
 # bracket, with the sweep it came from and the anchor that re-examines it, and

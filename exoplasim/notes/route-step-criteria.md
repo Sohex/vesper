@@ -29,7 +29,10 @@ commissioning step and the step T21 has to settle to. C is the same for
 T42 -> T85. A step therefore cannot be maximised for one rung in isolation:
 raising C asks T42 to endure C as well as T85.
 
-The route today is A = 45, B = 30, C = 22.5.
+The route today is A = B = C = 45: `lib/rungs.py:ESCALATION_ROUTE` is
+three entries at one step, so the settling blocks are gone and the free
+variables collapse to one. The rows below were written when it was 45/30/22.5
+and the rule they state is unchanged; what has moved is the evidence.
 
 ## The rule
 
@@ -103,71 +106,73 @@ row, and endurance rows are bought one commissioning-length run at a time.
 
 `lib/rungs.py:COMMISSIONING_EVIDENCE` is the whole of it:
 
+*Re-read 2026-08-30, after WORLD-YYX8 bought the T42 arms.*
+
 | pair | verdict | orbits | run | on disk? |
 | --- | --- | ---: | --- | --- |
-| T21 dt 45 | endured | 50 | `run_ec32946bec89` | yes |
+| T21 dt 45 | endured, converged | 108 | `run_0d41aa82c287` | yes, this source |
 | T21 dt 30 | endured | 35 | `run_14906cb7b914` | yes |
-| T42 dt 45 | blew_up | 46 | `run_900548ae632e` | **no, and no stub** |
-| T42 dt 30 | endured | 84 | `run_1d39fef9bfc2` | **no, and no stub** |
+| **T42 dt 45** | **endured, converged** | **144** | `run_88ed6f9d34ae` | **yes, this source** |
+| T42 dt 30 | endured | 84 | `run_1d39fef9bfc2` | no, identity only |
 | T42 dt 22.5 | -- | -- | -- | -- |
 | T85 any step | -- | -- | -- | -- |
 
-**Three of the six rows a route decision needs are missing, and two of the four
-that exist cannot be checked.** `run_1d39fef9bfc2` and `run_900548ae632e` are
-absent from `exoplasim/runs/`, absent from the fifty-seven stubs under
-`archive/runs/`, and absent from the one `INDEX_AT_DELETION.json` in the tree.
-So the row backing the step the route converts at today is a table entry with no
-artifact behind it. That is WORLD-WW6Z's failure mode and it has happened at
-least twice on this one pair.
+**The two rows the route's first two rungs stand on are now taken on this
+source, and both converged.** `run_88ed6f9d34ae` is a T42 cold start at dt 45
+that ran 144 orbits and met all six convergence criteria, and its paired
+converted arm `run_8d0ae7e2d02c` did the same at 89. Under C-ROUTE-6 that
+supersedes `run_900548ae632e`'s blow-up in its forty-seventh orbit outright:
+that run was on source batch 2 has replaced, and its record, its provenance and
+its reproducer are all gone.
 
-Every row was also taken on source batch 2 has since changed, so C-ROUTE-6
-applies to all of them.
+`run_1d39fef9bfc2` and `run_900548ae632e` remain absent from
+`exoplasim/runs/`, from every `INDEX_ENTRY.json` stub under `archive/runs/` and
+from the one `INDEX_AT_DELETION.json` in the tree. What `archive/runs/` now
+holds for each is a `RECONSTRUCTED.json`, which is identity recovered from
+surviving analysis artifacts and carries no orbit count and no status, so it
+cannot re-read a row in either direction. That is WORLD-WW6Z.
+
+The two T21 dt 30 and T42 dt 30 rows were taken on source batch 2 has since
+changed, so C-ROUTE-6 still applies to them.
 
 ### A, the T21 commissioning step: stays 45
 
 T21 is refusal-clean well above 45 -- the boundary is between dt 120 and dt 150
--- and has an endurance row at 45 and at 30 and at nothing coarser. C-ROUTE-1
-part 2 is not met at 60, so **A stays 45**. What it would take is one T21
-endurance arm at dt 60; T21 is the cheapest rung on the route and the smallest
-of the three savings, so it is the last one worth buying.
+-- and has an endurance row at 45 and at 30 and at nothing coarser. The row at
+45 is now `run_0d41aa82c287`, 108 orbits on this source and converged on all six
+criteria. C-ROUTE-1 part 2 is still not met at 60, so **A stays 45**. What it
+would take is one T21 endurance arm at dt 60; T21 is the cheapest rung on the
+route and the smallest of the three savings, so it is the last one worth buying.
 
-### B, the step the T21 -> T42 conversion happens at: 30, unless dt 45 endures at T42
+### B, the step the T21 -> T42 conversion happens at: 45, and it is measured
 
-T21 endured 50 orbits at dt 45, so the donor can settle at 45. The target
-cannot be shown to: T42's only row at 45 is a blow-up on superseded source,
-which C-ROUTE-6 makes UNMEASURED rather than known-bad. **B stays 30 until a
-T42 endurance arm at dt 45 on the current source says otherwise.**
+**B = 45, and the condition this section carried is met.** It read "B stays 30
+until a T42 endurance arm at dt 45 on the current source says otherwise". That
+arm is `run_88ed6f9d34ae`: T42, dt 45, cold, 144 orbits, all six convergence
+criteria met, on this source. Its paired converted arm `run_8d0ae7e2d02c` ran 89
+at the same pair and also converged. C-ROUTE-2 asks the donor to endure the
+conversion step and T21 endures 45 over 108 converged orbits, so both sides of
+the T21 -> T42 conversion are now carried by a run that exists.
 
-### C, the step the T42 -> T85 conversion happens at: raise it to 30
+### C, the step the T42 -> T85 conversion happens at: 45 on the donor's side
 
-This is the recommendation and it is the largest saving on the route.
+**C = 45 and the donor half is settled; the target half is not.** C-ROUTE-2
+splits into two questions and only one of them is about T42. The donor side is
+answered: T42 endures 45 for a commissioning span from both initial conditions,
+which is what the conversion needs of the rung it leaves.
 
-**C = 22.5 rests on nothing about either rung.** T85 has no endurance row at any
-step. T42 has no endurance row at 22.5 either -- the pair has never been run to
-a commissioning length. So the step the route's most expensive block runs at is
-supported by no endurance evidence on either side of its conversion.
+**T85 still has no endurance row at any step**, so C-ROUTE-3 applies to the
+target side exactly as before: T85's refusal cell at 45 is clean, measured on
+the grid built for it, and a refusal-clean cell is necessary and never
+sufficient. What would settle it is one T85 commissioning-length arm at dt 45.
+That is the most expensive single arm on the route and it is also the last one
+the route needs, so nothing cheaper substitutes for it.
 
-**C = 30 rests on strictly more.** T42 at dt 30 has the longest endurance row in
-the table, 84 orbits, which is exactly what C-ROUTE-2 asks of the donor. T85's
-own row is missing either way, so raising C from 22.5 to 30 does not give up any
-evidence: it moves from a step neither rung has been shown to endure to one the
-donor has.
-
-**Both candidates clear the refusal condition, measured here for the first
-time.** T85 had never been probed on any source: the rung had no surface family
-and so no bed. Built for this grid, it refuses at dt 90 and dt 60 and runs at
-45, 30, 22.5 and 15, which puts its refusal ceiling at 45 -- the value
-`lib/rungs.py` already declares, now carried by a cell that names its executable
-sha, its damping and its staging.
-
-**So C = 45 is blocked on exactly one thing, and it is not T85.** Its refusal
-cell is clean; the T42 endurance arm at dt 45 is the whole of what stands
-between the route and a step that halves the T85 block. That arm is one run:
-80 orbits at T42, about an hour on a quiet host at the 41 s an orbit the
-`-O2`/`-O3` benchmark measured, and about twenty hours at the 0.156 s a step
-this host was measured at all session. It is the highest-value orbit purchase
-available and it does not need a quiet machine to be VALID, only to be
-affordable.
+**What the T42 arms bought, in the unit the next section uses.** The route runs
+45 throughout, which against the 22.5 it once carried at T85 is half the steps
+at the most expensive rung, and both settling blocks are gone rather than
+skipped. Before these arms that rested on a refusal cell at T42 and a blow-up on
+source nobody has; it now rests on 144 converged orbits.
 
 ### The saving, in the unit that needs no clock
 
@@ -193,29 +198,25 @@ These percentages are arithmetic and carry no instrument error. What steps
 cannot give is the weight of a T85 step against a T21 step, so they do not sum
 to one number: that needs the cost half, on a machine this session did not get.
 
-### The one arm that would settle C, and what stops it today
+### The arm that settled B, and what it cost
 
-The T42 endurance arm at dt 45 is the whole of what stands between the route and
-a step that halves its most expensive block. **It cannot be run at all on this
-source, and the reason is not the wall clock.**
-`notes/audits/epilog-adenergy-use-after-free.md`: `epilog` frees `adenergy` and
-then writes it to the restart, under the same `nenergy > 0` guard, so every run
-this tree prepares takes SIGSEGV at the end and leaves a truncated
-`plasim_status`. A multi-orbit run reads that restart to begin its next orbit,
-so the arm dies in its first one -- observed, with ExoPlaSim's own driver
-reporting `runtime crash`.
+`notes/audits/epilog-adenergy-use-after-free.md` blocked this arm outright:
+`epilog` freed `adenergy` and then wrote it to the restart under the same
+`nenergy > 0` guard, so every multi-orbit run this tree prepared died in its
+first orbit. That is fixed -- the deallocation block moved below the restart
+write and the ordering is structural now -- and the arm ran.
 
-So the order is fixed and it is short:
+What it took, recorded beside the load because a wall-clock number on this host
+is meaningless without it: T42 at dt 45 on eight threads pinned to one die runs
+at about 94 s an orbit at loads of 11 to 28, and the two arms plus their T21
+donor came to 341 orbits over about four and a half hours of held host lock, a
+third of which was spent queued behind other agents. The estimate made before
+the purchase was 100 s an orbit and about three hours of lock for the pair; the
+extra came from the declared extension to the top of the commissioning bracket
+and from the T21 donor, which was not in the estimate because every T21 restart
+on disk turned out to predate the partial-cell tile records the current model
+writes, so `convert_restart` refused all of them and a donor had to be cut
+fresh.
 
-1. Fix the two lines in `epilog`, rebuild every binary, `--verify`.
-2. Run the T42 endurance arm at dt 45, 80 orbits, IN `exoplasim/runs/` and
-   indexed. About an hour on a quiet host. If it blows up, preserve the
-   directory: it is the reproducer world-td3 has been missing since its own run
-   left the tree without a stub.
-3. If it endures, C goes to 45 and the T85 block halves. If it blows up, C goes
-   to 30, which is supported today, and the T85 block still loses a quarter.
-
-**Either outcome raises C.** Nothing in the evidence supports leaving it at
-22.5, because 22.5 is the one candidate with no endurance row on either side of
-its conversion.
-
+**What is still unbought is the T85 arm.** Its refusal cell is clean at 45 and
+its endurance row is empty, which is the same shape T42 was in this morning.

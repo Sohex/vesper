@@ -1,0 +1,2426 @@
+{
+  "coastline_fallback": {
+    "cells_by_domain": {
+      "ocean": 132,
+      "land": 124
+    },
+    "filled_from": "the nearest source cell of the same class"
+  },
+  "schema_version": 1,
+  "converter_version": 1,
+  "converter_sha256": "3fe0cfe08ff12b4ce13c9f5fb199c77de3b2fccd26143756d932d85627375d8d",
+  "schema_sha256": "e2b784b3cc1c0a332cd7b6fbc1e80db9e70d1653476abe1eddf0dee07ff9ba0c",
+  "transforms_sha256": "7667bdfe54ca70722e2eab0fde4b7027db1f5c2c59ea2e4d1a5dd805d4b2aee1",
+  "source": {
+    "path": "exoplasim/runs/run_0d41aa82c287/plasim_restart",
+    "sha256": "58a3d2b977af8c8f218676d9e8f9064d092549103e3f9259c4342c66d05cb4a7",
+    "truncation": "T21",
+    "nlat": 32,
+    "nlon": 64,
+    "ntru": 21,
+    "nrsp": 506,
+    "nesp": 512,
+    "nugp": 2048,
+    "nlev": 10,
+    "nlsoil": 5,
+    "nlev_oce": 1,
+    "nseedlen": 8,
+    "real_bytes": 8
+  },
+  "target_template": {
+    "path": "exoplasim/inputs/templates/T42_l10_p8.rest",
+    "sha256": "422fc71db8c0d12b8d01d5540c3b5a13351f228fb427a3a7921c6809520c54b0",
+    "truncation": "T42",
+    "nlat": 64,
+    "nlon": 128,
+    "ntru": 42,
+    "nrsp": 1892,
+    "nesp": 1896,
+    "nugp": 8192,
+    "nlev": 10,
+    "nlsoil": 5,
+    "nlev_oce": 1,
+    "nseedlen": 8,
+    "real_bytes": 8,
+    "provenance": "exoplasim/inputs/templates/T42_l10_p8.rest.provenance.json",
+    "executable": {
+      "path": "/home/cfutro/docs/world/exoplasim/runs/run_2938193bf6e1/most_plasim_t42_l10_p8.x",
+      "sha256": "0b3fc7c8912db4d538ba66f57497c6194e9bbda0f80cd065057f8ecb9a878a2b",
+      "arm": null,
+      "manifest_entry": {
+        "name": "most_plasim_t42_l10_p8.x",
+        "sha256": "0b3fc7c8912db4d538ba66f57497c6194e9bbda0f80cd065057f8ecb9a878a2b",
+        "profile": "production",
+        "effective_f90_opts": "-O2 -cpp -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -march=znver4 -funroll-loops -g -fopenmp -DOMPSHARED -fdefault-real-8",
+        "manifest": "/home/cfutro/docs/world/exoplasim/binary_manifest.json"
+      },
+      "note": "Built precision is not encoded in the filename. The registry's naming carries no precision at all, which is why `arm` below is the only statement of an arm's."
+    },
+    "source_build": "canonical-10m-carve2",
+    "config_sha256": "a98dde74cee422377f313c442db9cdb49955f855971853e5fc27a415663ca116",
+    "surface_field_sha256": {
+      "129": "55a46b548ea0373c0ca18479f9dea5f18fa37798e21b6ed19166ddc7932f3368",
+      "172": "a69ceb4de85ee6c260e66a3a53f665321104cfca87ae4376c163a65773332027",
+      "173": "d877f8e1629536253c01a3ac5958d286f86acbfd979c24238fc68d0708b99913",
+      "174": "51e6ce3b55bdbccb900506d53c5e49a2aa77074598ace02b6cd7eb13377f7215",
+      "175": "9f18176986fca9cf2f0c1c88e4d79238c9e8b32b47dc839fcc7153d864ab0f0b",
+      "176": "c32d790fb6c3476075946effd6ca961fe00423b2b34f74b066f4b484e8e96397",
+      "212": "89b2e19e6cd09118ee28910db4270fc37d80a597b523b954dd30ce44e9203792",
+      "1720": "45b089955f624107eab437d3a9851aff201bf32e3e26b1159e0bf9ebb6cd4c68",
+      "1742": "dd0a28ec12acf9c432abb5954ed927536a5444ed53fd3c0eda8d00b5cb6d781e",
+      "1750": "4d81b04432aeddfec516dc251bc29bcc1b46c77281483c592a6933056527009b",
+      "1760": "ed07e343a7adf8476d0fd6121aed10409922a6773512cd5ea152bf9fd2f461d8"
+    },
+    "cut_from_run": "run_2938193bf6e1"
+  },
+  "output": {
+    "path": "exoplasim/analysis/ladder/t42_dt45_converted.rest",
+    "sha256": "8c56b92e8594370bd3c1067e65716281bbfa5d5b2f2dd7d8cf93ad5e9c81d518"
+  },
+  "source_manifest": {
+    "path": "exoplasim/runs/run_0d41aa82c287/run_manifest.json",
+    "run_id": "run_0d41aa82c287"
+  },
+  "config_rtol": 1e-06,
+  "timestep": {
+    "source_minutes": 45.0,
+    "target_minutes": 45.0,
+    "checked": true,
+    "unchecked_by_request": false
+  },
+  "records": [
+    {
+      "name": "nstep",
+      "semantic": "time-and-phase",
+      "action": "copy",
+      "source_bytes": 4,
+      "target_bytes": 4,
+      "value": 631800
+    },
+    {
+      "name": "naccuout",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "naccueco",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "nlat",
+      "semantic": "header",
+      "action": "target",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "nlon",
+      "semantic": "header",
+      "action": "target",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "nlev",
+      "semantic": "header",
+      "action": "require_equal",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "nrsp",
+      "semantic": "header",
+      "action": "target",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "seed",
+      "semantic": "opaque-build-state",
+      "action": "seed",
+      "source_bytes": 32,
+      "target_bytes": 32,
+      "source": "donor"
+    },
+    {
+      "name": "sz",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 40480,
+      "target_bytes": 151360,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "sd",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 40480,
+      "target_bytes": 151360,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "st",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 40480,
+      "target_bytes": 151360,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "sq",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 40480,
+      "target_bytes": 151360,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "sr",
+      "semantic": "static-spectral",
+      "action": "target",
+      "source_bytes": 40480,
+      "target_bytes": 151360
+    },
+    {
+      "name": "sp",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 4048,
+      "target_bytes": 15136,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "so",
+      "semantic": "static-spectral",
+      "action": "target",
+      "source_bytes": 4048,
+      "target_bytes": 15136
+    },
+    {
+      "name": "szm",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 40480,
+      "target_bytes": 151360,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "sdm",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 40480,
+      "target_bytes": 151360,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "stm",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 40480,
+      "target_bytes": 151360,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "sqm",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 40480,
+      "target_bytes": 151360,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "spm",
+      "semantic": "prognostic-spectral",
+      "action": "project",
+      "source_bytes": 4048,
+      "target_bytes": 15136,
+      "discarded_l2": 0.0,
+      "discarded_max": 0.0,
+      "modes_source": 253,
+      "modes_target": 946
+    },
+    {
+      "name": "dls",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "drhs",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 96,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dalb",
+      "semantic": "derived-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dsalb1",
+      "semantic": "derived-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dsalb2",
+      "semantic": "derived-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dz0",
+      "semantic": "derived-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dlt_ts",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dlt_qs",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dlt_rhs",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 96,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dlt_z0",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dlt_alb",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dlt_sa1",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dlt_sa2",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dot_ts",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dot_qs",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dot_rhs",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 96,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dot_z0",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dot_alb",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dot_sa1",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dot_sa2",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dicec",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "fraction",
+      "domain": "ocean",
+      "clipped": 20,
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "diced",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "thickness",
+      "domain": "ocean",
+      "conserved_as": "volume with dicec",
+      "inventory_measured_per": "dicec",
+      "inventory": [
+        {
+          "level": 0,
+          "source": 0.15375387443599137,
+          "target": 0.1559736966004692,
+          "from_fallback": 0.005917072395184703,
+          "relative_residual": 0.014437503917353024,
+          "residual_explained_by_fallback": 2.6655614534674124
+        }
+      ],
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class",
+      "conserves": "sea_ice_volume"
+    },
+    {
+      "name": "dwatc",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "reservoir",
+      "domain": "land",
+      "clipped": 0,
+      "inventory": [
+        {
+          "level": 0,
+          "source": 0.056699158076699036,
+          "target": 0.059105785610968804,
+          "from_fallback": 0.003073651788677328,
+          "relative_residual": 0.04244556032056482,
+          "residual_explained_by_fallback": 1.2771613990571047
+        }
+      ],
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class",
+      "conserves": "soil_water"
+    },
+    {
+      "name": "drunoff",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "land",
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "dforest",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "dust3",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dcc",
+      "semantic": "derived-grid",
+      "action": "remap",
+      "source_bytes": 163840,
+      "target_bytes": 655360,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dql",
+      "semantic": "derived-grid",
+      "action": "remap",
+      "source_bytes": 163840,
+      "target_bytes": 655360,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dqsat",
+      "semantic": "derived-grid",
+      "action": "remap",
+      "source_bytes": 163840,
+      "target_bytes": 655360,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dt",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "dq",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "global",
+      "clipped": 0,
+      "fallback_cells": 0,
+      "cells_outside_domain": 0,
+      "stranded_cells": 0
+    },
+    {
+      "name": "aprl",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aprc",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aprs",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aevap",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "ashfl",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "alhfl",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aroff",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "asmelt",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "asndch",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "acc",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "assol",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "asthr",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "atsol",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "atthr",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "ataux",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "atauy",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "atsolu",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "assolu",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "afdsw1",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "afdsw2",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "asthru",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aqvi",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "atsa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "ats0",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "atsama",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "atsami",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "azmuz",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "asigrain",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "tempmax",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecotas",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecots",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecops",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecohus",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecowind",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecoswd",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecoswu",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecoswn",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecolwn",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecolwu",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecoczen",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecopr",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecoprsn",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecoprc",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecoevap",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecotasmx",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecotasmn",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecotsmx",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aecotsmn",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "tempmin",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aasosp",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 4096,
+      "target_bytes": 15168
+    },
+    {
+      "name": "aaspsp",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 4096,
+      "target_bytes": 15168
+    },
+    {
+      "name": "aastsp",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 40960,
+      "target_bytes": 151680
+    },
+    {
+      "name": "aasqsp",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 40960,
+      "target_bytes": 151680
+    },
+    {
+      "name": "aasdsp",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 40960,
+      "target_bytes": 151680
+    },
+    {
+      "name": "aaszsp",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 40960,
+      "target_bytes": 151680
+    },
+    {
+      "name": "aorbnu",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 8,
+      "target_bytes": 8
+    },
+    {
+      "name": "alambm",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 8,
+      "target_bytes": 8
+    },
+    {
+      "name": "azdecl",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 8,
+      "target_bytes": 8
+    },
+    {
+      "name": "ardist",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 8,
+      "target_bytes": 8
+    },
+    {
+      "name": "arasc",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 8,
+      "target_bytes": 8
+    },
+    {
+      "name": "accuvers",
+      "semantic": "opaque-build-state",
+      "action": "target",
+      "source_bytes": 8,
+      "target_bytes": 8
+    },
+    {
+      "name": "ecovers",
+      "semantic": "opaque-build-state",
+      "action": "target",
+      "source_bytes": 8,
+      "target_bytes": 8
+    },
+    {
+      "name": "denergyfix",
+      "semantic": "controller-state",
+      "action": "target",
+      "source_bytes": 8,
+      "target_bytes": 8
+    },
+    {
+      "name": "adenergy",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 458752,
+      "target_bytes": 1835008
+    },
+    {
+      "name": "agpi",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aventi",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "alaav",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "ampoti",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "avrmpi",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "acapen",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "alnb",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "achim",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadq",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 180224,
+      "target_bytes": 720896
+    },
+    {
+      "name": "aammr",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 180224,
+      "target_bytes": 720896
+    },
+    {
+      "name": "aanrho",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 180224,
+      "target_bytes": 720896
+    },
+    {
+      "name": "aadmld",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadt",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 180224,
+      "target_bytes": 720896
+    },
+    {
+      "name": "aadwatc",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadsnow",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadql",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 180224,
+      "target_bytes": 720896
+    },
+    {
+      "name": "aadust3",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadcc",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 180224,
+      "target_bytes": 720896
+    },
+    {
+      "name": "aadtd5",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadls",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadz0",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadalb",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadsalb1",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadsalb2",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadtsoil",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadtd2",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadtd3",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadtd4",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadicec",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadiced",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadforest",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadwmax",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadglac",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aadqo3",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 163840,
+      "target_bytes": 655360
+    },
+    {
+      "name": "aagroundoro",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "aaglacieroro",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "fixedlon",
+      "semantic": "opaque-build-state",
+      "action": "require_equal",
+      "source_bytes": 8,
+      "target_bytes": 8
+    },
+    {
+      "name": "zsolars",
+      "semantic": "opaque-build-state",
+      "action": "target",
+      "source_bytes": 16,
+      "target_bytes": 16
+    },
+    {
+      "name": "nlsoil",
+      "semantic": "header",
+      "action": "require_equal",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "dtsl",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "land",
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "dtsm",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "land",
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "dqs",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "land",
+      "clipped": 0,
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "driver",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "reservoir",
+      "domain": "land",
+      "clipped": 0,
+      "inventory": [
+        {
+          "level": 0,
+          "source": 0.011969525854804427,
+          "target": 0.012211393354920632,
+          "from_fallback": 0.0002769800034020174,
+          "relative_residual": 0.020206940780291845,
+          "residual_explained_by_fallback": 1.1451724736433893
+        }
+      ],
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class",
+      "conserves": "river_water"
+    },
+    {
+      "name": "duroff",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "land",
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "dvroff",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "land",
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "darea",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "dwmax",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "dtcl",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 229376,
+      "target_bytes": 917504
+    },
+    {
+      "name": "dwcl",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 229376,
+      "target_bytes": 917504
+    },
+    {
+      "name": "dsnowt",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "land",
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "dsnowz",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "reservoir",
+      "domain": "land",
+      "clipped": 0,
+      "inventory": [
+        {
+          "level": 0,
+          "source": 0.0058578344456915316,
+          "target": 0.005960229660578423,
+          "from_fallback": 0.0002348701641757404,
+          "relative_residual": 0.01748004588320235,
+          "residual_explained_by_fallback": 2.293761133615326
+        }
+      ],
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class",
+      "conserves": "land_snow"
+    },
+    {
+      "name": "dsoilt",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 81920,
+      "target_bytes": 327680,
+      "remap": "intensive",
+      "domain": "land",
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "dwatcl",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 131072,
+      "target_bytes": 524288,
+      "remap": "reservoir",
+      "domain": "land",
+      "clipped": 0,
+      "inventory": [
+        {
+          "level": 0,
+          "source": 0.0019417696803987548,
+          "target": 0.001972222732636439,
+          "from_fallback": 0.00010016585402442435,
+          "relative_residual": 0.015683143343463088,
+          "residual_explained_by_fallback": 3.289189314838989
+        },
+        {
+          "level": 1,
+          "source": 0.021384798985879555,
+          "target": 0.022213965255673436,
+          "from_fallback": 0.0011718961765451812,
+          "relative_residual": 0.03877362935893771,
+          "residual_explained_by_fallback": 1.4133427989497187
+        },
+        {
+          "level": 2,
+          "source": 0.033372589410420726,
+          "target": 0.03491959762265892,
+          "from_fallback": 0.0018015897581077226,
+          "relative_residual": 0.04635565413318318,
+          "residual_explained_by_fallback": 1.1645637973060285
+        },
+        {
+          "level": 3,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 4,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 5,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 6,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 7,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        }
+      ],
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class",
+      "conserves": "soil_water"
+    },
+    {
+      "name": "dsoili",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 131072,
+      "target_bytes": 524288,
+      "remap": "reservoir",
+      "domain": "land",
+      "clipped": 0,
+      "inventory": [
+        {
+          "level": 0,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 1,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 2,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 3,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 4,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 5,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 6,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        },
+        {
+          "level": 7,
+          "source": 0.0,
+          "target": 0.0,
+          "from_fallback": 0.0,
+          "relative_residual": 0.0,
+          "residual_explained_by_fallback": null
+        }
+      ],
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class",
+      "conserves": "soil_water"
+    },
+    {
+      "name": "ddrain",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "land",
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "adrain",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "dsoilwfc",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 131072,
+      "target_bytes": 524288
+    },
+    {
+      "name": "dz0clim",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "dz0climo",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "dalbcl",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 229376,
+      "target_bytes": 917504
+    },
+    {
+      "name": "dalbcl1",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 229376,
+      "target_bytes": 917504
+    },
+    {
+      "name": "dalbcl2",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 229376,
+      "target_bytes": 917504
+    },
+    {
+      "name": "groundsg",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "dglacsg",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "doro",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "persistt",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "land",
+      "clipped": 0,
+      "fallback_cells": 124,
+      "cells_outside_domain": 3275,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "dglac",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "naccuice",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "naccuo",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "nicec2d",
+      "semantic": "opaque-build-state",
+      "action": "require_equal",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "xls",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xts",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "xicec",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "fraction",
+      "domain": "ocean",
+      "clipped": 20,
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "xiced",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "thickness",
+      "domain": "ocean",
+      "conserved_as": "volume with xicec",
+      "inventory_measured_per": "xicec",
+      "inventory": [
+        {
+          "level": 0,
+          "source": 0.15375387443599137,
+          "target": 0.1559736966004692,
+          "from_fallback": 0.005917072395184703,
+          "relative_residual": 0.014437503917353024,
+          "residual_explained_by_fallback": 2.6655614534674124
+        }
+      ],
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class",
+      "conserves": "ice_model_volume"
+    },
+    {
+      "name": "xsnow",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "reservoir",
+      "domain": "ocean",
+      "clipped": 0,
+      "inventory_measured_per": "xicec",
+      "inventory": [
+        {
+          "level": 0,
+          "source": 0.0016082052554809564,
+          "target": 0.0015690266735790888,
+          "from_fallback": 3.994717868849819e-05,
+          "relative_residual": 0.024361680058153194,
+          "residual_explained_by_fallback": 1.0196177796469448
+        }
+      ],
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class",
+      "conserves": "ice_snow"
+    },
+    {
+      "name": "xclicec",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 229376,
+      "target_bytes": 917504
+    },
+    {
+      "name": "xcliced",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 229376,
+      "target_bytes": 917504
+    },
+    {
+      "name": "xclsst",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 229376,
+      "target_bytes": 917504
+    },
+    {
+      "name": "cheat",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "cpme",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "croff",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "ctaux",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "ctauy",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "cust3",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "csnow",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "xflxicea",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xheata",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xofluxa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xqmelta",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xcfluxa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xcfluxra",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xcfluxna",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xsmelta",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "ximelta",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xtsfluxa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xfluxca",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xscflxa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xcpmea",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xcroffa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xstoia",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "xicecc",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "fraction",
+      "domain": "ocean",
+      "clipped": 0,
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "nlev_oce",
+      "semantic": "header",
+      "action": "require_equal",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "naccuoce",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "yls",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "ysst",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "inventory": [
+        {
+          "level": 0,
+          "source": 327.08249318647256,
+          "target": 326.674776719195,
+          "from_fallback": 9.225292950705159,
+          "relative_residual": 0.0012465248852225298,
+          "residual_explained_by_fallback": 22.626736202991605
+        }
+      ],
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class",
+      "conserves": "ocean_heat"
+    },
+    {
+      "name": "yiflux",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "yclsst",
+      "semantic": "static-grid",
+      "action": "target",
+      "source_bytes": 229376,
+      "target_bytes": 917504
+    },
+    {
+      "name": "yheata",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "yfssta",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "yifluxa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "ydssta",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "yfldoa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "yqhda",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "yfldo",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "naccua",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 4,
+      "target_bytes": 4
+    },
+    {
+      "name": "dts",
+      "semantic": "prognostic-grid",
+      "action": "remap",
+      "source_bytes": 16384,
+      "target_bytes": 65536,
+      "remap": "intensive",
+      "domain": "ocean",
+      "fallback_cells": 132,
+      "cells_outside_domain": 3375,
+      "stranded_cells": 0,
+      "fallback": "the nearest source cell of the same class, for target cells IN this field's domain that found no source of their own class"
+    },
+    {
+      "name": "cheata",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "cpmea",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "cprsa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "croffa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "ctauxa",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "ctauya",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "cust3a",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "cshfla",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "cshdta",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "clhfla",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "clhdta",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "cswfla",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    },
+    {
+      "name": "clwfla",
+      "semantic": "accumulator",
+      "action": "reset",
+      "source_bytes": 16384,
+      "target_bytes": 65536
+    }
+  ],
+  "rebuilt_by_the_model_on_the_first_step": [
+    "dalb",
+    "dcc",
+    "dql",
+    "dqsat",
+    "dsalb1",
+    "dsalb2",
+    "dz0"
+  ],
+  "whole_run_accumulators_restarted": [
+    "asndch"
+  ],
+  "status": "initial_condition",
+  "note": "A new initial condition at the target support. Not a bitwise continuation and not evidence that the source and target are the same experiment: the records listed under expected_to_change_in_model_fixup hold the template's values and must be rebuilt by the target model before the state is self-consistent."
+}

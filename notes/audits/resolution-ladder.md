@@ -225,102 +225,129 @@ are otherwise fine. The refusal is a property of the configuration rather than
 of the transient, so buying a coarser step by arriving at it gently is not
 available and the ladder pays T170's dt 15 in full.
 
-## A converted arm relaxes four times faster and lands somewhere else
+## A converted arm relaxes fast and lands on the same climate, with more ice
 
-*Measured 2026-08-25 on the corrected damping. Both arms T42 at dt 30, same
-build, same staged surface.*
+*Measured 2026-08-30 at 2896f62ef. Both arms T42 at dt 45, `canonical-10m-carve2`,
+the same staged surface family, the same binary, `NFILTEREXP` 16 and
+`FILTERKAPPA` 8.0 in both. They differ in their initial state and in nothing
+else. Two p8 arms, one pinned per die of this 7950X3D, under one host lock;
+94 s an orbit at loads of 11 to 28.*
 
-**THE ARMS ARE NOT A CONTROLLED PAIR, and this section's conclusion is
-confounded.** They differ in the physics filter exponent as well as in where
-they start: `NFILTEREXP` is 16 in arm A and 8 in arm B, with `FILTERKAPPA`
-8.0, `MPSTEP` 30.0, `NDEL` 10*4, `NHDIFF` 16 and `TDISSZ` 10*1.1143 identical
-across both. That is the knob `exoplasim/analysis/filter_gamma_pair.json`
-exists to price, and it moves the spectral bite fraction from 0.714 to 0.688
-and the depth from -0.609 to -1.391 dex between these same two runs. So the
-+0.106 K offset below cannot be attributed to the conversion alone.
+| arm | run | start | orbits |
+| --- | --- | --- | ---: |
+| A, cold | `run_88ed6f9d34ae` | cold | 144 |
+| B, converted | `run_8d0ae7e2d02c` | `run_0d41aa82c287` at T21, converted at constant dt | 89 |
 
-Both run records are gone, so this rests on the two surviving analysis
-artifacts rather than on the runs: `filter_dt_pair.json` carries arm A's
-namelist and `filter_gamma_pair.json` carries arm B's. Reconstructed identity
-for both is under `archive/runs/`, and WORLD-WW6Z carries how the records were
-lost.
+Both meet all six convergence criteria. So does the donor, at 108 orbits. Orbit
+counts are `lib/run_lengths.py`'s commissioning bracket rather than round
+numbers: the bottom of it was bought first, the comparison came back
+indeterminate on one metric, and the declared response was to buy the top.
 
-| arm | start | converged at |
-| --- | --- | ---: |
-| A, `run_1d39fef9bfc2` | cold | 85 orbits asked, converged |
-| B, `run_42aaf441b10b` | converted from converged T21 | **19 orbits**, held at 22 |
+**The donor then moved the bracket it was bought under, which is the loop
+working rather than a defect in the purchase.** `run_0d41aa82c287` is the
+longest settled T21 production window this project has, and it reads a memory
+time of 3.8616 orbits and an orbit scatter of 0.1235 K against declared upper
+bounds of 3.69 and 0.117. Both are raised to cover it. Neither reading is about
+a different world -- it is the same build and the same rung as the readings they
+replaced, over a longer settled window, and this model's memory time grows with
+the window it is measured on. The consequence for these arms is arithmetic and
+was not acted on: the a-priori span at the new top is 77.4 orbits rather than
+73.8, so a purchase made today would ask for 147 and 92 rather than 144 and 89.
+Both arms converged at what they bought, and `production_span_from_report` is
+the operative rule wherever a run exists.
 
-Arm B is inside a tenth of a kelvin of arm A's equilibrium after TEN orbits and
-meets every convergence criterion at nineteen. That is the ladder's whole
-promise and it is real: the relaxation from a converted state is a small
-multiple of the convergence window, not a fresh spin-up.
+**THE PAIR THIS REPLACES WAS NOT CONTROLLED, and that is why it was re-run
+rather than re-measured.** `run_1d39fef9bfc2` and `run_42aaf441b10b` differed in
+the physics filter exponent as well as in where they started -- `NFILTEREXP` 16
+against 8, at the same `FILTERKAPPA`, `MPSTEP`, `NDEL`, `NHDIFF` and `TDISSZ` --
+which is the knob `exoplasim/analysis/filter_gamma_pair.json` exists to price
+and which moves the spectral bite fraction from 0.714 to 0.688 and the depth
+from -0.609 to -1.391 dex between those same two runs. Their bounds were also
+taken before WORLD-YJ9O, from the orbit-to-orbit scatter over the root of the
+count. A better instrument on that pair would still have been comparing two
+things that differ in two ways, so the arms were cut again with the filter held
+at what `config/planet.yaml` declares. Reconstructed identity for both old arms
+is under `archive/runs/`; WORLD-WW6Z carries how their records were lost.
 
-**And the two arms are not at the same equilibrium.** `compare_equilibria.py`,
-whose criterion was fixed before either arm ran, against the runs' own
-ten-orbit scatter. **The bounds in this table are the ones the script reported
-at the time, and they are too tight.** It took the standard error of a window
-mean from the orbit-to-orbit scatter over the root of the count, which assumes
-the orbits are independent samples; measured 2026-08-25 on an 85-orbit T21 pair
-the lag-1 autocorrelation of a difference series is 0.615, which understates the
-error by about a factor of two, and that factor is itself a floor because it was
-taken on a span that is still approaching. Read every bound below as at least
-twice what is printed and every sigma as at most half. What that does to each
-row is set out under the table.
+### The comparison
+
+`compare_equilibria.py` on the corrected instrument: sigma and the integrated
+autocorrelation time over the longest stationary tail of each run, the bound
+`2 sqrt(2) max(SEM_A, SEM_B)`, and a twenty-orbit window declared before the
+arms ran.
 
 | metric | A | B | B - A | bound | sigma |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| surface temperature, K | 294.549 | 294.655 | +0.106 | 0.042 | 5.1 |
-| air temperature 2 m, K | 294.078 | 294.166 | +0.088 | 0.041 | 4.3 |
-| precipitation, mm/day | 2.796 | 2.742 | -0.054 | 0.016 | 7.0 |
-| TOA shortwave up, W/m2 | 76.175 | 78.667 | **+2.492** | 0.158 | 31.5 |
-| TOA longwave up, W/m2 | 245.596 | 243.093 | **-2.503** | 0.191 | 26.2 |
+| surface temperature, K | 283.825 | 283.808 | -0.017 | 0.129 | 0.3 |
+| air temperature 2 m, K | 283.554 | 283.499 | -0.055 | 0.127 | 0.9 |
+| precipitation, mm/day | 2.0563 | 2.0532 | -0.0031 | 0.0104 | 0.6 |
+| **sea ice fraction** | **0.0626** | **0.0767** | **+0.0141** | **0.0018** | **16.1** |
+| TOA shortwave up, W/m2 | 93.270 | 93.250 | -0.020 | 0.582 | 0.1 |
+| TOA longwave up, W/m2 | 228.504 | 228.507 | +0.002 | 0.405 | 0.0 |
 
-It does not close with time. Checked at 22, 35, 45 and 47 orbits the surface
-offset sits at +0.100, +0.111, +0.096 and +0.106 K, and the two TOA terms hold
-near +2.5 and -2.5 throughout. A run still relaxing narrows; this does not.
+Surface temperature agrees to 1.256 K RMS at a spatial correlation of 0.9972.
 
-**Which rows survive the correction, and which do not.** Halving every sigma
-above leaves the two TOA terms at about 16 and 13 sigma, so the cloud-state
-conclusion below stands with room to spare and does not depend on the error bar
-being right to better than an order of magnitude. The three surface rows land
-near 2.5, 2.2 and 3.5, which clears two sigma but no longer with margin. And
-the model's own non-overlapping 20-orbit means of one T21 run move by 0.21 K,
-which is larger than the +0.106 K surface offset this table calls decisive --
-so the surface temperature and 2 m temperature rows are NOT established against
-the model's low-frequency variability, whatever their nominal sigma. The
-persistence across 22, 35, 45 and 47 orbits is the stronger evidence for them,
-and it is evidence of a different kind: four checks on the same pair of runs
-are not four independent tests.
+**THE TWO CLOUD TERMS ARE GONE, and they are refuted rather than merely
+unconfirmed.** The old table read +2.492 and -2.503 W/m2 and called the arms
+balanced at different cloud states. Controlled, they read -0.020 and +0.002
+against bounds of 0.582 and 0.405, so this comparison would have seen a
+partitioning a fifth the size of the one claimed and sees nothing. The 2.5 W/m2
+belonged to the filter exponent, not to the conversion.
 
-`exoplasim/notes/convergence-lengths.md` carries the measurement and the
-arithmetic. Re-taking this comparison with the corrected instrument needs both
-arms on disk and is world-yyx8; nothing here is restated from a rerun.
+**The three thermal and hydrological rows agree, and one of them agrees at a
+precision that cannot speak to the old number.** The smallest surface
+temperature difference this comparison can resolve is 0.129 K and the old table's
+offset was +0.106 K, which is below it. So that row is an unasked question here
+rather than a refutation: what can be said is that the arms agree to within
+0.017 K and that nothing of the old size is visible.
 
-**The two shortwave and longwave terms cancel.** Net TOA differs by about 0.01
-W/m2, so both arms are in energy balance -- they are balanced at DIFFERENT
-CLOUD STATES. Arm B reflects 2.5 W/m2 more and emits 2.5 W/m2 less, which is
-more cloud, and it is warmer underneath by a tenth of a kelvin and drier by
-five hundredths of a mm/day. The spatial correlation is 0.990 at 1.81 K RMS, so
-this is one climate with a systematic offset rather than two different worlds.
+**WHAT SURVIVES IS A DIFFERENT FINDING, in a different variable.** The converted
+arm carries 22.5 per cent more sea ice, 0.0767 against 0.0626, at sixteen sigma
+on a bound of 0.0018. It is polar and in both hemispheres -- +0.076 in fraction
+north of 60 degrees, +0.042 south of -60, +0.037 and +0.019 in the two
+mid-latitude bands, and identically zero equatorward of 40 -- and 292 of 8192
+cells differ by more than 0.05 in fraction. Both arms' ice series are stationary
+over their tails, drifting by 3e-5 in fraction an orbit or less against a scatter
+of 0.0017, so this is two settled ice margins and not one arm still moving.
 
-What that means for the ladder is a judgement rather than a measurement. The
-offset is 0.03% of the surface temperature and is detectable only because the
-criterion is strict -- the bound is the runs' own scatter, about 0.04 K. Whether
-a tenth of a kelvin and a cloud partitioning of 2.5 W/m2 is acceptable for a
-rung's output depends on what that rung's output is for, and the honest
-statement is that a converted arm is NOT a substitute for a cold arm at the
-precision this criterion can see.
+**So the two arms are not at the same equilibrium, and the criterion is
+all-or-nothing, but every row the previous verdict rested on has collapsed.**
+The thermal state, the hydrological cycle and both radiative terms are
+indistinguishable at this precision. What differs is the ice, which the
+conversion remaps out of the donor and which has hysteresis at its margin, and
+which shows no detectable radiative or thermal consequence at the precision that
+sees it. That is the imprint the previous section could only guess at, now
+located in a specific field.
 
-Not established: the mechanism. The donor's cloud and humidity structure is
-remapped into the target and the model may simply keep it, which would make
-this an imprint rather than a second equilibrium; a third arm converted from a
-DIFFERENT donor would separate those. Nor is it known whether the offset shrinks
-as the jump shrinks, which matters because the ladder's later hops are T42 to
-T85 and T85 to T170 rather than T21 to T42.
+Not established: whether the ice offset is the donor's imprint or a second ice
+margin the target rung would reach on its own, which a third arm converted from
+a DIFFERENT donor would separate; and whether it shrinks as the jump shrinks,
+which matters because the ladder's next hop is T42 to T85.
+
+### The relaxation is real and it is what the ladder is for
+
+The converted arm meets every convergence criterion at 89 orbits against the
+cold arm's 144, and its donor cost 108 at the rung below where a T42 cold start
+costs about four times an orbit. The escalation route's promise -- that a
+conversion buys the approach rather than a fresh spin-up -- holds on this pair.
+
+### T42 endures dt 45
+
+Neither arm failed. 144 orbits from cold and 89 from a converted state, on this
+source, at the step `lib/rungs.py:ESCALATION_ROUTE` runs T42 at. That supersedes
+`run_900548ae632e`'s blow-up in its forty-seventh orbit, which was taken on
+source batch 2 has replaced and which `docs/src/pipeline/sequencing.md` section D
+carries as reported rather than binding. `COMMISSIONING_EVIDENCE` is where the
+row lives.
+
 
 ## What is not yet measured
 
 Whether a wider window removes the flicker without moving the orbit at which a
-run first genuinely settles, and what the T42 rung converges to -- both from
-cold and from a converted T21 state. Those are the arms this note is waiting
-on.
+run first genuinely settles. The sweep above is one run at one rung, and the T42
+arms this note now carries are the dataset it should be re-taken on.
+
+Whether the converted arm's ice offset is the donor's imprint or a second margin
+the target rung reaches on its own; a third arm converted from a different donor
+separates those. And whether it shrinks as the jump shrinks, which is what the
+T42-to-T85 hop needs to know.

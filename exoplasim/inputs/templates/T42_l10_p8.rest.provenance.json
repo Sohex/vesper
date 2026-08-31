@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "kind": "restart_template",
+  "generated": "2026-08-30T20:28:02.245881+00:00",
+  "generator": "exoplasim/scripts/build_restart_template.py",
+  "generator_sha256": "ea2c0a9afe4728d210ab658a2adbf67a5bf9fb7117031be9b0f15bf9a03834a9",
+  "schema_sha256": "e2b784b3cc1c0a332cd7b6fbc1e80db9e70d1653476abe1eddf0dee07ff9ba0c",
+  "output": {
+    "path": "/home/cfutro/docs/world/exoplasim/inputs/templates/T42_l10_p8.rest",
+    "sha256": "422fc71db8c0d12b8d01d5540c3b5a13351f228fb427a3a7921c6809520c54b0"
+  },
+  "cut_from": {
+    "run_dir": "exoplasim/runs/run_2938193bf6e1",
+    "run_id": "run_2938193bf6e1",
+    "restart": "exoplasim/runs/run_2938193bf6e1/plasim_restart",
+    "restart_sha256": "08bd18c5a6c0a54aaadb07eb27f80f442a4c8ca1c995324934096e8cfb8b75ca",
+    "completed_orbits": 1,
+    "status": "smoke_complete"
+  },
+  "executable": {
+    "path": "/home/cfutro/docs/world/exoplasim/runs/run_2938193bf6e1/most_plasim_t42_l10_p8.x",
+    "sha256": "0b3fc7c8912db4d538ba66f57497c6194e9bbda0f80cd065057f8ecb9a878a2b",
+    "arm": null,
+    "manifest_entry": {
+      "name": "most_plasim_t42_l10_p8.x",
+      "sha256": "0b3fc7c8912db4d538ba66f57497c6194e9bbda0f80cd065057f8ecb9a878a2b",
+      "profile": "production",
+      "effective_f90_opts": "-O2 -cpp -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -march=znver4 -funroll-loops -g -fopenmp -DOMPSHARED -fdefault-real-8",
+      "manifest": "/home/cfutro/docs/world/exoplasim/binary_manifest.json"
+    },
+    "note": "Built precision is not encoded in the filename. The registry's naming carries no precision at all, which is why `arm` below is the only statement of an arm's."
+  },
+  "physical": {
+    "resolution": "T42",
+    "layers": 10,
+    "ranks": 8,
+    "precision_bytes": 8,
+    "flux_ratio": 0.945,
+    "co2_ppm": 450.0,
+    "ch4_ppmv": 1.6,
+    "n2o_ppmv": 0.3,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": true,
+    "stellar_spectrum": "k25v",
+    "geography": "ee606eea"
+  },
+  "source_build": "canonical-10m-carve2",
+  "config_sha256": "a98dde74cee422377f313c442db9cdb49955f855971853e5fc27a415663ca116",
+  "surface_field_sha256": {
+    "129": "55a46b548ea0373c0ca18479f9dea5f18fa37798e21b6ed19166ddc7932f3368",
+    "172": "a69ceb4de85ee6c260e66a3a53f665321104cfca87ae4376c163a65773332027",
+    "173": "d877f8e1629536253c01a3ac5958d286f86acbfd979c24238fc68d0708b99913",
+    "174": "51e6ce3b55bdbccb900506d53c5e49a2aa77074598ace02b6cd7eb13377f7215",
+    "175": "9f18176986fca9cf2f0c1c88e4d79238c9e8b32b47dc839fcc7153d864ab0f0b",
+    "176": "c32d790fb6c3476075946effd6ca961fe00423b2b34f74b066f4b484e8e96397",
+    "212": "89b2e19e6cd09118ee28910db4270fc37d80a597b523b954dd30ce44e9203792",
+    "1720": "45b089955f624107eab437d3a9851aff201bf32e3e26b1159e0bf9ebb6cd4c68",
+    "1742": "dd0a28ec12acf9c432abb5954ed927536a5444ed53fd3c0eda8d00b5cb6d781e",
+    "1750": "4d81b04432aeddfec516dc251bc29bcc1b46c77281483c592a6933056527009b",
+    "1760": "ed07e343a7adf8476d0fd6121aed10409922a6773512cd5ea152bf9fd2f461d8"
+  },
+  "surface_fields": {
+    "from_file": [
+      129,
+      172,
+      173,
+      174,
+      175,
+      176,
+      212,
+      1720,
+      1742,
+      1750,
+      1760
+    ],
+    "unexpected_extra_files": [],
+    "uniform_defaults_declared": true,
+    "uniform_values": {
+      "dz0clim_roughness_m": 2.0,
+      "dwmax_field_capacity_m": "wsmax (Earth value)",
+      "dalbcl_background_albedo": 0.22,
+      "dforest_fraction": 0.5,
+      "dglac_glacier_mask": 0.0
+    },
+    "note": "Fields absent from the run directory are preset to uniform namelist values by landmod and never read from file."
+  },
+  "template": {
+    "geometry": "T42",
+    "real_bytes": 8,
+    "records": 244,
+    "nesp": 1896,
+    "nseedlen": 8,
+    "unknown_records": [],
+    "accumulators_clean": 137,
+    "accumulators_dirty": [],
+    "accumulators_the_model_never_resets": [
+      "asndch"
+    ]
+  },
+  "note": "A clean accumulation window on the target executable's own record set and static surface. The prognostic and derived records are the donor run's and are overwritten or flagged by convert_restart.py; this is not a cold start."
+}

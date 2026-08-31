@@ -530,18 +530,19 @@ settling block at T21 and none above it. Running the cheap end of the ladder
 first is what makes attempting it the right order: T21 is where a step that
 cannot be held shows up for the least money.
 
-**T42 at 45 has a blow-up on record and it does not bar the attempt.**
-run_900548ae632e took a SIGFPE in its forty-seventh orbit at 45. The run is
-gone -- not in `exoplasim/runs/`, not a stub under `archive/runs/`, not in any
-`INDEX_AT_DELETION.json` -- so its source sha cannot be read and WORLD-TD3's
-ninety-second reproducer cannot be re-run. What it measured is therefore
-unknown and is certainly not this source, which has since taken the damping
-correction, the `epilog` use-after-free and the batch-2 forcing terms. Refusing
-a step on a profile the model no longer has is failure-modes class 34. So the
-row is carried as evidence that is REPORTED and does not REFUSE:
-`lib/rungs.py` marks it `binds: False` and `run_exoplasim.py` prints it at
-launch. WORLD-TD3's reopen condition is unchanged -- if it recurs, it recurs on
-a run that exists, the row binds again, and the ladder falls back to 30.
+**T42 at 45 had a blow-up on record, the attempt was taken anyway, and it
+endured.** `run_900548ae632e` took a SIGFPE in its forty-seventh orbit at 45 and
+was carried as evidence that is REPORTED and does not REFUSE, because the run
+was gone and what it measured was therefore unknown and certainly not this
+source -- refusing a step on a profile the model no longer has is failure-modes
+class 34. The attempt has now been made on this source: `run_88ed6f9d34ae` ran
+144 orbits from cold at T42 and dt 45 and met all six convergence criteria, and
+its paired converted arm `run_8d0ae7e2d02c` ran 89 and did the same.
+`lib/rungs.py:COMMISSIONING_EVIDENCE` carries the endurance row and the blow-up
+it supersedes. WORLD-TD3's reopen condition is unchanged -- if it recurs, it
+recurs on a run that exists, and the ladder falls back to 30. The rung above is
+where the attempt is still untested: T85's refusal cell at 45 is clean and its
+endurance row is empty.
 
 **What it saves, in model steps, which needs no clock.** Steps go as 1/dt, so
 T85 at 45 against the 22.5 the route once carried is half the steps at the most

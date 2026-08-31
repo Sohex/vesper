@@ -330,14 +330,20 @@ ESCALATION_ROUTE = (
 COMMISSIONING_EVIDENCE = {
     ("T21", 45.0): {
         "verdict": "endured",
-        "orbits": 50,
-        "run": "run_ec32946bec89",
-        "detail": "The route's first rung. ENDURED is the verdict here and it "
-                  "is not the convergence verdict: under the upper-bound "
-                  "criterion form this run MISSES on state storage, 0.0961 "
-                  "plus a standard error of 0.0303 against a threshold of "
-                  "0.12. It met all six under the point-estimate form the "
-                  "criteria carried when it was taken. WORLD-S8N3.",
+        "orbits": 108,
+        "run": "run_0d41aa82c287",
+        "detail": "The route's first rung, on THIS source and converged: all "
+                  "six criteria met over a 52-orbit window, cold start, "
+                  "canonical-10m-carve2. Cut as the donor for the T42 ladder "
+                  "comparison (WORLD-YYX8) because every earlier T21 restart "
+                  "predates the partial-cell tile records the current model "
+                  "writes, so convert_restart refuses all of them. It "
+                  "supersedes run_ec32946bec89's 50 orbits under C-ROUTE-6: a "
+                  "row taken on the current source supersedes an older row for "
+                  "the same pair outright. That run's own caveat travelled with "
+                  "it and is recorded in exoplasim/notes/route-step-criteria.md "
+                  "-- it missed state storage under the upper-bound criterion "
+                  "form, WORLD-S8N3 -- and does not apply here.",
     },
     ("T21", 30.0): {
         "verdict": "endured",
@@ -354,38 +360,25 @@ COMMISSIONING_EVIDENCE = {
                   "supports nothing, WORLD-5GQY.",
     },
     ("T42", 45.0): {
-        "verdict": "blew_up",
-        "orbits": 46,
-        "run": "run_900548ae632e",
-        "binds": False,
-        "record_gone": "run_900548ae632e is in no run record: not in "
-                       "exoplasim/runs/INDEX.json, not a stub under "
-                       "archive/runs/, and not in any INDEX_AT_DELETION.json. "
-                       "`does_not_bind` below argues what follows from that; "
-                       "this states the search, which is what makes the row "
-                       "re-readable as unre-readable rather than merely "
-                       "silent.",
-        "detail": "SIGFPE inside the 47th orbit on a gridpoint at -12.81 K at "
-                  "the second level from the top, after 46 orbits of ordinary "
-                  "climate with no trend towards it. WORLD-TD3; "
-                  "notes/audits/resolution-ladder.md and "
-                  "exoplasim/notes/physics-filter-stability.md.",
-        "does_not_bind": "The run is gone and so is everything that could "
-                         "re-check it: run_900548ae632e is not in "
-                         "exoplasim/runs/, not a stub under archive/runs/ and "
-                         "not in any INDEX_AT_DELETION.json, so its source sha "
-                         "cannot be read and the ninety-second reproducer "
-                         "WORLD-TD3 rests on cannot be re-run. What it was "
-                         "measured on is therefore unknown, and is certainly "
-                         "not this source: the damping correction, the epilog "
-                         "use-after-free and the batch-2 forcing terms all "
-                         "landed after it. Refusing a step on a profile the "
-                         "model no longer has is failure-modes class 34, and a "
-                         "claim with no artifact to check it against cannot "
-                         "refuse one. The reopen condition is WORLD-TD3's and "
-                         "is unchanged: if it recurs, this row binds again on "
-                         "a run that exists and the ladder falls back to dt "
-                         "30.",
+        "verdict": "endured",
+        "orbits": 144,
+        "run": "run_88ed6f9d34ae",
+        "detail": "The route's second rung, cold, on THIS source: 144 orbits "
+                  "and all six criteria met. Its paired converted arm "
+                  "run_8d0ae7e2d02c endured 89 at the same rung and step and "
+                  "also converged, so the pair endures dt 45 from both initial "
+                  "conditions. Cut for WORLD-YYX8; "
+                  "notes/audits/resolution-ladder.md carries what the two arms "
+                  "agree and disagree on. THIS ROW SUPERSEDES A BLOW-UP. "
+                  "run_900548ae632e took a SIGFPE in its forty-seventh orbit at "
+                  "this pair (WORLD-TD3), on source batch 2 has since replaced "
+                  "-- the damping correction, the epilog use-after-free and the "
+                  "batch-2 forcing terms all landed after it -- and its run, "
+                  "its provenance and its reproducer are all gone, so it could "
+                  "neither be re-read nor re-run. C-ROUTE-6 makes a row on the "
+                  "current source supersede an older row for the same pair "
+                  "outright. WORLD-TD3's reopen condition is unchanged: if it "
+                  "recurs, it recurs on a run that exists.",
     },
     ("T42", 30.0): {
         "verdict": "endured",
@@ -396,8 +389,8 @@ COMMISSIONING_EVIDENCE = {
                   "WORLD-FL9C and is a property of the conversion rather than "
                   "of this run.",
         "record_gone": "run_1d39fef9bfc2 is in no run record: not in "
-                       "exoplasim/runs/INDEX.json, not a stub under "
-                       "archive/runs/, and not in "
+                       "exoplasim/runs/INDEX.json, not an INDEX_ENTRY.json "
+                       "stub under archive/runs/, and not in "
                        "archive/runs/_bulk_2026-08-24/INDEX_AT_DELETION.json. "
                        "The orbit count and the verdict above therefore cannot "
                        "be re-read. What survives of the run corroborates the "
@@ -405,10 +398,12 @@ COMMISSIONING_EVIDENCE = {
                        "exoplasim/analysis/filter_dt_pair.json carries its "
                        "namelist with MPSTEP 30.0 at T42, and "
                        "exoplasim/analysis/ladder/run_1d39fef9bfc2__vs__run_42aaf441b10b.json "
-                       "compares a window ending at orbit 84. Neither is a run "
-                       "record and neither reports orbits on disk, so this row "
-                       "is evidence that cannot be checked rather than evidence "
-                       "that has been.",
+                       "compares a window ending at orbit 84. "
+                       "archive/runs/run_1d39fef9bfc2/RECONSTRUCTED.json "
+                       "gathers that identity, and it is not a record either: "
+                       "it carries no orbit count and no status. So this row "
+                       "is evidence that cannot be checked rather than "
+                       "evidence that has been. WORLD-WW6Z.",
     },
 }
 

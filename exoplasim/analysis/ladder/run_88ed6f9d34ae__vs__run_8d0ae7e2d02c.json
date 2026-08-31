@@ -1,0 +1,229 @@
+{
+  "schema_version": 2,
+  "criterion": "|mean_A - mean_B| <= 2.0 * sqrt(2) * max(SEM_A, SEM_B), declared before either arm was compared",
+  "standard_error": "sigma * sqrt(tau / n_window), with sigma and the integrated autocorrelation time tau taken over the longest stationary tail of each run's production series. Orbits within a window are not independent samples and the scatter over the root of their count understated this by about a factor of two. world-yj9o.",
+  "window_orbits": 20,
+  "run_a": {
+    "path": "exoplasim/runs/run_88ed6f9d34ae",
+    "window": [
+      124,
+      143
+    ],
+    "production_orbits_read": 144
+  },
+  "run_b": {
+    "path": "exoplasim/runs/run_8d0ae7e2d02c",
+    "window": [
+      69,
+      88
+    ],
+    "production_orbits_read": 89
+  },
+  "pattern": {
+    "surface_temperature_rms_k": 1.2555591852548351,
+    "spatial_correlation": 0.9971650572077997,
+    "note": "reported for context; two runs of a chaotic model differ in pattern at equilibrium and no bound is applied here"
+  },
+  "metrics": [
+    {
+      "metric": "surface_temperature_k",
+      "a": 283.8247453625695,
+      "b": 283.8077322217384,
+      "difference": -0.01701314083112493,
+      "variability_a": {
+        "tau_span_start_orbit": 13,
+        "tau_span_orbits": 131,
+        "tau_orbits": 5.135961557139612,
+        "lag1_autocorrelation": 0.5764256161792709,
+        "effective_samples_in_window": 3.894110144223639,
+        "orbit_scatter": 0.0899913852765292,
+        "tail_drift_per_orbit": -0.0006604129826780559,
+        "resolved": true,
+        "sem": 0.045603357833631876
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 21,
+        "tau_span_orbits": 68,
+        "tau_orbits": 2.1409640751001278,
+        "lag1_autocorrelation": 0.34375355544843056,
+        "effective_samples_in_window": 9.341585985773557,
+        "orbit_scatter": 0.08657129581672979,
+        "tail_drift_per_orbit": 0.0011919344980878437,
+        "resolved": true,
+        "sem": 0.028324588577753794
+      },
+      "sem": 0.045603357833631876,
+      "bound": 0.12898577427615107,
+      "sigmas": 0.2637987162010716,
+      "within": true,
+      "smallest_resolvable_difference": 0.12898577427615107
+    },
+    {
+      "metric": "air_temperature_2m_k",
+      "a": 283.5537295708412,
+      "b": 283.498585425191,
+      "difference": -0.055144145650217524,
+      "variability_a": {
+        "tau_span_start_orbit": 12,
+        "tau_span_orbits": 132,
+        "tau_orbits": 5.3952399440667955,
+        "lag1_autocorrelation": 0.6027075040255927,
+        "effective_samples_in_window": 3.70697136871442,
+        "orbit_scatter": 0.0867151722951236,
+        "tail_drift_per_orbit": -0.0006265374861374742,
+        "resolved": true,
+        "sem": 0.04503866152111857
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 21,
+        "tau_span_orbits": 68,
+        "tau_orbits": 2.3634152689696313,
+        "lag1_autocorrelation": 0.3883836719059498,
+        "effective_samples_in_window": 8.462330028323512,
+        "orbit_scatter": 0.0820386723693524,
+        "tail_drift_per_orbit": 0.0012069851995731582,
+        "resolved": true,
+        "sem": 0.028201593232962747
+      },
+      "sem": 0.04503866152111857,
+      "bound": 0.1273885719085943,
+      "sigmas": 0.8657628360852551,
+      "within": true,
+      "smallest_resolvable_difference": 0.1273885719085943
+    },
+    {
+      "metric": "precipitation_mm_day",
+      "a": 2.0562657334983556,
+      "b": 2.0531852153815215,
+      "difference": -0.0030805181168340745,
+      "variability_a": {
+        "tau_span_start_orbit": 10,
+        "tau_span_orbits": 134,
+        "tau_orbits": 2.956844149801107,
+        "lag1_autocorrelation": 0.32849002571324576,
+        "effective_samples_in_window": 6.763968267094938,
+        "orbit_scatter": 0.009521252053559014,
+        "tail_drift_per_orbit": -6.886264861822523e-05,
+        "resolved": true,
+        "sem": 0.0036609456508671936
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 9,
+        "tau_span_orbits": 80,
+        "tau_orbits": 2.4184547077721406,
+        "lag1_autocorrelation": 0.3389011982781724,
+        "effective_samples_in_window": 8.269743458798873,
+        "orbit_scatter": 0.009442407697784547,
+        "tail_drift_per_orbit": 0.0001110304611203219,
+        "resolved": true,
+        "sem": 0.0032834977993761306
+      },
+      "sem": 0.0036609456508671936,
+      "bound": 0.010354717981134366,
+      "sigmas": 0.5949979753087591,
+      "within": true,
+      "smallest_resolvable_difference": 0.010354717981134366
+    },
+    {
+      "metric": "sea_ice_fraction",
+      "a": 0.06257861842698717,
+      "b": 0.07666454252410748,
+      "difference": 0.014085924097120311,
+      "variability_a": {
+        "tau_span_start_orbit": 11,
+        "tau_span_orbits": 133,
+        "tau_orbits": 3.5117921102192193,
+        "lag1_autocorrelation": 0.607292140684312,
+        "effective_samples_in_window": 5.6950979364070395,
+        "orbit_scatter": 0.0014085361763782052,
+        "tail_drift_per_orbit": 1.0191245582411342e-05,
+        "resolved": true,
+        "sem": 0.000590224736966786
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 5,
+        "tau_span_orbits": 84,
+        "tau_orbits": 3.6611281589490705,
+        "lag1_autocorrelation": 0.65543404227364,
+        "effective_samples_in_window": 5.46279702094368,
+        "orbit_scatter": 0.001450810892638907,
+        "tail_drift_per_orbit": -1.635994554180662e-05,
+        "resolved": true,
+        "sem": 0.0006207307721141644
+      },
+      "sem": 0.0006207307721141644,
+      "bound": 0.0017556917530123486,
+      "sigmas": 16.04601043771177,
+      "within": false,
+      "smallest_resolvable_difference": 0.0017556917530123486
+    },
+    {
+      "metric": "toa_shortwave_up_w_m2",
+      "a": 93.27012016567247,
+      "b": 93.24994501232774,
+      "difference": -0.02017515334472364,
+      "variability_a": {
+        "tau_span_start_orbit": 0,
+        "tau_span_orbits": 144,
+        "tau_orbits": 2.456029604010757,
+        "lag1_autocorrelation": 0.35771798298470914,
+        "effective_samples_in_window": 8.143224319177385,
+        "orbit_scatter": 0.5875973907760103,
+        "tail_drift_per_orbit": 0.0024597084439552915,
+        "resolved": true,
+        "sem": 0.20591200122792855
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 0,
+        "tau_span_orbits": 89,
+        "tau_orbits": 1.4428189557905404,
+        "lag1_autocorrelation": 0.17557647380200367,
+        "effective_samples_in_window": 13.861753007702704,
+        "orbit_scatter": 0.2477319763714533,
+        "tail_drift_per_orbit": -0.0009852917202069606,
+        "resolved": true,
+        "sem": 0.06653849741187354
+      },
+      "sem": 0.20591200122792855,
+      "bound": 0.5824070895838439,
+      "sigmas": 0.06928196344292338,
+      "within": true,
+      "smallest_resolvable_difference": 0.5824070895838439
+    },
+    {
+      "metric": "toa_longwave_up_w_m2",
+      "a": 228.50435337568223,
+      "b": 228.50655618587453,
+      "difference": 0.0022028101923012855,
+      "variability_a": {
+        "tau_span_start_orbit": 6,
+        "tau_span_orbits": 138,
+        "tau_orbits": 5.447870670719196,
+        "lag1_autocorrelation": 0.5298337048145783,
+        "effective_samples_in_window": 3.6711591021230534,
+        "orbit_scatter": 0.2741443488924662,
+        "tail_drift_per_orbit": -0.001961635658744788,
+        "resolved": true,
+        "sem": 0.1430795925272933
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 20,
+        "tau_span_orbits": 69,
+        "tau_orbits": 1.5098126000784835,
+        "lag1_autocorrelation": 0.17488780610456778,
+        "effective_samples_in_window": 13.24667710347652,
+        "orbit_scatter": 0.18779276693662617,
+        "tail_drift_per_orbit": 0.0026210613128746924,
+        "resolved": true,
+        "sem": 0.05159711103102912
+      },
+      "sem": 0.1430795925272933,
+      "bound": 0.4046902005018287,
+      "sigmas": 0.010886402436084347,
+      "within": true,
+      "smallest_resolvable_difference": 0.4046902005018287
+    }
+  ],
+  "same_equilibrium": false,
+  "indeterminate_metrics": []
+}

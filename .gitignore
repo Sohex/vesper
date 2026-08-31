@@ -366,3 +366,10 @@ vendor/exoplasim/build
 vendor/exoplasim/exoplasim/plasim/bin
 vendor/exoplasim/exoplasim/plasim/bld
 vendor/lpj-guess/build
+
+# The ladder comparison's converted-donor restarts, same exclude-the-bulk,
+# keep-the-record rule as the restart templates above: the payload is a
+# restart and scales with the rung, the arm's manifest records its sha, and
+# the .conversion.json sidecar beside it IS tracked as the record of which
+# donor it was cut from and how.
+exoplasim/analysis/ladder/*.rest
