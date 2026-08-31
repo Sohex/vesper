@@ -376,6 +376,113 @@ margin the target rung would reach on its own, which a third arm converted from
 a DIFFERENT donor would separate; and whether it shrinks as the jump shrinks,
 which matters because the ladder's next hop is T42 to T85.
 
+### The converted arm settles on its DONOR RUNG's ice fraction, not its target's
+
+*Measured 2026-08-31 from the three runs' convergence reports; no run was cut
+for it.*
+
+The three settled sea ice fractions, each the mean over the last twenty orbits:
+
+| run | rung | initial state | settled sea ice fraction |
+| --- | --- | --- | ---: |
+| `run_0d41aa82c287` | T21 | cold | 0.07586, orbit scatter 0.00203 |
+| `run_8d0ae7e2d02c` | T42 | converted from the T21 run above | 0.07665 |
+| `run_88ed6f9d34ae` | T42 | cold | 0.06257 |
+
+**The converted arm's ice fraction is its donor's to within 0.00080**, which is
+under half the comparison's own bound of 0.0018 and under half the donor's
+orbit-to-orbit scatter. Its distance from the cold arm at the same rung is
+0.01408, eighteen times that.
+
+The converted arm did not simply keep the field it was handed, and the restarts
+say so more sharply than the annual means do. Read as the Gauss-weighted mean of
+`xicec` off each restart, which compares end-of-run snapshots at one orbital
+phase:
+
+| restart | ice cover |
+| --- | ---: |
+| `run_0d41aa82c287`'s final, T21 | 0.07459 |
+| `t42_dt45_converted.rest`, that restart remapped to T42 | 0.08898 |
+| `run_8d0ae7e2d02c`'s final, T42 after 89 orbits | 0.07478 |
+| `run_88ed6f9d34ae`'s final, T42 cold after 144 | 0.05897 |
+
+**The remap raised the fraction by 0.0144 and the target rung took all of it
+back, stopping 0.00019 from where the donor was.** So the arm is not holding the
+field it was given: it moved 0.0142 away from its own initial condition, and
+where it settled is the donor rung's value rather than the remap's or the target
+rung's.
+
+This does not settle the row, and the reason is worth stating: two settled ice
+states at one rung would explain the pair equally well, and nothing here rules
+that out. What it does is price the coincidence. Under a second margin the
+target rung reaches on its own there is no reason for the upper state to land
+on the donor rung's value at a fifth of the resolving bound, and under the
+donor's imprint there is exactly one.
+
+### The ice question is a forty-orbit question, and the arms were bought for a longer one
+
+The arms were sized by `lib/run_lengths.py`'s commissioning bracket, which is
+set by the temperature's memory time. The ice margin settles far sooner. Over
+orbits 20 to 40 both arms' sea ice series carry slopes of 4.7e-5 and 3.6e-5 in
+fraction an orbit, inside the run's own stationarity criterion of 0.001 by a
+factor of twenty, and the window means sit 0.00046 and 0.00010 from each run's
+converged tail. The difference between the arms read over orbits 20-40 is
++0.01444 against +0.01408 read over their tails, a gap of 0.00036 -- a fifth of
+the bound.
+
+`compare_equilibria.py` already reads a twenty-orbit window, so **a forty-orbit
+T42 arm reproduces this comparison at its declared instrument** and costs 63
+minutes at 94 s an orbit on eight pinned threads rather than the three and a
+half hours a commissioning-length arm costs. An arm bought to settle the ice
+question is not a commissioning arm and cannot carry an endurance row, which is
+a different purchase.
+
+### What the wet-soil merge does to this comparison, in the units that judge it
+
+The arms ran `NWETSOIL` 1, the two-point soil albedo mixing.
+`config/planet.yaml` now declares `surface.soil_albedo_moisture.three_point`,
+so a run cut today runs `NWETSOIL` 2. The question a third arm has to answer
+first is whether it can be compared against arms taken before that.
+
+The model diff is additive and gated. Every line the merge added to
+`landmod.f90`, `landcolumn.f90` and `surfmod.f90` sits inside a
+`nwetsoil == 2` branch, a new staged-field read, or a new pure function, and
+the one ungated edit is `nwetsoil == 1` widened to `nwetsoil >= 1`, which is
+the same test at 1. **At `NWETSOIL` 1 the new executable is the old model.**
+The difference between the arms and a third arm is therefore the configuration
+change alone, and it has a measured size.
+
+`notes/audits/nonlinear-spatial-reductions.md` section 7 measures the two-point
+staging's error against the three-point form at the same saturations, both
+signed the same way: the two-point form peaks at -0.147 W m-2 of global-mean
+absorbed shortwave and the three-point form at -0.042, so the configuration
+change is worth at most 0.105 W m-2, and less at every saturation away from the
+evaporation knee. Through `lib/sensitivity.py`'s conversion at the accepted
+baseline's planetary albedo that is 0.072 K.
+
+The ice cost of a kelvin is measurable from the settled flux arms this project
+already has. Taking each build's coldest and warmest settled T21 arm:
+
+| build | span | d(sea ice fraction)/dT |
+| --- | --- | ---: |
+| `canonical-10m-base` | 276.770 to 281.072 K | -0.00892 per K |
+| `canonical-10m-carve1` | 276.714 to 280.959 K | -0.00869 per K |
+| `canonical-10m-carve2` | 279.937 to 281.177 K | -0.00691 per K |
+
+So the merge is worth between 0.00050 and 0.00064 in sea ice fraction: between
+a quarter and a third of the comparison's 0.0018 bound, and between 3.5 and 4.5
+per cent of the 0.0141 effect. **The instrument that judges this row does not
+resolve the model change**, so a third arm cut on the current configuration is
+comparable to the pair, carrying that as a stated bias rather than a confound.
+
+The bound is on the GLOBAL MEAN channel, which is the channel the compared
+metric lives in. What it does not bound is a polar concentration of a land
+albedo change against a polar ocean ice margin. The argument that it is not
+concentrated there is that high-latitude land in these runs carries the
+modelled snow cover for most of the orbit, which masks the soil albedo the
+merge changed; that is an argument and not a measurement, and re-cutting all
+three arms on one configuration is what removes it.
+
 ### The relaxation is real and it is what the ladder is for
 
 The converted arm meets every convergence criterion at 89 orbits against the
@@ -385,8 +492,11 @@ conversion buys the approach rather than a fresh spin-up -- holds on this pair.
 
 ### T42 endures dt 45
 
-Neither arm failed. 144 orbits from cold and 89 from a converted state, on this
-source, at the step `lib/rungs.py:ESCALATION_ROUTE` runs T42 at. That supersedes
+Neither arm failed. 144 orbits from cold and 89 from a converted state, at the
+step `lib/rungs.py:ESCALATION_ROUTE` runs T42 at. Which model source that is
+evidence about is `lib/rungs.py:evidence_source_currency`'s to derive from the
+run's manifest and the binary registry, and is not restated here for the reason
+that function carries. That supersedes
 `run_900548ae632e`'s blow-up in its forty-seventh orbit, which was taken on
 source batch 2 has replaced and which `docs/src/pipeline/sequencing.md` section D
 carries as reported rather than binding. `COMMISSIONING_EVIDENCE` is where the

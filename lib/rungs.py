@@ -332,14 +332,14 @@ COMMISSIONING_EVIDENCE = {
         "verdict": "endured",
         "orbits": 108,
         "run": "run_0d41aa82c287",
-        "detail": "The route's first rung, on THIS source and converged: all "
+        "detail": "The route's first rung, converged: all "
                   "six criteria met over a 52-orbit window, cold start, "
                   "canonical-10m-carve2. Cut as the donor for the T42 ladder "
                   "comparison (WORLD-YYX8) because every earlier T21 restart "
-                  "predates the partial-cell tile records the current model "
-                  "writes, so convert_restart refuses all of them. It "
+                  "predates the partial-cell tile records the model then "
+                  "wrote, so convert_restart refused all of them. It "
                   "supersedes run_ec32946bec89's 50 orbits under C-ROUTE-6: a "
-                  "row taken on the current source supersedes an older row for "
+                  "row on the newer source supersedes an older row for "
                   "the same pair outright. That run's own caveat travelled with "
                   "it and is recorded in exoplasim/notes/route-step-criteria.md "
                   "-- it missed state storage under the upper-bound criterion "
@@ -363,7 +363,7 @@ COMMISSIONING_EVIDENCE = {
         "verdict": "endured",
         "orbits": 144,
         "run": "run_88ed6f9d34ae",
-        "detail": "The route's second rung, cold, on THIS source: 144 orbits "
+        "detail": "The route's second rung, cold: 144 orbits "
                   "and all six criteria met. Its paired converted arm "
                   "run_8d0ae7e2d02c endured 89 at the same rung and step and "
                   "also converged, so the pair endures dt 45 from both initial "
@@ -376,7 +376,7 @@ COMMISSIONING_EVIDENCE = {
                   "batch-2 forcing terms all landed after it -- and its run, "
                   "its provenance and its reproducer are all gone, so it could "
                   "neither be re-read nor re-run. C-ROUTE-6 makes a row on the "
-                  "current source supersede an older row for the same pair "
+                  "newer source supersede an older row for the same pair "
                   "outright. WORLD-TD3's reopen condition is unchanged: if it "
                   "recurs, it recurs on a run that exists.",
     },
@@ -420,6 +420,93 @@ COMMISSIONING_EVIDENCE = {
 RUN_RECORDS = ("exoplasim/runs/INDEX.json",
                "archive/runs/*/INDEX_ENTRY.json",
                "archive/runs/*/INDEX_AT_DELETION.json")
+
+# WHICH MODEL SOURCE A ROW DESCRIBES IS DERIVED AND NEVER WRITTEN DOWN.
+# C-ROUTE-6 turns on it: a row taken on the source this tree has now supersedes
+# an older row for the same pair outright, and a row on superseded source
+# supports keeping a step without condemning one. Both readings need the
+# question answered as of the moment it is asked.
+#
+# It cannot be a sentence in a row or in a note. A rebuild moves every binary at
+# once and moves nothing that says so, which is exactly the update that cannot
+# propagate: the tree carried "endured, converged, on THIS source" for the T21
+# and T42 rows through the wet-soil merge, and every static gate stayed green
+# while the statement went false. `evidence_source_currency` is the loop that
+# re-derives it, and `check_commissioning_evidence` refuses a row that states it
+# in prose instead.
+MODEL_SOURCE_REGISTRY = "exoplasim/binary_manifest.json"
+
+# The phrases a row must not use, because each of them ASSERTS currency rather
+# than deriving it. Matched case-insensitively against a row's `detail`.
+CURRENCY_ASSERTIONS = ("this source", "the current source", "current source")
+
+
+def evidence_source_currency(root) -> dict:
+    """Per `COMMISSIONING_EVIDENCE` key, which model source its run describes.
+
+    THE DERIVED ANSWER to "was this taken on the model this tree has now". The
+    run's own manifest names the executable it was integrated by and the sha
+    `binary_manifest.json` registered for that name at the time; the registry
+    names the sha it registers for that name today. Equal is `current`,
+    different is `superseded`, and anything unreadable says which half is
+    missing rather than guessing.
+
+    Four verdicts, and the fourth is the one that matters most:
+
+      current      the run was integrated by the executable the registry
+                   registers for that name now.
+      superseded   it was integrated by a different one. Under C-ROUTE-6 the
+                   row is still evidence, and it is evidence about a model that
+                   no longer exists.
+      unregistered the registry carries no entry for the executable's name, so
+                   there is nothing to compare against.
+      unreadable   the run's manifest is absent or names no executable. A row
+                   whose currency cannot be read must not be reported as
+                   either, because `superseded` and `unknown` license different
+                   things.
+
+    Returns `{}` when the registry is absent: a worktree without the binaries
+    is not a disagreement.
+    """
+    import json
+    from pathlib import Path
+
+    base = Path(root)
+    registry_path = base / MODEL_SOURCE_REGISTRY
+    if not registry_path.is_file():
+        return {}
+    try:
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    except Exception:                                          # noqa: BLE001
+        return {}
+    registered = {name: entry.get("sha256")
+                  for name, entry in (registry.get("binaries") or {}).items()
+                  if isinstance(entry, dict)}
+
+    out = {}
+    for key, row in COMMISSIONING_EVIDENCE.items():
+        run = row.get("run")
+        manifest = base / "exoplasim" / "runs" / str(run) / "run_manifest.json"
+        if not run or not manifest.is_file():
+            out[key] = "unreadable"
+            continue
+        try:
+            loaded = json.loads(manifest.read_text(encoding="utf-8"))
+        except Exception:                                      # noqa: BLE001
+            out[key] = "unreadable"
+            continue
+        executable = loaded.get("executable") or {}
+        name = (executable.get("manifest_entry") or {}).get("name")
+        was = executable.get("sha256")
+        if not name or not was:
+            out[key] = "unreadable"
+            continue
+        now = registered.get(name)
+        if now is None:
+            out[key] = "unregistered"
+        else:
+            out[key] = "current" if now == was else "superseded"
+    return out
 
 # THE INDEX'S OWN WORDS FOR A RUN THAT DID NOT COMPLETE. `prepared` is
 # deliberately not here: a prepared run never started, which is neither a
@@ -538,6 +625,36 @@ def check_commissioning_evidence(root) -> list[str]:
             problems.append(
                 f"the commissioning row for {where} carries a verdict of "
                 f"{verdict!r}; the two verdicts are `endured` and `blew_up`")
+    problems.extend(check_currency_is_not_asserted())
+    return problems
+
+
+def check_currency_is_not_asserted() -> list[str]:
+    """No row may STATE which model source it describes.
+
+    A CHECK WITH A RIGHT ANSWER, and the answer is that the phrase is absent.
+    Currency is `evidence_source_currency`'s to derive from the run's manifest
+    and the registry, and a row that says it in prose says it once, at the
+    moment it was written, and never again. The wet-soil merge rebuilt every
+    binary and moved two rows from current to superseded without touching a
+    character of either.
+
+    Takes no root: it reads the table, which is this module.
+    """
+    problems = []
+    for (rung, dt), row in sorted(COMMISSIONING_EVIDENCE.items()):
+        detail = str(row.get("detail", "")).lower()
+        for phrase in CURRENCY_ASSERTIONS:
+            if phrase in detail:
+                problems.append(
+                    f"the commissioning row for {rung} at dt {dt} says "
+                    f"{phrase!r} in its detail. Which model source a row "
+                    "describes is derived by `evidence_source_currency` from "
+                    "the run's manifest and `exoplasim/binary_manifest.json`, "
+                    "because a rebuild moves it and moves nothing that states "
+                    "it. Say what the run reached and let the currency be "
+                    "read.")
+                break
     return problems
 
 
