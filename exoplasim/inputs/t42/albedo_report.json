@@ -1,7 +1,7 @@
 {
   "mode": "vegetated",
   "mesh": "/home/cfutro/docs/world/source/canonical-10m-carve2/exoplasim-T42",
-  "grid": "/home/cfutro/docs/world/source/canonical-10m-carve2/exoplasim-T42",
+  "grid": "source/canonical-10m-carve2/exoplasim-T42",
   "resolution": "T42",
   "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
   "codes": [
@@ -11,11 +11,14 @@
     212,
     1742,
     1750,
-    1760
+    1760,
+    1743,
+    1751,
+    1761
   ],
   "forest_fraction_value": 0.5,
   "vegetation": null,
-  "forest_fraction_land_mean": 0.44249669474255576,
+  "forest_fraction_land_mean": 0.44494540097046653,
   "lithology_albedo_overrides": {
     "playa_clastic": {
       "rock_id": 19,
@@ -46,8 +49,8 @@
     "recombination_worst_residual": 9.992007221626409e-16,
     "recombination_tolerance": 1e-05,
     "note": "z1*175 + z2*176 == 174 over the whole grid, checked before writing. The .sra format rounds at %12.5f, so the tolerance is twice that quantum and not tighter.",
-    "band1_land_mean": 0.08473535326973328,
-    "band2_land_mean": 0.2265931283810052
+    "band1_land_mean": 0.0861619255703313,
+    "band2_land_mean": 0.2300205713847342
   },
   "barren_rock_classes": [
     "evaporite",
@@ -58,7 +61,7 @@
   "cells_owned_by_the_binary_mask": 4116,
   "cells_with_ground_the_mask_calls_ocean": 1638,
   "land_mean_bare_rock": 0.2558502274280888,
-  "land_mean_written": 0.17235068810474377,
+  "land_mean_written": 0.17501305418879054,
   "endmembers": {
     "note": "land-mean albedo of the two surface endmembers, on the overridden rock table and before lakes. Their difference is what the biosphere is worth; pair only these two.",
     "bare_rock": 0.2614235066014237,
@@ -133,19 +136,19 @@
       "lekner"
     ],
     "source": "/home/cfutro/docs/world/analysis/soil_albedo_wetting.json",
-    "generated": "2026-08-26",
+    "generated": "2026-08-30",
     "refused_classes": {
       "water": "open water is not a surface that wets",
       "evaporite": "the sign is disputed: two in-situ pyranometer pairs make a wetted halite crust much darker and a twenty-year MODIS series makes wet years brighter, and the Fresnel term is too small by an order of magnitude to be the second effect"
     },
     "held_pair_bracket_passes": true,
     "band2_liquid_absorption_direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it",
-    "refused_regions": 141312,
+    "refused_regions": 60658,
     "cells_entirely_refused_material": 0,
-    "band1_land_mean_saturated": 0.07535053818878451,
-    "band2_land_mean_saturated": 0.21071824443082635,
-    "broadband_land_mean_saturated": 0.15895742472666186,
-    "broadband_land_mean_dry": 0.17235068810474377,
+    "band1_land_mean_saturated": 0.075911205269005,
+    "band2_land_mean_saturated": 0.21268096545902573,
+    "broadband_land_mean_saturated": 0.16038403959164468,
+    "broadband_land_mean_dry": 0.17501305418879054,
     "codes": [
       1742,
       1750,
@@ -155,32 +158,42 @@
       "saturation": 0.7609,
       "saturation_source": "config/planet.yaml surface.soil_albedo_moisture.saturation_at_full_layer",
       "note": "the land-mean albedo at a surface layer permanently at its own capacity, mixed per cell through Sadeghi Eq (13) and then meaned. A BOUND on the realised term and not an estimate of it: the realised fall is this times how wet the modelled skin is over the orbit, and it acts only where the surface is snow-free, ice-free land, so the realised area is below the land fraction and one-signed downward.",
-      "broadband_land_mean": 0.16137408442788878,
-      "broadband_fall": 0.01097660367685499,
-      "band1_land_mean": 0.07695497214119894,
-      "band1_fall": 0.007780381128534339,
-      "band2_land_mean": 0.21361763871126876,
-      "band2_fall": 0.01297548966973644
+      "broadband_land_mean": 0.16300670015176932,
+      "broadband_fall": 0.012006354037021216,
+      "band1_land_mean": 0.07764980856812181,
+      "band1_fall": 0.008512117002209482,
+      "band2_land_mean": 0.21582849772663554,
+      "band2_fall": 0.014192073658098658
+    },
+    "third_point": {
+      "staged": true,
+      "codes": [
+        1743,
+        1751,
+        1761
+      ],
+      "knee_saturation": 0.30436,
+      "knee_source": "landmod.f90 drhsfull, mapped through config/planet.yaml soil_albedo_moisture's declared saturation endpoints; the model recomputes the same expression from its own two constants",
+      "read_at": "landmod nwetsoil = 2",
+      "operator": "the mixing per REGION and the area mean after, so the staged field is the cell's own mean of the mixings and not the mixing of the cell's means",
+      "band1_land_mean_at_knee": 0.08024830381197823,
+      "band2_land_mean_at_knee": 0.22052448682006606,
+      "broadband_land_mean_at_knee": 0.16688680306935338,
+      "why": "the two-field mixing reproduces a cell's own mixture of rocks at the two ends and nowhere between them, at a measured 0.147 W m-2 of global-mean absorbed shortwave against a 0.12 W m-2 storage tolerance; the three-point form is measured at 0.042. notes/audits/nonlinear-spatial-reductions.md section 7"
     }
   },
-  "lakes": {
-    "source": "hydrography/data/canonical-10m-carve2/surface_water.nc",
-    "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
-    "lake_regions": 90058,
-    "lake_fraction_of_land": 0.021189064204796756,
-    "water_albedo": 0.06,
-    "land_mean_albedo_before": 0.178717,
-    "land_mean_albedo_after": 0.175001,
-    "delta": -0.003716
-  },
+  "lakes": null,
   "derived_evaporite": null,
   "exoplasim_default_albland": 0.22,
-  "land_min": 0.06136616858028914,
+  "land_min": 0.1649999999999994,
   "land_max": 0.3327850292754243,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_1742.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_1750.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_1760.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_1743.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_1751.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_1761.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0176.sra",
@@ -282,6 +295,7 @@
       },
       "soil_albedo_moisture": {
         "enabled": true,
+        "three_point": true,
         "saturation_at_empty_layer": 0.0,
         "saturation_at_full_layer": 0.7609,
         "shape_sigma_broadband": 1.0,
@@ -290,9 +304,9 @@
       }
     },
     "model": {
-      "resolution": "T42",
-      "latitudes": 64,
-      "longitudes": 128,
+      "resolution": "T21",
+      "latitudes": 32,
+      "longitudes": 64,
       "layers": 10,
       "vertical_grid": 4,
       "model_top_hpa": 50.0,
@@ -320,7 +334,7 @@
         },
         "profile": "production"
       },
-      "ncpus": 8,
+      "ncpus": 16,
       "timestep_minutes": 45.0,
       "physics_filter": "gp|exp|sp",
       "filter_kappa": 8.0,
@@ -407,7 +421,7 @@
       ],
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "uniform",
+      "soil_water_source": "pedology",
       "lake_dwmax_m": 0.2,
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
@@ -460,12 +474,11 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "a79d540b17e2256c45bee2a686067b5da8f2b01dc3142534ad2d4d69070cf6ca",
-  "git_commit": "74ddf0cc485d870e8d56447eda2f541f1d9373f0",
+  "config_sha256": "8175c1d7fec42adc87dc395e420018d459fbfcafc441b20453a39e0cabd99480",
+  "git_commit": "112f630f663ef406b3f7b88816154f205f00f66b",
   "source_inputs": {
     "analysis/rock_albedo_bands.json": "6232e5a11cf2d7d851aad6e01ba3ae306354f618081d11ea6a76917a70efa213",
     "analysis/vegetation_albedo.json": "f6a970ca470dbbfa2d75a11a3767d57f66ee48cf8da66815d0f3b601851463bf",
-    "analysis/soil_albedo_wetting.json": "a10ef0fc93db43a026c166b9eb96fded66ffd009c1f70d7d5563c3f909e08999",
-    "hydrography/data/canonical-10m-carve2/surface_water.nc": "27ba3c3b5db5d1d1f0831c875ff9aadeb6972c8b1e917e912e6bc8e07f7f66eb"
+    "analysis/soil_albedo_wetting.json": "98cfebfc03564cf96f75b57283f0c7626c6af9c204cf1de6eccdae5282387159"
   }
 }

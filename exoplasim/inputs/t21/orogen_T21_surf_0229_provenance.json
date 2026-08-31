@@ -1,6 +1,6 @@
 {
   "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-  "generated": "2026-08-30T16:43:14+00:00",
+  "generated": "2026-08-31T11:44:48+00:00",
   "code": 229,
   "field": "dwmax, maximum soil water capacity, metres",
   "lakes": null,
@@ -50,7 +50,7 @@
   "land_column_states_sha256": "61fc9b2d7c10888fa0d92fef44b4df85c9fdc4deb1447e1c645c5248deb5a044",
   "capacity_column": "evaporable_mm",
   "capacity_source": "the land column property contract's evaporable_mm column, selected by whether the declared water column carries the contract's surface layer at its top. This script converts mm to m and installs it; it derives no capacity of its own. `awc_mm` is LPJ-GUESS's and is not what this installs when a surface layer is present.",
-  "config_sha256": "c8639d3f08f21eacf7b794ed6bef772c50e8b474f1ed4e8b34a6503b026abc89",
+  "config_sha256": "8175c1d7fec42adc87dc395e420018d459fbfcafc441b20453a39e0cabd99480",
   "resolution": "T21",
   "land_cells": 1019,
   "land_cells_matched": 1639,
@@ -63,7 +63,7 @@
   "enabled_by": "model.soil_water_source in config/planet.yaml (currently set to pedology). Changing the key is a configuration change continue_exoplasim.py refuses to resume across, so moving it blocks runs in flight.",
   "output": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
   "output_sha256": "3e3af7935614cb2c6307f2fb60d7ccc1adaa1d280bd03edab8eb729ba8461d83",
-  "git_commit": "2e20dc48e92111dceca93bbf31be24d1864c28b5",
+  "git_commit": "112f630f663ef406b3f7b88816154f205f00f66b",
   "generator": "exoplasim/scripts/build_surface_soil_water.py",
   "source_config": {
     "schema_version": 1,
@@ -159,6 +159,7 @@
       },
       "soil_albedo_moisture": {
         "enabled": true,
+        "three_point": true,
         "saturation_at_empty_layer": 0.0,
         "saturation_at_full_layer": 0.7609,
         "shape_sigma_broadband": 1.0,
