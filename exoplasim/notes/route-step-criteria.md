@@ -163,6 +163,64 @@ at the same pair and also converged. C-ROUTE-2 asks the donor to endure the
 conversion step and T21 endures 45 over 108 converged orbits, so both sides of
 the T21 -> T42 conversion are now carried by a run that exists.
 
+### Above T21 the route CANNOT take a cold start, and that is a property of the configuration rather than a preference
+
+*Measured 2026-08-31, pre-flight on the T42 arms world-90y6 bought.*
+
+`config/planet.yaml` sets `model.soil_water_source: pedology`, and it argues
+the case: the land-mean capacity is well under the model's uniform 0.5 m
+bucket, which changes evaporation, which changes P - E, which is the numerator
+of the carve criterion. With it set, `run_exoplasim.py` REFUSES to start
+without staged code 229.
+
+**Code 229 exists at T21 and nowhere else, and the step that writes it cannot
+be run at another rung.** `build_surface_soil_water.py` takes its grid and its
+land mask from a climatology -- it has no `--grid` -- and the only climatology
+on the active build is T21's. `config/pipeline.yaml` makes that an edge rather
+than an oversight: `surface_soil_water` needs `bootstrap_climatology`, because
+a staged surface field is an INPUT to the run whose output would otherwise
+build it.
+
+So at every rung above T21 the two initial conditions are not
+interchangeable, and the asymmetry is one-signed:
+
+| arm | where `dwmax` comes from | possible today at T42 |
+| --- | --- | --- |
+| cold | the staged `.sra`, read by `landini` only when `nrestart == 0` | **no**, code 229 is not staged at this rung |
+| converted | the restart, which FREEZES it | yes |
+
+**This is the route working rather than failing.** The escalation route exists
+so that no rung above T21 pays for a cold start, and a converted arm carries
+the T21 field up with it. What is new is that the route is now the only
+option there, so a cold arm at T42 or T85 is not a fallback the route can take
+if a conversion misbehaves.
+
+Two consequences to state before they are needed. A cold arm at a rung above
+T21 is buyable only at `soil_water_source: uniform`, which is a DIFFERENT
+configuration and has to be declared as one -- it is what the T42 arms of
+WORLD-YYX8 ran, before the key was flipped. And the T85 endurance arm this
+chapter asks for is a converted arm for this reason as well as for its price,
+which C-ROUTE-2 already assumed and which is now also a requirement.
+
+### A restart template is superseded by its own staging, and nothing said so
+
+*Measured 2026-08-31, same pre-flight.*
+
+`exoplasim/inputs/templates/T42_l10_p8.rest` was cut against a staged surface
+family that has since gained codes 1743, 1751 and 1761.
+`run_exoplasim.py:conversion_surface_reason` catches it and refuses: a
+converted state's static surface records are the TEMPLATE's, so a template cut
+against superseded staging would hand the run a surface it did not stage.
+
+The refusal is the gate working. What is worth carrying is the ORDER it
+imposes, because it is not obvious and it is the same at every rung: **a
+template can only be cut from a run of the target rung on the current staging,
+so the first arm at a new rung is a cold one and every converted arm at that
+rung waits on it.** Where a cold arm is not available -- which is every rung
+above T21, per the section above -- the template has to come from the first
+run made at that rung on whatever configuration could start, and the
+conversion inherits that configuration.
+
 ### C, the step the T42 -> T85 conversion happens at: 45 on the donor's side
 
 **C = 45 and the donor half is settled; the target half is not.** C-ROUTE-2
