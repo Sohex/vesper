@@ -190,15 +190,26 @@ wearing the same name. Note also that Fenske puts gypcrete outside this
 mechanism entirely, as an evaporitic blanket formed by surface and air processes
 in hyper-arid settings, so the existing placement of that one is untouched.
 
-**Minerals has three rules keyed on a water table through a rainfall proxy.**
-`minerals/config/downstream_prospectivity.yaml` carries Reich and Vasconcelos
-(2015) on oxidation in the vadose zone and secondary sulfides below the water
-table, and Sillitoe (2005) making the wet-end control on supergene enrichment
-"the average erosion rate must be in overall balance with the rate of water
-table descent" rather than rainfall as such. The config says in its own comments
-that it is substituting rainfall because nothing better exists. A depth field is
-the better thing. It does not supply the descent RATE, which is a duration and
-is refused by the same rule as above.
+**Minerals had ONE rule keyed on a water table through a rainfall proxy, and it
+was deleted rather than replaced.** Supergene copper carried
+`maximum_precipitation_mm_yr: 500.0` with the reasoning that copper is flushed
+once percolation runs year round and the admission, in the same comment, that a
+thick leached cap needs a deep water table rather than a dry climate as such.
+MIN-4 removed it on 2026-08-18 because Sillitoe (2005) p. 736 states there is no
+wet bound on rainfall at all, so what stood there was contradicted by the
+canonical source and not merely unsourced.
+`minerals/config/downstream_prospectivity.yaml` now carries no rainfall term
+standing in for a depth. Bauxite's and nickel laterite's precipitation
+thresholds are their own sources' rainfall criteria, applied by Price et al.
+(1997) and Butt and Cluzel (2013) to gridded climate fields as rainfall, so they
+are not proxies either.
+
+**What a depth field would still have to clear there is RANGE, not skill.**
+Reich and Vasconcelos (2015) p. 306 put leached caps at several hundred metres
+"particularly when the water table was deep enough", which is the depth the
+mechanism is keyed on; `groundwater-et-sink.md` measures the modelled 95th
+percentile against it. A depth field also does not supply the descent RATE,
+which is a duration and is refused by the same rule as above.
 
 **Hydrography gets the `Qg` term** for the carve criterion, per basin. This is
 the largest consequence and the one to be slowest about, because the carve
