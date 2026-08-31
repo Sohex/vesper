@@ -332,6 +332,10 @@ def assess(run_dir: Path, *, contract_path: Path = CONFIG,
         except EquilibriumWindowError as exc:
             raise AcceptanceError(f"{output} equilibrium refusal: {exc}") from exc
         stability[output] = {
+            # Both spans, because they are two different ones: `reported` is
+            # what a consumer read the value over and `window` is the per-cell
+            # half's alone.
+            "reported": reduced.report.get("reported"),
             "window": reduced.report.get("window"),
             "trend": reduced.report.get("trend"),
         }
