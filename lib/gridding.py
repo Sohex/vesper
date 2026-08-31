@@ -919,6 +919,12 @@ def gaussian_latitudes(nlat: int) -> np.ndarray:
 def require_gaussian_rows(spec: GridSpec, lat_axis, what: str = "the grid") -> None:
     """Refuse a Gaussian spec whose rows are not the axis the artifact carries.
 
+    FOR AN AXIS STORED AS FLOAT64, which is an export's. A CLIMATOLOGY's axis is
+    netCDF float32 and agrees with the constructed nodes to a few parts in a
+    million and no closer, so this bar refuses a correct axis there;
+    `require_same_rows` is the door for that comparison and carries the looser
+    tolerance for exactly this reason.
+
     The spec is CONSTRUCTED and the artifact's axis is READ, and this is the one
     place they are compared. If they disagree the spec is describing a different
     grid from the field it is about to remap, and every weight is then a weight

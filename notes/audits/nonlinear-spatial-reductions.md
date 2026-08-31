@@ -38,6 +38,8 @@ criterion.
 | parent texture through weathering | a factor 1.35 in the weathering intensity, Dunne's `S_y.x` of 0.13 log units carried in `pedology/config/pedogenesis.yaml` |
 | erodibility through the regolith depth law | `regolith.minimum_depth_m`, the thinnest profile the pedogenesis model distinguishes |
 | subgrid elevation through Clausius-Clapeyron | 1% of the saturation vapour pressure, declared rather than sourced. It is the one bar here that is not an instrument, and it has not been moved: there is nothing sourced to move it to, and a bar placed after the result it judges is not a criterion |
+| the staged albedo pair through the model's wetting | the accepted baseline's 0.12 W m-2 state-storage tolerance, which `config/partial_surface.yaml` selected the tile operator against. An albedo error reaches it as `delta_alpha * S_down` |
+| the aeolian roughness mixture | each class's own declared `bracket` in `aeolian/config/dust.yaml`, the level uncertainty its measurement set supports, converted into a factor on the power of `u*` the arm reports |
 
 Two further cases are not Jensen gaps at all and are reported as what they are:
 a calibration that moves with the support, and a statistic that carries a length
@@ -53,6 +55,8 @@ from the mesh.
 | parent texture mixed before weathering | `soil` | **NOT material, and the premise is wrong** | the clay total is exactly 0.0 at every intensity and every rung; sand and silt trade at most 0.0047 of the land mean, inside Dunne's own scatter everywhere |
 | the orographic term across the ladder | `surface_roughness` | DERIVED, and flat where it used to be a calibration | the land mean spreads by 0.9% from T21 to T170, where the solved coefficient it replaced moved by a factor of 1.98 |
 | `subgrid_slope` as an elevation spread over the mesh spacing | `soil` | a length carried from the MESH, not a gap | doubled between this project's two builds while the spread it is built from moved 1.6%; the run is now declared, and 11.8% of regolith depth at the land mean rests on the change |
+| the staged dry and saturated albedo pair through the model's mixing | `surface_albedo`, then `landmod:wetalb` | **MATERIAL over the middle of the wetting range, and no two-field repair exists** | 0.147 W m-2 of global absorbed shortwave against a 0.12 W m-2 bar, past it from 0.10 to 0.47 of the saturation range and peaking on the model's own evaporation knee |
+| the aeolian roughness of a mixed erodible patchwork | `build_dust`, then the in-model emission | NOT material, and the operation was right for the wrong reason | exact for MB95's drag partition, 4.9% on `u*` cubed against the 62.8% the class's own declared bracket carries |
 
 ## 1. Erodibility mixed before the regolith depth law. The large one
 
@@ -368,6 +372,249 @@ build against 1.1642 on the fine one; over the declared run it is 1.0393 and
 therefore rises by 11.8%, which is far above the 0.02 m the pedogenesis model
 distinguishes. The soil map staged before this change is worthless rather than
 stale.
+
+## 7. The wet-soil albedo mixing. Pre-registered before the measurement
+
+### The ocean's zenith fit is not an aggregate-then-process composition here
+
+`radmod.f90`'s ocean albedo is strongly convex in the cosine of the zenith
+angle -- the ECHAM-3 branch is `min(0.05/(mu0 + 0.15), 0.15)` -- and the model
+does hold a branch that hands it a LONGITUDINAL MEAN of that cosine, taken over
+a latitude row. That branch is `ndcycle == 0` and this world does not run it:
+`ndcycle`'s compiled default is 1, nothing in `config/planet.yaml` or in
+`run_exoplasim.py` assigns it, and `radini` is the only place it could be
+assigned. So the zenith cosine reaching the fit is instantaneous and there is no
+aggregation in front of it to have an order. The composition is real in the
+source and absent from this configuration, which is a different verdict from
+"small", and it becomes live the moment a run turns the diurnal cycle off.
+
+### The staged fields
+
+`build_surface_albedo.py` is affine at the crossing everywhere except here, and
+that is worth saying first because it is the larger part of the finding. Every
+nonlinear step in the builder -- the band split through `band_shapes`, the
+per-class wetting ratios, the derived evaporite threshold, the lake paint -- is
+evaluated PER MESH REGION and reduced afterwards, so the six staged albedo
+fields are area-weighted means of quantities the law has already been applied
+to. The builder's own recombination identity, `z1*175 + z2*176 == 174`, is the
+check that says so and it is asserted before the write. Snow albedo, sea-ice
+albedo and the ocean's zenith fit are all evaluated inside the compiled model on
+grid-scale prognostics with no sub-grid population at all, so GW-6's constraint
+applies to them unchanged and no operator is warranted.
+
+One composition is not affine. The builder stages a DRY albedo and a SATURATED
+albedo per cell, each an area-weighted mean over the cell's own lithology, and
+`landmod.f90:wetalb` mixes them per cell through `wet_soil_albedo`, which is
+Sadeghi, Jones and Philpot (2015) Eqs (4) and (13). That mixing is linear in the
+Kubelka-Munk transform `r = (1-R)^2 / (2R)` and therefore concave in the albedo,
+so the cell's own mixture of rocks does not give the mixed albedo of the cell's
+mean rock. The sub-grid population is real and is the mesh's `substrate_class`,
+which spans two decades of albedo between a dark basalt and a playa.
+
+**The bar.** The consuming step is the surface energy balance, and its declared
+instrument is the accepted baseline's 0.12 W m-2 state-storage tolerance --
+`config/partial_surface.yaml` selected the tile operator against it and
+`ocean/config/transport_loop.yaml` carries it as the transport loop's own
+controlling scalar. An albedo error reaches that balance as
+`delta_F = delta_alpha * S_down`, so the bar is the albedo difference worth
+0.12 W m-2 at the accepted baseline's own land-mean downward shortwave, read
+from the climatology rather than assumed.
+
+**The invariants, pre-registered.**
+
+- The gap is EXACTLY ZERO at both ends of the saturation axis. `sadeghi_mix`
+  returns the staged dry field at `s = 0` and the staged wet field at `s = 1` on
+  their own branches, and both are area-weighted means, so the two orders agree
+  to the last bit there. A nonzero gap at either end indicts the arm.
+- The gap is exactly zero in a cell of one substrate class, at every saturation.
+  This is `cell_mean`'s constant-preservation invariant reached through the
+  mixing, and it is falsifiable rather than asserted.
+- The gap is ONE-SIGNED in saturation for a fixed cell, because the mixing is
+  concave in the albedo pair and the curvature of the Kubelka-Munk inverse does
+  not change sign on the physical albedo range. The sign is therefore
+  pre-registrable HERE, unlike in the ocean arms, for the same reason the
+  regolith depth law's was: a single saturating function has one curvature.
+- Refinement must shrink it, because in the limit of one region per cell the
+  two orders are the same computation.
+
+### The result
+
+Measured 2026-08-30 on `canonical-10m-carve2`, terrain hash `f496ae9f`, at every
+rung, with the watts taken on the accepted baseline climatology, which is T21.
+
+**The one-class control passes.** A cell holding a single substrate class gives
+the same answer in both orders to 1.8e-15 in albedo against a 1e-12 bar, at
+every rung, and the gap is exactly zero at both ends of the saturation axis
+because `sadeghi_mix` returns the staged fields there on their own branch. That
+is the arm that could have failed.
+
+| rung | land cells | of one class | band 1 land-mean gap | band 2 | worst cell |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| T21 | 1,639 | 147 | -1.974e-03 | -1.766e-03 | 1.55e-02 |
+| T42 | 5,754 | 848 | -1.821e-03 | -1.641e-03 | 1.65e-02 |
+| T85 | 20,719 | 5,283 | -1.587e-03 | -1.450e-03 | 1.68e-02 |
+| T127 | 44,392 | 15,032 | -1.398e-03 | -1.297e-03 | 1.68e-02 |
+| T170 | 76,168 | 30,657 | -1.246e-03 | -1.174e-03 | 1.68e-02 |
+
+All at the sweep's worst saturation, 0.2853 of the 0 to 0.7609 range the model's
+declared endpoints allow. The gap is NEGATIVE, so the modelled wet ground is
+brighter than the cell's own mixture of rocks would be and the surface absorbs
+less than it should. That is concavity, as pre-registered.
+
+**The pre-registered sign holds on the population and not on every cell.** The
+invariant said the gap does not change sign along the saturation axis within a
+cell, because the curvature of a single saturating function does not change. It
+is violated on 7 of the 1,492 mixed cells at T21 and on 62 of 45,511 at T170 --
+0.47 per cent falling to 0.14 -- and that is reported rather than rounded away.
+The mechanism is that the mixing is concave in the PAIR and the pair does not
+move together: a cell whose two classes have very different wetting ratios has
+a saturated spread of a different shape from its dry one, and the curvature of
+the composition can change sign between them. The claim was too strong as
+stated; what survives it is the land mean, which is one-signed at every
+saturation and every rung.
+
+**Refinement shrinks the land mean and does not touch the worst cell.** The land
+mean falls by a factor 1.6 from T21 to T170 while the worst cell rises slightly,
+because a finer grid has more cells of one class -- 9.0 per cent at T21 against
+40.2 at T170 -- and the mixed cells that remain are no less mixed.
+
+**MATERIAL over the middle of the wetting range.** The gap reaches 0.147 W m-2
+of global-mean absorbed shortwave against the accepted baseline's 0.12 W m-2
+storage tolerance, and stays past it from about 0.10 to about 0.47 of the
+saturation range:
+
+| saturation | 0.000 | 0.095 | 0.190 | 0.285 | 0.380 | 0.476 | 0.571 | 0.666 | 0.761 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| W m-2 | 0.000 | -0.105 | -0.142 | **-0.147** | **-0.137** | -0.120 | -0.099 | -0.076 | -0.054 |
+
+Taken on the accepted baseline's own downward shortwave per band, land-area
+weighted at 79.3 and 92.6 W m-2, and weighted by each cell's land area over the
+whole planet so the number is directly comparable with a global storage
+tolerance.
+
+**The peak sits on the model's own evaporation knee, which is what settles the
+materiality rather than a guess about how wet this world is.** `landmod.f90:181`
+puts `drhsfull` at 0.4 of capacity, the fraction above which the wetness factor
+reaches one, and `config/planet.yaml` maps a full surface layer to a saturation
+of 0.7609. So the knee is at a saturation of 0.304 and the gap peaks at 0.285.
+The modelled soil crosses that point every time it wets or dries through the
+limiter's ceiling, which is the transition the limiter exists to describe.
+
+### The pre-registered repair does not work, and the reason is a boundary condition
+
+The pre-registration said the mixing is linear in the Kubelka-Munk transform, so
+staging the albedo whose transform is the cell's area mean of the per-region
+transforms would make the composition exact at every saturation with no
+residual. That is wrong at first order and the test is what says so.
+
+| saturation | truth | staged in albedo | staged in the transform |
+| ---: | ---: | ---: | ---: |
+| 0.000 | 0.275000 | +0.0 | -1.14e-01 |
+| 0.285 | 0.239999 | +1.0e-03 | -1.07e-01 |
+| 0.761 | 0.199963 | +5.0e-04 | -9.7e-02 |
+
+On a cell of two classes at equal area with albedos 0.10 and 0.45. Staging in
+the transform is a hundred times worse than the defect it was meant to remove,
+and it fails hardest at zero saturation.
+
+**The two staged fields are not free parameters.** Code 174 IS the dry albedo:
+`sadeghi_mix` returns it unchanged at zero saturation and the radiation reads
+the same field on dry ground, so it is pinned to the cell's area-mean dry
+albedo by a boundary condition that has nothing to do with wetting. The
+saturated pair is pinned at the other end by the same argument. There is
+therefore no two-field staging that is exact across the saturation axis: what
+the model would need is the cell's own curvature, and two numbers do not carry
+it.
+
+The mixing is linear in the transform of ITS ARGUMENT and the inverse transform
+is applied afterwards, which is the step the pre-registration missed. Reducing
+in the transform makes the argument exact and leaves the inverse's own Jensen
+term, which is convex where the measured one is concave -- so the two available
+stagings bracket the truth from opposite sides rather than one of them reaching
+it.
+
+**The disposition is therefore a model change or a declared bracket, and not a
+builder change.** Either `wetalb` reads a third staged field carrying the cell's
+curvature, or the measured gap is carried as declared model-form error with the
+table above as its bracket. Nothing in `build_surface_albedo.py` can fix it,
+which is why this finding does not move that builder.
+
+## 8. The aeolian roughness mixture. Right operation, wrong reason, and immaterial
+
+`aeolian/config/dust.yaml` collapses a patchwork of erodible surfaces to one
+roughness per lithology class and then one per cell, as a geometric mean. Two
+laws read that single number and they are not nonlinear in the same way, so one
+reduction cannot be right for both by assumption. Measured 2026-08-30 by
+`aeolian/scripts/roughness_mixing_order.py`; the artifact is
+`aeolian/analysis/roughness_mixing_order.json`.
+
+**The drag partition is AFFINE in `ln z0` and the geometric mean is therefore
+EXACT for it.** Marticorena and Bergametti (1995) give
+`feff = 1 - ln(z0/z0s) / ln(a (X/z0s)^b)`, whose denominator carries no `z0`, so
+the area mean of `ln z0` reproduces the area-mean drag efficiency to the last
+bit. That is an identity rather than a comparison and it is the arm that can
+fail: the two orders agree to 1.7e-16 on the widest mixture in the table and to
+exactly zero on the rest, against a 1e-12 bar, and the clip binds on no
+endmember of either mixture. Its premise is the clip, and a table whose classes
+clipped would break the affinity without breaking the arithmetic, which is why
+the arm reports the clip separately from the residual.
+
+**The reason the config gave is not that reason, and the difference is not
+pedantic.** It read "the drag goes as 1/ln(z/z0) and it is ln(z0) that
+averages". The same sentence carries to the exchange coefficient, where
+`ce = k^2 / ln(z_ref/z0)^2` and section 3 above measures 8 to 10 per cent of
+land-mean error from averaging in the wrong quantity. A correct operation
+resting on a reason that generalises wrongly is one copy-paste from a defect,
+and the config and `build_dust.py:mosaic_scalar_z0` now carry the affine
+argument instead.
+
+**The friction velocity is not affine in `ln z0`, and that residual is what the
+arm sizes.** The same value is written as the namelist `DUSTZ0` the in-model
+friction velocity divides by, and `u* = k U / ln(z_ref/z0)` goes as `1/L` with
+`L = ln(z_ref/z0)`. `1/L^p` is convex in `L` for every positive `p`, so the area
+mean of `u*^p` is at or above `u*^p` at the mean `L` and the geometric mean
+UNDERSTATES it. The sign is pre-registrable and one-signed here, for the reason
+the regolith depth law's is: a single convex function of one variable does not
+change curvature.
+
+| mixture | spread in `ln z0` | `u*` | `u*^2` | `u*^3` |
+| --- | ---: | ---: | ---: | ---: |
+| `playa_clastic`'s three landform bands | 3.005 | 1.0078 | 1.0238 | **1.0488** |
+| `evaporite` against `playa_clastic`, worst share | 1.025 | 1.0015 | 1.0047 | **1.0093** |
+
+Process-then-aggregate over aggregate-then-process, at the shorter end of the
+reference-height bracket, which is where the gap is largest. The reference
+height is `lapse.reference_height_m` over the same 273.15 to 313.15 K liquid
+span the roughness builder brackets over, and it runs 106.2 to 121.7 m on this
+planet.
+
+**NOT MATERIAL, by an order of magnitude, against the instrument the step
+already declares.** Each class carries a `bracket` on its own `z0` in
+`aeolian_z0_by_class_m`, which is the level uncertainty its measurement set
+supports. On `playa_clastic` that bracket is worth a factor 1.63 on `u*^3`,
+against the 1.049 the order of the mixture is worth. In logs the declared
+ignorance is 10.2 times the gap. The between-class mixture is narrower still and
+is bounded by the band case rather than argued to be: the two erodible classes
+span 1.025 in `ln z0` where the three bands span 3.005, and the arm reports both
+spreads so the bound is checkable.
+
+**The band shares come from a build this project no longer holds, and the
+verdict does not turn on them.** `playa_roughness_mix.py` refuses to run on the
+configured build because the shares are an area-weighted measurement over the
+raw mesh and cannot be carried across a generation, so the artifact carries
+`precarve-craton` and `precarve-craton-10m` and neither is `canonical-10m-carve2`.
+The two it does carry give 1.042 and 1.049 on `u*` cubed, a spread of 0.7 per
+cent where the instrument is 62.8, and the endmember roughnesses the mixture is
+built from are measured surfaces rather than terrain and do not move at all. A
+share vector on the current build cannot bring 1.05 within reach of 1.63.
+
+The class mixture is measured over a declared share sweep rather than the
+export's own per-cell shares, and that is a deliberate limit rather than an
+omission. Per-cell shares would move the gap between the pure endpoints, where
+it is exactly one, and the equal-share case, where it is largest; the arm
+already evaluates the largest, so a per-cell measurement can only lower the
+answer. It would sharpen a number that is already an order of magnitude inside
+its instrument.
 
 ## What follows
 

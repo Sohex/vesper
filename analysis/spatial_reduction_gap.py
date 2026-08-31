@@ -162,9 +162,38 @@ from build_surface_roughness import (CE_BRACKET_K, DEFAULT_BARE_Z0_M,   # noqa: 
                                      effective_length, inner_layer_depth,
                                      orographic_form_drag,
                                      pressure_scale_height)
-from build_surface_albedo import MODE_FOREST_FRACTION           # noqa: E402
+from build_surface_albedo import (MODE_FOREST_FRACTION, ROCK_BANDS,  # noqa: E402
+                                  WETTING, band_shapes, rock_band_ratios,
+                                  rock_wetting_ratios, _rock_id)
+# The reduction operators, the mixing law and the climatology door, each from
+# the module that owns it. `sadeghi_mix` is imported rather than restated
+# because the compiled model runs the same shape and `soil_albedo_wetting.py`
+# already checks the two against each other.
+from gridding import (cell_expectation, cell_mean, gaussian_latitudes,  # noqa: E402
+                      require_same_rows)
+from climatology import annual_mean                             # noqa: E402
+from paths import best_available_climatology                    # noqa: E402
+from stellar import band_fractions                              # noqa: E402
+sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
+from soil_albedo_wetting import sadeghi_mix                     # noqa: E402
 
 OUTPUT = PROJECT_ROOT / "analysis" / "spatial_reduction_gap.json"
+
+# The wetting arm the staged pair is built with. `build_surface_albedo.py`
+# offers two and the field is staged from one; measuring the reduction on a
+# different arm from the one that is staged would compare two things at once.
+WETTING_ARM = "twomey"
+
+# A cell of one substrate class has no spread for the mixing to be nonlinear
+# over, so its gap is exactly zero. The tolerance is float64 round-off on an
+# albedo, which is what an exact identity leaves behind.
+ONE_CLASS_TOLERANCE = 1.0e-12
+
+# The accepted baseline's state-storage tolerance, which
+# `config/partial_surface.yaml` selected the tile operator against and
+# `ocean/config/transport_loop.yaml` carries as the transport loop's own
+# controlling scalar. An albedo error reaches it as `delta_alpha * S_down`.
+STORAGE_TOLERANCE_W_M2 = 0.12
 
 # The intensity bracket the weathering arm sweeps: the clip range
 # `pedogenesis.yaml` declares for W itself, so the sweep covers every value the
@@ -809,6 +838,232 @@ def support_arm(config, rung: str, pedo) -> dict:
 
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# arm 7: the staged dry and saturated albedo pair through the model's mixing
+# --------------------------------------------------------------------------
+
+def _region_albedo_pair(mesh: Export, config: dict):
+    """Per-region dry and saturated albedo, per band, as the builder forms them.
+
+    Every expression here is `build_surface_albedo.py`'s own, imported rather
+    than restated: the band shapes, the wetting ratios and the lithology
+    overrides all come from the step that owns them. What this does NOT do is
+    the reduction, which is the whole point of the arm; both orders of it are
+    taken by the caller.
+
+    The vegetation, lake and evaporite repaints are deliberately absent. Each is
+    applied per region BEFORE the reduction in the builder, so they change which
+    class a region carries and therefore the size of the within-cell spread, and
+    they do not change the ORDER of the operation. Leaving them out measures the
+    reduction on the lithology alone, which is the population that exists on
+    terrain with no climate run and no biosphere.
+    """
+    rock = mesh.field("substrate_class").astype(int)
+    region_albedo = mesh.rock_albedo.astype(np.float64).copy()
+
+    overrides = (config.get("model") or {}).get("lithology_albedo_overrides") or {}
+    applied = {}
+    for code, spec in overrides.items():
+        value = float(spec["albedo"] if isinstance(spec, dict) else spec)
+        rid = _rock_id(mesh.root, code)
+        sel = rock == rid
+        if sel.any():
+            applied[code] = {"rock_id": rid, "albedo": value,
+                             "regions": int(sel.sum())}
+            region_albedo[sel] = value
+
+    z1, z2 = (float(v) for v in band_fractions())
+    rho = np.empty(region_albedo.shape, dtype=np.float64)
+    for rid, value in rock_band_ratios(ROCK_BANDS, mesh.root).items():
+        rho[rock == rid] = value
+    shape1, shape2 = band_shapes(rho, z1, z2)
+
+    rock_wet, wet_report = rock_wetting_ratios(WETTING, mesh.root, WETTING_ARM)
+    wet1 = np.empty(region_albedo.shape, dtype=np.float64)
+    wet2 = np.empty(region_albedo.shape, dtype=np.float64)
+    for rid, (w1, w2) in rock_wet.items():
+        wet1[rock == rid] = w1
+        wet2[rock == rid] = w2
+
+    dry = (region_albedo * shape1, region_albedo * shape2)
+    sat = (dry[0] * wet1, dry[1] * wet2)
+    return rock, dry, sat, {"band_fractions": [z1, z2],
+                            "lithology_albedo_overrides": applied,
+                            "wetting": wet_report}
+
+
+def _one_class_cells(cell, ncell: int, rock, land) -> np.ndarray:
+    """True where every land region in the cell carries the same substrate class."""
+    order = np.argsort(cell[land], kind="stable")
+    c = cell[land][order]
+    r = rock[land][order]
+    starts = np.flatnonzero(np.r_[True, c[1:] != c[:-1]])
+    ends = np.r_[starts[1:], c.size]
+    mixed = np.zeros(ncell, dtype=bool)
+    for lo, hi in zip(starts, ends):
+        block = r[lo:hi]
+        mixed[c[lo]] = bool((block != block[0]).any())
+    return ~mixed
+
+
+def band_downward_shortwave(grid: tuple[int, int]) -> dict | None:
+    """Annual-mean downward surface shortwave per band, on the accepted baseline.
+
+    Returns None where the accepted climatology is not on this grid. There is no
+    fallback onto another rung: a plausible flux from a grid the albedo field was
+    not built on is worse than no flux, which is the disposition
+    `analysis/coastline_flux_bracket.py` already takes for the same reason.
+
+    The two axes are joined by INDEX and never by label. `require_same_rows` is
+    the door for an axis read off a CLIMATOLOGY: netCDF stores it as float32, so
+    the constructed Gauss-Legendre nodes and the axis on disk agree to a few
+    parts in a million and no closer, and `require_gaussian_rows`'s float64 bar
+    refuses a correct axis for that reason alone. The columns are the identity,
+    because the export and the model label the same columns differently and only
+    the labels differ. `CLAUDE.md` rule 3.
+    """
+    from netCDF4 import Dataset
+    clim = best_available_climatology()
+    if clim is None or not Path(clim.path).is_file():
+        return None
+    with Dataset(clim.path) as ds:
+        shape = (len(ds.dimensions["lat"]), len(ds.dimensions["lon"]))
+        if shape != grid:
+            return None
+        require_same_rows(gaussian_latitudes(grid[0]),
+                          np.asarray(ds["lat"][:], dtype=np.float64),
+                          "the accepted climatology against this rung")
+        centres = np.asarray(ds["time"][:], dtype=np.float64)
+        bands = [annual_mean(np.asarray(ds[n][:], dtype=np.float64), centres).ravel()
+                 for n in ("rsds1", "rsds2")]
+    return {"stage": clim.stage, "path": str(clim.path), "bands": bands}
+
+
+def wet_albedo_arm(mesh: Export, cell, ncell, land, area, config,
+                   grid: tuple[int, int]) -> dict:
+    """The staged pair reduced then mixed, against mixed then reduced.
+
+    `build_surface_albedo.py` stages a DRY band pair and a SATURATED band pair,
+    each an area-weighted mean over the cell's own lithology, and
+    `landmod.f90:wetalb` mixes them per cell through `wet_soil_albedo`, which is
+    Sadeghi, Jones and Philpot (2015): linear in the Kubelka-Munk transform
+    `r = (1-R)^2 / (2R)` and therefore NOT in the albedo. So the model computes
+    the mixing of the cell's mean rock, where what the cell owes the atmosphere
+    is the area mean of the mixings of its own rocks.
+
+    The saturation axis is not swept over a guess. Its two endpoints are
+    `soil_albedo_moisture.saturation_at_empty_layer` and
+    `saturation_at_full_layer`, which `run_exoplasim.py` already checks against
+    the compiled defaults, so the sweep covers exactly the range the modelled
+    land column reaches and no more.
+
+    The bar is the accepted baseline's 0.12 W m-2 state-storage tolerance. An
+    albedo error reaches the surface energy balance as `delta_alpha * S_down`,
+    so the arm weights the per-cell gap by the accepted baseline's own downward
+    shortwave in each band and by the cell's land area and divides by the area
+    of the planet. That number is available on the rung the accepted
+    climatology carries and on no other, and the arm says which.
+    """
+    moisture = config["surface"]["soil_albedo_moisture"]
+    s_lo = float(moisture["saturation_at_empty_layer"])
+    s_hi = float(moisture["saturation_at_full_layer"])
+    sigma = (float(moisture["shape_sigma_band1"]),
+             float(moisture["shape_sigma_band2"]))
+    sweep = tuple(round(s_lo + (s_hi - s_lo) * k / 8.0, 6) for k in range(9))
+
+    rock, dry, sat, meta = _region_albedo_pair(mesh, config)
+    one_class = _one_class_cells(cell, ncell, rock, land)
+    shortwave = band_downward_shortwave(grid)
+
+    land_area = np.bincount(cell[land], weights=area[land], minlength=ncell)
+    covered = land_area > 0
+    total_area = np.bincount(cell, weights=area, minlength=ncell)
+    planet_area = float(total_area.sum())
+
+    worst_pure = 0.0
+    bands: dict[str, dict] = {}
+    watt_gap = {s: np.zeros(ncell) for s in sweep}
+    for b, (d_r, w_r, sig) in enumerate(zip(dry, sat, sigma), start=1):
+        a_dry, _, cov = cell_mean(cell, ncell, area, d_r, land)
+        a_wet, _, _ = cell_mean(cell, ncell, area, w_r, land)
+        rows, stack = [], []
+        for s in sweep:
+            aggregate = sadeghi_mix(a_dry, a_wet, s, sig)
+            # `cell_expectation` applies the law to the WHOLE per-region array
+            # and averages afterwards, so the saturated partner closes over the
+            # same region order and the alignment is the operator's own.
+            expectation, _, _ = cell_expectation(
+                cell, ncell, area,
+                lambda values, w=w_r, s=s, sig=sig: sadeghi_mix(values, w, s, sig),
+                d_r, land)
+            gap = np.where(cov, expectation - aggregate, 0.0)
+            stack.append(gap)
+            pure = cov & one_class
+            if pure.any():
+                worst_pure = max(worst_pure, float(np.abs(gap[pure]).max()))
+            if shortwave is not None:
+                watt_gap[s] = watt_gap[s] + gap * shortwave["bands"][b - 1]
+            w = land_area[cov]
+            g = gap[cov]
+            rows.append({
+                "saturation": s,
+                "land_mean_gap": float((g * w).sum() / w.sum()),
+                "land_mean_aggregate_then_process": float(
+                    (aggregate[cov] * w).sum() / w.sum()),
+                "per_cell_gap": {str(p): float(np.percentile(g, p))
+                                 for p in (1, 50, 99)},
+                "maximum_absolute_gap": float(np.abs(g).max()),
+            })
+        # The pre-registered sign invariant, reported as what can falsify it:
+        # the number of MIXED cells whose gap takes both signs across the
+        # interior of the saturation sweep.
+        interior = np.stack([g for g, s in zip(stack, sweep) if s_lo < s < s_hi])
+        both = (interior > 0).any(axis=0) & (interior < 0).any(axis=0)
+        bands[f"band{b}"] = {
+            "shape_sigma": sig,
+            "by_saturation": rows,
+            "cells_whose_gap_changes_sign_along_saturation": int(
+                (both & cov & ~one_class).sum()),
+        }
+
+    result = {
+        "saturation_endpoints": [s_lo, s_hi],
+        "saturation_sweep": list(sweep),
+        "wetting_arm": WETTING_ARM,
+        "cells_with_land": int(covered.sum()),
+        "cells_of_one_substrate_class": int((covered & one_class).sum()),
+        "one_class_control": {
+            "worst_absolute_gap": worst_pure,
+            "tolerance": ONE_CLASS_TOLERANCE,
+            "passes": worst_pure <= ONE_CLASS_TOLERANCE,
+        },
+        "bands": bands,
+        "inputs": meta,
+    }
+    if shortwave is None:
+        result["absorbed_shortwave"] = {
+            "available": False,
+            "reason": "the accepted climatology is not on this rung, and there "
+                      "is no fallback onto another one",
+        }
+    else:
+        result["absorbed_shortwave"] = {
+            "available": True,
+            "stage": shortwave["stage"],
+            "bar_w_m2": STORAGE_TOLERANCE_W_M2,
+            "bar_source": "config/partial_surface.yaml, the accepted baseline "
+                          "state-storage tolerance the tile operator was "
+                          "selected against",
+            "global_mean_by_saturation": {
+                str(s): float((watt_gap[s] * land_area).sum() / planet_area)
+                for s in sweep},
+            "land_mean_downward_shortwave_w_m2": [
+                float((band * land_area).sum() / land_area.sum())
+                for band in shortwave["bands"]],
+        }
+    return result
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", type=Path,
@@ -818,6 +1073,10 @@ def main() -> int:
                          "every rung the configured build carries an export for")
     ap.add_argument("--reference-rung", default="T42",
                     help="rung the roughness recalibration is compared against")
+    ap.add_argument("--build", default=None,
+                    help="build to measure; the configured one by default. "
+                         "Every arm here is terrain, so a build with a payload "
+                         "is measurable whether or not it is the active one")
     ap.add_argument("--output", type=Path, default=OUTPUT)
     args = ap.parse_args()
 
@@ -826,8 +1085,9 @@ def main() -> int:
         (PROJECT_ROOT / "pedology" / "config" / "pedogenesis.yaml")
         .read_text(encoding="utf-8"))
 
-    build_root = builds.build_root(config)
-    mesh = Export(builds.mesh_export(config))
+    build_root = (builds.build_root(config) if args.build is None
+                  else PROJECT_ROOT / "source" / args.build)
+    mesh = Export(builds.mesh_export_at(build_root))
     area = mesh.cell_area.astype(np.float64)
     land = mesh.surface_class == LAND
 
@@ -847,6 +1107,8 @@ def main() -> int:
                                                 area, pedo),
             "saturation_deficit": saturation_arm(mesh, cell, ncell, land,
                                                  area, config),
+            "wet_albedo_mixing": wet_albedo_arm(mesh, cell, ncell, land, area,
+                                                config, (nlat, nlon)),
         }
         print(f"{rung}: done")
 
@@ -868,6 +1130,10 @@ def main() -> int:
             "saturation_deficit": f"{SATURATION_BAR} of e_sat, declared; "
                                   "unchanged since the first measurement "
                                   "crossed it",
+            "wet_albedo_mixing": f"{STORAGE_TOLERANCE_W_M2} W m-2, the accepted "
+                                 "baseline state-storage tolerance the tile "
+                                 "operator was selected against, reached by an "
+                                 "albedo error as delta_alpha * S_down",
         },
         "by_rung": {k: {n: v for n, v in arm.items()}
                     for k, arm in per_rung.items()},
