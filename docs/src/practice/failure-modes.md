@@ -1473,3 +1473,64 @@ at all, here it has one and reads it off an instrument that also reads other
 things. Class 34 is closer -- an instrument too blunt for the effect -- but a
 blunt instrument returns noise, and this one returns a confident wrong answer,
 which is harder to disbelieve.
+
+
+## 39. A write that looked local, landing in a tree other agents were using
+
+A git worktree carries the tracked tree and nothing else, so
+`scripts/link_worktree.py` symlinks the ignored payload back to the main
+checkout. Where a directory holds tracked content beside ignored payload it
+cannot make one directory symlink, so it links PER FILE -- and each of those
+links points INTO the main checkout. A worktree that writes a NEW file there
+gets a file that dies with the worktree, which is class-of-loss and is
+`notes/audits/worktree-stranded-payload.md`. A worktree that REGENERATES an
+EXISTING one writes straight through.
+
+Nothing about the write looks unusual. The path is inside the worktree, the
+editor and the generator both resolve it without complaint, and the bytes land
+in a tree that several other agents are reading. `vendor/lpj-guess/framework/vesper.h`
+is generated, gitignored and sits beside tracked source; an agent regenerated it
+in a worktree, correctly, to move a generation timestamp out of a header whose
+hash gates the binary, and the main checkout's LPJ-GUESS binary -- built against
+the previous bytes -- began failing its own verification. Five agents were live
+on the host that day. `vendor/cgenie`'s build products were linked the same way,
+so a build in a worktree wrote its objects over the main checkout's and an edit
+to cgenie source in a worktree read as a no-op behind them.
+
+**The damage is not where the mistake is, and that is the whole of the class.**
+Losing a worktree's file costs the work that made it, and the cost is paid by
+the tree that took it. Writing through costs an ARTIFACT in someone else's tree
+-- a compiled binary, a staged surface field -- at a moment nobody chose, and
+the agent who pays is the next one to build. The refusal they meet names the
+symptom, and the cause is in a worktree they cannot see.
+
+**The obvious repair does not exist.** A read-only link is not a thing: a
+symlink carries no permissions of its own, and the only mode that decides
+whether a write lands is the TARGET's, in the shared tree. Setting it refuses
+the main checkout's own legitimate regeneration and every other worktree at the
+same time. Nor is a local copy: the payload runs to gigabytes per worktree, and
+a copy pins the worktree to the moment it was taken, which is the loop's own
+failure of reading the earliest available input rather than the best.
+
+**Two repairs remain, and they are complements.** A refusal at the WRITE DOOR,
+where it is exact and prevents the write:
+`exoplasim/scripts/sra.py:write_sra` is the single door four staged-field
+builders share, and one guard there covers all of them. And a LEDGER for
+everything with no such door: `link_worktree.py` records what each per-file link
+pointed at, and reports any target whose bytes have moved. The ledger names the
+FACT and not the culprit, because from inside a worktree a write from here and a
+regeneration in the main checkout are indistinguishable -- and both matter, the
+first invalidating what the main checkout built and the second meaning this
+worktree's results came from bytes that are gone.
+
+**Where the report has to arrive.** A gate that only answers when the linker is
+re-run reaches the agent who tidies up, not the agent who wrote: an agent
+regenerating a file does not then run the linker. It does commit, which is why
+`scripts/check_worktree_links.py` is shaped to be asked at that moment.
+
+**The residual is the doors that do not exist yet.** Most generators of a linked
+artifact still write without testing whether the path is a link, so the ledger
+reports their write-through after it has landed rather than preventing it. Until
+each has a door, the property is carried by agents remembering it -- and a
+convention that only holds while everyone remembers is the thing a guard
+replaces. `notes/audits/worktree-write-through.md` enumerates which.
