@@ -163,6 +163,88 @@ at the same pair and also converged. C-ROUTE-2 asks the donor to endure the
 conversion step and T21 endures 45 over 108 converged orbits, so both sides of
 the T21 -> T42 conversion are now carried by a run that exists.
 
+### Above T21 the route CANNOT take a cold start, and that is a property of the configuration rather than a preference
+
+*Measured 2026-08-31, pre-flight on the T42 arms world-90y6 bought.*
+
+`config/planet.yaml` sets `model.soil_water_source: pedology`, and it argues
+the case: the land-mean capacity is well under the model's uniform 0.5 m
+bucket, which changes evaporation, which changes P - E, which is the numerator
+of the carve criterion. With it set, `run_exoplasim.py` REFUSES to start
+without staged code 229.
+
+**Code 229 exists at T21 and nowhere else, and it is the ONLY field in the
+family in that position.** Every other staged field takes a `--grid` and can be
+cut at any exported rung; `exoplasim/inputs/t42` carries all thirteen of them.
+`build_surface_soil_water.py` takes no `--grid` at all. It reads the grid and
+the land mask off a climatology and calls `require_configured_grid` on it, so
+with `model.resolution: T42` it refuses every climatology this project has.
+
+**And the dependency is on the grid, not on the climate.** The builder says so
+itself: what it takes from the climatology "is the grid and the boundary land
+mask, and nothing else: the water capacity itself comes from the land column
+states, which pedology weathered under a climate of their own." The mask is a
+pure function of the terrain and `build_boundary_conditions.py` already writes
+it at every rung as code 172. So the field's content is rung-independent and
+only its CARRIER pins it to T21. WORLD-QGB6.
+
+`config/pipeline.yaml` makes the climatology edge real rather than an
+oversight -- `surface_soil_water` needs `bootstrap_climatology`, because a
+staged surface field is an INPUT to the run whose output would otherwise build
+it -- and that edge is about DETERMINATION, which the bootstrap satisfies. It
+is the grid coupling riding on the same argument that pins the rung.
+
+**The consequence reaches further than a cold start, because `dwmax` is
+`STATIC_GRID, TARGET`.** `restart_schema.py` takes field capacity from the
+TARGET TEMPLATE and never from the donor, which is correct -- a donor's
+capacity belongs to another soil column -- and it means a CONVERTED arm's
+capacity is its own rung's staging too. So the route cannot carry the pedology
+field up the ladder by conversion either: every rung above T21 runs the uniform
+0.5 m bucket, whichever initial condition it starts from, until 229 can be
+staged at that rung. `config/planet.yaml` argues at the key itself that the
+uniform bucket is materially wrong here -- the land-mean capacity is well under
+it, which changes evaporation, which changes P - E.
+
+So at every rung above T21 the two initial conditions are not
+interchangeable, and the asymmetry is one-signed:
+
+| arm | where `dwmax` comes from | possible today at T42 |
+| --- | --- | --- |
+| cold | the staged `.sra`, read by `landini` only when `nrestart == 0` | **no**, code 229 is not staged at this rung |
+| converted | the restart, which FREEZES it | yes |
+
+**This is the route working rather than failing.** The escalation route exists
+so that no rung above T21 pays for a cold start, and a converted arm carries
+the T21 field up with it. What is new is that the route is now the only
+option there, so a cold arm at T42 or T85 is not a fallback the route can take
+if a conversion misbehaves.
+
+Two consequences to state before they are needed. A cold arm at a rung above
+T21 is buyable only at `soil_water_source: uniform`, which is a DIFFERENT
+configuration and has to be declared as one -- it is what the T42 arms of
+WORLD-YYX8 ran, before the key was flipped. And the T85 endurance arm this
+chapter asks for is a converted arm for this reason as well as for its price,
+which C-ROUTE-2 already assumed and which is now also a requirement.
+
+### A restart template is superseded by its own staging, and nothing said so
+
+*Measured 2026-08-31, same pre-flight.*
+
+`exoplasim/inputs/templates/T42_l10_p8.rest` was cut against a staged surface
+family that has since gained codes 1743, 1751 and 1761.
+`run_exoplasim.py:conversion_surface_reason` catches it and refuses: a
+converted state's static surface records are the TEMPLATE's, so a template cut
+against superseded staging would hand the run a surface it did not stage.
+
+The refusal is the gate working. What is worth carrying is the ORDER it
+imposes, because it is not obvious and it is the same at every rung: **a
+template can only be cut from a run of the target rung on the current staging,
+so the first arm at a new rung is a cold one and every converted arm at that
+rung waits on it.** Where a cold arm is not available -- which is every rung
+above T21, per the section above -- the template has to come from the first
+run made at that rung on whatever configuration could start, and the
+conversion inherits that configuration.
+
 ### C, the step the T42 -> T85 conversion happens at: 45 on the donor's side
 
 **C = 45 and the donor half is settled; the target half is not.** C-ROUTE-2
