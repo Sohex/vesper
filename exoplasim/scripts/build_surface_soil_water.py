@@ -17,6 +17,14 @@ of a namelist, and the soil is in turn a product of the climate and the
 biosphere. That is the third loop in this pipeline.
 
     python exoplasim/scripts/build_surface_soil_water.py
+    python exoplasim/scripts/build_surface_soil_water.py --grid source/<build>/exoplasim-<rung>
+
+**THE GRID IS THE RUNG AND IT IS TOLD, not inferred from a climatology.** The
+three rung-dependent inputs are the grid, the ownership mask -- surface code
+0172, which `build_boundary_conditions.py` writes at every exported rung -- and
+`land_column_states_<res>.txt`, and none of them is a climate. What a
+climatology can still do here is FAIL: pass `--climatology` and its axes and its
+`lsm` are required to be the grid and the mask this builder already has.
 
 **This reads and does not derive.** The field is
 `pedology/data/<build>/land_column_states_<res>.txt`, written by
@@ -77,9 +85,14 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
-from paths import bootstrap_climatology_path, rel, require_configured_grid  # noqa: E402
+from paths import rel  # noqa: E402
 from provenance import config_stamp  # noqa: E402
-from sra import write_sra
+from sra import read_sra, write_sra
+from builds import grid_export, land_column_states, resolution_of  # noqa: E402
+from gridding import (gaussian_grid, grid_geometry,  # noqa: E402
+                      land_fraction_of_class, model_label_cells,
+                      require_model_labels)
+import rungs  # noqa: E402
 
 SOIL_WATER_CODE = 229
 # The capacity SPLIT of that bucket over the land column's water column, one
@@ -102,6 +115,15 @@ SOIL_WATER_SPLIT_CODE = 2290
 # Where there is genuinely no land this is still meaningless and still has
 # to be a sane number.
 EXOPLASIM_DEFAULT_WSMAX_M = 0.5
+
+# The model's OWNERSHIP mask at this rung, written by
+# build_boundary_conditions.py from the mesh and the declared
+# `geography_land_threshold`. It is what the climatology's `lsm` is a copy of --
+# index for index, bit-identical, measured in
+# notes/audits/grid-convention-and-runoff.md -- and unlike a climatology it
+# exists at every exported rung. That is the whole of why this builder is no
+# longer pinned to the one rung a run has reached.
+LAND_MASK_CODE = 172
 
 # Coordinate rounding shared with pedology/scripts/build_soil.py.
 COORD_DECIMALS = 4
@@ -246,13 +268,21 @@ def main() -> None:
                         help="the land column property contract's emitted "
                              "per-cell states; defaults to the configured "
                              "build's")
-    # Resolved from config.bootstrap_climatology, not hardcoded. The default
-    # here named `climatology_s096` until 2026-08-17: pre-carve terrain under
-    # the superseded k2 spectrum. See lib/paths.py.
+    parser.add_argument("--grid", type=Path, default=None,
+                        help="the export whose grid this field is cut on; the "
+                             "GRID is the rung, so the output path, the "
+                             "filename, the land mask and the states file all "
+                             "follow it. Defaults to the configured build's")
+    parser.add_argument("--land-mask", type=Path, default=None,
+                        help=f"staged surface code {LAND_MASK_CODE}, the "
+                             "model's ownership mask at this rung; defaults to "
+                             "the one build_boundary_conditions.py wrote beside "
+                             "the output")
     parser.add_argument("--climatology", type=Path, default=None,
-                        help="supplies the grid and the land mask, so they match "
-                             "the soil map exactly; defaults to the configured "
-                             "bootstrap_climatology")
+                        help="OPTIONAL CROSS-CHECK and never a carrier: when "
+                             "given, its axes and its `lsm` are required to be "
+                             "the grid and the mask this builder already has. "
+                             "Nothing is read from it")
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--lakes", type=Path, default=None,
                         help="surface_water.nc; raises dwmax on the lake fraction "
@@ -263,27 +293,47 @@ def main() -> None:
                              "model.lake_dwmax_m, which is required when "
                              "--lakes is given")
     args = parser.parse_args()
-    # THE BOOTSTRAP, and this one is a NO-OP rather than a preference. What
-    # this takes from the climatology is the grid and the boundary land mask,
-    # and nothing else: the water capacity itself comes from the land column
-    # states, which pedology weathered under a climate of their own. The grid
-    # and the mask are identical at either stage of determination, so a
-    # baseline would tell this step nothing the bootstrap does not, and
-    # resolving one would make the step newly unrunnable on a first pass for
-    # no gain. `lib/paths.py:best_available_climatology` says where the
-    # invariant does and does not bite.
-    if args.climatology is None:
-        args.climatology = bootstrap_climatology_path()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     model = config["model"]
+
+    # THE GRID IS THE RUNG, and it is TOLD rather than inferred from a
+    # climatology. This builder used to take its grid and its land mask off
+    # `bootstrap_climatology` and call `require_configured_grid` on it, which
+    # made the one rung a run had reached the only rung the field could be cut
+    # at -- alone among the thirteen staged surface fields, and with the model
+    # refusing to start above it under `soil_water_source: pedology`. What the
+    # climatology supplied was the grid and the ownership mask and nothing else;
+    # both are properties of the terrain at a rung, and both are already written
+    # at every exported rung. WORLD-QGB6.
+    #
+    # The DETERMINATION edge the climatology also stood for is not lost with it:
+    # the climate enters this chain at `pedology/scripts/build_soil.py`, which
+    # names its own stage and refuses a soil/climate pairing it did not declare.
+    # Reading a climatology here as well put a grid coupling on that argument.
+    #
+    # Deliberately from the grid, not from config: see builds.resolution_of.
+    grid_dir = (args.grid or grid_export(config)).resolve()
+    resolution = resolution_of(grid_dir)
+    grid_lat, grid_lon, _grid_manifest = grid_geometry(grid_dir)
+    nlat, nlon = int(grid_lat.size), int(grid_lon.size)
+    ladder_nlat, ladder_nlon, _ = rungs.geometry(resolution)
+    if (nlat, nlon) != (ladder_nlat, ladder_nlon):
+        raise SystemExit(
+            f"{grid_dir} is named {resolution} and ships a {nlat}x{nlon} grid, "
+            f"which is not the ladder's {ladder_nlat}x{ladder_nlon} for that "
+            "rung. The export and its name disagree; nothing here can say "
+            "which is right.")
+
     if args.states is None:
-        import sys as _sys
-        _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
-        import builds as _b
-        args.states = _b.land_column_states(config)
-    nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
-    resolution = str(model["resolution"]).upper()
+        # The states file is per build AND RUNG, and the rung here is the
+        # GRID's. `builds.land_column_states` reads it out of a config, so it is
+        # asked with the grid's rung substituted rather than with the filename
+        # spelled a second time -- and `rungs.model_grid` inside it then refuses
+        # a rung and a shape that are not one fact.
+        states_config = dict(config, model=dict(
+            model, resolution=resolution, latitudes=nlat, longitudes=nlon))
+        args.states = land_column_states(states_config)
 
     if not args.states.is_file():
         raise SystemExit(
@@ -312,23 +362,67 @@ def main() -> None:
     capacity_mm = read_land_column_states(args.states, capacity_column)
     retention = read_retention_states(args.states)
 
-    # Grid and land mask come from the climatology, which is the boundary land
-    # mask as the model itself saw it, and is the same grid pedology wrote its
-    # soil map on. Deriving either independently is how the first version of
-    # this script matched zero cells out of 4106.
-    import netCDF4 as nc
+    # THE LAND MASK IS CODE 172 AT THIS RUNG, which is what every other builder
+    # in the staged family reads and what the model itself owns land by. The
+    # climatology's `lsm` is a copy of this file index for index -- bit-identical,
+    # measured in notes/audits/grid-convention-and-runoff.md -- so nothing is
+    # given up by reading the mask directly, and a mask that exists at every
+    # exported rung is gained.
+    mask_path = args.land_mask or (
+        INPUTS / resolution.lower()
+        / f"orogen_{resolution}_surf_{LAND_MASK_CODE:04d}.sra")
+    if not mask_path.is_file():
+        raise SystemExit(
+            f"{rel(mask_path)} does not exist. It is surface code "
+            f"{LAND_MASK_CODE}, the model's ownership mask at {resolution}; run "
+            f"exoplasim/scripts/build_boundary_conditions.py --grid {grid_dir} "
+            "first.")
+    land = read_sra(mask_path, nlat, nlon) > 0.5
 
-    with nc.Dataset(args.climatology) as data:
-        lat = np.asarray(data["lat"][:], dtype=float)
-        lon = np.asarray(data["lon"][:], dtype=float)
-        land = np.asarray(data["lsm"][0], dtype=float) > 0.5
-    # The same guard the resolver applies, called explicitly because
-    # `--climatology` can hand this an arbitrary file that never went through
-    # the resolver. One expression, in lib/paths.py.
-    require_configured_grid(args.climatology, config)
+    # A CLIMATOLOGY IS A CHECK HERE AND NEVER A CARRIER. Nothing is read from
+    # it: what it can do is fail, by being on another rung, by carrying a
+    # longitude axis that is not the labels the model writes, or by disagreeing
+    # with code 172 about which cells are land. That is the whole of what this
+    # builder used to take from one, restated as an assertion so that a caller
+    # who has a climatology to hand gets the agreement checked instead of the
+    # rung pinned.
+    if args.climatology is not None:
+        import netCDF4 as nc
+        with nc.Dataset(args.climatology) as data:
+            require_model_labels(data["lat"][:], data["lon"][:], nlat, nlon,
+                                 what=f"{rel(args.climatology)} against the "
+                                      f"{resolution} grid")
+            clim_land = np.asarray(data["lsm"][0], dtype=float) > 0.5
+        if not np.array_equal(clim_land, land):
+            raise SystemExit(
+                f"{rel(args.climatology)} and {rel(mask_path)} disagree about "
+                f"land on {int((clim_land != land).sum())} of {land.size} "
+                "cells. The climatology's `lsm` is the mask the model was "
+                "handed, read back, so these are two different builds or two "
+                "different thresholds and not two opinions to reconcile.")
 
-    lon_signed = np.round(np.where(lon > 180.0, lon - 360.0, lon), COORD_DECIMALS)
-    lat_rounded = np.round(lat, COORD_DECIMALS)
+    # THE STATES FILE CARRIES THE MODEL'S OWN LABELS, and the labels are not the
+    # export's. `pedology/scripts/build_soil.py` writes its rows keyed by the
+    # longitude a CLIMATOLOGY carries, which runs 0..360 from column 0; the same
+    # column is -177.1875 on the export's axis at T21. The two name the same
+    # columns and matching one against the other rotates the field by half the
+    # planet, agreeing on 0.5955 of cells and refusing nothing. So the labels are
+    # resolved to INDICES through the one door for it, which refuses a label
+    # that is not on the model's axis instead of snapping it to the nearest
+    # column. CLAUDE.md rule 3; lib/gridding.py:model_label_cells.
+    keys = list(capacity_mm)
+    key_rows, key_cols = model_label_cells(
+        np.array([k[1] for k in keys], dtype=float),
+        np.array([k[0] for k in keys], dtype=float),
+        nlat, nlon, what=f"{rel(args.states)} against the {resolution} grid")
+    cell_key: dict[tuple[int, int], tuple[float, float]] = {}
+    for key, j, i in zip(keys, key_rows.tolist(), key_cols.tolist()):
+        if (j, i) in cell_key:
+            raise SystemExit(
+                f"{rel(args.states)} puts two soil columns in grid cell "
+                f"({j}, {i}): {cell_key[(j, i)]} and {key}. The states file and "
+                f"the {resolution} grid are not the same grid.")
+        cell_key[(j, i)] = key
 
     field = np.full((nlat, nlon), EXOPLASIM_DEFAULT_WSMAX_M)
     matched = 0
@@ -346,7 +440,8 @@ def main() -> None:
     # is still what says an UNMATCHED cell is an error rather than an absence.
     for j in range(nlat):
         for i in range(nlon):
-            value = capacity_mm.get((float(lon_signed[i]), float(lat_rounded[j])))
+            key = cell_key.get((j, i))
+            value = None if key is None else capacity_mm.get(key)
             if value is None:
                 if land[j, i]:
                     unmatched_land += 1
@@ -355,6 +450,25 @@ def main() -> None:
             matched += 1
             if not land[j, i]:
                 matched_outside_ownership += 1
+
+    # A RIGHT ANSWER THE OTHER SIDE ALREADY KNOWS, and the one this builder had
+    # no way to fail on. pedology writes a soil column for every cell with a
+    # positive land fraction and code 172 owns land at `geography_land_threshold`,
+    # so the mask's population is a SUBSET of the states file's and every owned
+    # land cell must carry a capacity. A cell left at the namelist default is
+    # therefore a states file from another build or another rung, or a mask and a
+    # states file that were never on one grid -- and the field written from it is
+    # a uniform bucket wearing a soil's provenance. The old form counted these
+    # and printed the count.
+    if unmatched_land:
+        raise SystemExit(
+            f"{unmatched_land} of {int(land.sum())} cells that surface code "
+            f"{LAND_MASK_CODE} owns as land have no soil column in "
+            f"{rel(args.states)}, so they would be written at the uniform "
+            f"{EXOPLASIM_DEFAULT_WSMAX_M} m namelist default. pedology's "
+            "population is every cell with a positive land fraction and the "
+            "mask's is a subset of it, so this is a states file and a mask that "
+            "are not the same build at the same rung, not an absence of soil.")
 
     # Lakes, as an area-weighted bucket depth. `drhs` reaches 1 once soil water
     # exceeds 40% of dwmax (landmod.f90:103-104), so a SHALLOWER bucket saturates
@@ -377,11 +491,8 @@ def main() -> None:
     # notes/lake-representation.md, and only for the few resolvable lakes.
     lake_report = None
     if args.lakes is not None:
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / "lib"))
-        from gridding import land_fraction_of_class
         from orogen import Export
-        from builds import grid_export, mesh_export
+        from builds import mesh_export
         mesh = Export(mesh_export(config))
         with nc.Dataset(args.lakes) as lds:
             lake = np.asarray(lds["lake"][:]).astype(bool)
@@ -390,7 +501,10 @@ def main() -> None:
             raise SystemExit(
                 f"lake solution is on terrain {lake_terrain[:16]}, mesh is "
                 f"{mesh.terrain_hash[:16]}; re-run surface_water.py")
-        f_lake = land_fraction_of_class(mesh, grid_export(config), lake)
+        # ONTO THE GRID THIS FIELD IS BEING CUT ON, not the configured one. The
+        # lake solution is a property of the mesh and carries no rung; where it
+        # lands is decided by the grid the blend is written on.
+        f_lake = land_fraction_of_class(mesh, grid_dir, lake)
         # No fallback. The `.get(..., 0.2)` that stood here read as though
         # config supplied the depth, and config had never carried the key at
         # all, so the hardcoded number was what every run got -- confirmed in
@@ -470,7 +584,9 @@ def main() -> None:
     # column gets its own split, whatever the ownership mask calls it.
     for j in range(nlat):
         for i in range(nlon):
-            key = (float(lon_signed[i]), float(lat_rounded[j]))
+            key = cell_key.get((j, i))
+            if key is None:
+                continue
             usable = shares.get(key)
             states = retention.get(key)
             installed = capacity_mm.get(key)
@@ -568,11 +684,22 @@ def main() -> None:
         "output_sha256": hashlib.sha256(split_output.read_bytes()).hexdigest(),
     }
 
-    weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, nlon))
+    # The quadrature the model's own global budget is taken over, from the one
+    # grid constructor. A cosine of the latitude is a second opinion about a
+    # weight this module already owns, and on a Gaussian row it is not the same
+    # number.
+    weights = gaussian_grid(nlat, nlon).cell_area_fraction()
     land_mean = float(np.average(field[land], weights=weights[land])) if land.any() else 0.0
 
     report = {
-        "climatology": rel(args.climatology),
+        "grid": rel(grid_dir),
+        "land_mask": rel(mask_path),
+        "climatology": rel(args.climatology) if args.climatology else None,
+        "climatology_role": ("cross-check only: the grid is the export's and "
+                             "the land mask is surface code "
+                             f"{LAND_MASK_CODE}, so a climatology is never a "
+                             "carrier here and is not required to build the "
+                             "field. WORLD-QGB6."),
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "code": SOIL_WATER_CODE,
         "field": "dwmax, maximum soil water capacity, metres",
@@ -624,8 +751,8 @@ def main() -> None:
     # generator read. The bespoke `*_sha256` keys above recorded some of the
     # same hashes and nothing compared them; `check_consistency.py` compares
     # these. lib/provenance.py:input_stamp carries the argument.
-    inputs = [args.states] + [p for p in (args.climatology, args.lakes)
-                              if p is not None]
+    inputs = [args.states, mask_path] + [p for p in (args.climatology, args.lakes)
+                                        if p is not None]
     report.update(config_stamp(config,
                                "exoplasim/scripts/build_surface_soil_water.py",
                                inputs=inputs))
