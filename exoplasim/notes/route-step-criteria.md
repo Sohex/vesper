@@ -110,15 +110,24 @@ row, and endurance rows are bought one commissioning-length run at a time.
 
 | pair | verdict | orbits | run | on disk? |
 | --- | --- | ---: | --- | --- |
-| T21 dt 45 | endured, converged | 108 | `run_0d41aa82c287` | yes, this source |
+| T21 dt 45 | endured, converged | 108 | `run_0d41aa82c287` | yes |
 | T21 dt 30 | endured | 35 | `run_14906cb7b914` | yes |
-| **T42 dt 45** | **endured, converged** | **144** | `run_88ed6f9d34ae` | **yes, this source** |
+| **T42 dt 45** | **endured, converged** | **144** | `run_88ed6f9d34ae` | **yes** |
 | T42 dt 30 | endured | 84 | `run_1d39fef9bfc2` | no, identity only |
 | T42 dt 22.5 | -- | -- | -- | -- |
 | T85 any step | -- | -- | -- | -- |
 
-**The two rows the route's first two rungs stand on are now taken on this
-source, and both converged.** `run_88ed6f9d34ae` is a T42 cold start at dt 45
+**WHICH MODEL SOURCE EACH ROW DESCRIBES IS NOT A COLUMN HERE, and that is the
+point of C-ROUTE-6 rather than an omission.** A rebuild moves every binary at
+once and moves nothing that says so, so a currency column is a statement that
+goes false without being edited -- which is what this table did through the
+wet-soil merge, while every static gate stayed green.
+`lib/rungs.py:evidence_source_currency` derives it per row from the run's own
+manifest against `exoplasim/binary_manifest.json`, and `run_exoplasim.py`
+prints the answer at launch beside the pair's other caveats. Ask it; do not
+read it here.
+
+`run_88ed6f9d34ae` is a T42 cold start at dt 45
 that ran 144 orbits and met all six convergence criteria, and its paired
 converted arm `run_8d0ae7e2d02c` did the same at 89. Under C-ROUTE-6 that
 supersedes `run_900548ae632e`'s blow-up in its forty-seventh orbit outright:
@@ -139,7 +148,7 @@ changed, so C-ROUTE-6 still applies to them.
 
 T21 is refusal-clean well above 45 -- the boundary is between dt 120 and dt 150
 -- and has an endurance row at 45 and at 30 and at nothing coarser. The row at
-45 is now `run_0d41aa82c287`, 108 orbits on this source and converged on all six
+45 is now `run_0d41aa82c287`, 108 orbits and converged on all six
 criteria. C-ROUTE-1 part 2 is still not met at 60, so **A stays 45**. What it
 would take is one T21 endurance arm at dt 60; T21 is the cheapest rung on the
 route and the smallest of the three savings, so it is the last one worth buying.
@@ -149,7 +158,7 @@ route and the smallest of the three savings, so it is the last one worth buying.
 **B = 45, and the condition this section carried is met.** It read "B stays 30
 until a T42 endurance arm at dt 45 on the current source says otherwise". That
 arm is `run_88ed6f9d34ae`: T42, dt 45, cold, 144 orbits, all six convergence
-criteria met, on this source. Its paired converted arm `run_8d0ae7e2d02c` ran 89
+criteria met. Its paired converted arm `run_8d0ae7e2d02c` ran 89
 at the same pair and also converged. C-ROUTE-2 asks the donor to endure the
 conversion step and T21 endures 45 over 108 converged orbits, so both sides of
 the T21 -> T42 conversion are now carried by a run that exists.
@@ -162,11 +171,55 @@ answered: T42 endures 45 for a commissioning span from both initial conditions,
 which is what the conversion needs of the rung it leaves.
 
 **T85 still has no endurance row at any step**, so C-ROUTE-3 applies to the
-target side exactly as before: T85's refusal cell at 45 is clean, measured on
-the grid built for it, and a refusal-clean cell is necessary and never
+target side exactly as before, and a refusal-clean cell is necessary and never
 sufficient. What would settle it is one T85 commissioning-length arm at dt 45.
 That is the most expensive single arm on the route and it is also the last one
 the route needs, so nothing cheaper substitutes for it.
+
+**AND THE ARM CANNOT BE BOUGHT TODAY: three of its four inputs do not exist.**
+This is not the arm's price and it is not a reason to keep the step; it is the
+work in front of the purchase, and it is enumerated so the purchase can be
+sized rather than attempted.
+
+1. **The T85 staged surface family is absent.** There is no
+   `exoplasim/inputs/t85` and no run directory carrying `N128_surf_*.sra`. The
+   T85 cells in `exoplasim/analysis/stability_probe.json` were staged from
+   `run_2a50670d8f2b`, which is one of the runs in
+   `archive/runs/RECORDLESS.json` and has no record, no payload and no build.
+   `source/canonical-10m-carve2/exoplasim-T85` exists, so the family can be
+   built; nothing has built it. It also has to carry codes 1743, 1751 and 1761,
+   which `config/planet.yaml`'s `surface.soil_albedo_moisture.three_point`
+   makes a refusal in `landini` rather than an omission.
+2. **The T85 restart template is absent.** `exoplasim/inputs/templates` holds
+   `T85_l10_p16_omp.rest.provenance.json` and no `.rest` beside it, and that
+   provenance records the template as cut from `precarve-craton-10m` -- the
+   pre-carve build, not the active one. `convert_restart.py` needs a target
+   template, so the conversion the route makes at this hop has no target.
+3. **T85's refusal cell at 45 is on superseded source.** Every T85 probe cell
+   names executable `6722f7280e09`, and that is not the sha
+   `exoplasim/binary_manifest.json` registers for
+   `most_plasim_t85_l10_p8.x` now. C-ROUTE-1 part 1 asks for the cell in the
+   grid re-taken on the current model source, so the cell has to be re-taken.
+   It is the cheapest of the three and it depends on the first.
+4. The T42 state to convert from exists as `run_88ed6f9d34ae`.
+
+**And the arm's own price is a bracket wide enough that it is not yet a
+purchase decision.** `lib/run_lengths.py` puts a converted commissioning span
+at 53 to 92 orbits. A T85 orbit has never been timed on this host: the ratio to
+a T42 orbit is between 4, which is the gridpoint count, and 8, which is what the
+Legendre transform scales by, so 6.3 to 12.5 minutes an orbit against T42's
+measured 94 s on eight pinned threads. That is **5.6 to 19.2 hours of held host
+lock at p8**. A single arm is not a pair, so it may take all sixteen threads,
+and the speedup there is unmeasured too.
+
+**What closes the bracket costs minutes, and it is the second thing to buy after
+the staging.** C-ROUTE-5's cost half differences two wall times on one bed:
+`stability_probe.py` at T85 and dt 45 over 600 and 1200 steps, differenced,
+gives seconds per step directly, and 5850 steps is one orbit at this step. Run
+the same two passes at p8 and p16 and the thread question closes with it. Until
+that number exists the arm is priced across a factor of three and the route
+cannot say what raising C is worth in wall clock, which is the whole of
+C-ROUTE-4.
 
 **What the T42 arms bought, in the unit the next section uses.** The route runs
 45 throughout, which against the 22.5 it once carried at T85 is half the steps
@@ -218,5 +271,8 @@ on disk turned out to predate the partial-cell tile records the current model
 writes, so `convert_restart` refused all of them and a donor had to be cut
 fresh.
 
-**What is still unbought is the T85 arm.** Its refusal cell is clean at 45 and
-its endurance row is empty, which is the same shape T42 was in this morning.
+**What is still unbought is the T85 arm, and it is further off than the T42 arm
+was.** T42's endurance row was empty and everything in front of it existed: the
+staged family, the restart template, the refusal cell on the source that ran it.
+T85 has none of those, and section C above enumerates them. The endurance row is
+the last thing bought at this rung, not the first.
