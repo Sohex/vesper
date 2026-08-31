@@ -60,9 +60,19 @@ SOIL_REPORT = PROJECT_ROOT / "pedology" / "analysis" / "soil_report.json"
 # cflux.out carries the fire carbon flux. GLOBFIRM also exposes its inferred
 # return time and burned fraction through firert.out; retain both so fire-driven
 # mortality in cmass and dens has an occurrence diagnostic as well as a flux.
+#
+# maet.out, mevap.out and mintercep.out are the only route to the three
+# evaporative ways water leaves a gridcell. aaet.out Total is not one of them:
+# commonoutput.cpp builds it from indiv.aaet over the individuals still in
+# patch.vegetation, and framework.cpp runs mortality, establishment and fire
+# disturbance before outannual, so it reports the transpiration of the
+# survivors. Bare soil evaporation and canopy interception reach no annual
+# table at all. notes/audits/closure-stocks-are-incomplete.md.
 OUTPUTS = ("anpp.out", "lai.out", "fpc.out", "cmass.out", "aaet.out",
            "cpool.out", "dens.out", "agpp.out", "nsources.out", "cflux.out",
-           "firert.out", "tot_runoff.out", "nmass.out", "nuptake.out", "npool.out",
+           "firert.out", "tot_runoff.out",
+           "maet.out", "mevap.out", "mintercep.out",
+           "nmass.out", "nuptake.out", "npool.out",
            "nflux.out", "ngases.out", "soil_npool.out", "soil_nflux.out")
 
 NTRANSFORM_PROFILES = ("vesper", "stock-4.1.1")

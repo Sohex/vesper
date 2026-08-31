@@ -308,6 +308,48 @@ def written_quantum(tables: dict, output: str, field: str) -> float:
     return 0.0
 
 
+def pool_addends(rule: dict) -> list[tuple[str, str, float]]:
+    """The (output, field, scale) terms one closure rule adds to its stock.
+
+    A stock term names a column, and YAML 1.1 resolves the bare column name NO
+    to a boolean. A field that is not a string is refused here rather than
+    reaching `written_quantum` as a name no table has, because a stock quietly
+    short of one of its terms is the defect the addends exist to repair.
+    """
+    terms = []
+    for addend in rule.get("pool_addends", []):
+        scale = float(addend["to_flux_units"])
+        for field in addend["fields"]:
+            if not isinstance(field, str):
+                raise AcceptanceError(
+                    f"closure stock addend {addend['output']} names a "
+                    f"{type(field).__name__} field {field!r}; quote it")
+            terms.append((addend["output"], field, scale))
+    return terms
+
+
+def evaporation_columns(tables: dict, water: dict) -> list[tuple[str, list[str]]]:
+    """The monthly tables the water losses are summed from, and their columns.
+
+    An annual evaporation is the sum of EVERY column of its monthly table, so
+    the rule declares the count rather than the names and a table of another
+    shape refuses. Summing whatever columns happen to be there would turn a
+    changed output into a quietly different loss term.
+    """
+    named = []
+    for entry in water.get("evaporation_outputs", []):
+        output = entry["output"]
+        if output not in tables:
+            raise AcceptanceError(f"water closure needs {output}, which is not retained")
+        fields = tables[output][0]
+        if len(fields) != int(entry["fields"]):
+            raise AcceptanceError(
+                f"{output} has {len(fields)} columns, and the water closure "
+                f"sums {int(entry['fields'])}")
+        named.append((output, list(fields)))
+    return named
+
+
 def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
     """What each closure residual can resolve, against the tolerance it is held to.
 
@@ -335,11 +377,18 @@ def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
         factor = float(rule.get("pool_to_flux_units", 1.0))
         pool_q = written_quantum(tables, rule["pool_output"], rule["pool_field"])
         flux_q = written_quantum(tables, rule["flux_output"], rule["flux_field"])
-        bound = pool_q * factor + (count - 1) * flux_q / 2.0
+        # Every column the stock is summed from carries its own rounding into
+        # both endpoints, so each contributes a whole quantum to their
+        # difference exactly as the pool column does.
+        addend_q = {}
+        for output, field, scale in pool_addends(rule):
+            addend_q[f"{output}:{field}"] = written_quantum(tables, output, field) * scale
+        bound = pool_q * factor + sum(addend_q.values()) + (count - 1) * flux_q / 2.0
         floor = float(rule[absolute_floor_key(rule)])
         resolution[element] = {
             "pool_quantum": pool_q, "flux_quantum": flux_q,
             "pool_to_flux_units": factor,
+            "pool_addend_quanta": addend_q,
             "resolution_bound": bound, "absolute_floor": floor,
             "margin": (floor / bound) if bound > 0 else None,
         }
@@ -348,12 +397,18 @@ def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
                 f"{element} floor {floor:g} is {floor / bound:.2f}x its own "
                 f"{bound:g} resolution bound, under the required {margin:g}x")
     water = closure["water"]
-    aet_q = written_quantum(tables, water["aet_output"], water["aet_field"])
     runoff_q = written_quantum(tables, water["runoff_output"], water["runoff_field"])
-    bound = count * (aet_q + runoff_q) / 2.0
+    # Every monthly column summed into an annual loss carries its own rounding
+    # into each of the summed years, exactly as runoff does.
+    evaporation_q = {}
+    for output, fields in evaporation_columns(tables, water):
+        evaporation_q[output] = sum(
+            written_quantum(tables, output, field) for field in fields)
+    bound = count * (runoff_q + sum(evaporation_q.values())) / 2.0
     floor = float(water["absolute_floor_mm"])
     resolution["water"] = {
-        "aet_quantum": aet_q, "runoff_quantum": runoff_q,
+        "runoff_quantum": runoff_q,
+        "evaporation_quanta": evaporation_q,
         "resolution_bound_mm": bound, "absolute_floor_mm": floor,
         "margin": (floor / bound) if bound > 0 else None,
     }
@@ -419,11 +474,19 @@ def closure_report(tables: dict, cells: list[tuple[float, float]],
         residuals = np.empty(len(cells))
         throughputs = np.empty(len(cells))
         for cell, _ in enumerate(cells):
-            pool = field_series(tables, rule["pool_output"], rule["pool_field"],
-                                cell, selected)
+            # THE STOCK IS EVERY COLUMN THE ELEMENT IS HELD IN, not the one
+            # column named Total. A pool the flux side reports leaving but the
+            # stock side never counted holding turns the difference into
+            # something other than a conservation law; the config says which
+            # columns complete each stock and why.
+            stock = field_series(tables, rule["pool_output"], rule["pool_field"],
+                                 cell, selected) * factor
+            for output, field, scale in pool_addends(rule):
+                stock = stock + field_series(tables, output, field,
+                                             cell, selected) * scale
             flux = field_series(tables, rule["flux_output"], rule["flux_field"],
                                 cell, selected)
-            residuals[cell] = (pool[-1] - pool[0]) * factor + float(flux[1:].sum())
+            residuals[cell] = (stock[-1] - stock[0]) + float(flux[1:].sum())
             throughputs[cell] = float(np.abs(flux[1:]).sum())
         limits = np.maximum(floor, float(rule["relative_throughput_limit"]) * throughputs)
         failed = np.abs(residuals) > limits
@@ -445,15 +508,22 @@ def closure_report(tables: dict, cells: list[tuple[float, float]],
             refusals.append(f"{element} closure fails in {int(failed.sum())} cells")
 
     water = closure["water"]
+    evaporation = evaporation_columns(tables, water)
     residuals = np.empty(len(cells))
     limits = np.empty(len(cells))
     for cell, coordinate in enumerate(cells):
-        aet = field_series(tables, water["aet_output"], water["aet_field"],
-                           cell, selected)
         runoff = field_series(tables, water["runoff_output"], water["runoff_field"],
                               cell, selected)
+        # EVERY WAY WATER LEAVES THE GRIDCELL, on one accounting. The config
+        # says which tables carry the three evaporative losses and why none of
+        # them is the annual column that shares their name.
+        losses = float(runoff.sum())
+        for output, fields in evaporation:
+            for field in fields:
+                losses += float(field_series(tables, output, field,
+                                             cell, selected).sum())
         p_total = cycles * float(precip[coordinate].sum())
-        residuals[cell] = p_total - float(aet.sum()) - float(runoff.sum())
+        residuals[cell] = p_total - losses
         limits[cell] = max(float(water["absolute_floor_mm"]),
                            float(water["relative_throughput_limit"]) * p_total)
     failed = np.abs(residuals) > limits
@@ -645,6 +715,10 @@ def _write_driver(path: Path, cells: list[tuple[float, float]], precip_mm: float
         json.dumps({"physical_layers": layers}) + "\n", encoding="utf-8")
 
 
+# The columns of every monthly table, in the order commonoutput.cpp writes them.
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
 # What the model writes each closure column to, from the ColumnDescriptors in
 # `vendor/lpj-guess/modules/commonoutput.cpp`. The fixture writes at these
 # precisions so the resolution check has a real quantum to measure; the check
@@ -653,6 +727,11 @@ CLOSURE_DECIMALS = {
     ("cpool.out", "Total"): 6, ("cflux.out", "NEE"): 5,
     ("npool.out", "Total"): 7, ("nflux.out", "NEE"): 5,
     ("aaet.out", "Total"): 4, ("tot_runoff.out", "Total"): 4,
+    ("soil_npool.out", "NO2"): 4, ("soil_npool.out", "NO"): 4,
+    ("soil_npool.out", "N2O"): 4, ("soil_npool.out", "N2"): 4,
+    **{("maet.out", month): 3 for month in MONTHS},
+    **{("mevap.out", month): 3 for month in MONTHS},
+    **{("mintercep.out", month): 3 for month in MONTHS},
 }
 
 
@@ -677,6 +756,22 @@ def _assessed_columns(output: str) -> list[str]:
     return named
 
 
+def _closure_addend_columns(output: str) -> list[str]:
+    """Every column a closure rule ADDS to a stock from one output table.
+
+    Same reason as `_assessed_columns`: completing a stock is a contract edit,
+    and a fixture with a hand-written column list would exercise the drift
+    instead of the check.
+    """
+    contract = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    named = []
+    for element in ("carbon", "nitrogen"):
+        for table, field, _ in pool_addends(contract["closure"][element]):
+            if table == output and field not in named:
+                named.append(field)
+    return named
+
+
 def _table_text(output: str, cells: list[tuple[float, float]], years: range,
                 coarsen: dict | None = None) -> str:
     """One fixture output table, written the way the model writes it.
@@ -691,9 +786,15 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range,
     special = {
         "cpool.out": (["Total"], [10.0]), "cflux.out": (["NEE"], [0.0]),
         "npool.out": (["Total"], [0.1]), "nflux.out": (["NEE"], [0.0]),
-        "aaet.out": (["Total"], [600.0]),
+        # The fixture's water balances: 1000 mm of precipitation leaves as 576
+        # of transpiration, 400 of runoff, and 12 each of soil evaporation and
+        # canopy interception.
+        "aaet.out": (["Total"], [576.0]),
+        "maet.out": (list(MONTHS), [48.0] * 12),
         "tot_runoff.out": (["Surf", "Drain", "Base", "Total"],
                             [100.0, 200.0, 100.0, 400.0]),
+        "mevap.out": (list(MONTHS), [1.0] * 12),
+        "mintercep.out": (list(MONTHS), [1.0] * 12),
         "fpc.out": (["Tree", "Total"], [0.4, 0.4]),
         "firert.out": (["FireRT", "BurntFr"], [100.0, 0.01]),
         "ngases.out": (["NH3_soil", "Total"], [0.01, 0.01]),
@@ -704,7 +805,11 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range,
     for name in _assessed_columns(output):
         if name not in fields:
             fields, values = fields + [name], values + [0.1]
-    decimals = [(coarsen or {}).get(field, CLOSURE_DECIMALS.get((output, field)))
+    # And any column a closure rule adds to a stock, for the same reason.
+    for name in _closure_addend_columns(output):
+        if name not in fields:
+            fields, values = fields + [name], values + [0.01]
+    decimals =[(coarsen or {}).get(field, CLOSURE_DECIMALS.get((output, field)))
                 for field in fields]
     lines = ["Lon Lat Year " + " ".join(fields)]
     for lon, lat in cells:
@@ -717,6 +822,36 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range,
                     written.append(f"{value + (year % 10) * 10.0 ** -places:.{places}f}")
             lines.append(f"{lon} {lat} {year} " + " ".join(written))
     return "\n".join(lines) + "\n"
+
+
+def _add_to_column(header: str, line: str, field: str, amount: float,
+                   decimals: int) -> str:
+    """One data row with `amount` added to the named column."""
+    parts = line.split()
+    parts[header.split().index(field)] = \
+        f"{float(parts[header.split().index(field)]) + amount:.{decimals}f}"
+    return " ".join(parts)
+
+
+def _rewrite_ranks(bed: Path, output: str, cells: list, edit) -> None:
+    """Apply one row edit to an output across every rank AND the merged table.
+
+    Every table is written per rank and merged, and `verify_merge` compares the
+    two, so a mutation that moves only one of them exercises the merge check
+    instead of the one it was written for.
+    """
+    ranks = range(1, len(cells) + 1)
+    for rank in ranks:
+        path = bed / f"run{rank}" / output
+        lines = path.read_text(encoding="utf-8").splitlines()
+        lines = [lines[0]] + [edit(lines[0], line) for line in lines[1:]]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    parts = [(bed / f"run{rank}" / output).read_text(
+        encoding="utf-8").splitlines() for rank in ranks]
+    merged = parts[0]
+    for piece in parts[1:]:
+        merged = merged + piece[1:]
+    (bed / output).write_text("\n".join(merged) + "\n", encoding="utf-8")
 
 
 def _parsers_agree(root: Path) -> bool:
@@ -804,6 +939,21 @@ def selftest() -> dict:
             (bed / "npool.out").write_text(
                 "\n".join(parts[0] + parts[1][1:]) + "\n", encoding="utf-8")
 
+        def move_omitted_pool(bed: Path) -> None:
+            """Move the soil mineral nitrogen npool.out Total does not carry.
+
+            The four soil pools soil_npool.out holds and npool.out Total leaves
+            out are part of the stock the closure differences, so nitrogen
+            appearing in them with no matching flux is nitrogen the check has
+            to refuse. A check reading only the pool column cannot see this
+            mutation at all, which is what makes it a test of the pairing
+            rather than of the tolerance.
+            """
+            _rewrite_ranks(
+                bed, "soil_npool.out", cells,
+                lambda header, line: _add_to_column(header, line, "NO2", 3.0, 4)
+                if int(line.split()[2]) == years[-1] else line)
+
         mutations = {
             "missing rank output": (
                 lambda bed: (bed / "run2" / "lai.out").unlink(), None),
@@ -817,10 +967,23 @@ def selftest() -> dict:
                 lambda bed: (bed / "cflux.out").write_text(
                     (bed / "cflux.out").read_text().replace("0.0", "1.0")), None),
             "water leak": (
-                lambda bed: (bed / "aaet.out").write_text(
-                    (bed / "aaet.out").read_text().replace("600.0", "500.0")), None),
+                lambda bed: _rewrite_ranks(
+                    bed, "maet.out", cells,
+                    lambda header, line: _add_to_column(header, line, "Jul", -10.0, 3)),
+                "water closure fails"),
+            # Water leaving as soil evaporation with no precipitation behind it.
+            # A check that subtracts only transpiration and runoff cannot see
+            # this at all: it reads as more storage, which is what the water
+            # residual was being called.
+            "evaporation with no precipitation behind it": (
+                lambda bed: _rewrite_ranks(
+                    bed, "mevap.out", cells,
+                    lambda header, line: _add_to_column(header, line, "Jun", 30.0, 3)),
+                "water closure fails"),
             "closure tolerance under the written precision": (
                 coarsen_npool, "finer than the output it reads"),
+            "nitrogen appears in a pool outside npool.out Total": (
+                move_omitted_pool, "nitrogen closure fails"),
         }
         for name, (mutate, expected) in mutations.items():
             bed = root / name.replace(" ", "_")

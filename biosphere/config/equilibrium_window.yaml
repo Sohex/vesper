@@ -88,11 +88,18 @@ assessed:
       relative_end_to_end_limit: 0.05
       read_by: [biosphere/config/lpj_acceptance.yaml closure.nitrogen]
       derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
-    - id: aaet.out total evapotranspiration
+    # NOT evapotranspiration and not the gridcell's transpiration either:
+    # commonoutput.cpp sums indiv.aaet over the individuals still in
+    # patch.vegetation after framework.cpp has run mortality, establishment and
+    # fire disturbance, so the column is what the survivors transpired. It is a
+    # real quantity that has to settle, which is why it is assessed here; the
+    # water closure reads maet.out instead, for the reason in
+    # notes/audits/closure-stocks-are-incomplete.md.
+    - id: aaet.out surviving-individual transpiration
       table: aaet.out
       columns: [Total]
       relative_end_to_end_limit: 0.05
-      read_by: [biosphere/config/lpj_acceptance.yaml closure.water]
+      read_by: [biosphere/config/lpj_acceptance.yaml stability_outputs]
       derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
     - id: tot_runoff.out total runoff
       table: tot_runoff.out

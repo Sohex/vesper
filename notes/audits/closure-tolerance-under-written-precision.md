@@ -91,19 +91,14 @@ ten cycles to twelve hundred, which is larger than the 1.0 kgN/ha bound and is
 therefore real. It is still not a leak: flat in window length is the one thing a
 leak cannot be.
 
-The mechanism is that `npool.out` Total is an instantaneous end-of-cycle
-SNAPSHOT while `nflux.out` NEE is an integral over the cycle, so a pool that
-swings within a cycle enters the residual at whatever value the snapshot caught.
-In the 2329 gridcell-cycles whose residual exceeds the quantisation bound, the
-cycle-to-cycle change in the soil mineral nitrogen snapshot,
-`soil_npool.out` NH4+NO3, averages 5.70 kgN/ha against 0.29 elsewhere -- a
-factor of nineteen, and the same magnitude as the excess.
-
-Over ten cycles that jitter does not average out; over the record it does, which
-is why the worst gridcell's whole-record accumulation is -5.75 kgN/ha and its
-ten-cycle window reads -4.95. So the closure rule's window is shorter than the
-variability of the pools it differences, and a re-run will refuse on this once
-the write-out quantisation stops masking it. `world-w89k` holds that.
+The mechanism is that the stock side of the check did not span the same
+inventory as the flux side: `npool.out` Total omits four of the six soil
+mineral nitrogen pools the model's own conservation identity is written over,
+so the residual is the change in those four and telescopes to their endpoint
+difference over any window. Flat in window length is what that looks like.
+`notes/audits/closure-stocks-are-incomplete.md` carries the source argument, the
+measurement that closes all four gridcells, and the same class of defect in the
+water rule.
 
 ## What the symmetry was
 

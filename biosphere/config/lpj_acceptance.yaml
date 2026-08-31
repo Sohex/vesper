@@ -14,6 +14,9 @@ required_outputs:
   - cflux.out
   - firert.out
   - tot_runoff.out
+  - maet.out
+  - mevap.out
+  - mintercep.out
   - nmass.out
   - npool.out
   - nflux.out
@@ -32,6 +35,9 @@ nonnegative_outputs:
   - dens.out
   - agpp.out
   - tot_runoff.out
+  - maet.out
+  - mevap.out
+  - mintercep.out
   - nmass.out
   - npool.out
   - ngases.out
@@ -85,6 +91,30 @@ closure:
   nitrogen:
     pool_output: npool.out
     pool_field: Total
+    # npool.out Total IS NOT THE COMPLETE NITROGEN STOCK, so the check adds the
+    # part of it that column leaves out. `commonoutput.cpp` builds Total's
+    # mineral term, availn, from NH4 and NO3 alone, while the soil nitrogen
+    # operator's own conservation identity in `ntransform.cpp` is over SIX soil
+    # pools: NH4, NO3, NO2, NO, N2O and N2. Nitrogen nitrified or denitrified
+    # out of NH4/NO3 and still resident in the other four at the cycle boundary
+    # has therefore left Total, and nflux.out NEE does not carry it either --
+    # the gas fluxes are reported when the nitrogen LEAVES those pools, not
+    # when it enters them. Differencing Total alone against NEE is not a
+    # conservation law; the residual it leaves is the change in the four
+    # omitted pools, which is why it is flat in window length rather than
+    # accumulating. soil_npool.out writes those four on the same gridcell
+    # average, in the same units as the flux, so the complete stock is the
+    # pair. notes/audits/closure-tolerance-under-written-precision.md.
+    # Each addend carries its OWN conversion into the flux's units rather than
+    # inheriting pool_to_flux_units, because it does not share the pool
+    # column's units: npool.out is kgN/m2 and soil_npool.out is already kgN/ha.
+    # The column names are quoted because YAML 1.1 resolves a bare NO to the
+    # boolean false, and a stock silently missing one of its four terms is
+    # exactly the defect this addend exists to repair.
+    pool_addends:
+      - output: soil_npool.out
+        fields: ["NO2", "NO", "N2O", "N2"]
+        to_flux_units: 1.0
     flux_output: nflux.out
     flux_field: NEE
     pool_to_flux_units: 10000.0
@@ -92,14 +122,50 @@ closure:
     relative_throughput_limit: 0.001
   water:
     precipitation_source: manifest-pinned VESPDRV8
-    aet_output: aaet.out
-    aet_field: Total
+    # THE THREE EVAPORATIVE LOSSES, NONE OF WHICH HAS AN ANNUAL COLUMN THIS
+    # CHECK CAN USE. The model's own daily identity, soil.cpp:hydrology_lpjf,
+    # is
+    #     initial water in column + rain_melt
+    #         = final water + evap + aet_total + runoff
+    # so a gridcell year is precipitation against transpiration, soil
+    # evaporation, interception and runoff, plus the change in soil water, ice
+    # and snowpack.
+    #
+    # aaet.out Total is NOT that transpiration. commonoutput.cpp builds it from
+    # indiv.aaet summed over the individuals still in patch.vegetation, and
+    # framework.cpp runs vegetation_dynamics -- establishment, mortality and
+    # disturbance by fire -- on the last day of the year BEFORE outannual. The
+    # column is therefore the transpiration of the survivors, and the water an
+    # individual moved before it died is missing from it. patch.maet is
+    # accumulated day by day alongside patch.aaet and is unaffected, so
+    # maet.out is the column that reports what left the soil.
+    #
+    # Soil evaporation and canopy interception reach no annual table at all:
+    # commonoutput.cpp accumulates patch.aevap and patch.aintercep and sends
+    # both only to the interactive plot(). mevap.out and mintercep.out are the
+    # only route to them.
+    #
+    # All three are aggregated to the gridcell by the same to_gridcell_average
+    # as tot_runoff.out, so the four losses are one accounting.
+    # notes/audits/closure-stocks-are-incomplete.md.
+    #
+    # `fields` is the column count each table must carry. The annual flux is
+    # the sum of every column, so a table that changes shape has to refuse
+    # rather than silently sum something else.
+    evaporation_outputs:
+      - output: maet.out
+        fields: 12
+      - output: mevap.out
+        fields: 12
+      - output: mintercep.out
+        fields: 12
     runoff_output: tot_runoff.out
     runoff_field: Total
     absolute_floor_mm: 2.0
     relative_throughput_limit: 0.005
     interpretation: >-
-      Over ten complete forcing cycles, precipitation minus AET and runoff is
-      the implied change in soil, snow and canopy stores. Those stores are not
-      retained as annual endpoints, so this is an equilibrium-window closure,
-      not a claim of bitwise daily hydrology closure.
+      Over ten complete forcing cycles, precipitation minus transpiration, soil
+      evaporation, canopy interception and runoff is the implied change in
+      soil water, soil ice and snowpack. Those stores are not retained as annual
+      endpoints, so this is an equilibrium-window closure, not a claim of
+      bitwise daily hydrology closure.
