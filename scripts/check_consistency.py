@@ -2819,12 +2819,18 @@ def main() -> int:
         if bio_scripts not in sys.path:
             sys.path.append(bio_scripts)
         import build_lpj_guess as blg           # noqa: E402
-        blg.assert_build_file_shape()
         lpj_built = blg.GUESS_BINARY.is_file()
+        lpj_shape = blg.build_file_shape()
         lpj_problems = blg.verify() if lpj_built else []
     except Exception as exc:                                       # noqa: BLE001
         rep.add(WARN, "lpj-guess binary", f"not checked: {exc}")
     else:
+        if lpj_shape:
+            # Reported whether or not anything is built: it says the module's
+            # restatement of the build file has fallen behind, so every source
+            # set it computes from here on is short of what compiles.
+            rep.add(FAIL, "build_lpj_guess restates vendor/lpj-guess/CMakeLists.txt",
+                    "; ".join(lpj_shape))
         if not lpj_built:
             # UNBUILT, not inconsistent -- the resting state of a fresh
             # worktree, where `scripts/link_worktree.py` deliberately does not

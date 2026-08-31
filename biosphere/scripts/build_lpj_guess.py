@@ -147,39 +147,47 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def assert_build_file_shape() -> None:
-    """The top-level build file still says what SUBDIRS, ENTRY and INCLUDE_DIRS say.
+def build_file_shape() -> list[str]:
+    """Ways the top-level build file no longer says what this module restates.
 
     Restating the build file is what lets this module notice a source directory
     the build file grew and this one does not hash. A restatement nothing
-    compares is the defect it exists to catch, so it is compared here.
+    compares is the defect it exists to catch, so `verify()` runs this FIRST:
+    a source set computed from a stale restatement passes a binary containing
+    code from a directory nothing hashed, which is the silence the whole row is
+    about. Returned rather than raised, so a gate that wraps this reports a
+    failure instead of being killed by a `SystemExit` no `except Exception`
+    catches.
     """
+    out = []
     text = (GUESS_SOURCE / "CMakeLists.txt").read_text(encoding="utf-8")
     # Unconditional only: the two guarded calls sit inside if(WIN32) and
     # if(UNIT_TESTS) and are indented, which is how the build file marks them.
     found = tuple(m[1].strip() for m in
                   re.finditer(r"^add_subdirectory\(([^)]+)\)", text, re.M))
     if found != SUBDIRS:
-        raise SystemExit(
+        out.append(
             f"vendor/lpj-guess/CMakeLists.txt compiles {found} unconditionally "
             f"and this module hashes {SUBDIRS}. Update SUBDIRS: a directory "
             f"this does not hash is a directory a stale binary hides in.")
     if ENTRY not in text:
-        raise SystemExit(
+        out.append(
             f"vendor/lpj-guess/CMakeLists.txt no longer names {ENTRY} in its "
             f"add_executable line, so the entry point this module hashes is "
             f"not the one it builds.")
     line = re.search(r"^include_directories\(([^)]*)\)", text, re.M)
     if line is None:
-        raise SystemExit(
+        out.append(
             "vendor/lpj-guess/CMakeLists.txt has no include_directories line, "
             "so the path a quoted #include resolves against is unknown here.")
-    got = tuple(d.split("}/")[-1] for d in line[1].split())
-    if got != INCLUDE_DIRS:
-        raise SystemExit(
-            f"the build file's include path is {got} and this module resolves "
-            f"quoted includes against {INCLUDE_DIRS}. A header found on one "
-            f"path and not on the other is a file that goes unhashed.")
+    else:
+        got = tuple(d.split("}/")[-1] for d in line[1].split())
+        if got != INCLUDE_DIRS:
+            out.append(
+                f"the build file's include path is {got} and this module "
+                f"resolves quoted includes against {INCLUDE_DIRS}. A header "
+                f"found on one path and not on the other goes unhashed.")
+    return out
 
 
 def declared() -> list[Path]:
@@ -343,6 +351,11 @@ def verify(binary: Path = GUESS_BINARY) -> list[str]:
     Hashes and a JSON read: no compiler is spawned and nothing is written, so
     this is cheap enough to sit in front of every run as well as in the gate.
     """
+    shape = build_file_shape()
+    if shape:
+        # FIRST, and fatal on its own: a source set computed from a restatement
+        # the build file has outgrown would report a stale binary current.
+        return shape
     provenance = binary.with_suffix(".provenance.json")
     if not binary.is_file():
         return [f"{binary} does not exist. Build it with "
@@ -392,6 +405,11 @@ def stamp(configure: list[str], compile_command: list[str]) -> None:
     or after the last translation unit's view of it, and the next `--verify`
     refuses rather than passing a binary assembled from two states of the tree.
     """
+    shape = build_file_shape()
+    if shape:
+        raise SystemExit("\n".join(shape) + "\n\nRefusing to stamp: the record "
+                         "would describe a source set the build file has "
+                         "outgrown, which reads as provenance and is not.")
     sources = source_set()
     record = {
         "contract_version": CONTRACT,
@@ -416,6 +434,11 @@ def build(jobs: int, build_type: str) -> None:
     concurrent run's manifest has already hashed, so check `pgrep -x guess`
     before starting one.
     """
+    shape = build_file_shape()
+    if shape:
+        # Before the two minutes, not after: a build this cannot honestly stamp
+        # is a build worth refusing to start.
+        raise SystemExit("\n".join(shape))
     header = GUESS_SOURCE / "framework" / "vesper.h"
     if not header.is_file():
         raise SystemExit(
@@ -444,7 +467,6 @@ def main() -> None:
                     help="record the existing binary's source set without building")
     args = ap.parse_args()
 
-    assert_build_file_shape()
     if args.verify:
         problems = verify(args.binary)
         for p in problems:
