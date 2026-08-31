@@ -2796,6 +2796,48 @@ def main() -> int:
                     "; ".join(bad) if bad else
                     f"{len(report['built'])} executables match the manifest")
 
+    # -- the LPJ-GUESS binary contains the model in the tree ------------------
+    #
+    # Rule 4's hazard, one component over. LPJ-GUESS compiles one executable
+    # from a hundred and thirty translation units and reads none of them at run
+    # time, so a binary built before an edit integrates the code it was built
+    # from and says nothing. On 2026-08-30 `vendor/lpj-guess/build/guess` was
+    # two days older than `framework/parameters.cpp` and did not know
+    # `frac_labile_carbon_humus`; the run refused only because that parameter
+    # reaches the model through an instruction file, so the PARSER rejected an
+    # undefined identifier. A change confined to C++ has no parser in front of
+    # it and would have run to completion on a binary that did not contain it.
+    # world-w62x.
+    #
+    # ASKED OF `build_lpj_guess.py:verify`, on the same terms as the ExoPlaSim
+    # block above and for the same reason: a second implementation of "is this
+    # executable current" is a second thing to keep in step. It hashes files and
+    # reads one JSON document -- no compiler is spawned and nothing is written,
+    # so it does not disturb a run in flight.
+    try:
+        bio_scripts = str(ROOT / "biosphere" / "scripts")
+        if bio_scripts not in sys.path:
+            sys.path.append(bio_scripts)
+        import build_lpj_guess as blg           # noqa: E402
+        blg.assert_build_file_shape()
+        lpj_built = blg.GUESS_BINARY.is_file()
+        lpj_problems = blg.verify() if lpj_built else []
+    except Exception as exc:                                       # noqa: BLE001
+        rep.add(WARN, "lpj-guess binary", f"not checked: {exc}")
+    else:
+        if not lpj_built:
+            # UNBUILT, not inconsistent -- the resting state of a fresh
+            # worktree, where `scripts/link_worktree.py` deliberately does not
+            # link `vendor/lpj-guess/build/`. Same call the ExoPlaSim block
+            # makes for the same reason.
+            rep.add(WARN, "lpj-guess binary", "not built")
+        else:
+            rep.add(FAIL if lpj_problems else OK,
+                    "lpj-guess binary contains the source it was built from",
+                    "; ".join(p.splitlines()[0] for p in lpj_problems)
+                    if lpj_problems else
+                    f"guess matches {blg.PROVENANCE.name}")
+
     # -- the cycle executable can parse the cycle the config asks for ---------
     #
     # The star-cycle patch is deliberately NOT resident, so this binary is

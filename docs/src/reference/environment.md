@@ -33,9 +33,14 @@ LPJ-GUESS is likewise compiled from its subtree. Its generated `vesper.h` must
 exist first because the configured orbital year sizes arrays at compile time:
 
     python biosphere/scripts/build_vesper_header.py
-    cmake -S vendor/lpj-guess -B vendor/lpj-guess/build \
-      -DCMAKE_BUILD_TYPE=Release -DUNIT_TESTS=OFF
-    cmake --build vendor/lpj-guess/build --parallel 16
+    scripts/lock_and_run -m "build lpj-guess" \
+      python biosphere/scripts/build_lpj_guess.py
+
+That script runs the two cmake commands and then records the sha of every file
+the executable was compiled from, beside the binary. A bare `cmake --build`
+skips the record, and `run_lpj_guess.py` refuses a binary whose record does not
+describe it -- which is rule 4 for the biosphere, and `--verify` is how you ask
+without building.
 
 The build directory and generated header are ignored. Do not substitute an
 external checkout: run manifests point at the vendored binary and hash it.
