@@ -39,14 +39,19 @@ statement or a parser that raised. Two of those fail this gate and the third is
 reported beside them. A per-script allowlist would decide the same question by
 naming names, and would go stale silently the moment a script changed its mind.
 `--self-test` builds one script of each class in a temporary directory and
-checks the classifier against them; it runs as part of a full pass.
+checks the classifier against them, including that the two which would write
+when RUN do not write when STARTED. It also checks the static half -- that a
+script the `help` probe is chosen for builds its parser before it does anything,
+which is what makes that probe safe on it -- and every entry point is held to
+that in a full pass. Both halves run in a full pass, so neither can rot
+unexercised.
 
 WHY IT IS NOT IN `smoke_test.py` ANY MORE. `smoke_test.py` is the gate every
 session runs before every commit, so its cost is multiplied by every commit in
 the project; six agents paying it at once is a measurable share of this host's
-load. This pass is about 136 fresh interpreters, each importing numpy, netCDF4
-and whatever else the module reaches for at import time, and its own opt-out
-flag used to say it "dominates runtime". A smoke test answers "is this tree
+load. This pass is a fresh interpreter per entry point, each importing numpy,
+netCDF4 and whatever else the module reaches for at import time, and its own
+opt-out flag used to say it "dominates runtime". A smoke test answers "is this tree
 coherent" from static reads in seconds. This is a real check with real value and
 it is a PRE-BUILD and PRE-PUSH check, not a per-commit one, so it has its own
 entry point and its own place in `CLAUDE.md` rule 8.
@@ -89,6 +94,7 @@ paying for a build. Rule 8 names them together.
 from __future__ import annotations
 
 import argparse
+import ast
 from concurrent.futures import ThreadPoolExecutor
 import json
 import os
@@ -132,6 +138,56 @@ def probe_mode(source: str) -> str:
     parser moves class the same day rather than waiting for a list to be edited.
     """
     return "help" if "ArgumentParser" in source else "import"
+
+
+def _builds_parser_first(body: list[ast.stmt]) -> bool:
+    """Is the first thing this block does the construction of its parser?
+
+    The statements a parser is allowed to follow are the ones that cannot do
+    work: imports, a docstring, a `global` declaration, and the
+    `sys.path.insert` a script uses to reach its own directory.
+    """
+    for stmt in body:
+        text = ast.unparse(stmt)
+        if "ArgumentParser" in text:
+            return True
+        if isinstance(stmt, (ast.Import, ast.ImportFrom, ast.Global)):
+            continue
+        if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant):
+            continue
+        if isinstance(stmt, ast.Expr) and text.startswith("sys.path.insert("):
+            continue
+        return False
+    return False
+
+
+def help_short_circuits(path: Path, source: str) -> str:
+    """`--help` on this script reaches its parser before it does any work.
+
+    The `help` probe is safe BECAUSE argparse exits at `--help` before the rest
+    of the start path runs, and that is a property of the SCRIPT rather than of
+    argparse: a parser built after a read, a solve or a write short-circuits
+    nothing that matters, and starting such a script would run all of it. This
+    gate chooses that probe, so this gate is where the choice is checked. A
+    static read, so it fails on the source rather than after the artifact has
+    already been rewritten. "" is a pass.
+
+    Building the parser behind a helper is not a defect in the script; it is a
+    shape this check cannot see through, and a probe that cannot be shown to be
+    safe is not one to run. Move the construction into the start path.
+    """
+    blocks = []
+    for n in ast.parse(source).body:
+        if isinstance(n, ast.FunctionDef) and n.name == "main":
+            blocks.append(("main()", n.body))
+        if isinstance(n, ast.If) and "__main__" in ast.unparse(n.test):
+            blocks.append(("its __main__ block", n.body))
+    if any(_builds_parser_first(body) for _, body in blocks):
+        return ""
+    where = blocks[0][0] if blocks else "this script"
+    return (f"{path.name}: {where} does not build its ArgumentParser before "
+            f"anything else, so --help cannot be shown to short-circuit "
+            f"before the work")
 
 
 def entry_points(roots: list[Path]) -> list[tuple[Path, str]]:
@@ -222,9 +278,13 @@ def verify(roots: list[Path], jobs: int, verbose: bool) -> tuple[list[str], list
     helps = sum(1 for _, m in files if m == "help")
     print(f"{len(files)} entry points, {jobs} at a time "
           f"({helps} started with --help, {len(files) - helps} imported only)")
+    unsafe = [help_short_circuits(f, f.read_text(encoding="utf-8",
+                                                 errors="replace"))
+              for f, m in files if m == "help"]
     with ThreadPoolExecutor(max_workers=jobs) as pool:
         verdicts = list(pool.map(lambda fm: classify(*fm), files))
-    failures, refusals = [], []
+    failures = [f"[probe] {u}" for u in unsafe if u]
+    refusals: list[str] = []
     for (f, _), v in zip(files, verdicts):
         line = f"{f.relative_to(ROOT)}: {v['detail']}"
         if v["kind"] in FAILING:
@@ -320,6 +380,56 @@ SELF_TEST_CASES = [
      """, "refusal", False),
 ]
 
+# The static half: does `--help` on this source reach the parser before the
+# work? Each row is (name, source, expected complaint substring; "" for a pass).
+SHORT_CIRCUIT_CASES = [
+    ("parser_first.py", """
+        import argparse
+        from pathlib import Path
+
+        def main():
+            ap = argparse.ArgumentParser()
+            Path("out").write_text("ran")
+
+        if __name__ == "__main__":
+            main()
+     """, ""),
+    ("parser_after_a_read.py", """
+        import argparse
+        from pathlib import Path
+
+        def main():
+            mesh = Path("mesh").read_text()
+            ap = argparse.ArgumentParser()
+            ap.parse_args()
+
+        if __name__ == "__main__":
+            main()
+     """, "does not build its ArgumentParser before anything else"),
+    ("parser_in_the_guard.py", """
+        def work():
+            return 1
+
+        if __name__ == "__main__":
+            import argparse
+            import sys
+            sys.path.insert(0, ".")
+            argparse.ArgumentParser().parse_args()
+     """, ""),
+    ("parser_out_of_reach.py", """
+        import argparse
+
+        def build():
+            return argparse.ArgumentParser()
+
+        def main():
+            build().parse_args()
+
+        if __name__ == "__main__":
+            main()
+     """, "does not build its ArgumentParser before anything else"),
+]
+
 
 def self_test(verbose: bool) -> list[str]:
     """The classifier against one script of each class, in a temporary tree.
@@ -354,6 +464,17 @@ def self_test(verbose: bool) -> list[str]:
                                 f"{'wrote' if wrote else 'did not write'} "
                                 f"beside itself, which is not what this probe "
                                 f"is for")
+    for name, body, expect in SHORT_CIRCUIT_CASES:
+        src = textwrap.dedent(body).lstrip()
+        got = help_short_circuits(Path(name), src)
+        ok = (expect in got) if expect else not got
+        if verbose:
+            print(f"  {' ok ' if ok else 'FAIL'}  static  {name} -> "
+                  f"{'short-circuits' if not got else got.split(': ', 1)[-1]}")
+        if not ok:
+            problems.append(f"--self-test {name}: expected "
+                            f"{expect or 'no complaint'}, got "
+                            f"{got or 'no complaint'}")
     return problems
 
 
