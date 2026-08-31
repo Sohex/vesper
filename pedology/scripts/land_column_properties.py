@@ -1785,9 +1785,37 @@ def main(argv: list[str] | None = None) -> int:
         args.soil_map = builds.soilmap(config)
     if args.states is None:
         args.states = builds.land_column_states(config)
+    # THE TWO PATHS ARE PER RUNG AND NOTHING TIED THEM TOGETHER. This script is
+    # a pure carrier -- the states come from the soil map's rows and no climate
+    # -- so it already runs at any rung once a soil map exists there, and both
+    # paths are overridable. That is exactly what makes the mismatch reachable:
+    # `--soil-map soilmap_T42.txt` with the default `--states` writes T42 rows
+    # into `land_column_states_T21.txt`, and the consumers key the file by rung.
+    # `build_surface_soil_water.py` would then read a states file whose cell
+    # count is not its grid's. Both names carry their rung, so this is an
+    # identity check and not a guess; a path that does not name a rung is left
+    # alone, because a caller writing to a scratch file means it.
+    import rungs
+    def _named_rung(path: Path) -> str | None:
+        token = path.stem.rsplit("_", 1)[-1].upper()
+        return token if token in rungs.RUNGS else None
+    map_rung, states_rung = _named_rung(args.soil_map), _named_rung(args.states)
+    if map_rung is not None and states_rung is not None and map_rung != states_rung:
+        raise SystemExit(
+            f"{args.soil_map.name} is {map_rung} and {args.states.name} is "
+            f"{states_rung}. The states file is per build AND per rung and every "
+            "consumer resolves it by rung, so writing one rung's rows under "
+            "another's name gives ExoPlaSim and LPJ-GUESS a column count that is "
+            "not their grid's. Name both at the same rung.")
     if not args.soil_map.is_file():
-        raise SystemExit(f"{args.soil_map} does not exist. Run "
-                         "pedology/scripts/build_soil.py.")
+        raise SystemExit(
+            f"{args.soil_map} does not exist. Run "
+            "pedology/scripts/build_soil.py, which weathers the lithology under "
+            "a CLIMATOLOGY and so builds at the rung config/planet.yaml is set "
+            "to. This script derives from that soil map alone and adds no "
+            "climate; see exoplasim/notes/route-step-criteria.md for why the "
+            "soil at a rung waits for a climate at that rung, and WORLD-CCX6 "
+            "for the --grid build_soil.py lacks.")
 
     decl = load()
     written: list[str] = []

@@ -744,7 +744,12 @@ def read_soil_carbon(path: Path, lon: np.ndarray, lat: np.ndarray,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--climatology", type=Path, default=None)
+    parser.add_argument("--climatology", type=Path, default=None,
+                        help="the climatology config already names for --state, "
+                             "restated. This is a CROSS-CHECK and not an "
+                             "override: a file that is not the declared one is "
+                             "refused. THE RUNG IS CONFIG'S, here and in the "
+                             "grid export; see WORLD-CCX6.")
     parser.add_argument("--soil-carbon", type=Path, default=None,
                         help="LPJ-GUESS cpool.out from the previous iteration. "
                              "Omit for iteration 0, which has no biosphere.")
@@ -801,9 +806,29 @@ def main() -> None:
         expected_climatology = expected_climatology.resolve()
         if hashlib.sha256(climatology.read_bytes()).hexdigest() != hashlib.sha256(
                 expected_climatology.read_bytes()).hexdigest():
+            # SAYING WHAT THIS FLAG IS, because the message that named only the
+            # expected file read as "point config at the other one" and that is
+            # half an answer. The flag is a restatement of the declaration, kept
+            # so a caller can assert which climate a soil was weathered under;
+            # BIO-19's mode pinning is what refuses any other file, so that
+            # rebuilding iteration 0 after a baseline exists still reproduces
+            # the bootstrap soil. AND THE RUNG TRAVELS WITH THE DECLARATION:
+            # `bootstrap_climatology` and `baseline_climatology` carry no rung
+            # in their names, and the grid export this script reads comes from
+            # `model.resolution`, so a soil at another rung needs BOTH config
+            # keys moved together and not this flag. WORLD-CCX6 is that carrier
+            # fix; exoplasim/notes/route-step-criteria.md carries why the soil
+            # waits for a climate at its rung instead of being remapped onto it.
+            configured = str(config["model"]["resolution"]).upper()
             raise SystemExit(
-                f"iteration {args.iteration} requires the named {clim_stage} "
-                f"climatology {expected_climatology}, not {climatology}")
+                f"--climatology is a cross-check, not an override: iteration "
+                f"{args.iteration} is weathered under the {clim_stage} "
+                f"climatology config/planet.yaml declares, which is "
+                f"{rel(expected_climatology)}, and {rel(climatology)} is not "
+                f"it.\nThat declaration carries no rung, and this script takes "
+                f"its grid export from model.resolution, so this soil is "
+                f"{configured}'s whatever is passed here. To build at another "
+                "rung both keys move together; see WORLD-CCX6.")
 
     with nc.Dataset(climatology) as data:
         lat = np.asarray(data["lat"][:], dtype=float)

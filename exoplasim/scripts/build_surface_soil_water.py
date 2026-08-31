@@ -336,9 +336,36 @@ def main() -> None:
         args.states = land_column_states(states_config)
 
     if not args.states.is_file():
+        # WHY THIS IS NOT "run land_column_properties.py" AT EVERY RUNG. That
+        # script derives the states from `soilmap_<res>.txt` and nothing else,
+        # so the missing file is really a missing soil map, and `build_soil.py`
+        # reads a climatology for temperature, precipitation, runoff,
+        # evaporation and elevation -- content, not a grid. A soil at a rung
+        # therefore needs a CLIMATE at that rung. Naming only the next script up
+        # sent a caller at a rung config is not set to round the same loop: it
+        # writes the states at CONFIG's rung, this refusal fires again, and
+        # nothing says why. WORLD-512R decided the soil waits for the climate
+        # rather than being built on a remapped one; the argument and the order
+        # that unblocks it are in exoplasim/notes/route-step-criteria.md.
+        configured = str(config["model"]["resolution"]).upper()
         raise SystemExit(
-            f"{args.states} does not exist. Run "
-            "pedology/scripts/land_column_properties.py.")
+            f"{rel(args.states)} does not exist. It is per build AND per rung, "
+            "and it is written by pedology/scripts/land_column_properties.py "
+            f"from pedology's soil map at {resolution}, which "
+            "pedology/scripts/build_soil.py writes from a CLIMATOLOGY at that "
+            f"rung.\nconfig/planet.yaml is at {configured}, and neither "
+            "pedology script takes a --grid, so both would build at "
+            f"{configured} however this step is invoked."
+            + ("" if configured == resolution else
+               f" Running them now would write the {configured} states and "
+               "leave this refusal in place.")
+            + f"\nWhat this needs at {resolution}: a climatology of an arm at "
+            f"{resolution} on the current staged surface family, declared in "
+            "config/planet.yaml, then build_soil.py and "
+            "land_column_properties.py at that rung. See "
+            "exoplasim/notes/route-step-criteria.md, 'The order that unblocks "
+            "the route', and WORLD-CCX6 for the --grid the pedology scripts "
+            "lack.")
 
     # WHICH CAPACITY THIS INSTALLS, and it is decided by the declared GEOMETRY
     # rather than by a switch of its own. The air-dry floor and the surface
