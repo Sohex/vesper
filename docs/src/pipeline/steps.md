@@ -19,6 +19,20 @@ an LPJ patch explicitly says it is a stochastic demographic sample and not a
 spatial response unit. `lib/spatial_support.py` is the validator; SPAT-10 owns
 applying it to every conversion and production artifact.
 
+The aggregation vocabulary names one operator that does not reduce a cell to a
+number. A field declared `distribution_quantiles` under
+`area_weighted_distribution` carries the area-weighted quantile table
+`lib/gridding.py:cell_quantiles` computes, and must state the probability
+vector it is resolved at, because a table without its probabilities is a block
+of numbers in the field's units and nothing more. The pair is enforced in both
+directions: a distribution cannot declare a mean, and the operator cannot carry
+a single-valued field. That is what lets a support state that it preserved a
+within-cell distribution rather than having already thrown it away, which is
+what the ocean's bathymetry needs and what conservation alone cannot see -- the
+gate compares the vocabulary against the reductions `lib/gridding.py` exposes,
+so a reduction that module gains without a term to name it fails
+`spatial_support_gate`.
+
 `spatial_conversion_gate` is that application envelope. It binds a conversion
 to the source and destination contract digests, shapes and coordinates; carries
 separate area, volume, water, salt, energy and C-N-P closure ledgers; and

@@ -496,11 +496,13 @@ steps:
       preserves it exactly and still misplaces the ocean area on either side of
       a depth horizon by 12 to 49 times the loop's own planetary-area bar, at
       every rung including T170 and worst on the 36 x 36 GOLDSTEIN candidate.
-      The support therefore carries a per-cell depth DISTRIBUTION --
-      `lib/gridding.py:cell_quantiles` is the operator -- with the probability
-      vector it is resolved at declared, and it reports the horizon at which
-      this world's deep water separates and the bodies it separates into, which
-      no cell depth carries at any resolution measured.
+      The support therefore carries a per-cell depth DISTRIBUTION, declared in
+      the contract as a `distribution_quantiles` field under the
+      `area_weighted_distribution` operator with the probability vector it is
+      resolved at, which `lib/gridding.py:cell_quantiles` computes and
+      `lib/spatial_support.py` refuses without those probabilities. It reports
+      the horizon at which this world's deep water separates and the bodies it
+      separates into, which no cell depth carries at any resolution measured.
       `notes/audits/ocean-support-nonlinear-reductions.md` is the finding.
 
   - id: ocean_forcing

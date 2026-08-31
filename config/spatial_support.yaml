@@ -44,6 +44,12 @@ field_semantics:
   - categorical_fraction
   - dimensionless_fraction
   - vector_component
+  # A table of values in the underlying field's own units, resolved at a
+  # declared probability vector: what a cell's population IS rather than one
+  # number summarising it. A consumer that asks what SHARE of a cell lies past
+  # a threshold has no other term to declare, because no moment answers that on
+  # a skewed cell and a cell mean is not a function of the answer.
+  - distribution_quantiles
 
 time_semantics:
   - static
@@ -65,8 +71,34 @@ aggregation_operators:
   - area_weighted_fraction
   - categorical_majority
   - categorical_histogram
+  - covered_area_moments
+  - covered_area_expectation
+  - area_weighted_distribution
   - vector_rotation_and_component_remap
   - stochastic_demographic_sampling
+
+# Which lib/gridding.py mesh-to-grid reduction each term is, so the vocabulary
+# and the operators cannot drift apart silently -- they did once, and this is
+# what compares them. scripts/spatial_support_gate.py requires that every
+# module-level `cell_*` callable in lib.gridding is claimed by exactly one term
+# and that every name claimed here exists, so a seventh reduction added to that
+# module fails the gate until the vocabulary can name it. An empty list is a
+# term with no mesh-to-grid reduction behind it: a crossing normalisation
+# lib/remap.py owns, a rule this project declares so an artifact can say it used
+# one, or a sampling another model performs.
+aggregation_operator_reductions:
+  identity: []
+  conservative_source_area: [cell_sum]
+  conservative_destination_area: []
+  covered_area_mean: [cell_mean]
+  area_weighted_fraction: [cell_fraction]
+  categorical_majority: []
+  categorical_histogram: [cell_fraction]
+  covered_area_moments: [cell_moments]
+  covered_area_expectation: [cell_expectation]
+  area_weighted_distribution: [cell_quantiles]
+  vector_rotation_and_component_remap: []
+  stochastic_demographic_sampling: []
 
 nonlinear_orders:
   - not_applicable
