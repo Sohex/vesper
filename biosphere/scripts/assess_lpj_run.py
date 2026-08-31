@@ -328,6 +328,28 @@ def pool_addends(rule: dict) -> list[tuple[str, str, float]]:
     return terms
 
 
+def evaporation_columns(tables: dict, water: dict) -> list[tuple[str, list[str]]]:
+    """The monthly tables the water losses are summed from, and their columns.
+
+    An annual evaporation is the sum of EVERY column of its monthly table, so
+    the rule declares the count rather than the names and a table of another
+    shape refuses. Summing whatever columns happen to be there would turn a
+    changed output into a quietly different loss term.
+    """
+    named = []
+    for entry in water.get("evaporation_outputs", []):
+        output = entry["output"]
+        if output not in tables:
+            raise AcceptanceError(f"water closure needs {output}, which is not retained")
+        fields = tables[output][0]
+        if len(fields) != int(entry["fields"]):
+            raise AcceptanceError(
+                f"{output} has {len(fields)} columns, and the water closure "
+                f"sums {int(entry['fields'])}")
+        named.append((output, list(fields)))
+    return named
+
+
 def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
     """What each closure residual can resolve, against the tolerance it is held to.
 
@@ -377,10 +399,17 @@ def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
     water = closure["water"]
     aet_q = written_quantum(tables, water["aet_output"], water["aet_field"])
     runoff_q = written_quantum(tables, water["runoff_output"], water["runoff_field"])
-    bound = count * (aet_q + runoff_q) / 2.0
+    # Every monthly column summed into an annual evaporation carries its own
+    # rounding into each of the summed years, exactly as AET and runoff do.
+    evaporation_q = {}
+    for output, fields in evaporation_columns(tables, water):
+        evaporation_q[output] = sum(
+            written_quantum(tables, output, field) for field in fields)
+    bound = count * (aet_q + runoff_q + sum(evaporation_q.values())) / 2.0
     floor = float(water["absolute_floor_mm"])
     resolution["water"] = {
         "aet_quantum": aet_q, "runoff_quantum": runoff_q,
+        "evaporation_quanta": evaporation_q,
         "resolution_bound_mm": bound, "absolute_floor_mm": floor,
         "margin": (floor / bound) if bound > 0 else None,
     }
@@ -480,6 +509,7 @@ def closure_report(tables: dict, cells: list[tuple[float, float]],
             refusals.append(f"{element} closure fails in {int(failed.sum())} cells")
 
     water = closure["water"]
+    evaporation = evaporation_columns(tables, water)
     residuals = np.empty(len(cells))
     limits = np.empty(len(cells))
     for cell, coordinate in enumerate(cells):
@@ -487,8 +517,16 @@ def closure_report(tables: dict, cells: list[tuple[float, float]],
                            cell, selected)
         runoff = field_series(tables, water["runoff_output"], water["runoff_field"],
                               cell, selected)
+        # EVERY WAY WATER LEAVES THE GRIDCELL, not the one column named Total.
+        # aaet.out Total is transpiration; the config says which tables carry
+        # the soil evaporation and canopy interception it does not.
+        losses = float(aet.sum()) + float(runoff.sum())
+        for output, fields in evaporation:
+            for field in fields:
+                losses += float(field_series(tables, output, field,
+                                             cell, selected).sum())
         p_total = cycles * float(precip[coordinate].sum())
-        residuals[cell] = p_total - float(aet.sum()) - float(runoff.sum())
+        residuals[cell] = p_total - losses
         limits[cell] = max(float(water["absolute_floor_mm"]),
                            float(water["relative_throughput_limit"]) * p_total)
     failed = np.abs(residuals) > limits
@@ -684,12 +722,17 @@ def _write_driver(path: Path, cells: list[tuple[float, float]], precip_mm: float
 # `vendor/lpj-guess/modules/commonoutput.cpp`. The fixture writes at these
 # precisions so the resolution check has a real quantum to measure; the check
 # itself reads the quantum off the table and never off this map.
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
 CLOSURE_DECIMALS = {
     ("cpool.out", "Total"): 6, ("cflux.out", "NEE"): 5,
     ("npool.out", "Total"): 7, ("nflux.out", "NEE"): 5,
     ("aaet.out", "Total"): 4, ("tot_runoff.out", "Total"): 4,
     ("soil_npool.out", "NO2"): 4, ("soil_npool.out", "NO"): 4,
     ("soil_npool.out", "N2O"): 4, ("soil_npool.out", "N2"): 4,
+    **{("mevap.out", month): 3 for month in MONTHS},
+    **{("mintercep.out", month): 3 for month in MONTHS},
 }
 
 
@@ -744,9 +787,14 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range,
     special = {
         "cpool.out": (["Total"], [10.0]), "cflux.out": (["NEE"], [0.0]),
         "npool.out": (["Total"], [0.1]), "nflux.out": (["NEE"], [0.0]),
-        "aaet.out": (["Total"], [600.0]),
+        # The fixture's water balances: 1000 mm of precipitation leaves as 576
+        # of transpiration, 400 of runoff, and 12 each of soil evaporation and
+        # canopy interception.
+        "aaet.out": (["Total"], [576.0]),
         "tot_runoff.out": (["Surf", "Drain", "Base", "Total"],
                             [100.0, 200.0, 100.0, 400.0]),
+        "mevap.out": (list(MONTHS), [1.0] * 12),
+        "mintercep.out": (list(MONTHS), [1.0] * 12),
         "fpc.out": (["Tree", "Total"], [0.4, 0.4]),
         "firert.out": (["FireRT", "BurntFr"], [100.0, 0.01]),
         "ngases.out": (["NH3_soil", "Total"], [0.01, 0.01]),
@@ -774,6 +822,36 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range,
                     written.append(f"{value + (year % 10) * 10.0 ** -places:.{places}f}")
             lines.append(f"{lon} {lat} {year} " + " ".join(written))
     return "\n".join(lines) + "\n"
+
+
+def _add_to_column(header: str, line: str, field: str, amount: float,
+                   decimals: int) -> str:
+    """One data row with `amount` added to the named column."""
+    parts = line.split()
+    parts[header.split().index(field)] = \
+        f"{float(parts[header.split().index(field)]) + amount:.{decimals}f}"
+    return " ".join(parts)
+
+
+def _rewrite_ranks(bed: Path, output: str, cells: list, edit) -> None:
+    """Apply one row edit to an output across every rank AND the merged table.
+
+    Every table is written per rank and merged, and `verify_merge` compares the
+    two, so a mutation that moves only one of them exercises the merge check
+    instead of the one it was written for.
+    """
+    ranks = range(1, len(cells) + 1)
+    for rank in ranks:
+        path = bed / f"run{rank}" / output
+        lines = path.read_text(encoding="utf-8").splitlines()
+        lines = [lines[0]] + [edit(lines[0], line) for line in lines[1:]]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    parts = [(bed / f"run{rank}" / output).read_text(
+        encoding="utf-8").splitlines() for rank in ranks]
+    merged = parts[0]
+    for piece in parts[1:]:
+        merged = merged + piece[1:]
+    (bed / output).write_text("\n".join(merged) + "\n", encoding="utf-8")
 
 
 def _parsers_agree(root: Path) -> bool:
@@ -871,21 +949,10 @@ def selftest() -> dict:
             mutation at all, which is what makes it a test of the pairing
             rather than of the tolerance.
             """
-            step = 3.0
-            for rank, _ in enumerate(cells, 1):
-                path = bed / f"run{rank}" / "soil_npool.out"
-                lines = path.read_text(encoding="utf-8").splitlines()
-                column = lines[0].split().index("NO2")
-                for row in range(1, len(lines)):
-                    parts = lines[row].split()
-                    if int(parts[2]) == years[-1]:
-                        parts[column] = f"{float(parts[column]) + step:.4f}"
-                        lines[row] = " ".join(parts)
-                path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-            parts = [(bed / f"run{rank}" / "soil_npool.out").read_text(
-                encoding="utf-8").splitlines() for rank in (1, 2)]
-            (bed / "soil_npool.out").write_text(
-                "\n".join(parts[0] + parts[1][1:]) + "\n", encoding="utf-8")
+            _rewrite_ranks(
+                bed, "soil_npool.out", cells,
+                lambda header, line: _add_to_column(header, line, "NO2", 3.0, 4)
+                if int(line.split()[2]) == years[-1] else line)
 
         mutations = {
             "missing rank output": (
@@ -901,7 +968,16 @@ def selftest() -> dict:
                     (bed / "cflux.out").read_text().replace("0.0", "1.0")), None),
             "water leak": (
                 lambda bed: (bed / "aaet.out").write_text(
-                    (bed / "aaet.out").read_text().replace("600.0", "500.0")), None),
+                    (bed / "aaet.out").read_text().replace("576.0", "476.0")), None),
+            # Water leaving as soil evaporation with no precipitation behind it.
+            # A check that subtracts only transpiration and runoff cannot see
+            # this at all: it reads as more storage, which is what the water
+            # residual was being called.
+            "evaporation with no precipitation behind it": (
+                lambda bed: _rewrite_ranks(
+                    bed, "mevap.out", cells,
+                    lambda header, line: _add_to_column(header, line, "Jun", 30.0, 3)),
+                "water closure fails"),
             "closure tolerance under the written precision": (
                 coarsen_npool, "finer than the output it reads"),
             "nitrogen appears in a pool outside npool.out Total": (

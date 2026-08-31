@@ -14,6 +14,8 @@ required_outputs:
   - cflux.out
   - firert.out
   - tot_runoff.out
+  - mevap.out
+  - mintercep.out
   - nmass.out
   - npool.out
   - nflux.out
@@ -32,6 +34,8 @@ nonnegative_outputs:
   - dens.out
   - agpp.out
   - tot_runoff.out
+  - mevap.out
+  - mintercep.out
   - nmass.out
   - npool.out
   - ngases.out
@@ -118,12 +122,31 @@ closure:
     precipitation_source: manifest-pinned VESPDRV8
     aet_output: aaet.out
     aet_field: Total
+    # aaet.out Total IS TRANSPIRATION, not evapotranspiration: commonoutput.cpp
+    # builds it from indiv.aaet summed over individuals and patches, while the
+    # model's own annual water record is patch.aaet + patch.aevap +
+    # patch.aintercep. Bare soil evaporation and canopy interception
+    # evaporation reach no annual table at all -- commonoutput.cpp sends both
+    # only to the interactive plot() -- so these two monthly tables are the
+    # only route to them. Without them the check subtracts one of the three
+    # ways water leaves a gridcell and calls the other two storage, which is
+    # not a closure. notes/audits/closure-stocks-are-incomplete.md.
+    #
+    # `fields` is the column count each table must carry. The annual flux is
+    # the sum of every column, so a table that changes shape has to refuse
+    # rather than silently sum something else.
+    evaporation_outputs:
+      - output: mevap.out
+        fields: 12
+      - output: mintercep.out
+        fields: 12
     runoff_output: tot_runoff.out
     runoff_field: Total
     absolute_floor_mm: 2.0
     relative_throughput_limit: 0.005
     interpretation: >-
-      Over ten complete forcing cycles, precipitation minus AET and runoff is
-      the implied change in soil, snow and canopy stores. Those stores are not
-      retained as annual endpoints, so this is an equilibrium-window closure,
-      not a claim of bitwise daily hydrology closure.
+      Over ten complete forcing cycles, precipitation minus transpiration, soil
+      evaporation, canopy interception and runoff is the implied change in
+      soil, snow and canopy stores. Those stores are not retained as annual
+      endpoints, so this is an equilibrium-window closure, not a claim of
+      bitwise daily hydrology closure.
