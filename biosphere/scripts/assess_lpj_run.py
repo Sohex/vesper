@@ -715,13 +715,14 @@ def _write_driver(path: Path, cells: list[tuple[float, float]], precip_mm: float
         json.dumps({"physical_layers": layers}) + "\n", encoding="utf-8")
 
 
+# The columns of every monthly table, in the order commonoutput.cpp writes them.
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
 # What the model writes each closure column to, from the ColumnDescriptors in
 # `vendor/lpj-guess/modules/commonoutput.cpp`. The fixture writes at these
 # precisions so the resolution check has a real quantum to measure; the check
 # itself reads the quantum off the table and never off this map.
-MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
-          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-
 CLOSURE_DECIMALS = {
     ("cpool.out", "Total"): 6, ("cflux.out", "NEE"): 5,
     ("npool.out", "Total"): 7, ("nflux.out", "NEE"): 5,
