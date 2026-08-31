@@ -32,6 +32,9 @@ from lpj_output import (EquilibriumWindowError, reduce_table,
                         timescale_report)
 
 CONFIG = COMPONENT_ROOT / "config" / "lpj_acceptance.yaml"
+# The equilibrium contract, read HERE only so the self-test's fixture tables
+# carry the columns it names. `lib/lpj_output.py` is what applies it.
+EQUILIBRIUM_CONFIG = COMPONENT_ROOT / "config" / "equilibrium_window.yaml"
 ANALYSIS = COMPONENT_ROOT / "analysis"
 DRIVER_MAGIC = b"VESPDRV8"
 DRIVER_HEADER = "<iiiiiidd"
@@ -40,6 +43,31 @@ DRIVER_PROVENANCE_BYTES = 64
 
 class AcceptanceError(ValueError):
     pass
+
+
+class ClosureError(AcceptanceError):
+    """A closure refusal that carries the per-cell report it refused on.
+
+    A refusal that says four cells failed without saying WHICH is a refusal
+    nobody can act on, and the closure check raises before `assess` has built
+    anything to write. So the report travels on the exception and
+    `write_failure` records it beside the refusal text.
+    """
+
+    def __init__(self, message: str, closure: dict):
+        super().__init__(message)
+        self.closure = closure
+
+
+# How many failing cells a refusal names. A refusal has to name enough of them
+# to be actionable and not so many that the report becomes the output file
+# again; the ones it names are the largest residuals, and the count is always
+# reported in full.
+NAMED_FAILURES = 64
+# The most decimal places a written column is searched for. Past this a column
+# is treated as unquantised, which is the benign direction: it makes the
+# resolution bound smaller, never larger.
+MAX_WRITTEN_DECIMALS = 12
 
 
 def sha256(path: Path) -> str:
@@ -258,6 +286,103 @@ def field_series(tables: dict, output: str, field: str, cell: int,
     return np.asarray([grid[cell, year, index] for year in years])
 
 
+def written_quantum(tables: dict, output: str, field: str) -> float:
+    """The decimal step one column of an output table is WRITTEN on.
+
+    LPJ-GUESS writes each column at a compiled-in fixed precision
+    (`modules/commonoutput.cpp`, `ColumnDescriptor(width, precision)`), so a
+    value read back from the table is the simulated quantity rounded to that
+    many decimals and the column cannot resolve anything finer. This measures
+    that step from the ARTIFACT rather than from the model source, so it stays
+    true whatever a rebuild did to the source, and it is deliberately
+    conservative: a column that happens to hold only round numbers is reported
+    as coarse, which can only make a tolerance harder to justify.
+    """
+    fields, grid = tables[output]
+    if field not in fields:
+        raise AcceptanceError(f"{output} has no {field} field")
+    column = grid[:, :, fields.index(field)]
+    for decimals in range(MAX_WRITTEN_DECIMALS + 1):
+        if np.array_equal(np.round(column, decimals), column):
+            return float(10.0 ** -decimals)
+    return 0.0
+
+
+def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
+    """What each closure residual can resolve, against the tolerance it is held to.
+
+    A CONSERVATION CHECK CANNOT BE FINER THAN THE COLUMNS IT DIFFERENCES. The
+    pool residual is `(pool[-1] - pool[0]) * factor + sum(flux)`: each pool
+    endpoint carries up to half a written quantum, so their difference carries
+    a whole one, and each of the summed flux terms carries half of its own. The
+    water residual differences two summed columns against a driver
+    precipitation that is full-precision binary and contributes nothing.
+
+    The bound this returns is the residual an output written this coarsely
+    reports for a model that conserves EXACTLY. A declared absolute floor at or
+    below it is not a tolerance: every cell it fails, it fails for having been
+    written down. `minimum_resolution_margin` is how far above its own
+    quantisation a tolerance has to sit to be measuring the simulation.
+    """
+    closure = contract["closure"]
+    margin = float(closure["minimum_resolution_margin"])
+    resolution = {"minimum_resolution_margin": margin,
+                  "form": "the residual an exactly conserving model reports, "
+                          "given the written precision of the columns differenced"}
+    unresolvable = []
+    for element in ("carbon", "nitrogen"):
+        rule = closure[element]
+        factor = float(rule.get("pool_to_flux_units", 1.0))
+        pool_q = written_quantum(tables, rule["pool_output"], rule["pool_field"])
+        flux_q = written_quantum(tables, rule["flux_output"], rule["flux_field"])
+        bound = pool_q * factor + (count - 1) * flux_q / 2.0
+        floor = float(rule[absolute_floor_key(rule)])
+        resolution[element] = {
+            "pool_quantum": pool_q, "flux_quantum": flux_q,
+            "pool_to_flux_units": factor,
+            "resolution_bound": bound, "absolute_floor": floor,
+            "margin": (floor / bound) if bound > 0 else None,
+        }
+        if bound > 0 and floor < margin * bound:
+            unresolvable.append(
+                f"{element} floor {floor:g} is {floor / bound:.2f}x its own "
+                f"{bound:g} resolution bound, under the required {margin:g}x")
+    water = closure["water"]
+    aet_q = written_quantum(tables, water["aet_output"], water["aet_field"])
+    runoff_q = written_quantum(tables, water["runoff_output"], water["runoff_field"])
+    bound = count * (aet_q + runoff_q) / 2.0
+    floor = float(water["absolute_floor_mm"])
+    resolution["water"] = {
+        "aet_quantum": aet_q, "runoff_quantum": runoff_q,
+        "resolution_bound_mm": bound, "absolute_floor_mm": floor,
+        "margin": (floor / bound) if bound > 0 else None,
+    }
+    if bound > 0 and floor < margin * bound:
+        unresolvable.append(
+            f"water floor {floor:g} mm is {floor / bound:.2f}x its own "
+            f"{bound:g} mm resolution bound, under the required {margin:g}x")
+    resolution["unresolvable"] = unresolvable
+    return resolution
+
+
+def absolute_floor_key(rule: dict) -> str:
+    """The one `absolute_floor_*` key in a closure rule, named exactly once."""
+    keys = [key for key in rule if key.startswith("absolute_floor_")]
+    if len(keys) != 1:
+        raise AcceptanceError(f"closure rule needs exactly one absolute floor, has {keys}")
+    return keys[0]
+
+
+def named_failures(cells: list[tuple[float, float]], residuals: np.ndarray,
+                   limits: np.ndarray, failed: np.ndarray) -> list[dict]:
+    """The failing cells a refusal names, largest residual first."""
+    index = np.flatnonzero(failed)
+    index = index[np.argsort(-np.abs(residuals[index]))][:NAMED_FAILURES]
+    return [{"lon": float(cells[cell][0]), "lat": float(cells[cell][1]),
+             "residual": float(residuals[cell]), "limit": float(limits[cell])}
+            for cell in index]
+
+
 def closure_report(tables: dict, cells: list[tuple[float, float]],
                    years: list[int], manifest: dict, contract: dict) -> dict:
     closure = contract["closure"]
@@ -276,59 +401,80 @@ def closure_report(tables: dict, cells: list[tuple[float, float]],
         raise AcceptanceError(
             f"driver/output support differs: {len(precip)} versus {len(cells)} cells")
 
-    reports = {}
+    # THE INSTRUMENT BEFORE THE MEASUREMENT. Every residual below is a
+    # difference of written columns, so a tolerance under the written precision
+    # discriminates on rounding rather than on conservation. This refuses such a
+    # tolerance by name instead of reporting its rounding as a defect.
+    reports = {"resolution": closure_resolution(tables, contract, count)}
+    if reports["resolution"]["unresolvable"]:
+        raise ClosureError(
+            "closure tolerance is finer than the output it reads: "
+            + "; ".join(reports["resolution"]["unresolvable"]), reports)
+
+    refusals = []
     for element in ("carbon", "nitrogen"):
         rule = closure[element]
-        residuals = []
-        throughputs = []
+        factor = float(rule.get("pool_to_flux_units", 1.0))
+        floor = float(rule[absolute_floor_key(rule)])
+        residuals = np.empty(len(cells))
+        throughputs = np.empty(len(cells))
         for cell, _ in enumerate(cells):
             pool = field_series(tables, rule["pool_output"], rule["pool_field"],
                                 cell, selected)
             flux = field_series(tables, rule["flux_output"], rule["flux_field"],
                                 cell, selected)
-            factor = float(rule.get("pool_to_flux_units", 1.0))
-            residual = (pool[-1] - pool[0]) * factor + float(flux[1:].sum())
-            throughput = float(np.abs(flux[1:]).sum())
-            limit = max(float(rule[next(k for k in rule if k.startswith("absolute_floor_") )]),
-                        float(rule["relative_throughput_limit"]) * throughput)
-            residuals.append(residual)
-            throughputs.append((throughput, limit))
-        failed = [abs(value) > limit for value, (_, limit)
-                  in zip(residuals, throughputs)]
+            residuals[cell] = (pool[-1] - pool[0]) * factor + float(flux[1:].sum())
+            throughputs[cell] = float(np.abs(flux[1:]).sum())
+        limits = np.maximum(floor, float(rule["relative_throughput_limit"]) * throughputs)
+        failed = np.abs(residuals) > limits
+        worst = int(np.argmax(np.abs(residuals)))
         reports[element] = {
-            "maximum_absolute_residual": float(np.max(np.abs(residuals))),
-            "maximum_allowed_residual": float(max(limit for _, limit in throughputs)),
-            "failed_cells": int(sum(failed)), "cells": len(cells),
+            "maximum_absolute_residual": float(np.abs(residuals[worst])),
+            # The limit that applied to the WORST cell, which is the one the
+            # maximum residual is to be read against. A maximum over every
+            # cell's limit belongs to whichever cell had the largest
+            # throughput and answers a question nobody asked.
+            "limit_at_maximum_residual": float(limits[worst]),
+            "absolute_floor": floor,
+            "binding_limit": "absolute floor" if float(limits.max()) <= floor
+                             else "mixed floor and relative throughput",
+            "failed_cells": int(failed.sum()), "cells": len(cells),
+            "named_failures": named_failures(cells, residuals, limits, failed),
         }
-        if any(failed):
-            raise AcceptanceError(f"{element} closure fails in {sum(failed)} cells")
+        if failed.any():
+            refusals.append(f"{element} closure fails in {int(failed.sum())} cells")
 
     water = closure["water"]
-    residuals = []
-    limits = []
+    residuals = np.empty(len(cells))
+    limits = np.empty(len(cells))
     for cell, coordinate in enumerate(cells):
         aet = field_series(tables, water["aet_output"], water["aet_field"],
                            cell, selected)
         runoff = field_series(tables, water["runoff_output"], water["runoff_field"],
                               cell, selected)
-        p_cycle = float(precip[coordinate].sum())
-        p_total = cycles * p_cycle
-        residual = p_total - float(aet.sum()) - float(runoff.sum())
-        limit = max(float(water["absolute_floor_mm"]),
-                    float(water["relative_throughput_limit"]) * p_total)
-        residuals.append(residual)
-        limits.append(limit)
-    failed = [abs(value) > limit for value, limit in zip(residuals, limits)]
+        p_total = cycles * float(precip[coordinate].sum())
+        residuals[cell] = p_total - float(aet.sum()) - float(runoff.sum())
+        limits[cell] = max(float(water["absolute_floor_mm"]),
+                           float(water["relative_throughput_limit"]) * p_total)
+    failed = np.abs(residuals) > limits
+    worst = int(np.argmax(np.abs(residuals)))
     reports["water"] = {
         "form": "precipitation - AET - runoff = implied end-minus-start storage",
         "interpretation": water["interpretation"],
-        "maximum_absolute_residual_mm": float(np.max(np.abs(residuals))),
-        "maximum_allowed_residual_mm": float(max(limits)),
-        "failed_cells": int(sum(failed)), "cells": len(cells),
+        "maximum_absolute_residual_mm": float(np.abs(residuals[worst])),
+        "limit_at_maximum_residual_mm": float(limits[worst]),
+        "failed_cells": int(failed.sum()), "cells": len(cells),
+        "named_failures": named_failures(cells, residuals, limits, failed),
         "driver": precip_identity,
     }
-    if any(failed):
-        raise AcceptanceError(f"water closure fails in {sum(failed)} cells")
+    if failed.any():
+        refusals.append(f"water closure fails in {int(failed.sum())} cells")
+
+    # EVERY ELEMENT IS EVALUATED BEFORE ANY OF THEM REFUSES. Raising on carbon
+    # left nitrogen and water unmeasured, so a run was fixed and re-run once per
+    # element rather than once.
+    if refusals:
+        raise ClosureError("; ".join(refusals), reports)
     return reports
 
 
@@ -464,6 +610,12 @@ def write_failure(run_dir: Path, error: Exception, *,
         # must not be masked by a second failure while measuring them.
         "timescales": _timescales_or_reason(run_dir),
     }
+    # A closure refusal knows which cells failed and by how much. Without this
+    # the report carried a count, and a count is not something a reader can act
+    # on: it says four cells are wrong and leaves finding them to whoever reads
+    # the gigabytes again.
+    if isinstance(error, ClosureError):
+        report["closure"] = error.closure
     run_dir.mkdir(parents=True, exist_ok=True)
     target = run_dir / "acceptance.json"
     target.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
@@ -493,7 +645,49 @@ def _write_driver(path: Path, cells: list[tuple[float, float]], precip_mm: float
         json.dumps({"physical_layers": layers}) + "\n", encoding="utf-8")
 
 
-def _table_text(output: str, cells: list[tuple[float, float]], years: range) -> str:
+# What the model writes each closure column to, from the ColumnDescriptors in
+# `vendor/lpj-guess/modules/commonoutput.cpp`. The fixture writes at these
+# precisions so the resolution check has a real quantum to measure; the check
+# itself reads the quantum off the table and never off this map.
+CLOSURE_DECIMALS = {
+    ("cpool.out", "Total"): 6, ("cflux.out", "NEE"): 5,
+    ("npool.out", "Total"): 7, ("nflux.out", "NEE"): 5,
+    ("aaet.out", "Total"): 4, ("tot_runoff.out", "Total"): 4,
+}
+
+
+def _assessed_columns(output: str) -> list[str]:
+    """Every column the equilibrium contract NAMES for one output table.
+
+    The contract selects a quantity either by naming its columns or by naming
+    the ones to exclude, and it refuses a table that carries neither. A fixture
+    with a hand-written column list drifts the moment a quantity is added to
+    the contract, and then the self-test exercises that drift refusal instead
+    of the checks it was written for. So the fixture's columns come from the
+    contract, and adding a row there needs no edit here.
+    """
+    policy = yaml.safe_load(EQUILIBRIUM_CONFIG.read_text(encoding="utf-8"))
+    named = []
+    for quantity in policy.get("assessed", {}).get("quantities", []):
+        if quantity.get("table") != output:
+            continue
+        for name in (quantity.get("columns") or []) + (quantity.get("columns_excluding") or []):
+            if name not in named:
+                named.append(name)
+    return named
+
+
+def _table_text(output: str, cells: list[tuple[float, float]], years: range,
+                coarsen: dict | None = None) -> str:
+    """One fixture output table, written the way the model writes it.
+
+    Each closure column varies in its LAST written digit from year to year. A
+    column holding one constant reads back as coarser than it was written --
+    every value in it is round at any precision -- so a constant fixture would
+    exercise the resolution check's degenerate case instead of its ordinary one.
+    The variation is a single quantum, which is negligible against every
+    tolerance in the contract and keeps the fixture a passing run.
+    """
     special = {
         "cpool.out": (["Total"], [10.0]), "cflux.out": (["NEE"], [0.0]),
         "npool.out": (["Total"], [0.1]), "nflux.out": (["NEE"], [0.0]),
@@ -505,10 +699,23 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range) -> 
         "ngases.out": (["NH3_soil", "Total"], [0.01, 0.01]),
     }
     fields, values = special.get(output, (["Total"], [1.0]))
+    # Any column the equilibrium contract names that the fixture does not
+    # already carry, so the contract and the fixture cannot drift apart.
+    for name in _assessed_columns(output):
+        if name not in fields:
+            fields, values = fields + [name], values + [0.1]
+    decimals = [(coarsen or {}).get(field, CLOSURE_DECIMALS.get((output, field)))
+                for field in fields]
     lines = ["Lon Lat Year " + " ".join(fields)]
     for lon, lat in cells:
         for year in years:
-            lines.append(f"{lon} {lat} {year} " + " ".join(map(str, values)))
+            written = []
+            for value, places in zip(values, decimals):
+                if places is None:
+                    written.append(str(value))
+                else:
+                    written.append(f"{value + (year % 10) * 10.0 ** -places:.{places}f}")
+            lines.append(f"{lon} {lat} {year} " + " ".join(written))
     return "\n".join(lines) + "\n"
 
 
@@ -579,25 +786,54 @@ def selftest() -> dict:
         fixtures.append({"fixture": "column and row parsers agree",
                          "pass": _parsers_agree(root)})
 
+        def coarsen_npool(bed: Path) -> None:
+            """Write npool.out at the precision the release shipped.
+
+            Four decimals in kgN/m2 against a `pool_to_flux_units` of 1e4 is one
+            least-significant digit per 1.0 kgN/ha, so the 2.0 kgN/ha floor sits
+            at twice its own quantisation and fails cells for how they were
+            written down. The gate has to refuse the TOLERANCE here, not the
+            cells, and it has to say so.
+            """
+            for rank, cell in enumerate(cells, 1):
+                (bed / f"run{rank}" / "npool.out").write_text(
+                    _table_text("npool.out", [cell], years, coarsen={"Total": 4}),
+                    encoding="utf-8")
+            parts = [(bed / f"run{rank}" / "npool.out").read_text(
+                encoding="utf-8").splitlines() for rank in (1, 2)]
+            (bed / "npool.out").write_text(
+                "\n".join(parts[0] + parts[1][1:]) + "\n", encoding="utf-8")
+
         mutations = {
-            "missing rank output": lambda bed: (bed / "run2" / "lai.out").unlink(),
-            "non-finite value": lambda bed: (bed / "anpp.out").write_text(
-                (bed / "anpp.out").read_text().replace("1.0", "nan", 1)),
-            "negative stock": lambda bed: (bed / "cpool.out").write_text(
-                (bed / "cpool.out").read_text().replace("10.0", "-1.0", 1)),
-            "carbon leak": lambda bed: (bed / "cflux.out").write_text(
-                (bed / "cflux.out").read_text().replace("0.0", "1.0")),
-            "water leak": lambda bed: (bed / "aaet.out").write_text(
-                (bed / "aaet.out").read_text().replace("600.0", "500.0")),
+            "missing rank output": (
+                lambda bed: (bed / "run2" / "lai.out").unlink(), None),
+            "non-finite value": (
+                lambda bed: (bed / "anpp.out").write_text(
+                    (bed / "anpp.out").read_text().replace("1.0", "nan", 1)), None),
+            "negative stock": (
+                lambda bed: (bed / "cpool.out").write_text(
+                    (bed / "cpool.out").read_text().replace("10.0", "-1.0", 1)), None),
+            "carbon leak": (
+                lambda bed: (bed / "cflux.out").write_text(
+                    (bed / "cflux.out").read_text().replace("0.0", "1.0")), None),
+            "water leak": (
+                lambda bed: (bed / "aaet.out").write_text(
+                    (bed / "aaet.out").read_text().replace("600.0", "500.0")), None),
+            "closure tolerance under the written precision": (
+                coarsen_npool, "finer than the output it reads"),
         }
-        for name, mutate in mutations.items():
+        for name, (mutate, expected) in mutations.items():
             bed = root / name.replace(" ", "_")
             shutil.copytree(run, bed)
             mutate(bed)
             try:
                 assess(bed, write=False)
-            except AcceptanceError:
-                fixtures.append({"fixture": name, "pass": True})
+            except AcceptanceError as exc:
+                # A mutation that names its refusal has to earn THAT refusal.
+                # Any AcceptanceError would otherwise pass a fixture whose whole
+                # point is which check fired.
+                fixtures.append({"fixture": name,
+                                 "pass": expected is None or expected in str(exc)})
             else:
                 fixtures.append({"fixture": name, "pass": False})
     return {"fixtures": fixtures,
