@@ -449,14 +449,29 @@ def main() -> None:
         # not resolve it one per cent short. `cycles_for_bound` is monotone in
         # the standard error, so re-asking it at the derived length with the
         # standard error that length implies has to return the length itself.
+        # The record floor is the TOP of the resolving bracket exactly, because
+        # a record has to serve every quantity it will be asked to judge and
+        # buying more than the hardest one needs is not a floor. Taking the
+        # bottom, or anything between, is the failure this checks for.
         check("the retained record resolves the drift the contract refuses",
-              record >= derived["brackets"]["resolving_cycles_bracket"][1]
-              and record > derived["brackets"]["resolving_cycles_bracket"][0],
+              record == derived["brackets"]["resolving_cycles_bracket"][1]
+              and record >= derived["brackets"]["resolving_cycles_bracket"][0],
               f"{record:.0f} cycles against a resolving bracket of "
               f"{derived['brackets']['resolving_cycles_bracket'][0]:.0f} to "
               f"{derived['brackets']['resolving_cycles_bracket'][1]:.0f}, and "
-              f"{derived['brackets']['fields_with_no_finite_record']} fields "
+              f"{derived['brackets']['fields_with_no_finite_record']} quantities "
               "for which no finite record resolves it")
+        # An artifact taken under a superseded contract measured a different
+        # assessed set at a different tolerance, so it must not size a run this
+        # contract will judge. Every source pooled has to be current, and the
+        # ones that are not have to be named.
+        check("only artifacts under the live contract size a run",
+              derived["brackets"]["contract_version"]
+              == read_policy()["contract_version"]
+              and bool(derived["brackets"]["sources"]),
+              f"{len(derived['brackets']['sources'])} current, "
+              f"{len(derived['brackets']['superseded_sources'])} superseded and "
+              "not pooled")
         check("the ecological lengths are a floor and say why",
               derived["is_a_floor"] and bool(derived["floor_because"]),
               derived["floor_because"])

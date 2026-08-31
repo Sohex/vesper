@@ -343,8 +343,8 @@ def main() -> None:
         rescaled, applied = re.subn(
             r"^([ \t]*)\bnyear_spinup\b([ \t]+)([0-9.]+)[^\n]*$",
             lambda m: (f"{m.group(1)}nyear_spinup{m.group(2)}{spinup['cycles']}"
-                       "\t! simulation years; DERIVED floor from this world's "
-                       "own relaxation time, not Earth's convention"),
+                       "\t! simulation years; DERIVED floor from the acceptance "
+                       "contract, not Earth's convention"),
             rescaled, flags=re.MULTILINE)
         spinup["applied"] = bool(applied)
         if applied:
@@ -372,11 +372,11 @@ def main() -> None:
         class_lines += (
             "\n!//"
             "\n!// DERIVED is not a rescale. nyear_spinup is not an Earth duration"
-            "\n!// converted into simulation years; it is this world's own"
-            "\n!// relaxation time, already in simulation years, read from"
-            "\n!// lib/run_lengths.py:ecological_run_cycles, which reads the"
-            "\n!// acceptance artifacts. Rescaling it would apply the YEAR_COUNT"
-            f"\n!// factor to a number that is already in the target unit."
+            "\n!// converted into simulation years; it is already in simulation"
+            "\n!// years, read from lib/run_lengths.py:ecological_run_cycles,"
+            "\n!// which reads the acceptance artifacts. Rescaling it would apply"
+            "\n!// the YEAR_COUNT factor to a number already in the target unit."
+            f"\n!// Basis: {spinup.get('basis', '')}"
             f"\n!// It is a FLOOR: {spinup.get('floor_because', '')}")
 
     header = f"""!///////////////////////////////////////////////////////////////////////////////

@@ -593,6 +593,18 @@ def ecological_timescale_brackets(root=None) -> dict:
     the same move `TAU_MEMORY_ORBITS_BRACKET` refuses on the climate side. Only
     the TOP of each bracket sizes anything here, so a short run pooled with a long
     one can widen the bottom and cannot shorten a floor.
+
+    AN ARTIFACT FROM A SUPERSEDED CONTRACT IS NOT POOLED, and that is the wire
+    that makes the assessed set a live declaration rather than a number frozen
+    into every artifact ever written. What a `record_cycles_for_bound` means is
+    "the record at which THIS quantity closes on THAT tolerance", and both halves
+    are the contract's. Contract 4 assessed every column of every stability table
+    at one tolerance and its artifacts ask for 33846 cycles; contract 5 assesses
+    the quantities a consumer reads at the tolerance each owes, and asks for the
+    record already on disk. Pooling the two would size every future run from the
+    contract that no longer judges it. Superseded artifacts are counted and named
+    rather than dropped in silence, and when none is current this raises with the
+    command that re-takes them.
     """
     base = Path(root) if root is not None else _REPO_ROOT
     directory = base / ECOLOGICAL_ACCEPTANCE_DIR
@@ -600,6 +612,9 @@ def ecological_timescale_brackets(root=None) -> dict:
     declined = 0
     tolerance, span = None, []
     resolving, unresolvable = [], 0
+    from lpj_output import read_policy      # local: this module stays light
+    contract = read_policy()["contract_version"]
+    superseded = []
     for path in sorted(directory.glob("lpj_*/acceptance.json")):
         try:
             report = json.loads(path.read_text(encoding="utf-8"))
@@ -608,6 +623,10 @@ def ecological_timescale_brackets(root=None) -> dict:
         scales = report.get("timescales") or {}
         tables = scales.get("tables")
         if not tables:
+            continue
+        if scales.get("contract_version") != contract:
+            superseded.append(
+                f"{path.relative_to(base)} ({scales.get('contract_version')})")
             continue
         sources.append(str(path.relative_to(base)))
         if tolerance is None and scales.get("drift_tolerance") is not None:
@@ -630,11 +649,15 @@ def ecological_timescale_brackets(root=None) -> dict:
                 else:
                     unresolvable += 1
     if not memory:
+        stale = (f" {len(superseded)} artifact(s) carry a superseded contract "
+                 f"and were not pooled: {', '.join(superseded)}."
+                 if superseded else "")
         raise RuntimeError(
             f"no acceptance artifact under {ECOLOGICAL_ACCEPTANCE_DIR} carries "
-            "ecological timescales, and they are where this bracket lives. "
-            f"Run `python {ECOLOGICAL_TIMESCALE_GENERATOR} <run>`; it records "
-            "them whatever the verdict.")
+            f"ecological timescales under {contract}, and they are where this "
+            f"bracket lives.{stale} Run "
+            f"`python {ECOLOGICAL_TIMESCALE_GENERATOR} <run>`; it records them "
+            "whatever the verdict.")
     if len(cycle_years) != 1:
         raise RuntimeError(
             f"the acceptance artifacts declare more than one forcing cycle "
@@ -666,7 +689,12 @@ def ecological_timescale_brackets(root=None) -> dict:
         "forcing_cycle_years": cycle_years.pop(),
         "longest_record_cycles": max(span) if span else 0,
         "drift_tolerance_when_assessed": tolerance,
+        "contract_version": contract,
         "sources": sources,
+        # Named rather than dropped in silence: an artifact taken under a
+        # superseded contract measured a different assessed set at a different
+        # tolerance, so it cannot size a run this contract will judge.
+        "superseded_sources": superseded,
     }
 
 
