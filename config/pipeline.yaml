@@ -1962,14 +1962,22 @@ steps:
     needs: [stochastic_seed_gate]
     writes: [biosphere/generated/equilibrium_window_report.json]
     gate: >
-      BIO-12's one statistic for every LPJ output consumer. It requires ten
-      complete forcing cycles (ten years for a one-year forcing), reduces the
-      annual rows to cycle means before testing their trend, refuses incomplete
+      BIO-12's one statistic for every LPJ output consumer. It bounds the
+      end-to-end relative drift of THE QUANTITIES A CONSUMER READS -- the sums
+      `equilibrium_window.yaml`'s `assessed` block declares, each at the
+      tolerance its own consumer's chain gives -- rather than of a table's
+      columns, reduces the annual rows to cycle means, refuses incomplete
       cell-year output, and reports temporal spread separately from root-seed
       and patch-count ensemble spread. Missing ensemble members are
       `not_measured`, never zero uncertainty. Fixtures cover a stationary
-      multi-year phase, trend and truncation refusals, and seed/patch ensembles;
-      source probes hold albedo, scoring and soil carbon to this shared reader.
+      multi-year phase, trend and truncation refusals, seed/patch ensembles, and
+      the pair that says what the assessed set is FOR: one record whose two
+      columns drift in opposite directions is accepted when the sum a consumer
+      forms is the claim and refused when the columns are, and a record whose
+      columns drift together is refused either way. Source probes hold albedo,
+      scoring and soil carbon to this shared reader, and the spin-up floor's
+      minimax over the unmeasured relaxation time is checked across five decades
+      of relaxation time rather than reported.
 
   - id: lpj_run
     script: biosphere/scripts/run_lpj_guess.py
@@ -2370,7 +2378,7 @@ one_offs:
   - biosphere/scripts/check_forcing_contract.py
   # Validates the equilibrium contract's drift bound against series whose
   # answer is known by construction, and prices the retained record each
-  # assessed field needs. Outside the graph because its JSON is EVIDENCE for
+  # assessed quantity needs. Outside the graph because its JSON is EVIDENCE for
   # a declared rate in `biosphere/config/equilibrium_window.yaml`, not an
   # input any step reads, and because it runs no model: every series is a
   # synthetic AR(1) or a completed run's own table. world-rnns.

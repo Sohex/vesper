@@ -238,11 +238,17 @@ def self_check(factor: float, changes: list[dict]) -> None:
 
 
 def _derived_spinup_cycles() -> dict:
-    """The spin-up floor this world's ecology needs, or why there is not one yet.
+    """The spin-up floor this world's ecology needs, and which derivation gave it.
 
     Reads `lib/run_lengths.py`, which reads the acceptance artifacts and states no
     number of its own. Returns the convention it would replace alongside it, so
     the provenance records a substitution rather than a bare value.
+
+    THE CONVENTION IS THE FALLBACK OF LAST RESORT and is reached only where there
+    is no acceptance artifact to read at all. Where there is one, a spin-up is
+    always derived: at a measured relaxation time where one is admissible, and
+    otherwise at the minimax over every relaxation time, which needs no
+    measurement. `spinup_basis` names which, and it travels into the provenance.
     """
     convention = None
     try:
@@ -258,19 +264,14 @@ def _derived_spinup_cycles() -> dict:
     except RuntimeError as exc:
         return {"cycles": None, "source": "Earth convention, rescaled",
                 "reason": str(exc), "convention_cycles": convention}
-    # The RECORD floor and the SPIN-UP floor are independent, and on the records
-    # this project has only the first is measurable. A missing spin-up is a
-    # refusal with a reason, not a zero and not a default: the record floor is
-    # still reported beside it so a caller knows what the run has to retain even
-    # while it has to fall back on the convention for what precedes it.
-    if derived["spinup_cycles"] is None:
-        return {"cycles": None, "source": "Earth convention, rescaled",
-                "reason": derived["spinup_reason"],
-                "record_cycles": int(math.ceil(derived["record_cycles"])),
-                "convention_cycles": convention,
-                "brackets": derived["brackets"]}
+    # The RECORD floor and the SPIN-UP floor are independent and are recorded
+    # independently, so a reader can see what the run has to RETAIN beside what
+    # has to precede it.
     return {"cycles": int(math.ceil(derived["spinup_cycles"])),
             "source": "lib/run_lengths.py:ecological_run_cycles",
+            "basis": derived["spinup_basis"],
+            "is_minimax_over_relaxation_time": derived["spinup_is_minimax"],
+            "reason": derived["spinup_reason"],
             "is_a_floor": derived["is_a_floor"],
             "floor_because": derived["floor_because"],
             "record_cycles": int(math.ceil(derived["record_cycles"])),
@@ -342,8 +343,8 @@ def main() -> None:
         rescaled, applied = re.subn(
             r"^([ \t]*)\bnyear_spinup\b([ \t]+)([0-9.]+)[^\n]*$",
             lambda m: (f"{m.group(1)}nyear_spinup{m.group(2)}{spinup['cycles']}"
-                       "\t! simulation years; DERIVED floor from this world's "
-                       "own relaxation time, not Earth's convention"),
+                       "\t! simulation years; DERIVED floor from the acceptance "
+                       "contract, not Earth's convention"),
             rescaled, flags=re.MULTILINE)
         spinup["applied"] = bool(applied)
         if applied:
@@ -371,11 +372,11 @@ def main() -> None:
         class_lines += (
             "\n!//"
             "\n!// DERIVED is not a rescale. nyear_spinup is not an Earth duration"
-            "\n!// converted into simulation years; it is this world's own"
-            "\n!// relaxation time, already in simulation years, read from"
-            "\n!// lib/run_lengths.py:ecological_run_cycles, which reads the"
-            "\n!// acceptance artifacts. Rescaling it would apply the YEAR_COUNT"
-            f"\n!// factor to a number that is already in the target unit."
+            "\n!// converted into simulation years; it is already in simulation"
+            "\n!// years, read from lib/run_lengths.py:ecological_run_cycles,"
+            "\n!// which reads the acceptance artifacts. Rescaling it would apply"
+            "\n!// the YEAR_COUNT factor to a number already in the target unit."
+            f"\n!// Basis: {spinup.get('basis', '')}"
             f"\n!// It is a FLOOR: {spinup.get('floor_because', '')}")
 
     header = f"""!///////////////////////////////////////////////////////////////////////////////

@@ -593,6 +593,18 @@ def ecological_timescale_brackets(root=None) -> dict:
     the same move `TAU_MEMORY_ORBITS_BRACKET` refuses on the climate side. Only
     the TOP of each bracket sizes anything here, so a short run pooled with a long
     one can widen the bottom and cannot shorten a floor.
+
+    AN ARTIFACT FROM A SUPERSEDED CONTRACT IS NOT POOLED, and that is the wire
+    that makes the assessed set a live declaration rather than a number frozen
+    into every artifact ever written. What a `record_cycles_for_bound` means is
+    "the record at which THIS quantity closes on THAT tolerance", and both halves
+    are the contract's. Contract 4 assessed every column of every stability table
+    at one tolerance and its artifacts ask for 33846 cycles; contract 5 assesses
+    the quantities a consumer reads at the tolerance each owes, and asks for the
+    record already on disk. Pooling the two would size every future run from the
+    contract that no longer judges it. Superseded artifacts are counted and named
+    rather than dropped in silence, and when none is current this raises with the
+    command that re-takes them.
     """
     base = Path(root) if root is not None else _REPO_ROOT
     directory = base / ECOLOGICAL_ACCEPTANCE_DIR
@@ -600,6 +612,9 @@ def ecological_timescale_brackets(root=None) -> dict:
     declined = 0
     tolerance, span = None, []
     resolving, unresolvable = [], 0
+    from lpj_output import read_policy      # local: this module stays light
+    contract = read_policy()["contract_version"]
+    superseded = []
     for path in sorted(directory.glob("lpj_*/acceptance.json")):
         try:
             report = json.loads(path.read_text(encoding="utf-8"))
@@ -608,6 +623,10 @@ def ecological_timescale_brackets(root=None) -> dict:
         scales = report.get("timescales") or {}
         tables = scales.get("tables")
         if not tables:
+            continue
+        if scales.get("contract_version") != contract:
+            superseded.append(
+                f"{path.relative_to(base)} ({scales.get('contract_version')})")
             continue
         sources.append(str(path.relative_to(base)))
         if tolerance is None and scales.get("drift_tolerance") is not None:
@@ -630,11 +649,15 @@ def ecological_timescale_brackets(root=None) -> dict:
                 else:
                     unresolvable += 1
     if not memory:
+        stale = (f" {len(superseded)} artifact(s) carry a superseded contract "
+                 f"and were not pooled: {', '.join(superseded)}."
+                 if superseded else "")
         raise RuntimeError(
             f"no acceptance artifact under {ECOLOGICAL_ACCEPTANCE_DIR} carries "
-            "ecological timescales, and they are where this bracket lives. "
-            f"Run `python {ECOLOGICAL_TIMESCALE_GENERATOR} <run>`; it records "
-            "them whatever the verdict.")
+            f"ecological timescales under {contract}, and they are where this "
+            f"bracket lives.{stale} Run "
+            f"`python {ECOLOGICAL_TIMESCALE_GENERATOR} <run>`; it records them "
+            "whatever the verdict.")
     if len(cycle_years) != 1:
         raise RuntimeError(
             f"the acceptance artifacts declare more than one forcing cycle "
@@ -666,7 +689,12 @@ def ecological_timescale_brackets(root=None) -> dict:
         "forcing_cycle_years": cycle_years.pop(),
         "longest_record_cycles": max(span) if span else 0,
         "drift_tolerance_when_assessed": tolerance,
+        "contract_version": contract,
         "sources": sources,
+        # Named rather than dropped in silence: an artifact taken under a
+        # superseded contract measured a different assessed set at a different
+        # tolerance, so it cannot size a run this contract will judge.
+        "superseded_sources": superseded,
     }
 
 
@@ -753,52 +781,137 @@ def ecological_spinup_cycles(tau_relaxation_cycles: float,
     return max(1.0, tau * math.log(1.0 / remaining))
 
 
+def ecological_spinup_multiple(drift_tolerance: float) -> tuple[float, float]:
+    """The spin-up, in retained records, that works at EVERY relaxation time.
+
+    THIS IS WHY THE RELAXATION TIME NEVER HAS TO BE MEASURED. The requirement
+    `ecological_spinup_cycles` inverts is a function of a `tau` no record this
+    project has can resolve, and the four dispositions a number without a
+    derivation has do not all apply here: the requirement is BOUNDED OVER ALL
+    `tau`, so the bound itself is the derivation. Substituting `u = L / tau`,
+
+        S(tau) = L * ln((1 - exp(-u)) / tolerance) / u
+
+    falls away at both ends -- an approach far slower than the record puts
+    almost none of itself into the record, and one far faster has finished --
+    so it has a finite maximum. The left-hand side of the requirement is
+    decreasing in `S`, so any `S` at or above that maximum satisfies it at every
+    `tau`. It is the smallest such `S`, which makes it the minimax answer rather
+    than a guess at a length.
+
+    It is exactly proportional to the retained record and depends on nothing
+    else, which is what makes it a multiple:
+
+        C(t) = max over u of ln((1 - exp(-u)) / t) / u
+
+    Returns `(C, u)`, the multiple and the `L / tau` it is attained at, so a
+    caller can check the requirement AT the worst case rather than near it. A
+    MEASURED relaxation time can only ask for less than this, so it is a
+    CEILING on the floor: `ecological_run_cycles` prefers a measured value where
+    one is admissible and falls back here, never on a convention.
+    """
+    tolerance = float(drift_tolerance)
+    if not 0.0 < tolerance < 1.0:
+        raise ValueError("the drift tolerance must lie in (0, 1)")
+
+    def value(u: float) -> float:
+        share = 1.0 - math.exp(-u)
+        if share <= tolerance:
+            return -math.inf
+        return math.log(share / tolerance) / u
+
+    # Golden section on a unimodal function. The bracket has to hold the whole
+    # answer: the maximum sits at u below one for every tolerance this contract
+    # can carry -- 0.136 at 0.05 and 0.054 at 0.02 -- and moves toward zero as
+    # the tolerance tightens, so the lower end is what has to be small.
+    ratio = (math.sqrt(5.0) - 1.0) / 2.0
+    low, high = 1.0e-9, 50.0
+    left, right = high - ratio * (high - low), low + ratio * (high - low)
+    for _ in range(400):
+        if value(left) > value(right):
+            high = right
+        else:
+            low = left
+        left, right = high - ratio * (high - low), low + ratio * (high - low)
+    u = 0.5 * (low + high)
+    return value(u), u
+
+
+def ecological_spinup_ceiling(record_cycles: float,
+                              drift_tolerance: float) -> float:
+    """The spin-up a record of this length needs whatever the relaxation time is."""
+    multiple, _ = ecological_spinup_multiple(drift_tolerance)
+    return max(1.0, multiple * float(record_cycles))
+
+
 def ecological_run_cycles(root=None) -> dict:
     """The spin-up and retained record this world's ecology needs, and why.
 
     THE TWO ARE INDEPENDENT AND ARE RETURNED INDEPENDENTLY. The record's floor is
     what the acceptance contract has to be able to RESOLVE, inverted out of its
-    own drift bound. The spin-up's is how long a TRANSIENT takes to decay, and it
-    exists only where a relaxation time has been measured. On the records this
-    project has, none has: no field's contraction is resolvably below one, so
-    `spinup_cycles` is None and `spinup_reason` names the estimator and the
-    count. A caller that needs a spin-up says so and falls back explicitly;
-    nothing here invents one, and the record floor is unaffected because it never
-    depended on the relaxation time.
+    own drift bound. The spin-up's is how long a TRANSIENT takes to decay.
 
-    BOTH ARE FLOORS where they exist, and the spin-up's floor is what a run buys
-    UP FRONT while the acceptance contract's refusal buys the rest. That is the
-    same bargain the climate side makes.
+    A SPIN-UP IS ALWAYS DERIVED HERE, and on the records this project has it is
+    derived WITHOUT a relaxation time. No field's contraction is resolvably below
+    one, so `relaxation_time` declines every field-record and there is no
+    measured `tau` to invert the requirement at. There does not have to be:
+    `ecological_spinup_multiple` shows the requirement is bounded over all `tau`,
+    so its supremum satisfies it at every `tau` and is the smallest length that
+    does. `spinup_basis` names which of the two the returned number is, and the
+    minimax is a CEILING on the floor -- a measured relaxation time can only ask
+    for less.
+
+    BOTH ARE FLOORS, and the spin-up's floor is what a run buys UP FRONT while
+    the acceptance contract's refusal buys the rest. That is the same bargain the
+    climate side makes, and it is why the spin-up is not a correctness
+    requirement: a residual transient enters the very statistic the contract
+    gates on, so an under-spun run is REFUSED rather than silently accepted.
     """
     brackets = ecological_timescale_brackets(root)
     tolerance = ecological_drift_tolerance()
     record = ecological_record_cycles(brackets)
-    spinup, reason = None, None
     if brackets["relaxation_measurable"]:
         spinup = ecological_spinup_cycles(
             brackets["relaxation_cycles_bracket"][1], record, tolerance)
+        basis = "lib/run_lengths.py:ecological_spinup_cycles"
+        reason = (
+            "inverted at the top of the measured relaxation bracket, "
+            f"{brackets['relaxation_cycles_bracket'][1]:.1f} cycles, over the "
+            f"{record:.0f}-cycle record floor at a drift tolerance of "
+            f"{tolerance:g}")
     else:
+        multiple, worst = ecological_spinup_multiple(tolerance)
+        spinup = ecological_spinup_ceiling(record, tolerance)
+        basis = "lib/run_lengths.py:ecological_spinup_multiple"
         reason = (
             "no field's approach to equilibrium is measurable on the records "
             f"available: all {brackets['fields_declined']} field-records were "
             "declined by `lib/lpj_output.py:relaxation_time`, most for block "
             "differences that change sign or sit inside their own standard "
             "error, and every one that reached a contraction had an uncertainty "
-            "reaching one. A spin-up cannot be derived from a relaxation time "
-            "nothing has measured, and a default is not a derivation.")
+            "reaching one. None is needed: the requirement is bounded over all "
+            f"relaxation times, and its supremum is {multiple:.5f} times the "
+            f"retained record, attained at a relaxation time of {1.0 / worst:.4f} "
+            "records. That is the smallest spin-up that satisfies the "
+            "requirement whatever the relaxation time is, so it is derived "
+            "rather than defaulted, and a measured relaxation time could only "
+            "ask for less.")
     return {
         "spinup_cycles": spinup,
+        "spinup_basis": basis,
         "spinup_reason": reason,
+        "spinup_is_minimax": not brackets["relaxation_measurable"],
         "record_cycles": record,
-        "total_cycles": None if spinup is None else spinup + record,
+        "total_cycles": spinup + record,
         "is_a_floor": True,
         "floor_because": (
-            "the relaxation bracket's top is open: "
-            f"{brackets['fields_declined']} fields' approach is not measurable "
-            "on the records available, and a field the estimator declines may be "
-            "slower still"
-            if brackets["relaxation_top_is_open"] else
             "the memory time each resolving length was computed at is the one "
-            "its own record read, and a longer record may read a larger one"),
+            "its own record read, and a longer record may read a larger one"
+            + ("; and the relaxation bracket's top is open, because "
+               f"{brackets['fields_declined']} fields' approach is not "
+               "measurable on the records available and a field the estimator "
+               "declines may be slower still"
+               if brackets["relaxation_measurable"]
+               and brackets["relaxation_top_is_open"] else "")),
         "brackets": brackets,
     }

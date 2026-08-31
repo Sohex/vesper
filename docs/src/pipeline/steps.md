@@ -330,12 +330,18 @@ and disturbance cannot advance one another's sequences. The
 launching the model.
 
 Downstream consumers use one `lib/lpj_output.py` equilibrium statistic rather
-than choosing the greatest year number. The declared window is ten complete
-forcing cycles—ten years under a repeated one-year climate. It is accepted only
-when every cell has every annual row and the sequence of cycle means is no
-longer trending. Reports separate annual temporal spread, fixed-patch root-seed
-spread, and across-patch-count spread; an absent ensemble is labelled
-`not_measured`, not silently treated as zero.
+than choosing the greatest year number. What that statistic judges is the set of
+QUANTITIES A CONSUMER READS, declared in `biosphere/config/equilibrium_window.yaml`
+as a table plus the columns a consumer sums, each with its own tolerance and its
+readers. A run is accepted only when every cell has every annual row and every
+assessed quantity's upper confidence bound on its end-to-end relative drift, over
+the whole retained record, is inside that quantity's tolerance. A column that
+enters a consumer quantity only through a sum is not judged separately, because
+the bound on the sum bounds the sum exactly; it keeps a bound as a diagnostic.
+The ten-complete-forcing-cycle window is the per-cell half's alone. Reports
+separate annual temporal spread, fixed-patch root-seed spread, and
+across-patch-count spread; an absent ensemble is labelled `not_measured`, not
+silently treated as zero.
 
 For albedo feedback those equilibrium FPCs are conditional on rootable ground.
 The modelled compositor replaces only BIO-11's rootable substrate contribution;

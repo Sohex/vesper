@@ -3,22 +3,137 @@
 # Every number below carries its disposition. The argument, the measurement it
 # rests on and what each earlier form of this rule could and could not detect are
 # in `biosphere/notes/equilibrium-trend-null.md`.
-contract_version: vesper-lpj-equilibrium-window/4
+contract_version: vesper-lpj-equilibrium-window/5
 # The PER-CELL HALF'S window, and nothing else's. It used to name three spans at
 # once -- the reported value's, the equilibrium claim's, and this one -- and the
 # first two are the whole retained record. A slope fitted over ten cycles sits
-# inside one memory time for 61 of the 64 assessed fields, and a mean taken over
-# ten cycles is one effective sample of them.
+# inside one memory time for 61 of the 64 columns it used to judge, and a mean
+# taken over ten cycles is one effective sample of them.
 complete_forcing_cycles: 10
 # WHAT A CONSUMER READS, and it is the span the contract certifies. Reporting a
 # ten-cycle mean while certifying the whole record hands a consumer a number
 # whose own sampling error is larger than the drift the certificate refuses: at
 # a memory time of tens to hundreds of cycles a ten-cycle mean cannot be known
-# better than the field's marginal scatter, and ten of the assessed fields have
+# better than the series' marginal scatter, and ten of those columns have
 # a marginal scatter above `relative_end_to_end_limit` outright. The reduced
 # value, its temporal spread and its own standard error are therefore taken over
 # the whole retained record, and the standard error travels with the value.
 reported_span: whole_retained_record
+# WHAT THE ACCEPTANCE CLAIM IS ABOUT, and it is a list of QUANTITIES A CONSUMER
+# READS rather than a table's columns. The claim this contract makes is that
+# these have settled to the tolerance each owes ITS OWN consumer; it is not a
+# claim that the simulated biosphere as a whole has settled, and the artifact
+# says so. Every column keeps a reported drift bound as a diagnostic, so what is
+# outside the claim is visible rather than absent.
+#
+# A COLUMN THAT ENTERS A CONSUMER QUANTITY ONLY THROUGH A SUM OWES NOTHING
+# BEYOND WHAT THE SUM OWES. The sum's own cycle series carries that column's
+# drift at its own share, with every cancellation and every reinforcement
+# already in it, and the drift bound applied to the sum bounds the sum exactly.
+# Bounding each column separately at the sum's tolerance is a strictly stronger
+# claim than any consumer makes, and it is what a per-plant-functional-type
+# column costs: on the 1253-cycle record the binding column was anpp.out TrBR at
+# 33846 cycles, twenty-seven times what the consumer quantities need, and no
+# consumer reads it.
+#
+# ADDING A CONSUMER ADDS A ROW HERE. That is the whole of the maintenance rule:
+# a quantity is assessed because something reads it, so a new reader that forms
+# a sum this list does not name is a sum this contract has not certified.
+assessed:
+  reduction: sum
+  quantities:
+    # `build_surface_albedo.py --mode modelled` sums every non-grass column into
+    # tree cover and C3G+C4G into grass cover, and mixes the two into the surface
+    # albedo at different albedos, so the composition between them is visible to
+    # it and the composition WITHIN each is not. The tree side is stated as an
+    # exclusion for the same reason the consumer states it that way: a list of a
+    # dozen tree codes silently misses a newly added one.
+    - id: fpc.out tree cover
+      table: fpc.out
+      columns_excluding: [C3G, C4G, Total]
+      relative_end_to_end_limit: 0.05
+      read_by: [exoplasim/scripts/build_surface_albedo.py, biosphere/scripts/score_prediction.py]
+      derivation: albedo chain, and it is the chain the tolerance below was derived through
+    - id: fpc.out grass cover
+      table: fpc.out
+      columns: [C3G, C4G]
+      relative_end_to_end_limit: 0.05
+      read_by: [exoplasim/scripts/build_surface_albedo.py, biosphere/scripts/score_prediction.py]
+      derivation: albedo chain, and it is the chain the tolerance below was derived through
+    # `build_soil.py` reads the SoilC column for positive baseline iterations, and
+    # it is loop B's exit quantity. Its own chain -- soil carbon to organic mass
+    # fraction to volumetric water capacity to the model's dwmax -- has not been
+    # priced, so it takes the tightest tolerance derived anywhere in this tree.
+    # That is conservative and it is stated as such rather than derived.
+    - id: cpool.out soil carbon
+      table: cpool.out
+      columns: [SoilC]
+      relative_end_to_end_limit: 0.05
+      read_by: [pedology/scripts/build_soil.py]
+      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
+    # The closure block of biosphere/config/lpj_acceptance.yaml reads these four
+    # pool and flux totals. It compares a pool's change against its flux, which
+    # is a CONSERVATION test and holds whether or not the pool is drifting, so it
+    # imposes no drift tolerance of its own and they take the same conservative
+    # tightest-in-tree number.
+    - id: cpool.out total carbon
+      table: cpool.out
+      columns: [Total]
+      relative_end_to_end_limit: 0.05
+      read_by: [biosphere/config/lpj_acceptance.yaml closure.carbon]
+      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
+    - id: npool.out total nitrogen
+      table: npool.out
+      columns: [Total]
+      relative_end_to_end_limit: 0.05
+      read_by: [biosphere/config/lpj_acceptance.yaml closure.nitrogen]
+      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
+    - id: aaet.out total evapotranspiration
+      table: aaet.out
+      columns: [Total]
+      relative_end_to_end_limit: 0.05
+      read_by: [biosphere/config/lpj_acceptance.yaml closure.water]
+      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
+    - id: tot_runoff.out total runoff
+      table: tot_runoff.out
+      columns: [Total]
+      relative_end_to_end_limit: 0.05
+      read_by: [biosphere/config/lpj_acceptance.yaml closure.water]
+      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
+    # `score_prediction.py` scores ten bands fixed in notes/productivity-prediction.md
+    # before the model ran a Vesper gridcell, so their tolerance is pre-registered
+    # rather than chosen here: a drift must not carry a value at a band's centre
+    # out of the band, which is the band's half-width over its centre. The
+    # tightest of the ten is 0.2727, set by line 3 (1.6 to 2.8) and line 5 (0.40
+    # to 0.70); the loosest is 1.0. Reading the drift against the record MEAN
+    # rather than against any point in the record would double it, and the
+    # stricter reading is taken. Where a quantity has two readers it takes the
+    # tighter, which is why the two fpc cover rows above carry the albedo chain's
+    # number and these carry this one.
+    - id: anpp.out total productivity
+      table: anpp.out
+      columns: [Total]
+      relative_end_to_end_limit: 0.2727
+      read_by: [biosphere/scripts/score_prediction.py]
+      derivation: tightest half-width over centre of the ten pre-registered prediction bands
+    - id: lai.out total leaf area
+      table: lai.out
+      columns: [Total]
+      relative_end_to_end_limit: 0.2727
+      read_by: [biosphere/scripts/score_prediction.py]
+      derivation: tightest half-width over centre of the ten pre-registered prediction bands
+    - id: fpc.out C4 grass cover
+      table: fpc.out
+      columns: [C4G]
+      relative_end_to_end_limit: 0.2727
+      read_by: [biosphere/scripts/score_prediction.py]
+      derivation: tightest half-width over centre of the ten pre-registered prediction bands
+    - id: fpc.out boreal needleleaf cover
+      table: fpc.out
+      columns: [BNE, BINE, BNS]
+      relative_end_to_end_limit: 0.2727
+      read_by: [biosphere/scripts/score_prediction.py]
+      derivation: tightest half-width over centre of the ten pre-registered prediction bands
 trend:
   # DECISION, and sized through the consumer's own chain rather than left bare.
   # `exoplasim/scripts/build_surface_albedo.py --mode modelled` reads fpc.out and
@@ -33,8 +148,10 @@ trend:
   # a declared tolerance with its bracket recorded, and world-mqzk holds the
   # argument and the unblocker rather than a derivation being invented.
   #
-  # The derivation is for ONE consumer-facing quantity and the contract applies
-  # the number to every assessed field. world-mxmr holds that.
+  # IT IS THE TIGHTEST OF THE ASSESSED QUANTITIES' OWN LIMITS AND NOT A SEPARATE
+  # NUMBER: the reader refuses when it is not, so the two cannot drift apart. It
+  # is what a spin-up has to leave below, because a spin-up precedes every
+  # quantity and has to satisfy the most demanding of them.
   relative_end_to_end_limit: 0.05
   # DECISION at the conventional level, AND IT IS THE RATE THIS CONTRACT ACTUALLY
   # CONTROLS: the probability that a field whose true end-to-end drift is AT the
@@ -44,7 +161,7 @@ trend:
   # declared, because it is what sizes the retained record.
   #
   # The run-level rate is the same number and needs no multiplicity correction.
-  # A run passes only when every assessed field passes, so by the
+  # A run passes only when every assessed quantity passes, so by the
   # intersection-union principle the probability of accepting a run in which any
   # field truly drifts at the limit is bounded by this per-field rate. Contract 2
   # declared 0.05 per field and measured 0.34 per run over 64 fields; expressing
@@ -83,7 +200,7 @@ trend:
     null_statistic: maximum_over_detrended_windows_of_this_run
     # DECISION at the conventional level, and it is a PER-FIELD rate: a stationary
     # field exceeds the largest of N detrended null windows with probability
-    # 1/(N+1). This half refuses a run when ANY of the 64 assessed fields exceeds,
+    # 1/(N+1). This half refuses a run when ANY assessed quantity exceeds,
     # so its FAMILY rate is larger -- measured at 0.34 on 100 windows and about
     # 0.24 on the 124 a 1253-cycle record leaves. That errs toward REFUSING, so a
     # pass through this half is evidence and a refusal through it is not, and the

@@ -54,7 +54,8 @@ from autocorrelation import integrated_time  # noqa: E402
 
 from lpj_output import (ACCEPTANCE_PATH, POLICY_PATH, _manifest_for,  # noqa: E402
                         _read_rows, drift_bound, forcing_cycle_years,
-                        read_policy, record_cycles_for_bound)
+                        assess, assessed_quantities, read_policy,
+                        record_cycles_for_bound)
 
 PROJECT_ROOT = _paths.PROJECT_ROOT
 
@@ -181,15 +182,23 @@ def known_answer(rng, cycles: int, trials: int, alpha: float,
 
 
 def model_scales(run_dir: Path, outputs: list[str], policy: dict,
-                 cycle_years: int, alpha: float, limit: float) -> dict:
-    """Per field, the scatter and memory time this model actually has.
+                 cycle_years: int, alpha: float, limit: float,
+                 columnwise: bool = False) -> dict:
+    """The scatter and memory time this model actually has, and what they buy.
 
     Read from the run's own retained record so the cost arm is quoted at this
     model's numbers. The scatter is taken about the record's own linear fit,
     because the arm that uses it injects a drift of its own and would otherwise
     charge the field twice for one.
+
+    IT PRICES THE ASSESSED QUANTITIES, because they are what sizes the run.
+    `columnwise` prices the raw columns instead, at the contract's tightest
+    tolerance, which is the diagnostic the two are worth comparing: on this
+    model the columns ask for tens of thousands of cycles and the quantities
+    their consumers read ask for the record already on disk.
     """
     scales = {}
+    floor = float(policy["trend"]["absolute_scale_floor"])
     for output in outputs:
         names, cells, years, cube = _read_rows(run_dir / output)
         usable = (len(years) // cycle_years) * cycle_years
@@ -197,15 +206,21 @@ def model_scales(run_dir: Path, outputs: list[str], policy: dict,
                                        len(cells), len(names)).mean(axis=1)
         span = record.shape[0]
         x = np.arange(span, dtype=float)
-        floor = float(policy["trend"]["absolute_scale_floor"])
-        for index, name in enumerate(names):
-            spatial = record[:, :, index].mean(axis=1)
+        if columnwise:
+            series, labels = record, [f"{output} {name}" for name in names]
+            limits = np.full(len(names), limit)
+        else:
+            quantities = assessed_quantities(policy, output)
+            series, labels, limits = assess(record, names, quantities)
+        for index, label in enumerate(labels):
+            spatial = series[:, :, index].mean(axis=1)
             level = float(abs(spatial.mean()))
             if level <= floor or not np.isfinite(spatial).all() or spatial.std() == 0:
                 continue
             flat = spatial - np.polyval(np.polyfit(x, spatial, 1), x)
-            scales[f"{output} {name}"] = {
+            scales[label] = {
                 "record_cycles": int(span),
+                "relative_end_to_end_limit": float(limits[index]),
                 "relative_scatter": float(np.std(flat, ddof=1) / level),
                 "tau_cycles": float(integrated_time(
                     flat + spatial.mean())["tau"]),
@@ -213,7 +228,7 @@ def model_scales(run_dir: Path, outputs: list[str], policy: dict,
                 # instrument quotes and the length a refusal quotes are one
                 # number rather than two that agree by inspection.
                 "cycles_for_bound": float(record_cycles_for_bound(
-                    spatial, span, alpha, limit, floor)),
+                    spatial, span, alpha, float(limits[index]), floor)),
             }
     return scales
 
@@ -243,7 +258,9 @@ def main() -> int:
     cycle_years, _ = forcing_cycle_years(
         args.run / outputs[0], _manifest_for(args.run / outputs[0])[1])
     scales = model_scales(args.run, outputs, policy, cycle_years, alpha, limit)
-    family_size = len(scales)
+    columns = model_scales(args.run, outputs, policy, cycle_years, alpha, limit,
+                           columnwise=True)
+    family_size = len(columns)
     level = sidak_level(args.family_rate, family_size)
 
     rng = np.random.default_rng(20260831)
@@ -256,6 +273,7 @@ def main() -> int:
                             limit, floor, args.scatter, multiple))
 
     model_rows = [{"field": name, **scale} for name, scale in sorted(scales.items())]
+    column_rows = [{"field": name, **scale} for name, scale in sorted(columns.items())]
 
     report = {
         "contract_version": policy["contract_version"],
@@ -269,6 +287,10 @@ def main() -> int:
         "known_answer": known,
         "sweep": rows,
         "model_fields": model_rows,
+        # The columns, at the contract's tightest tolerance, for comparison with
+        # the quantities above. Nothing is sized from these; they are what the
+        # contract used to be sized from.
+        "model_columns": column_rows,
     }
 
     print(f"KNOWN ANSWER, {args.trials} trials at memory time 1, drift injected "
@@ -293,14 +315,23 @@ def main() -> int:
               f"{row['significance_refuse_rate']:>12.4f}"
               f"{row['median_upper_bound']:>10.4f}"
               f"{row['median_relative_standard_error']:>12.4f}")
-    print(f"\nTHIS MODEL'S FIELDS, from {args.run.name}")
-    print(f"\n{'field':<26}{'record':>8}{'scatter':>10}{'tau':>8}{'needs':>10}")
-    for row in sorted(model_rows, key=lambda item: -item["cycles_for_bound"]):
-        needed = ("no finite record" if not np.isfinite(row["cycles_for_bound"])
-                  else f"{row['cycles_for_bound']:.0f}")
-        print(f"{row['field']:<26}{row['record_cycles']:>8}"
-              f"{row['relative_scatter']:>10.5f}{row['tau_cycles']:>8.1f}"
-              f"{needed:>10}")
+    def table(title: str, printed: list[dict]) -> None:
+        print(f"\n{title}")
+        print(f"\n{'field':<34}{'record':>8}{'limit':>8}{'scatter':>10}"
+              f"{'tau':>8}{'needs':>10}")
+        for row in sorted(printed, key=lambda item: -item["cycles_for_bound"]):
+            needed = ("no finite record"
+                      if not np.isfinite(row["cycles_for_bound"])
+                      else f"{row['cycles_for_bound']:.0f}")
+            print(f"{row['field']:<34}{row['record_cycles']:>8}"
+                  f"{row['relative_end_to_end_limit']:>8.4f}"
+                  f"{row['relative_scatter']:>10.5f}{row['tau_cycles']:>8.1f}"
+                  f"{needed:>10}")
+
+    table(f"THE ASSESSED QUANTITIES, from {args.run.name}. These size the run.",
+          model_rows)
+    table("THE COLUMNS, at the contract's tightest tolerance. Nothing is sized "
+          "from these.", column_rows)
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(report, indent=2) + "\n")
