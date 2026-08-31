@@ -339,6 +339,20 @@ def main() -> None:
             "\n\nBuild the model and the forcing and run this again. This is an "
             "absent measurement, not a pass.")
 
+    # THE BINARY MUST CONTAIN THE MODEL IN THIS TREE. This fixture spawns
+    # LPJ-GUESS and its verdict is about the serialization code that ran, so a
+    # binary the tree has moved under makes the verdict describe source that
+    # was never executed -- and continuity is precisely what a changed
+    # serialization block breaks. Same refusal `run_lpj_guess.py` makes, from
+    # the same reader. world-w62x.
+    from build_lpj_guess import verify as verify_binary
+    stale = verify_binary(GUESS_BINARY)
+    if stale:
+        raise SystemExit(
+            "\n".join(stale) + "\n\nThe restart continuity fixture has NOT "
+            "been run: its verdict would be about source this binary does not "
+            "contain. Rebuild with biosphere/scripts/build_lpj_guess.py.")
+
     # The retained tables. The wetland set is included only when the gate has
     # granted activation, on exactly the terms run_lpj_guess.py includes it:
     # a table the run does not write cannot be compared, and asking for one
