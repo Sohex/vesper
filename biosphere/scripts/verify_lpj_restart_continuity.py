@@ -86,27 +86,6 @@ from orbit import model_year_days  # lib/orbit.py, the year length  # noqa: E402
 import run_lpj_guess  # noqa: E402
 import wetland_gate  # noqa: E402
 
-# The serialization block plib takes as the later declaration. `state_path` is
-# absolute for the reason every other path in a generated instruction file is:
-# each rank chdirs into its own directory before reading anything.
-#
-# state_day and save_day name the LAST simulated day the state covers, -1 being
-# the year boundary and the default this model had before WORLD-FUJ4. A run
-# resumes on the day after state_year/state_day and writes its own state at the
-# end of save_year/save_day.
-SERIALIZATION = """
-! Restart continuity fixture.
-state_year {state_year}
-state_day {state_day}
-save_year {save_year}
-save_day {save_day}
-save_state {save_state}
-restart {restart}
-state_path "{state_path}"
-save_path "{save_path}"
-"""
-
-
 def rel(path: Path) -> Path:
     try:
         return path.relative_to(PROJECT_ROOT)
@@ -130,15 +109,20 @@ def build_bed(bed: Path, paths: dict, settings: dict, state_dir: Path,
         if not (bed / extra.name).exists():
             shutil.copyfile(extra, bed / extra.name)
     instruction = bed / "run.ins"
-    instruction.write_text(
-        run_lpj_guess.build_instruction(paths, settings)
-        + SERIALIZATION.format(
-            state_year=state_year, state_day=state_day,
-            save_year=state_year if save_year is None else save_year,
-            save_day=state_day if save_day is None else save_day,
-            save_state=save_state, restart=restart,
-            state_path=state_dir.resolve(),
-            save_path=(state_dir if save_dir is None else save_dir).resolve()))
+    # The serialization block is `run_lpj_guess.serialization_block`, reached
+    # through `build_instruction`, so this fixture and the production runner
+    # cannot drift on what `state_year` means while both keep parsing.
+    instruction.write_text(run_lpj_guess.build_instruction(paths, {
+        **settings,
+        "state": {
+            "restart": bool(restart), "save_state": bool(save_state),
+            "state_year": state_year, "state_day": state_day,
+            "save_year": state_year if save_year is None else save_year,
+            "save_day": state_day if save_day is None else save_day,
+            "state_path": str(state_dir.resolve()),
+            "save_path": str((state_dir if save_dir is None
+                              else save_dir).resolve()),
+        }}))
     return instruction
 
 
