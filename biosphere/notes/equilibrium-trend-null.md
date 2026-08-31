@@ -370,7 +370,7 @@ own closure block is a fourth reader.
 | --- | --- | --- | --- |
 | `build_surface_albedo.py --mode modelled` | `fpc.out` tree cover, grass cover | 0.05 | the albedo chain above, which is ABOUT these two |
 | `build_soil.py` | `cpool.out` SoilC | 0.05 | the tightest derived in this tree, applied conservatively to an unpriced chain |
-| `lpj_acceptance.yaml` closure | `cpool.out`, `npool.out`, `aaet.out`, `tot_runoff.out` Totals | 0.05 | the same, and the closure imposes no drift tolerance of its own |
+| `lpj_acceptance.yaml` closure | `cpool.out` and `npool.out` Totals, `soil_npool.out` NO2/NO/N2O/N2, `maet.out`, `mevap.out`, `mintercep.out` months, `tot_runoff.out` Total | 0.05 | the same, and the closure imposes no drift tolerance of its own |
 | `score_prediction.py` | `anpp.out` Total, `lai.out` Total, `fpc.out` tree, grass, C4G and boreal cover | 0.2727 | tightest half-width over centre of the ten pre-registered bands |
 
 The albedo chain's number is the one derived above and it applies to the two
