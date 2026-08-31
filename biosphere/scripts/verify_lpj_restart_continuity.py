@@ -525,6 +525,24 @@ def main() -> None:
             "\n\nBuild the model and the forcing and run this again. This is an "
             "absent measurement, not a pass.")
 
+    # THE MODEL'S OWN PRECONDITION ON THE SPIN-UP, asked here rather than
+    # discovered from an abort one second into a run that has already taken the
+    # host lock. `parameters.cpp:1402` refuses nyear_spinup <= freenyears, and
+    # freenyears is 200 in the generated PFT file rather than the 100 the
+    # shipped instruction files carry, so a bed sized from the wrong one parses
+    # and then dies.
+    freenyears = run_lpj_guess.declared_int(
+        Path(args.pfts), "freenyears",
+        why="the smallest spin-up this fixture may ask for is not known")
+    if args.nyear_spinup <= freenyears:
+        raise SystemExit(
+            f"--nyear-spinup {args.nyear_spinup} is not above the "
+            f"{freenyears} simulated years {rel(Path(args.pfts))} declares as "
+            "freenyears, and the model refuses that outright: nitrogen "
+            "limitation switches on after freenyears and the CENTURY "
+            "accelerator window is derived from the difference. Ask for more "
+            f"than {freenyears}.")
+
     # THE BINARY MUST CONTAIN THE MODEL IN THIS TREE. This fixture spawns
     # LPJ-GUESS and its verdict is about the serialization code that ran, so a
     # binary the tree has moved under makes the verdict describe source that

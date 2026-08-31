@@ -163,13 +163,26 @@ def spinup_years(pfts: Path) -> int:
     that would win, and `build_instruction` writes that value again after the
     import so the number this module computed with is the number the model runs.
     """
-    declarations = re.findall(r"^\s*nyear_spinup\s+(\d+)",
-                              pfts.read_text(encoding="utf-8"), re.MULTILINE)
+    return declared_int(pfts, "nyear_spinup", why=(
+        "the simulated year this run ends at is not known and no save point "
+        "or resume point can be computed"))
+
+
+def declared_int(instruction: Path, name: str, why: str) -> int:
+    """The value plib would take for an integer parameter in one instruction file.
+
+    plib takes the LATER declaration, so the last one in the file wins. This
+    reads a single file rather than following its imports: it is for parameters
+    the project declares in its own generated PFT file, where the project's own
+    value is the last word.
+    """
+    declarations = re.findall(rf"^\s*{name}\s+(\d+)",
+                              instruction.read_text(encoding="utf-8"),
+                              re.MULTILINE)
     if not declarations:
         raise SystemExit(
-            f"{pfts} declares no nyear_spinup, so the simulated year this run "
-            "ends at is not known and no save point or resume point can be "
-            "computed. Rebuild it with build_vesper_pfts.py.")
+            f"{instruction} declares no {name}, so {why}. Rebuild it with "
+            "build_vesper_pfts.py.")
     return int(declarations[-1])
 
 
