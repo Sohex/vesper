@@ -282,8 +282,19 @@ steps:
     loop: [A, C]
     cost: minutes
     needs: [lpj_acceptance, rootable_fraction, rootable_albedo_gate, rock_albedo_bands, soil_albedo_wetting, vegetation_albedo]
-    writes: ["exoplasim/inputs/{res_lower}/albedo_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0174.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0175.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0176.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0212.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1742.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1750.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1760.sra"]
+    writes: ["exoplasim/inputs/{res_lower}/albedo_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0174.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0175.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0176.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0212.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1742.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1750.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1760.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1743.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1751.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1761.sra"]
     gate: >
+      THREE POINTS AND NOT TWO. The mixing landmod applies between the staged
+      dry and saturated pairs is concave in the albedo, so a cell's own mixture
+      of rocks is reproduced at the two ends and nowhere between them, at a
+      measured 0.147 W m-2 of global-mean absorbed shortwave against a
+      0.12 W m-2 storage tolerance. Codes 1743, 1751 and 1761 carry the cell's
+      area mean of the per-region mixings at the evaporation limiter's knee,
+      which brings it to 0.042 and inside the bar. The mixing is applied per
+      REGION and reduced afterwards; reducing first and mixing after reproduces
+      the defect. `--mode scaled` refuses to stage them and says so, because a
+      per-cell factor applied after the reduction is not a mixing.
+      `notes/audits/nonlinear-spatial-reductions.md` section 7 is the finding.
       the `lpj_acceptance` edge is loop C and is a BACK edge: the first pass of an
       iteration runs --mode vegetated on terrain alone, before any biosphere
       exists, and the mode this project should end up in is --mode modelled
