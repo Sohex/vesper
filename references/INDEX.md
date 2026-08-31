@@ -302,6 +302,18 @@ Vesper.
 | `wood_1988_effects-of-spatial-variability-and-scale-with-implications-to-hydrolog.pdf` | Wood, Sivapalan, Beven, Band (1988). *Effects of spatial variability and scale with implications to hydrologic modeling.* Journal of Hydrology 102, 29-47. `10.1016/0022-1694(88)90090-X` | **read** -- tests runoff aggregation over an actual catchment topography with synthetic rainfall and soils and finds a representative elementary area for that experiment whose scale is strongly controlled by topography. The result establishes that meaningful support is process and landscape dependent; its roughly 1 km2 experimental threshold is not a Vesper grid prescription |
 | `essery_2003_explicit-representation-of-subgrid-heterogeneity-in-a-gcm-land-surface.pdf` | Essery et al. (2003). *Explicit Representation of Subgrid Heterogeneity in a GCM Land-Surface Scheme.* Journal of Hydrometeorology 4, 530-543. `10.1175/1525-7541(2003)004<0530:EROSHI>2.0.CO;2` | **read** -- shows why average turbulent fluxes need not follow from average gradients, evaluates separate surface temperatures, snow, stores and fluxes on area-weighted tiles, and compares tiled with aggregate land surfaces both offline and coupled. Coupled cloud, radiation and precipitation feedback amplify some differences, but tiling does not unconditionally improve climatology; it supports an assessed tile/model-form bracket rather than assuming finer structure is automatically truer |
 
+## The integrated autocorrelation time: the windowing interval's error
+
+The estimator in `lib/autocorrelation.py` returns the truncated-window
+integrated autocorrelation time with the asymptotic standard error of that
+estimator, and the UPPER end of one interval of it is what
+`lib/lpj_output.py:drift_bound` builds its standard error on. That interval's
+formula has one primary and it cannot be reached.
+
+| file | citation | status |
+| --- | --- | --- |
+| *(not held)* | Madras, Sokal (1988). *The pivot algorithm: a highly efficient Monte Carlo method for the self-avoiding walk.* J. Stat. Phys. 50, 109-186. `10.1007/BF01022990`, section 2.2 | **declared unavailable, and the formula is not taken on trust.** Springer returns HTML rather than a PDF at both the Crossref link and the DOI landing page, Google Scholar rate-limits, and the last-resort route refuses; `paperfetch` was re-run 2026-08-31 and returns the same three. What it is wanted for is `tau * sqrt(2 * (2M + 1) / n)`, the asymptotic standard error of a truncated-window estimator at truncation lag `M`. Instead of citing it, `biosphere/scripts/validate_drift_statistic.py` MEASURES how often that interval covers the memory time an AR(1) series was built with: 1.000, 0.775, 0.760, 0.585 and 0.545 at memory times 1, 10, 40, 125 and 213 over 1253 samples. Half to three-quarters rather than the 0.84 a one-standard-error upper bound nominally gives, because the interval is symmetric about a centre this estimator biases low. That is a right answer the formula can fail against, and it is reported rather than rounded up |
+
 ## Biosphere: soil and land-surface hydraulic consistency
 
 Fetched and read 2026-08-21 for
