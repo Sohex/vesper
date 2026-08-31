@@ -363,8 +363,13 @@ convention, the reduction operators by field semantics: extensive,
 intensive, categorical, moments, expectation, and the DISTRIBUTION -- the
 area-weighted quantile table a sub-grid hypsometry is, with the share
 above a threshold read back out of it -- the ledger of what a
-reduction dropped, and grids as CELL BOUNDARIES: the Gaussian and GOLDSTEIN
-constructors a crossing takes its coordinates from),
+reduction dropped, grids as CELL BOUNDARIES: the Gaussian and GOLDSTEIN
+constructors a crossing takes its coordinates from, and the model's OWN
+LABEL AXIS with the inverse from a label back to the index it names, which
+REFUSES a label that is not on the axis rather than snapping it to the
+nearest column -- an export centre offered as a model label lands exactly
+half a column out, which matches every cell half a planet away instead of
+matching none, and is rule 3 in the form that does not announce itself),
 `remap.py` (grid-to-grid: the separable overlap weights between two grids
 that are not the same grid, normalisation by field semantics, the coverage
 that travels with the result, and where a coastal flux goes when the two
