@@ -1330,3 +1330,153 @@ def artifact_drift(path, config: dict, inert) -> list[str] | None:
     if was is None:
         return None
     return config_drift(was, config, inert)
+
+
+def _selftest() -> int:
+    """The staged-field door's refusals, each with a right answer.
+
+    Synthetic: a four-value `.sra` and hand-built records in a temporary
+    directory, so nothing here depends on which build is staged or on a run
+    existing. What it checks is the DISPOSITION of a record, which is the part
+    that decided wrongly: the door read only an explicit `terrain_hash` and
+    refused a record that named its build, which is the stamp four of the five
+    records beside a staged field carry and the fifth does not.
+    """
+    import shutil
+    import tempfile
+    import orogen as _orogen
+
+    problems: list[str] = []
+    checks = 0
+
+    def check(name: str, ok: bool, detail: str = "") -> None:
+        nonlocal checks
+        checks += 1
+        print(f"[{'  ok  ' if ok else ' FAIL '}] {name}"
+              + (f"  ({detail})" if detail else ""))
+        if not ok:
+            problems.append(name)
+
+    import yaml
+    live = yaml.safe_load(
+        (PROJECT_ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    build = active_build(live)
+    known = _orogen.terrain_hash_for_name(build)
+    if known is None:
+        print(f"the configured source_build {build!r} is not in the registry, "
+              f"so there is nothing to resolve a name against")
+        return 1
+    # The rung comes from the config rather than being written down here, for
+    # the same reason no artifact path carries one: the fixture is about the
+    # door's disposition and holds at whatever rung the tree is configured at.
+    rung = str(live["model"]["resolution"]).upper()
+
+    header = ("     229       0 20260811       0       4       1"
+              "       0       0\n")
+    root = Path(tempfile.mkdtemp())
+    try:
+        rung_dir = root / "exoplasim" / "inputs" / rung.lower()
+        rung_dir.mkdir(parents=True)
+        sra = rung_dir / f"orogen_{rung}_surf_0229.sra"
+        sra.write_text(header + "  0.1  0.2  0.3  0.4\n")
+        record = rung_dir / f"orogen_{rung}_surf_0229_provenance.json"
+        config = {"model": {"resolution": rung}, "source_build": build}
+
+        def door(rec: dict):
+            record.write_text(json.dumps(rec))
+            try:
+                return staged_surface_field(229, config, root=root), None
+            except SystemExit as refusal:
+                return None, str(refusal)
+
+        got, why = door({"code": 229, "source_config": {"source_build": build}})
+        check("a record that NAMES its build is a stamp",
+              got is not None and got["terrain_hash"] == known, why or "")
+
+        got, why = door({"code": 229, "source_build": build})
+        check("the name is read wherever the writer put it",
+              got is not None and got["terrain_hash"] == known, why or "")
+
+        got, why = door({"code": 229, "terrain_hash": known,
+                         "source_config": {"source_build": build}})
+        check("a record carrying both, agreeing, opens the door",
+              got is not None and got["terrain_hash"] == known, why or "")
+
+        got, why = door({"code": 229, "terrain_hash": "0" * 64,
+                         "source_config": {"source_build": build}})
+        check("a record whose hash and name are different builds is refused",
+              got is None and "cannot name two builds" in (why or ""),
+              (why or "")[:60])
+
+        got, why = door({"code": 229, "field": "no stamp of any kind"})
+        check("a record with no stamp at all is still refused",
+              got is None and "no provenance record" in (why or ""),
+              (why or "")[:60])
+
+        runs = root / "exoplasim" / "runs" / "run_synthetic"
+        runs.mkdir(parents=True)
+        (runs / "run_manifest.json").write_text(json.dumps({
+            "physical": {"resolution": rung},
+            "source_config": {"model": {"latitudes": 4}},
+            "source_build": build,
+            "surface_fields": {"from_file": [229]},
+            "surface_field_sha256": {
+                "229": hashlib.sha256(sra.read_bytes()).hexdigest()},
+        }))
+        shutil.copy(sra, runs / "N004_surf_0229.sra")
+
+        consumed = run_surface_field(229, "run_synthetic", root=root)
+        check("a run's field resolves to the run's own copy, and says whether "
+              "the staged tree has moved on",
+              consumed["path"].endswith("N004_surf_0229.sra")
+              and consumed["matches_staged"] is True, consumed["path"])
+
+        try:
+            run_surface_field(1720, "run_synthetic", root=root)
+            check("a code the run never staged is refused as absent", False)
+        except SystemExit as refusal:
+            check("a code the run never staged is refused as absent",
+                  "staged no surface code" in str(refusal))
+
+        (runs / "N004_surf_0229.sra").write_text(header + "  0.9  0.9  0.9  0.9\n")
+        try:
+            run_surface_field(229, "run_synthetic", root=root)
+            check("a rewritten copy in the run directory is refused", False)
+        except SystemExit as refusal:
+            check("a rewritten copy in the run directory is refused",
+                  "has been rewritten since the run" in str(refusal))
+
+        shutil.copy(sra, runs / "N004_surf_0229.sra")
+        sra.write_text(header + "  0.5  0.5  0.5  0.5\n")
+        record.write_text(json.dumps(
+            {"code": 229, "source_config": {"source_build": build}}))
+        try:
+            staged_surface_field(229, config, root=root,
+                                 paired_with_run="run_synthetic")
+            check("a staged field that is not the one a named run read is refused",
+                  False)
+        except SystemExit as refusal:
+            check("a staged field that is not the one a named run read is refused",
+                  "two worlds" in str(refusal))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    print(f"\n{checks} checks, {len(problems)} failed")
+    return 1 if problems else 0
+
+
+def main() -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--selftest", action="store_true",
+                    help="run the staged-field door's refusals against their "
+                         "right answers on synthetic input; needs no staged "
+                         "field and no run on disk")
+    args = ap.parse_args()
+    if not args.selftest:
+        ap.error("this module is a library; --selftest is the only thing to run")
+    return _selftest()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

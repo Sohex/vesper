@@ -2323,6 +2323,14 @@ one_offs:
   # preprocessed intermediate it is about to compile, inside the build
   # directory; nothing in the graph reads it. world-ynpx.
   - exoplasim/scripts/prefix_map_launcher.py
+  # A library, and `--selftest` is the only thing to run in it. It is here
+  # rather than under `checks` because it writes nothing the pipeline reads:
+  # the door it tests is a filesystem resolver, so the fixture is a synthetic
+  # `.sra` and a hand-built provenance record in a temporary directory that the
+  # selftest removes. Nine refusals with right answers, including the two that
+  # were wrong: a record that NAMES its build is a stamp, and a staged field is
+  # not the one a named run read.
+  - lib/provenance.py
   - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/shtns_variant_sweep.py
   - exoplasim/scripts/build_pyfft.py
