@@ -308,6 +308,26 @@ def written_quantum(tables: dict, output: str, field: str) -> float:
     return 0.0
 
 
+def pool_addends(rule: dict) -> list[tuple[str, str, float]]:
+    """The (output, field, scale) terms one closure rule adds to its stock.
+
+    A stock term names a column, and YAML 1.1 resolves the bare column name NO
+    to a boolean. A field that is not a string is refused here rather than
+    reaching `written_quantum` as a name no table has, because a stock quietly
+    short of one of its terms is the defect the addends exist to repair.
+    """
+    terms = []
+    for addend in rule.get("pool_addends", []):
+        scale = float(addend["to_flux_units"])
+        for field in addend["fields"]:
+            if not isinstance(field, str):
+                raise AcceptanceError(
+                    f"closure stock addend {addend['output']} names a "
+                    f"{type(field).__name__} field {field!r}; quote it")
+            terms.append((addend["output"], field, scale))
+    return terms
+
+
 def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
     """What each closure residual can resolve, against the tolerance it is held to.
 
@@ -335,11 +355,18 @@ def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
         factor = float(rule.get("pool_to_flux_units", 1.0))
         pool_q = written_quantum(tables, rule["pool_output"], rule["pool_field"])
         flux_q = written_quantum(tables, rule["flux_output"], rule["flux_field"])
-        bound = pool_q * factor + (count - 1) * flux_q / 2.0
+        # Every column the stock is summed from carries its own rounding into
+        # both endpoints, so each contributes a whole quantum to their
+        # difference exactly as the pool column does.
+        addend_q = {}
+        for output, field, scale in pool_addends(rule):
+            addend_q[f"{output}:{field}"] = written_quantum(tables, output, field) * scale
+        bound = pool_q * factor + sum(addend_q.values()) + (count - 1) * flux_q / 2.0
         floor = float(rule[absolute_floor_key(rule)])
         resolution[element] = {
             "pool_quantum": pool_q, "flux_quantum": flux_q,
             "pool_to_flux_units": factor,
+            "pool_addend_quanta": addend_q,
             "resolution_bound": bound, "absolute_floor": floor,
             "margin": (floor / bound) if bound > 0 else None,
         }
@@ -419,11 +446,19 @@ def closure_report(tables: dict, cells: list[tuple[float, float]],
         residuals = np.empty(len(cells))
         throughputs = np.empty(len(cells))
         for cell, _ in enumerate(cells):
-            pool = field_series(tables, rule["pool_output"], rule["pool_field"],
-                                cell, selected)
+            # THE STOCK IS EVERY COLUMN THE ELEMENT IS HELD IN, not the one
+            # column named Total. A pool the flux side reports leaving but the
+            # stock side never counted holding turns the difference into
+            # something other than a conservation law; the config says which
+            # columns complete each stock and why.
+            stock = field_series(tables, rule["pool_output"], rule["pool_field"],
+                                 cell, selected) * factor
+            for output, field, scale in pool_addends(rule):
+                stock = stock + field_series(tables, output, field,
+                                             cell, selected) * scale
             flux = field_series(tables, rule["flux_output"], rule["flux_field"],
                                 cell, selected)
-            residuals[cell] = (pool[-1] - pool[0]) * factor + float(flux[1:].sum())
+            residuals[cell] = (stock[-1] - stock[0]) + float(flux[1:].sum())
             throughputs[cell] = float(np.abs(flux[1:]).sum())
         limits = np.maximum(floor, float(rule["relative_throughput_limit"]) * throughputs)
         failed = np.abs(residuals) > limits
@@ -653,6 +688,8 @@ CLOSURE_DECIMALS = {
     ("cpool.out", "Total"): 6, ("cflux.out", "NEE"): 5,
     ("npool.out", "Total"): 7, ("nflux.out", "NEE"): 5,
     ("aaet.out", "Total"): 4, ("tot_runoff.out", "Total"): 4,
+    ("soil_npool.out", "NO2"): 4, ("soil_npool.out", "NO"): 4,
+    ("soil_npool.out", "N2O"): 4, ("soil_npool.out", "N2"): 4,
 }
 
 
@@ -674,6 +711,22 @@ def _assessed_columns(output: str) -> list[str]:
         for name in (quantity.get("columns") or []) + (quantity.get("columns_excluding") or []):
             if name not in named:
                 named.append(name)
+    return named
+
+
+def _closure_addend_columns(output: str) -> list[str]:
+    """Every column a closure rule ADDS to a stock from one output table.
+
+    Same reason as `_assessed_columns`: completing a stock is a contract edit,
+    and a fixture with a hand-written column list would exercise the drift
+    instead of the check.
+    """
+    contract = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    named = []
+    for element in ("carbon", "nitrogen"):
+        for table, field, _ in pool_addends(contract["closure"][element]):
+            if table == output and field not in named:
+                named.append(field)
     return named
 
 
@@ -704,7 +757,11 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range,
     for name in _assessed_columns(output):
         if name not in fields:
             fields, values = fields + [name], values + [0.1]
-    decimals = [(coarsen or {}).get(field, CLOSURE_DECIMALS.get((output, field)))
+    # And any column a closure rule adds to a stock, for the same reason.
+    for name in _closure_addend_columns(output):
+        if name not in fields:
+            fields, values = fields + [name], values + [0.01]
+    decimals =[(coarsen or {}).get(field, CLOSURE_DECIMALS.get((output, field)))
                 for field in fields]
     lines = ["Lon Lat Year " + " ".join(fields)]
     for lon, lat in cells:
@@ -804,6 +861,32 @@ def selftest() -> dict:
             (bed / "npool.out").write_text(
                 "\n".join(parts[0] + parts[1][1:]) + "\n", encoding="utf-8")
 
+        def move_omitted_pool(bed: Path) -> None:
+            """Move the soil mineral nitrogen npool.out Total does not carry.
+
+            The four soil pools soil_npool.out holds and npool.out Total leaves
+            out are part of the stock the closure differences, so nitrogen
+            appearing in them with no matching flux is nitrogen the check has
+            to refuse. A check reading only the pool column cannot see this
+            mutation at all, which is what makes it a test of the pairing
+            rather than of the tolerance.
+            """
+            step = 3.0
+            for rank, _ in enumerate(cells, 1):
+                path = bed / f"run{rank}" / "soil_npool.out"
+                lines = path.read_text(encoding="utf-8").splitlines()
+                column = lines[0].split().index("NO2")
+                for row in range(1, len(lines)):
+                    parts = lines[row].split()
+                    if int(parts[2]) == years[-1]:
+                        parts[column] = f"{float(parts[column]) + step:.4f}"
+                        lines[row] = " ".join(parts)
+                path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            parts = [(bed / f"run{rank}" / "soil_npool.out").read_text(
+                encoding="utf-8").splitlines() for rank in (1, 2)]
+            (bed / "soil_npool.out").write_text(
+                "\n".join(parts[0] + parts[1][1:]) + "\n", encoding="utf-8")
+
         mutations = {
             "missing rank output": (
                 lambda bed: (bed / "run2" / "lai.out").unlink(), None),
@@ -821,6 +904,8 @@ def selftest() -> dict:
                     (bed / "aaet.out").read_text().replace("600.0", "500.0")), None),
             "closure tolerance under the written precision": (
                 coarsen_npool, "finer than the output it reads"),
+            "nitrogen appears in a pool outside npool.out Total": (
+                move_omitted_pool, "nitrogen closure fails"),
         }
         for name, (mutate, expected) in mutations.items():
             bed = root / name.replace(" ", "_")

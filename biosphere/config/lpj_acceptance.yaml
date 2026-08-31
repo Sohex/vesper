@@ -85,6 +85,30 @@ closure:
   nitrogen:
     pool_output: npool.out
     pool_field: Total
+    # npool.out Total IS NOT THE COMPLETE NITROGEN STOCK, so the check adds the
+    # part of it that column leaves out. `commonoutput.cpp` builds Total's
+    # mineral term, availn, from NH4 and NO3 alone, while the soil nitrogen
+    # operator's own conservation identity in `ntransform.cpp` is over SIX soil
+    # pools: NH4, NO3, NO2, NO, N2O and N2. Nitrogen nitrified or denitrified
+    # out of NH4/NO3 and still resident in the other four at the cycle boundary
+    # has therefore left Total, and nflux.out NEE does not carry it either --
+    # the gas fluxes are reported when the nitrogen LEAVES those pools, not
+    # when it enters them. Differencing Total alone against NEE is not a
+    # conservation law; the residual it leaves is the change in the four
+    # omitted pools, which is why it is flat in window length rather than
+    # accumulating. soil_npool.out writes those four on the same gridcell
+    # average, in the same units as the flux, so the complete stock is the
+    # pair. notes/audits/closure-tolerance-under-written-precision.md.
+    # Each addend carries its OWN conversion into the flux's units rather than
+    # inheriting pool_to_flux_units, because it does not share the pool
+    # column's units: npool.out is kgN/m2 and soil_npool.out is already kgN/ha.
+    # The column names are quoted because YAML 1.1 resolves a bare NO to the
+    # boolean false, and a stock silently missing one of its four terms is
+    # exactly the defect this addend exists to repair.
+    pool_addends:
+      - output: soil_npool.out
+        fields: ["NO2", "NO", "N2O", "N2"]
+        to_flux_units: 1.0
     flux_output: nflux.out
     flux_field: NEE
     pool_to_flux_units: 10000.0
