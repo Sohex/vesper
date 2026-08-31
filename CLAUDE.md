@@ -391,6 +391,11 @@ height of the lowest model level),
 its support/build checks and no-fallback reader),
 `stochastic_seeds.py` (DEMO-5's manifest-recorded LPJ root and the stable
 cell/stand/patch/process substream derivation mirrored by the vendored C++),
+`lpj_table.py` (the column-wise reader for an LPJ-GUESS `.out` table: the
+sorted, integer-keyed table every check reads, and the CERTIFY-OR-DECLINE
+contract -- it validates the ordinary case in vectorised passes and raises
+`RowParseRequired` for anything else, so the caller's own row-at-a-time parser
+is what diagnoses a malformed table and every refusal keeps its wording),
 `lpj_output.py` (BIO-12's equilibrium reducer: the UPPER BOUND on a field's
 end-to-end relative drift over the whole retained record and the record length
 that would close it, the per-cell trend refusal over the reported window, the

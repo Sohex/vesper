@@ -13,6 +13,7 @@ import numpy as np
 from scipy import stats
 import yaml
 
+import lpj_table
 from autocorrelation import (RELIABLE_SPAN_MULTIPLE, integrated_time,
                              mean_standard_error)
 
@@ -171,6 +172,36 @@ def forcing_cycle_years(path: Path, manifest: dict) -> tuple[int, dict]:
 
 def _read_rows(path: Path) -> tuple[list[str], list[tuple[float, float]],
                                     list[int], np.ndarray]:
+    """One output table as a (year, cell, field) cube.
+
+    `lib/lpj_table.py` parses each column in one pass and declines anything it
+    cannot certify; the row-at-a-time parser below is what then diagnoses the
+    defect, so every refusal a malformed output earns keeps the words it has
+    always had.
+    """
+    try:
+        table = lpj_table.read(path)
+    except lpj_table.RowParseRequired:
+        return _read_rows_row_at_a_time(path)
+
+    cells = table.cells()
+    years = table.years()
+    start = table.cell_starts()
+    last = np.append(start[1:], table.rows) - 1
+    endings = {int(year) for year in table.year[last]}
+    if len(endings) != 1:
+        raise EquilibriumWindowError(
+            f"{path} ended at different years across cells: {sorted(endings)}")
+    cube = np.full((len(years), len(cells), len(table.fields)), np.nan)
+    year_index = np.searchsorted(np.asarray(years, dtype=np.int64), table.year)
+    cell_index = np.repeat(np.arange(len(cells)), np.diff(np.append(start, table.rows)))
+    cube[year_index, cell_index] = table.values
+    return table.fields, cells, years, cube
+
+
+def _read_rows_row_at_a_time(path: Path) -> tuple[list[str], list[tuple[float, float]],
+                                                  list[int], np.ndarray]:
+    """The row-at-a-time parse: the only thing that diagnoses a bad table."""
     lines = path.read_text().splitlines()
     if not lines:
         raise EquilibriumWindowError(f"{path} is empty")

@@ -23,7 +23,11 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+# `_paths` is what puts lib/ on the path, so it is imported before anything
+# that lives there.
 from _paths import COMPONENT_ROOT, PROJECT_ROOT, RUNS
+
+import lpj_table
 from lpj_output import (EquilibriumWindowError, reduce_table,
                         timescale_report)
 
@@ -59,9 +63,24 @@ def read_contract(path: Path = CONFIG) -> dict:
     return contract
 
 
-def read_table(path: Path) -> tuple[list[str], dict[tuple[float, float, int], np.ndarray]]:
+def read_table(path: Path) -> lpj_table.Table:
+    """One output table, read column-wise wherever that can be certified.
+
+    `lib/lpj_table.py` parses each column in one pass and declines anything it
+    cannot certify; the row-at-a-time parser below is what then diagnoses the
+    defect, so every refusal a malformed output earns is worded exactly as
+    BIO-14 has always worded it.
+    """
     if not path.is_file():
         raise AcceptanceError(f"missing output {path}")
+    try:
+        return lpj_table.read(path)
+    except lpj_table.RowParseRequired:
+        return read_table_rows(path)
+
+
+def read_table_rows(path: Path) -> lpj_table.Table:
+    """The row-at-a-time parse: the only thing that diagnoses a bad table."""
     lines = path.read_text(encoding="utf-8").splitlines()
     if not lines:
         raise AcceptanceError(f"{path} is empty")
@@ -94,21 +113,43 @@ def read_table(path: Path) -> tuple[list[str], dict[tuple[float, float, int], np
         rows[key] = values
     if not rows:
         raise AcceptanceError(f"{path} contains no data")
-    return header[3:], rows
+    return _table_from_rows(path, header[3:], rows)
 
 
-def coverage(rows: dict, expected_years: int) -> tuple[set[tuple[float, float]], list[int]]:
-    cells = {(lon, lat) for lon, lat, _ in rows}
-    years = sorted({year for _, _, year in rows})
+def _table_from_rows(path: Path, fields: list[str], rows: dict) -> lpj_table.Table:
+    """A row-parsed table in the sorted, integer-keyed form every check reads."""
+    ordered = sorted(rows)
+    lon = np.asarray([key[0] for key in ordered], dtype=float)
+    lat = np.asarray([key[1] for key in ordered], dtype=float)
+    year = np.asarray([key[2] for key in ordered], dtype=np.int64)
+    if year.size and np.any(np.abs(year) >= lpj_table.YEAR_OFFSET):
+        raise AcceptanceError(f"{path} has a year outside the assessable range")
+    key = lpj_table.composite_key(np.rint(lon * lpj_table.CENTS).astype(np.int64),
+                                  np.rint(lat * lpj_table.CENTS).astype(np.int64),
+                                  year)
+    return lpj_table.Table(fields=fields, lon=lon, lat=lat, year=year,
+                           values=np.stack([rows[name] for name in ordered]),
+                           key=key)
+
+
+def coverage(table: lpj_table.Table,
+             expected_years: int) -> tuple[list[tuple[float, float]], list[int]]:
+    """The cells and years an output covers, refusing an incomplete product.
+
+    A table's rows are unique by construction, so the product is complete
+    exactly when the row count is the product of the two supports, and the
+    shortfall is how many cell-year rows are missing.
+    """
+    years = table.years()
     if len(years) != expected_years:
         raise AcceptanceError(
             f"output has {len(years)} years, run declares {expected_years}")
     if years != list(range(years[0], years[0] + expected_years)):
         raise AcceptanceError(f"output years are not consecutive: {years}")
-    expected = {(lon, lat, year) for lon, lat in cells for year in years}
-    missing = expected - set(rows)
+    cells = table.cells()
+    missing = len(cells) * len(years) - table.rows
     if missing:
-        raise AcceptanceError(f"output is missing {len(missing)} cell-year rows")
+        raise AcceptanceError(f"output is missing {missing} cell-year rows")
     return cells, years
 
 
@@ -159,8 +200,8 @@ def driver_precipitation(path: Path) -> tuple[dict[tuple[float, float], np.ndarr
                     "sha256": sha256(path), "provenance_sha256": sha256(sidecar)}
 
 
-def check_physical(name: str, fields: list[str], rows: dict, contract: dict) -> None:
-    values = np.stack(list(rows.values()))
+def check_physical(name: str, fields: list[str], values: np.ndarray,
+                   contract: dict) -> None:
     if name in contract.get("nonnegative_outputs", []):
         tolerance = float(contract["negative_roundoff_tolerance"])
         if float(values.min()) < -tolerance:
@@ -180,30 +221,58 @@ def check_physical(name: str, fields: list[str], rows: dict, contract: dict) -> 
                 raise AcceptanceError(f"{name}.{field} leaves [{low}, {high}]")
 
 
-def field_series(tables: dict, output: str, field: str,
-                 cell: tuple[float, float], years: list[int]) -> np.ndarray:
-    fields, rows = tables[output]
+def verify_merge(output: str, merged: lpj_table.Table,
+                 pieces: list[lpj_table.Table]) -> None:
+    """The merged table is the rank union, cell-year for cell-year and value for value.
+
+    Every table arrives sorted on one integer cell-year key, so the union is a
+    concatenation put back into that order and the whole check is two array
+    comparisons. The ranks have already been shown to hold disjoint cells, so
+    no key appears twice in the concatenation and comparing the sorted key
+    arrays is the same statement as comparing the two supports as sets.
+    """
+    keys = np.concatenate([piece.key for piece in pieces])
+    order = np.argsort(keys, kind="stable")
+    if not np.array_equal(keys[order], merged.key):
+        raise AcceptanceError(f"merged {output} is not the exact rank union")
+    values = np.concatenate([piece.values for piece in pieces])[order]
+    if np.array_equal(values, merged.values):
+        return
+    row = int(np.flatnonzero(np.any(values != merged.values, axis=1))[0])
+    key = (float(merged.lon[row]), float(merged.lat[row]), int(merged.year[row]))
+    raise AcceptanceError(f"merged {output} changes rank row {key}")
+
+
+def field_series(tables: dict, output: str, field: str, cell: int,
+                 years: range) -> np.ndarray:
+    """One cell's series for one field, over a contiguous run of year indices.
+
+    The cell and the years are INDEX positions into the cell-year grid the
+    coverage check has already established is complete, so the series is read
+    straight out of that grid rather than looked up a year at a time.
+    """
+    fields, grid = tables[output]
     if field not in fields:
         raise AcceptanceError(f"{output} has no {field} field")
     index = fields.index(field)
-    return np.asarray([rows[(cell[0], cell[1], year)][index] for year in years])
+    return np.asarray([grid[cell, year, index] for year in years])
 
 
-def closure_report(tables: dict, cells: set, years: list[int], manifest: dict,
-                   contract: dict) -> dict:
+def closure_report(tables: dict, cells: list[tuple[float, float]],
+                   years: list[int], manifest: dict, contract: dict) -> dict:
     closure = contract["closure"]
     cycles = int(closure["window_complete_forcing_cycles"])
     cycle_years = int(manifest.get("forcing", {}).get("cycle_years", 1))
     count = cycles * cycle_years
     if len(years) < count:
         raise AcceptanceError(f"closure needs {count} end years")
-    selected = years[-count:]
+    selected = range(len(years) - count, len(years))
     driver_record = manifest.get("inputs", {}).get("driver", {})
     driver = Path(driver_record.get("path", ""))
     if not driver.is_file() or sha256(driver) != driver_record.get("sha256"):
         raise AcceptanceError("manifest-pinned driver is absent or changed")
     precip, precip_identity = driver_precipitation(driver)
-    if set(precip) != cells:
+    if set(precip) != set(cells):
         raise AcceptanceError(
             f"driver/output support differs: {len(precip)} versus {len(cells)} cells")
 
@@ -212,7 +281,7 @@ def closure_report(tables: dict, cells: set, years: list[int], manifest: dict,
         rule = closure[element]
         residuals = []
         throughputs = []
-        for cell in cells:
+        for cell, _ in enumerate(cells):
             pool = field_series(tables, rule["pool_output"], rule["pool_field"],
                                 cell, selected)
             flux = field_series(tables, rule["flux_output"], rule["flux_field"],
@@ -237,12 +306,12 @@ def closure_report(tables: dict, cells: set, years: list[int], manifest: dict,
     water = closure["water"]
     residuals = []
     limits = []
-    for cell in cells:
+    for cell, coordinate in enumerate(cells):
         aet = field_series(tables, water["aet_output"], water["aet_field"],
                            cell, selected)
         runoff = field_series(tables, water["runoff_output"], water["runoff_field"],
                               cell, selected)
-        p_cycle = float(precip[cell].sum())
+        p_cycle = float(precip[coordinate].sum())
         p_total = cycles * p_cycle
         residual = p_total - float(aet.sum()) - float(runoff.sum())
         limit = max(float(water["absolute_floor_mm"]),
@@ -283,32 +352,25 @@ def assess(run_dir: Path, *, contract_path: Path = CONFIG,
     output_hashes = {}
     rank_summary = {}
     for output in contract["required_outputs"]:
-        merged_fields, merged_rows = read_table(run_dir / output)
-        cells, years = coverage(merged_rows, nyear)
-        check_physical(output, merged_fields, merged_rows, contract)
+        merged = read_table(run_dir / output)
+        cells, years = coverage(merged, nyear)
+        check_physical(output, merged.fields, merged.values, contract)
         pieces = []
         rank_cells = []
         for rank in range(1, ranks + 1):
-            fields, rows = read_table(run_dir / f"run{rank}" / output)
-            if fields != merged_fields:
+            piece = read_table(run_dir / f"run{rank}" / output)
+            if piece.fields != merged.fields:
                 raise AcceptanceError(f"rank {rank} {output} has a different header")
-            piece_cells, piece_years = coverage(rows, nyear)
+            piece_cells, piece_years = coverage(piece, nyear)
             if piece_years != years:
                 raise AcceptanceError(f"rank {rank} {output} has different years")
-            pieces.append(rows)
-            rank_cells.append(piece_cells)
+            pieces.append(piece)
+            rank_cells.append(set(piece_cells))
         for left in range(ranks):
             for right in range(left + 1, ranks):
                 if rank_cells[left] & rank_cells[right]:
                     raise AcceptanceError(f"{output} repeats cells across ranks")
-        union = {}
-        for piece in pieces:
-            union.update(piece)
-        if set(union) != set(merged_rows):
-            raise AcceptanceError(f"merged {output} is not the exact rank union")
-        for key in union:
-            if not np.array_equal(union[key], merged_rows[key]):
-                raise AcceptanceError(f"merged {output} changes rank row {key}")
+        verify_merge(output, merged, pieces)
         counts = [len(value) for value in rank_cells]
         if max(counts) - min(counts) > 1:
             raise AcceptanceError(f"{output} rank cell counts are imbalanced: {counts}")
@@ -316,7 +378,7 @@ def assess(run_dir: Path, *, contract_path: Path = CONFIG,
             canonical_support, canonical_years = cells, years
         elif cells != canonical_support or years != canonical_years:
             raise AcceptanceError(f"{output} has different cell/year support")
-        tables[output] = (merged_fields, merged_rows)
+        tables[output] = (merged.fields, merged.grid(len(cells), len(years)))
         output_hashes[output] = sha256(run_dir / output)
         rank_summary[output] = counts
 
@@ -450,6 +512,34 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range) -> 
     return "\n".join(lines) + "\n"
 
 
+def _parsers_agree(root: Path) -> bool:
+    """Do the column-wise and row-at-a-time parsers read one table the same?
+
+    The whole reason the gate can read a table column-wise is that the two
+    parsers are the same parser, so their agreement is a fixture rather than an
+    assumption. The bed is deliberately awkward for the column-wise path:
+    coordinates at both poles and either edge of the antimeridian, negative and
+    zero values, and exponents.
+    """
+    path = root / "parser_agreement.out"
+    path.write_text(
+        "Lon Lat Year A B\n"
+        "-179.95 -89.75 4 1.5 -2.25\n"
+        "-179.95 -89.75 3 0.0 1.0e-8\n"
+        "  0.05  89.75 4 -0.5 3.0\n"
+        "  0.05  89.75 3 2.0 -1.0e+10\n"
+        " 179.95   0.00 4 1.0 2.0\n"
+        " 179.95   0.00 3 3.0 4.0\n", encoding="utf-8")
+    fast = lpj_table.read(path)
+    slow = read_table_rows(path)
+    return (fast.fields == slow.fields
+            and np.array_equal(fast.lon, slow.lon)
+            and np.array_equal(fast.lat, slow.lat)
+            and np.array_equal(fast.year, slow.year)
+            and np.array_equal(fast.key, slow.key)
+            and np.array_equal(fast.values, slow.values))
+
+
 def selftest() -> dict:
     fixtures = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -486,6 +576,8 @@ def selftest() -> dict:
         (run / "run_manifest.json").write_text(json.dumps(manifest) + "\n")
         assess(run, write=False)
         fixtures.append({"fixture": "complete run", "pass": True})
+        fixtures.append({"fixture": "column and row parsers agree",
+                         "pass": _parsers_agree(root)})
 
         mutations = {
             "missing rank output": lambda bed: (bed / "run2" / "lai.out").unlink(),
