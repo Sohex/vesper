@@ -94,6 +94,7 @@ from orbit import model_year_days  # lib/orbit.py, the year length  # noqa: E402
 import run_lpj_guess  # noqa: E402
 import wetland_gate  # noqa: E402
 
+
 def rel(path: Path) -> Path:
     try:
         return path.relative_to(PROJECT_ROOT)
