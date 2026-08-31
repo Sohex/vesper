@@ -513,6 +513,34 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range) -> 
     return "\n".join(lines) + "\n"
 
 
+def _parsers_agree(root: Path) -> bool:
+    """Do the column-wise and row-at-a-time parsers read one table the same?
+
+    The whole reason the gate can read a table column-wise is that the two
+    parsers are the same parser, so their agreement is a fixture rather than an
+    assumption. The bed is deliberately awkward for the column-wise path:
+    coordinates at both poles and either edge of the antimeridian, negative and
+    zero values, and exponents.
+    """
+    path = root / "parser_agreement.out"
+    path.write_text(
+        "Lon Lat Year A B\n"
+        "-179.95 -89.75 4 1.5 -2.25\n"
+        "-179.95 -89.75 3 0.0 1.0e-8\n"
+        "  0.05  89.75 4 -0.5 3.0\n"
+        "  0.05  89.75 3 2.0 -1.0e+10\n"
+        " 179.95   0.00 4 1.0 2.0\n"
+        " 179.95   0.00 3 3.0 4.0\n", encoding="utf-8")
+    fast = lpj_table.read(path)
+    slow = read_table_rows(path)
+    return (fast.fields == slow.fields
+            and np.array_equal(fast.lon, slow.lon)
+            and np.array_equal(fast.lat, slow.lat)
+            and np.array_equal(fast.year, slow.year)
+            and np.array_equal(fast.key, slow.key)
+            and np.array_equal(fast.values, slow.values))
+
+
 def selftest() -> dict:
     fixtures = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -549,6 +577,8 @@ def selftest() -> dict:
         (run / "run_manifest.json").write_text(json.dumps(manifest) + "\n")
         assess(run, write=False)
         fixtures.append({"fixture": "complete run", "pass": True})
+        fixtures.append({"fixture": "column and row parsers agree",
+                         "pass": _parsers_agree(root)})
 
         mutations = {
             "missing rank output": lambda bed: (bed / "run2" / "lai.out").unlink(),
