@@ -9,24 +9,27 @@ pinning every input by hash.
 
     python biosphere/scripts/run_lpj_guess.py --nyear 50
     python biosphere/scripts/run_lpj_guess.py --ranks 16 --label carved-k25v
-    python biosphere/scripts/run_lpj_guess.py --nyear 8600 --save-state
-    python biosphere/scripts/run_lpj_guess.py --nyear 9853 --continue-from lpj_...
+    python biosphere/scripts/run_lpj_guess.py --nyear 1253 --save-state
+    python biosphere/scripts/run_lpj_guess.py --nyear 1253 --continue-from lpj_...
 
 Bulk output lands in `runs/<run_id>/`, which is not tracked, in the same way
 `exoplasim/runs/` is not. The manifest and a summary go to
 `analysis/<run_id>/`, which is.
 
-**The spin-up is bought once.** The ecological spin-up in front of a retained
-record is several times the record itself, so a run refused by the acceptance
-contract used to be answerable only by a second run from bare ground that
-re-integrated the whole of it. `--save-state` leaves the simulated state of the
-last year on disk and `--continue-from` resumes from it, which makes more
-retained record, another seed or another patch count cost the record alone. The
-continuation is a NEW run with a new id whose manifest names its parent, and
-`--nyear` is CUMULATIVE: it is the simulated year the run ends at, not the years
-it adds. What may be continued is guarded rather than trusted -- see
-`continuation_refusals` -- and that the resumed run reproduces the run it
-continues is `biosphere/scripts/verify_lpj_restart_continuity.py`.
+**The spin-up is bought once.** `--nyear` is the RETAINED RECORD and the
+spin-up in front of it is `nyear_spinup`, derived by `build_vesper_pfts.py` and
+several times the record; the model counts `date.year` from zero through both,
+so a run ends at simulated year `nyear_spinup + nyear - 1`. A run refused by the
+acceptance contract used to be answerable only by a second run from bare ground
+that re-integrated the whole of that spin-up. `--save-state` leaves the
+simulated state of the last year on disk and `--continue-from` resumes from it
+and integrates `--nyear` MORE years, all of them retained, which makes more
+record, another seed or another patch count cost the record alone. The
+continuation declares its parent's total as its own `nyear_spinup`, so its
+output covers its own years and no others, and it is a NEW run with a new id
+whose manifest names its parent. What may be continued is guarded rather than
+trusted -- see `continuation_refusals` -- and that the resumed run reproduces
+the run it continues is `biosphere/scripts/verify_lpj_restart_continuity.py`.
 
 Three things this handles that catch people out:
 
@@ -51,6 +54,7 @@ import hashlib
 import uuid
 import json
 import platform
+import re
 import shutil
 import subprocess
 import time
@@ -142,6 +146,33 @@ def require_soil_driver_climate(soilmap: Path, driver: Path) -> dict:
     }
 
 
+def spinup_years(pfts: Path) -> int:
+    """`nyear_spinup` as the model would read it out of the PFT file.
+
+    THE MODEL COUNTS `date.year` FROM ZERO THROUGH THE SPIN-UP. A run declaring
+    `nyear` years of record ends at simulated year `nyear_spinup + nyear - 1`,
+    `commonoutput.cpp:785` writes no annual row before `nyear_spinup`, and
+    `vesperinput.cpp:685` stops on `nyear_spinup + nyear`. So the spin-up is
+    part of every save point and every resume point, and a state block that
+    leaves it out names a simulated year in the middle of the run instead of
+    the end of it.
+
+    `build_vesper_pfts.py` derives the floor and writes it into the PFT file,
+    which is where it belongs; this reads it back rather than re-deriving it.
+    plib takes the LATER declaration, so the last one in the file is the one
+    that would win, and `build_instruction` writes that value again after the
+    import so the number this module computed with is the number the model runs.
+    """
+    declarations = re.findall(r"^\s*nyear_spinup\s+(\d+)",
+                              pfts.read_text(encoding="utf-8"), re.MULTILINE)
+    if not declarations:
+        raise SystemExit(
+            f"{pfts} declares no nyear_spinup, so the simulated year this run "
+            "ends at is not known and no save point or resume point can be "
+            "computed. Rebuild it with build_vesper_pfts.py.")
+    return int(declarations[-1])
+
+
 def soiln_instruction_text(profile: str) -> str:
     """`global_soiln.ins` as the run will read it, for the profile asked for.
 
@@ -211,16 +242,62 @@ def continuation_refusals(parent: dict, inputs: dict, physical: dict,
                 f"{name} differs: the parent ran {parent_physical[name]!r}, "
                 f"this run would run {physical[name]!r}")
 
-    parent_nyear = parent_physical.get("nyear")
-    if not isinstance(parent_nyear, int):
-        refusals.append("the parent manifest records no nyear, so the "
-                        "simulated year the state covers is not known")
-    elif nyear <= parent_nyear:
+    # WHICH SIMULATED YEAR THE STATE COVERS, taken from what the parent wrote
+    # down. It is not `nyear`: the model counts `date.year` from zero through
+    # `nyear_spinup`, and a parent that was itself a continuation carries its
+    # own parent's total as that spin-up, so nothing but the recorded instant
+    # answers this for a chain more than one link long.
+    covers = (parent.get("saved_state") or {}).get("covers_year")
+    if not isinstance(covers, int):
         refusals.append(
-            f"--nyear is CUMULATIVE: the parent already reached year "
-            f"{parent_nyear}, so a continuation needs --nyear greater than "
-            f"{parent_nyear} and was given {nyear}")
+            "the parent manifest does not record which simulated year its "
+            "state covers, so the year this run would resume at is not known")
+    elif covers + 1 != (parent_physical.get("nyear_spinup", 0)
+                        + parent_physical.get("nyear", 0)):
+        refusals.append(
+            f"the parent's recorded save point (year {covers}) is not the end "
+            f"of the run it describes (nyear_spinup "
+            f"{parent_physical.get('nyear_spinup')} plus nyear "
+            f"{parent_physical.get('nyear')}), so one of the two is wrong and "
+            "the resume point cannot be trusted")
+    if nyear < 1:
+        refusals.append(f"--nyear is the record this run ADDS and was given "
+                        f"{nyear}")
     return refusals
+
+
+def state_block(spinup: int, nyear: int, run_dir: Path,
+                parent: dict | None, parent_state: Path | None = None,
+                save_state: bool = True) -> dict:
+    """Which simulated years a run's state file covers and resumes at.
+
+    Every instant here is a `date.year`: the model's own count, from zero,
+    THROUGH the spin-up. A fresh run of `nyear` retained years behind a
+    `spinup`-year spin-up therefore ends at `spinup + nyear - 1`, and that is
+    the year its state covers.
+
+    A continuation takes the resume instant from what its parent RECORDED, not
+    from the parent's `nyear`: a parent that was itself a continuation carries
+    its own parent's total as its spin-up, and re-deriving the instant here
+    would climb one link of the chain and stop. Its `nyear` is the record it
+    ADDS, so it ends at `parent_total + nyear - 1`.
+
+    `verify_lpj_restart_continuity.py --self-test` holds this against the
+    arithmetic `framework/framework.cpp` performs on the same numbers.
+    """
+    if parent is None:
+        total = spinup + nyear
+        return {"restart": False, "save_state": True,
+                "state_year": total, "state_day": -1,
+                "save_year": total, "save_day": -1,
+                "state_path": str((run_dir / "state").resolve()),
+                "save_path": str((run_dir / "state").resolve())}
+    parent_total = parent["saved_state"]["covers_year"] + 1
+    return {"restart": True, "save_state": bool(save_state),
+            "state_year": parent_total, "state_day": -1,
+            "save_year": parent_total + nyear, "save_day": -1,
+            "state_path": str(Path(parent_state).resolve()),
+            "save_path": str((run_dir / "state").resolve())}
 
 
 def serialization_block(state: dict | None) -> str:
@@ -329,6 +406,20 @@ ifsaturatewetlands {settings['ifsaturatewetlands']}
 wetland_runon {settings['wetland_runon']}
 
 title "{settings['title']}"
+
+! THE SPIN-UP, WRITTEN RATHER THAN INHERITED. `nyear_spinup` decides three
+! things at once -- when `vesperinput.cpp:getclimate` stops, which simulated
+! year `commonoutput.cpp:785` starts writing output at, and the CENTURY
+! accelerator window `soil.cpp:206` opens -- and the model counts `date.year`
+! from zero THROUGH it, so a run of `nyear` years ends at simulated year
+! `nyear_spinup + nyear - 1` and not at `nyear - 1`. Nothing that computes a
+! save point or a resume point is right without it. The value is
+! `build_vesper_pfts.py`'s derived floor, read back out of the PFT file this
+! run imports and written here so the number this script did its arithmetic
+! with IS the number the model runs. A continuation replaces it with the
+! simulated years its parent already integrated, which is what makes the
+! continuation's output cover its own years and no others.
+nyear_spinup {settings['nyear_spinup']}
 nyear {settings['nyear']}
 vesper_root_seed {settings['root_seed']}
 
@@ -419,10 +510,10 @@ def main() -> None:
                              "year, so a later run can continue from it "
                              "instead of re-buying the spin-up")
     parser.add_argument("--continue-from", default=None, metavar="RUN_ID",
-                        help="resume from that run's saved state. --nyear is "
-                             "CUMULATIVE: it is the year this run ends at, not "
-                             "the years it adds. The continuation is a NEW run "
-                             "with a new id whose manifest names its parent.")
+                        help="resume from that run's saved state and integrate "
+                             "--nyear MORE years, all of them retained. The "
+                             "continuation is a NEW run with a new id whose "
+                             "manifest names its parent.")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     import sys as _sys
@@ -554,8 +645,14 @@ def main() -> None:
         outputs = outputs + tuple(
             wetland_gate.read_declaration()["acceptance"]["retained_outputs"])
 
+    # The derived spin-up, from the PFT file this run imports. Every save point
+    # and every resume point below is expressed in `date.year`, which counts
+    # from zero through it.
+    spinup = spinup_years(Path(args.pfts))
+
     settings = {
         "title": run_id, "nyear": args.nyear, "npatch": args.npatch,
+        "nyear_spinup": spinup,
         "root_seed": root_seed,
         "nfix_a": args.nfix_a, "nfix_b": args.nfix_b,
         "ifbvoc": 1 if bvoc_active else 0,
@@ -565,6 +662,7 @@ def main() -> None:
 
     physical = {
         "nyear": args.nyear,
+        "nyear_spinup": spinup,
         "npatch": args.npatch,
         "root_seed": root_seed,
         "ranks": args.ranks,
@@ -590,8 +688,10 @@ def main() -> None:
                              soiln_text.encode("utf-8")).hexdigest()},
     }
 
-    # THE STATE FILE. Two arrangements, and the difference between them is which
-    # of the two instants the caller names.
+    # THE STATE FILE, and every instant in it is a `date.year` -- the model's
+    # own count, from zero, THROUGH the spin-up. A run of `--nyear N` therefore
+    # ends at simulated year `spinup + N - 1`, and `total` below is the whole of
+    # what it integrated.
     #
     # `--save-state` writes the state covering the END of the last simulated
     # year, which is where every annual accumulator has flushed and where the
@@ -599,14 +699,21 @@ def main() -> None:
     #
     # `--continue-from` reads that state and resumes on the day after it. The
     # continued run is a NEW run with a new id (rule 6) whose manifest names its
-    # parent, and `--nyear` is the year it ends at rather than the years it
-    # adds, because `vesperinput.cpp:getclimate` stops on `date.year` reaching
-    # `nyear_spinup + nyear` and counts from year zero whether the state was
-    # read or integrated.
+    # parent, and its `--nyear` is the record it ADDS.
+    #
+    # The continuation declares the parent's total as its own `nyear_spinup`,
+    # which is what makes its output cover its own years and no others:
+    # `commonoutput.cpp:785` writes no annual row before `nyear_spinup`, and the
+    # child never simulates a year before that anyway. The CENTURY accelerator
+    # window `soil.cpp:206` derives from the same parameter in the Soil
+    # constructor, but it is serialized, so the deserializer restores the
+    # parent's window over the constructor's and the accelerator does not fire
+    # again.
     #
     # A run that both reads and writes needs the two directories distinct: the
     # serializer truncates what it opens and it opens before the deserializer
     # reads (`framework/parameters.cpp` refuses the collision).
+    total = spinup + args.nyear
     continuation = None
     state = None
     if args.continue_from:
@@ -663,34 +770,33 @@ def main() -> None:
                 + ". The archive is an untagged byte stream, so a substituted "
                 "file would be read as a simulated state without complaint.")
 
-        parent_nyear = parent["physical"]["nyear"]
+        # The simulated year the parent stopped at, taken from what the parent
+        # RECORDED rather than recomputed from its nyear: a parent that was
+        # itself a continuation carries a spin-up of its own parent's total,
+        # and re-deriving it here would climb only one link of the chain.
+        state = state_block(spinup, args.nyear, run_dir, parent,
+                            parent_state=parent_state,
+                            save_state=args.save_state)
+        parent_total = parent["saved_state"]["covers_year"] + 1
+        spinup = parent_total
+        settings["nyear_spinup"] = spinup
+        physical["nyear_spinup"] = spinup
+        total = spinup + args.nyear
         continuation = {
             "parent_run_id": parent.get("run_id", args.continue_from),
             "parent_manifest_sha256": sha256(parent_manifest_path),
             "parent_state_dir": str(parent_state.resolve()),
             "parent_state_sha256": state_now,
-            "parent_nyear": parent_nyear,
+            "parent_nyear": parent["physical"]["nyear"],
+            "parent_total_years": parent_total,
             "parent_ranks": (parent.get("physical") or {}).get("ranks"),
-            "resumed_at_year": parent_nyear,
-            "years_simulated_here": args.nyear - parent_nyear,
+            "resumed_at_year": parent_total,
+            "years_simulated_here": args.nyear,
             "chain": (parent.get("continuation") or {}).get("chain", [])
                      + [parent.get("run_id", args.continue_from)],
         }
-        state = {
-            "restart": True, "save_state": bool(args.save_state),
-            "state_year": parent_nyear, "state_day": -1,
-            "save_year": args.nyear, "save_day": -1,
-            "state_path": str(parent_state.resolve()),
-            "save_path": str((run_dir / "state").resolve()),
-        }
     elif args.save_state:
-        state = {
-            "restart": False, "save_state": True,
-            "state_year": args.nyear, "state_day": -1,
-            "save_year": args.nyear, "save_day": -1,
-            "state_path": str((run_dir / "state").resolve()),
-            "save_path": str((run_dir / "state").resolve()),
-        }
+        state = state_block(spinup, args.nyear, run_dir, None)
     settings["state"] = state
 
     if args.dry_run:

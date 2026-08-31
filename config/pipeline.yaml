@@ -2044,16 +2044,20 @@ steps:
       run; PASS or FAIL is recorded in acceptance.json.
 
       `--save-state` writes the simulated state of the last year into
-      `runs/<run_id>/state/`, and `--continue-from <run_id>` resumes from it, so
-      a refused run is answered by integrating more record rather than by
-      re-buying the spin-up in front of it. The continuation is a new run with a
-      new id whose manifest and acceptance artifact name the parent and the
-      chain back to bare ground; `--nyear` is the year it ends at, not the years
-      it adds. What may be continued is guarded by
-      `run_lpj_guess.py:continuation_refusals` against the parent's pinned
-      inputs, its physical settings and the hashes of the state files it wrote;
-      that the resumed run reproduces the run it continues is
-      `verify_lpj_restart_continuity.py`.
+      `runs/<run_id>/state/`, and `--continue-from <run_id>` resumes from it and
+      integrates `--nyear` more years, all retained, so a refused run is
+      answered by more record rather than by re-buying the spin-up in front of
+      it. Every instant in that state is a `date.year`, which counts from zero
+      THROUGH `nyear_spinup`: a run ends at `nyear_spinup + nyear - 1`, the
+      runner writes the spin-up it read from the PFT file into the instruction
+      file so its arithmetic and the model's agree, and a continuation declares
+      its parent's total as its own spin-up so its output covers its own years.
+      The continuation is a new run with a new id whose manifest and acceptance
+      artifact name the parent and the chain back to bare ground. What may be
+      continued is guarded by `run_lpj_guess.py:continuation_refusals` against
+      the parent's pinned inputs, its physical settings and the hashes of the
+      state files it wrote; that the resumed run reproduces the run it continues
+      is `verify_lpj_restart_continuity.py`.
 
   - id: lpj_acceptance
     script: biosphere/scripts/assess_lpj_run.py
@@ -2294,7 +2298,15 @@ checks:
   # run_lpj_guess.py's --save-state and --continue-from decide against the
   # arithmetic framework/framework.cpp performs on them, so a continuation that
   # would silently skip or repeat a simulated year is refused before the run is
-  # bought. The three model modes test the serializer; that tests the runner.
+  # bought. The three model modes test the serializer; that tests the runner. It
+  # reads the spin-up out of the PFT file the runs import rather than carrying a
+  # copy, because the failure it was built for was a save point computed from
+  # `nyear` alone and thousands of simulated years early.
+  #
+  # Its own `--nyear-spinup` defaults to ZERO. The PFT file declares the DERIVED
+  # spin-up floor, and inheriting it turns a twelve-year bed into a
+  # twelve-thousand-year one; zero also puts every simulated year into the
+  # output tables the annual mode compares.
   - id: verify_lpj_restart_continuity
     script: biosphere/scripts/verify_lpj_restart_continuity.py
   # Is the executable a function of the model source, or of where the checkout
