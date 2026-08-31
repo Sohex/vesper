@@ -829,6 +829,32 @@ steps:
       project's own two builds -- and it sits far above the range published
       thresholds are calibrated on.
 
+  - id: lake_mosaic_cost
+    script: hydrography/scripts/lake_mosaic_cost.py
+    loop: A
+    cost: seconds
+    needs: [spatial_support, baseline_climatology, surface_soil_water]
+    writes: [hydrography/analysis/lake_mosaic_cost.json]
+    gate: >
+      HYD-21 and LSHY-6, on one instrument because both read the same three
+      artifacts. Closes the freezing term the closed-form bound in
+      notes/audits/lake-energy-omission-bound.md had to leave open, which is a
+      threshold on the climate STATE and therefore needs a BASELINE climatology
+      rather than a bootstrap; and prices what the hydrologic mosaic costs at
+      the consumer, where the two-tile capacity distribution is collapsed to one
+      scalar. Reads only, and refuses rather than substituting: no baseline
+      climatology, no staged 0229 whose bytes match its own provenance record,
+      or a support file from another rung and it exits. THE POTENTIAL LATENT
+      HEAT FLUX IS CAPPED AT THE AVAILABLE SURFACE ENERGY AND NEVER RECOVERED
+      AS hfls / beta: the wetness factor is under 0.05 on nearly half this
+      planet's land bins and that quotient reaches 1e17 W m-2, so the result is
+      a bracket whose upper end gives every cell its whole net radiation.
+      `--selftest` runs eight identities with no build and no climatology,
+      including the one that failed and changed a finding: the wetness factor
+      is NOT convex in the capacity, because min(1, .) is flat below the
+      saturation knee and convex above it, so a cell whose soil and lake tiles
+      straddle the knee carries the opposite sign.
+
   - id: wetness
     reads_export: true
     script: hydrography/scripts/build_wetness.py

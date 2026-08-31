@@ -1,9 +1,11 @@
 # Bounding the seasonal lake-energy omission, before an implementation is chosen
 
-**Measured:** 2026-08-25. Closed form throughout, from the model's own
-constants and this planet's orbital period. Nothing was simulated: no ExoPlaSim
-run, no hydrography solve. HYD-21 asks for the bound before the choice, and
-this is the bound.
+**Measured:** 2026-08-25, and the freezing threshold closed 2026-08-31. The
+three terms are closed form throughout, from the model's own constants and this
+planet's orbital period; the threshold that decides which of them dominates is
+read off an existing baseline climatology and an existing solved lake set.
+Nothing was simulated for either: no ExoPlaSim run, no hydrography solve.
+HYD-21 asks for the bound before the choice, and this is the bound.
 
 Worldbuilding. Vesper is an invented super-Earth. Everything below is about the
 simulation of its land surface: `landmod.f90`'s soil heat solver standing in
@@ -52,11 +54,60 @@ the surrogate's 3.295e6 J/m2/K, that is the heat the modelled soil column
 exchanges over a seasonal temperature swing of 93 K. Ten centimetres of ice is
 worth 9.3 K of it.
 
-So wherever a lake freezes, the omitted phase-change term exceeds the entire
-sensible-heat term the depth classes are about, by more than any seasonal
-temperature range this planet can have. **The energy omission is bounded below
-by zero where lakes do not freeze and is dominated by ice where they do**, and
-which of those applies is a climatology question, not a hypsometry one.
+**So the term is a threshold, and both halves of the threshold are now
+measured.** Whether a lake freezes is a question about the climate state, and
+until a baseline climatology existed it could only be posed. It is closed
+below. What must not be said, and was, is that 93 K exceeds any seasonal range
+this planet can have: it does not.
+
+### The measured freezing share, 2026-08-31
+
+`hydrography/scripts/lake_mosaic_cost.py` on `canonical-10m-carve2` at T21,
+from `baseline_regular_climatology.nc` (`run_67323a923013`, 57 orbits) and the
+solved lake set under `support_exoplasim-T21.nc`, matched by index and never by
+longitude.
+
+A climatology bin is a fifteenth of this planet's orbit, so a bin mean
+understates a seasonal minimum and the share is a BRACKET: the warm end is the
+minimum over bin means of the surface temperature and the cold end the minimum
+over the within-bin minima.
+
+| population | freezes, warm end | cold end |
+| --- | ---: | ---: |
+| solved lake area | 55.8% | 63.7% |
+| all land area | 50.9% | 56.4% |
+
+**The freezing term is ON over most of this world's lake area at both ends of
+the bracket.** The two populations agree to within six points, which is what
+says the verdict does not rest on the lake set: that set is solved under the
+bootstrap forcing while these temperatures are the baseline's, and a result
+that holds over all land area regardless of where lakes sit survives that
+mismatch.
+
+### The equivalent ice thickness, which replaces the 93 K figure
+
+The dominance is conditional and the single figure hid the condition. 12.1% of
+solved lake area sits in cells whose seasonal surface temperature range exceeds
+93 K, reaching 127 K; those cells are polar, low-lying and carry a median
+annual maximum snow depth of 0.03 m, so the range is a high-latitude seasonal
+cycle on a 182.80-day orbit and not a snow-surface artifact.
+
+Inverting the comparison per cell gives the depth of ice whose latent heat
+equals that cell's OWN seasonal sensible exchange, which is the number a lake
+model has to clear:
+
+| over | p5 | p50 | p95 | max |
+| --- | ---: | ---: | ---: | ---: |
+| all solved lake area | 0.10 m | 0.33 m | 1.23 m | 1.37 m |
+| the lake area that freezes | 0.28 m | 0.58 m | 1.27 m | 1.37 m |
+
+**Above its own equivalent thickness the omitted phase term dominates the
+sensible term the depth classes are about; below it, it does not.** Over the
+lake area that freezes the crossover is 0.58 m at the median, so a modelled
+lake growing more than about half a metre of ice is one whose energy omission
+is dominated by phase rather than by depth. The ranking in this audit survives,
+and it now rests on a measured crossover rather than on a single figure that
+was wrong at the tail.
 
 ## Term 2: the water column's sensible heat, bounded two ways
 
@@ -109,6 +160,20 @@ Where salinity DOES matter is in term 1, through the freezing point, because it
 decides whether the dominant term switches on at all. That is a threshold, not
 a property bracket, and it belongs with the ice question.
 
+**And that threshold has real leverage, measured 2026-08-31.** Of the solved
+lake area, 55.8% has a seasonal minimum below the fresh freezing point but only
+31.9% is below the NaCl eutectic, 21.1 K colder. The 23.9% in between is lake
+area whose seasonal minimum lies inside the span a chloride brine's freezing
+point can occupy, so whether the dominant term switches on there is decided by
+the lake's salinity and by nothing else. That share is comparable to the share
+already below the eutectic, not small beside it.
+
+The eutectic is used here as a BRACKET WIDTH and never as this world's freezing
+point: the lake chemistry is not declared anywhere, so what is bounded is how
+much lake area the chemistry could move, which is a quarter of it. A closed-
+basin brine chemistry is therefore worth deriving for the ice question, and is
+still worth nothing for the property bracket in this section.
+
 ## What all three sit inside
 
 `land_water_ledger.yaml:open_water_evaporation_from_routed_water` already
@@ -141,30 +206,42 @@ of the smaller term.
   the seasonal energy omission is inside the mass omission already declared
   there, not beside it.
 - **The area and depth classes can be derived, and they do not settle
-  anything.** `hydrography/data/precarve-craton-10m/` now carries `basins.nc`
-  with 9,419 basins and their level/area/volume curves, and `surface_water.nc`
-  with a solved lake set, so the catalogue side of the question is answerable.
-  What it answers with is a population that STRADDLES the only class boundary
-  identified above. Measured 2026-08-25 from `surface_water.nc` on both builds,
-  as mean lake depth (volume over area) at the solved equilibrium: about a third
-  of the lake area sits shallower than 10 m and about two thirds deeper, on both
-  builds, with the median between 18 and 27 m. A distribution split near the
-  middle cannot rank the levers, which is the same conclusion the three terms
-  above reach from the other direction.
+  anything.** `hydrography/data/canonical-10m-carve2/` carries `basins.nc` with
+  the level/area/volume curves and `surface_water.nc` with a solved lake set,
+  so the catalogue side is answerable on the accepted build. What it answers
+  with is a population that STRADDLES the only class boundary identified above.
+  Measured 2026-08-31 as mean lake depth (volume over area) at the solved
+  equilibrium, area-weighted over the 1,074 basins carrying both: 45.2% of lake
+  area is shallower than 10 m and 54.8% deeper, with the median at 10.7 m. The
+  distribution is split almost exactly ON the boundary, which cannot rank the
+  levers -- the same conclusion the three terms above reach from the other
+  direction, and a stronger version of it than the pre-carve builds gave, where
+  the median sat between 18 and 27 m.
 
-  Two reasons not to quote those shares as a result. The forcing is
-  `bootstrap_regular_climatology.nc`, a bootstrap and not a baseline, so the
-  lake extents are the terrain-only-field answer; and both builds are pre-carve,
-  so every basin number is a limit rather than a state. What survives both
-  caveats is the straddle, because moving the climate moves lakes along the
-  depth axis continuously and a third-to-two-thirds split does not become
-  one-sided under a plausible shift.
+  One caveat still travels with the shares and one has been retired. The
+  forcing is `bootstrap_regular_climatology.nc`, a bootstrap and not a
+  baseline, so the lake extents are the terrain-only-field answer; a baseline
+  climatology now exists and re-solving the lake set on it costs minutes.
+  The pre-carve caveat is gone: `canonical-10m-carve2` is carved, so these
+  basin numbers are a state and not a limit. What survives either way is the
+  straddle, because moving the climate moves lakes along the depth axis
+  continuously and a split this close to the middle does not become one-sided
+  under a plausible shift.
 
-- **The accepted build still carries zero `INLAND_WATER` regions**, confirmed
-  2026-08-25 by counting `surface_class` on
-  `source/precarve-craton-10m/exoplasim-T42/`: 4,328,736 land and 5,671,269
-  ocean, and no third class. That is structural rather than incidental --
-  `applyInlandWaterLevels` writes the class only for levels a caller supplies,
-  and no build in `source/` was given any -- so it does not lift by
-  regenerating. Nothing above depends on it, which is why the bound could be
-  taken first.
+- **The accepted build still carries zero `INLAND_WATER` regions**, and the
+  fact survived the move to `canonical-10m-carve2`: its T21 support file
+  reports no inland-water area in any cell. That is structural rather than
+  incidental -- `applyInlandWaterLevels` writes the class only for levels a
+  caller supplies, and no build in `source/` was given any -- so it does not
+  lift by regenerating. It lifts when a water balance feeds levels back into a
+  generation. Nothing above depends on it, which is why the bound could be
+  taken first: the lake area every measurement here is weighted by is the
+  SOLVED lake set from `surface_water.nc`, which exists on the accepted build
+  and is a hydrography product rather than a terrain class.
+
+- **What the freezing arm still cannot say is what a lake's ice does to the
+  climate, only what the model is failing to carry.** The equivalent thickness
+  is the crossover a lake model has to clear, and the thickness a lake actually
+  grows is not derivable from a surrogate that has no phase term at all. That
+  is a property of the implementation this audit exists to precede, and the
+  crossover is the number it will be judged against.
