@@ -140,3 +140,46 @@ That per-cycle figure is the size the two omitted fluxes should be. On that
 gridcell transpiration is 234 mm and runoff is 1021 mm, so the missing term is
 17 per cent of precipitation and would put the transpired share of total
 evaporation at 47 per cent.
+
+### What the residual is once all four losses are subtracted
+
+The model states the identity itself, in `soil.cpp:hydrology_lpjf`:
+
+    initial_water_in_column + rain_melt
+        = final_water_in_column + evap + aet_total + runoff
+
+`rain_melt` is precipitation less interception, less what the snowpack takes
+and plus what it releases, so over a gridcell year that identity is
+
+    P = transpiration + soil evaporation + interception + runoff
+        + change in (soil column water and ice) + change in snowpack
+
+The four losses are exactly the ones the repaired rule subtracts, and what is
+left is the storage change the contract's interpretation says it is. There is
+no third missing flux: the check enforcing this in the model is compiled out
+under `DEBUG_SOIL_WATER`, but the identity it states is the one the hydrology
+is written to.
+
+Measured on `lpj_222316ba17494cb183b747c2cf0e5011`, a diagnostic run of 400
+spin-up cycles and 30 retained, over 1617 gridcells:
+
+| per-cycle residual | transpiration and runoff only | all four losses |
+| --- | --- | --- |
+| population mean | 48.48 mm | 1.01 mm |
+| root mean square | 63.75 mm | 6.52 mm |
+| 99th percentile of magnitude | 223.5 mm | 27.4 mm |
+| gridcells failing the ten-cycle window | 1587 of 1617 | 306 of 1617 |
+
+Soil evaporation averages 35.6 mm per cycle and canopy interception 11.9,
+against 96.8 of transpiration, 127.3 of runoff and 272.6 of precipitation. The
+two omitted terms are 98 per cent of the mean bias.
+
+The 306 that still fail are stores that have not finished charging on a run
+deliberately cut to a twentieth of the derived spin-up, and the accumulation is
+not the one a soil gaining carbon under `iforganicsoilproperties` would show:
+the per-gridcell mean residual correlates with the soil carbon accumulation
+rate at only +0.27, and removing that relation takes the population root mean
+square from 2.52 mm to 2.43. The largest single residual belongs to a gridcell
+at 52.61 degrees with no soil carbon at all and a residual constant to four
+figures across both halves of the record, which is a snowpack filling at a
+fixed rate toward the model's 10000 mm cap.
