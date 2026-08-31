@@ -684,8 +684,32 @@ surface:
   # modelled surface sooner in a wetting cycle without moving either end. That
   # is the declared bracket on band 1 and it is swept by moving
   # `shape_sigma_band1` alone.
+  #
+  # THE THIRD STAGED POINT, `three_point`, IS A REDUCTION AND NOT A PARAMETER.
+  # The mixing is concave in the albedo, so mixing a cell's MEAN dry albedo
+  # toward its MEAN saturated one is not the mean of the mixings of the rocks
+  # the cell holds, and no other PAIR repairs that: code 174 IS the dry albedo,
+  # the radiation reads the same field on dry ground, so it is pinned to the
+  # cell's area-mean dry albedo by a boundary condition that has nothing to do
+  # with wetting, and 1742 is pinned at the other end by the same argument. At
+  # `three_point: true` the builder stages codes 1743/1751/1761, the cell's own
+  # area mean of the per-region mixings at the evaporation limiter's knee, and
+  # `nwetsoil = 2` mixes through them, so the composition is exact at three
+  # saturations rather than two. The knee is `landmod.f90`'s `drhsfull` under
+  # the same map `wetalb` applies to a fill fraction, so it is the limiter's own
+  # transition and neither the builder nor this file chooses it.
+  #
+  # IT IS ON BECAUSE THE TWO-POINT FORM IS OUTSIDE A DECLARED TOLERANCE.
+  # `analysis/spatial_reduction_gap.py` prices the two-field mixing at a peak of
+  # 0.147 W m-2 of global-mean absorbed shortwave against the accepted
+  # baseline's 0.12 W m-2 state-storage tolerance, past it over a third of the
+  # saturation range and worst essentially on the knee itself, and the
+  # three-point form at 0.042 and inside it everywhere. The criterion was fixed
+  # before either was run. `notes/audits/nonlinear-spatial-reductions.md`
+  # section 7 carries the measurement and the repair it refused first.
   soil_albedo_moisture:
     enabled: true
+    three_point: true
     saturation_at_empty_layer: 0.0
     saturation_at_full_layer: 0.7609
     shape_sigma_broadband: 1.0

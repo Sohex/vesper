@@ -286,10 +286,22 @@ distribution stated as a requirement rather than implied by conservation.
   because the quantity crosses a percolation transition. What a candidate has to
   reproduce is the horizon at which this world's deep water separates and the
   bodies it separates into.
-- The 0.5 wet mask's own ocean-side area error is measured here for the first
-  time and is 3.3 to 12.3 times the same bar. It belongs beside SPAT-5's land
-  side in `analysis/coastline_threshold_cost.json` rather than in this audit,
-  and it is a mask question rather than a bathymetry one.
+- The 0.5 wet mask's own ocean-side area error is 3.3 to 12.3 times the same
+  bar. It is a mask question rather than a bathymetry one, so it is carried
+  beside SPAT-5's land side in `analysis/coastline_threshold_cost.json`, where
+  every candidate rule is now priced on both sides of the coastline and
+  `config/partial_surface.yaml`'s retain verdict names both halves of its cost.
+  The Gaussian ladder's figures there reproduce this audit's exactly, computed
+  from the land ledger's two one-signed halves rather than by binning the mesh,
+  which is a second route to the same number. The 36 x 36 GOLDSTEIN figure is
+  that grid's own binarisation and stays here: it is OCN-11's mask and not the
+  one ExoPlaSim applies.
+- The two sides do not select the same rule. The area-conserving threshold is
+  the only one of the five under the planetary-area bar on the ocean side, at
+  0.003 to 0.09 times it against the retained rule's 3.3 to 5.0, and it is worse
+  on the below-datum land-volume closure the retain verdict rests on. The tile
+  model is selected, so the binary mask's remaining job is topology, and a
+  topology criterion is what section 3 measures the support against.
 - The passage-capacity arm is not deferred, it is fixed: the critical fractional
   error against a passage's own heat transport is tabulated above, and the first
   accepted ocean run answers it in one comparison.

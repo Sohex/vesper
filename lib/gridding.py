@@ -312,6 +312,25 @@ def climatology_cells(export: Export, grid_dir: Path, clim_lat):
 # this block and have consumers, are now expressed in terms of it rather than
 # kept as a second implementation.
 #
+# EVERY REDUCTION IN THIS BLOCK IS NAMED `cell_<what it reduces to>`, AND THE
+# PREFIX IS LOAD-BEARING RATHER THAN A HABIT. `config/spatial_support.yaml`'s
+# `aggregation_operator_reductions` says which vocabulary term each one is, and
+# `scripts/spatial_support_gate.py` requires that every module-level `cell_*`
+# callable here is claimed by at least one of them, and that every name a term
+# claims exists here. The relation is many-to-one on purpose -- `cell_fraction`
+# is both the vocabulary's `area_weighted_fraction` and its
+# `categorical_histogram`, because one class share and a partition of them are
+# the same computation under two declared semantics -- so what the gate checks
+# is COVERAGE, which is the direction that drifted. They drifted once, when this
+# module gained the moment, expectation and
+# distribution operators and the contract vocabulary could still only name a
+# mean and a fraction, so an artifact carrying a hypsometry had to declare
+# itself a cell mean or fail validation. A new reduction added here fails that
+# gate until the vocabulary can name what it is; a helper that is not a
+# reduction -- `area_fraction_above` reads an answer back out of one,
+# `transfer_ledger` says what a binning dropped -- takes a name without the
+# prefix and is outside the comparison.
+#
 # DURATION is not here. A mean over time is `lib/climatology.py`'s time-bin
 # weights, and a field that is both -- an area mean of a time mean -- takes them
 # in that order and from that module. Two places, because a spatial support and

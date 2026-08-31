@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "lib"))
 
+import gridding  # noqa: E402
 from spatial_support import SpatialContractError, declaration, validate_contract  # noqa: E402
 
 REPORT = ROOT / "analysis" / "spatial_support_gate_report.json"
@@ -76,6 +77,31 @@ def reference_contract() -> dict:
                 },
                 "aggregation": aggregation,
             },
+            # The sub-grid hypsometry a threshold is read out of, and the field
+            # the vocabulary could not name before: an artifact carrying one had
+            # to call itself a cell mean or fail validation, and the ocean
+            # support's depth distribution is the case that made that a refusal
+            # rather than an omission.
+            {
+                "name": "elevation_hypsometry",
+                "semantics": "distribution_quantiles",
+                "units": "m",
+                "support_id": "atmosphere_t42",
+                "spatial_dimensions": ["latitude", "longitude"],
+                "quantile_probabilities": [0.0, 0.25, 0.5, 0.75, 1.0],
+                "effective_measure": {
+                    "mode": "native_times_fraction",
+                    "measure_kind": "area",
+                    "fraction_field": "land_fraction",
+                },
+                "aggregation": {
+                    "operator": "area_weighted_distribution",
+                    "operator_version": "lib.gridding.cell_quantiles/1",
+                    "source_support": "atmosphere_t42",
+                    "destination_support": "atmosphere_t42",
+                    "nonlinear_order": "process_then_aggregate",
+                },
+            },
         ],
         "time_support": {
             "semantics": "interval_mean",
@@ -89,6 +115,61 @@ def reference_contract() -> dict:
             "operator_versions": {"identity": "lib.gridding/1"},
         },
     }
+
+
+def reduction_vocabulary_checks(vocab: dict) -> list[dict]:
+    """Compare the aggregation vocabulary against lib/gridding.py's reductions.
+
+    The two lists drifted once and nothing compared them: `lib/gridding.py`
+    gained the moment, expectation and distribution operators while the contract
+    vocabulary could still name only a mean and a fraction, so an artifact
+    carrying a sub-grid hypsometry had to declare itself a cell mean or fail
+    validation outright.
+
+    The gridding side is derived by INTROSPECTION rather than kept as a second
+    list here, because a hand-kept list drifts the same way the vocabulary did.
+    Every module-level `cell_*` callable is a SPAT-4 reduction by that module's
+    stated naming convention; a helper that reads an answer back out of a
+    reduction, or reports what one dropped, takes a name without the prefix.
+
+    Coverage is what is checked and the relation is many-to-one: `cell_fraction`
+    is both `area_weighted_fraction` and `categorical_histogram`, one class share
+    and a partition of them being the same computation under two declared
+    semantics. A term with an empty list is one with no mesh-to-grid reduction
+    behind it -- a `lib/remap.py` crossing normalisation, a rule declared so an
+    artifact can say it used one, or a sampling another model performs.
+    """
+    operators = list(vocab["aggregation_operators"])
+    mapping = vocab.get("aggregation_operator_reductions") or {}
+    exposed = {name for name in dir(gridding)
+               if name.startswith("cell_") and callable(getattr(gridding, name))}
+    claimed: set[str] = set()
+    unknown: list[str] = []
+    for term, names in mapping.items():
+        for name in names:
+            claimed.add(name)
+            if name not in exposed:
+                unknown.append(f"{term} -> {name}")
+    unnamed = sorted(exposed - claimed)
+    return [
+        {
+            "check": "every aggregation operator says which reduction it is",
+            "pass": sorted(mapping) == sorted(operators),
+            "missing": sorted(set(operators) - set(mapping)),
+            "undeclared": sorted(set(mapping) - set(operators)),
+        },
+        {
+            "check": "every reduction lib/gridding.py exposes has a vocabulary term",
+            "pass": not unnamed,
+            "exposed": sorted(exposed),
+            "unnamed": unnamed,
+        },
+        {
+            "check": "no vocabulary term names a reduction that is not there",
+            "pass": not unknown,
+            "unresolved": unknown,
+        },
+    ]
 
 
 def main() -> None:
@@ -114,6 +195,7 @@ def main() -> None:
                 "spatially_representative") is False,
         },
     ]
+    checks.extend(reduction_vocabulary_checks(vocab))
 
     def positive(name: str, contract: dict) -> None:
         try:
@@ -166,6 +248,18 @@ def main() -> None:
     negative("vector basis is explicit", lambda c: (
         c["fields"][0].update(semantics="vector_component"),
         c["fields"][0]["aggregation"].update(operator="identity")))
+    negative("a distribution cannot be reduced to a mean", lambda c: (
+        c["fields"][2]["aggregation"].update(operator="covered_area_mean")))
+    negative("the distribution operator cannot carry a single-valued field",
+             lambda c: c["fields"][2].update(semantics="intensive_state"))
+    negative("a quantile table declares its probabilities",
+             lambda c: c["fields"][2].pop("quantile_probabilities"))
+    negative("quantile probabilities are ordered",
+             lambda c: c["fields"][2].update(
+                 quantile_probabilities=[0.0, 0.75, 0.5, 1.0]))
+    negative("quantile probabilities stay inside [0, 1]",
+             lambda c: c["fields"][2].update(
+                 quantile_probabilities=[0.0, 0.5, 1.5]))
 
     changed = copy.deepcopy(base)
     changed["supports"][0]["coordinates_sha256"] = "2" * 64

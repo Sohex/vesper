@@ -585,7 +585,9 @@ costs a config read instead of a launched model.
    the negative sentinel rather than mixing toward it. They are read on every
    start rather than carried through the restart, because they are a boundary
    condition and not a state. They join `intended_surface_codes` only under the
-   switch, so at `nwetsoil = 0` they are not staged and nothing opens them.
+   switch, so at `nwetsoil = 0` they are not staged and nothing opens them. At
+   `nwetsoil = 2` the third point, codes 1743, 1751 and 1761, joins them on
+   exactly the same terms.
 3. **`dwmax` installed from `evaporable_mm`.** The surface layer's capacity is
    cut from air dry, so the column's capacity is `evaporable_mm` and not
    `awc_mm`. `build_surface_soil_water.py` installs it, and it selects the
@@ -593,6 +595,57 @@ costs a config read instead of a launched model.
    water is water the top 0.02 m can give up, so a column without that layer
    gets `awc_mm` and every layer cut from the wilting point. `awc_mm` is what
    LPJ-GUESS reads and it does not move.
+
+## The third staged point, and why a pair cannot carry a cell
+
+The mixing is linear in the Kubelka-Munk transform and therefore concave in the
+albedo, so mixing a cell's MEAN dry albedo toward its MEAN saturated one is not
+the mean of the mixings of the rocks the cell holds. The staged pair reproduces
+the cell's own mixture at the two ends of the saturation axis and nowhere
+between them, and no other PAIR repairs it: code 174 IS the dry albedo, the
+radiation reads the same field on dry ground, so it is pinned to the cell's
+area-mean dry albedo by a boundary condition that has nothing to do with
+wetting, and 1742 is pinned at the other end by the same argument.
+
+`nwetsoil = 2` mixes through a THIRD staged field. Codes 1743, 1751 and 1761
+carry the cell's own area mean of the per-region mixings at one declared
+saturation, and `wetalb` runs the same Sadeghi curve in two segments through it,
+so the composition is exact at three saturations instead of two. Every one of
+the three staged fields is an exact area mean of a per-region quantity, so the
+agreement at three points is a construction rather than a result. A per-cell
+Sadeghi `sigma` would reach a similar place by FITTING and is refused on that
+ground: it would be the residual of a fit, with no derivation to carry to
+another planet.
+
+**The declared saturation is derived from two files and chosen in neither.**
+`landmod.f90`'s `drhsfull` is the fill fraction of the surface layer above which
+the evaporation limiter's wetness factor reaches one, and `wetalb` maps a fill
+fraction onto saturation through `skinsrad` and `skinsrfc`. The knee is the
+image of one under the other. `build_surface_albedo.py` reads `drhsfull` out of
+the model source and the endpoints out of `config/planet.yaml`; `wetalb`
+recomputes the same expression from its own two constants, so the saturation the
+field is staged at and the one it is mixed at are one fact.
+
+**What it is worth.** `analysis/spatial_reduction_gap.py` prices the two-field
+mixing at a peak of 0.147 W m-2 of global-mean absorbed shortwave against the
+accepted baseline's 0.12 W m-2 state-storage tolerance, past it over a third of
+the saturation range, and the three-point form at 0.042 and inside the bar
+everywhere. The criterion was fixed before either was run.
+`notes/audits/nonlinear-spatial-reductions.md` section 7 carries the measurement
+and the builder repair it refused first.
+
+**The order is the whole of the staging.** The mixing is applied to each REGION's
+own pair and the result reduced afterwards. Reducing first and mixing after
+reproduces the defect the field exists to remove, and the builder's bracket check
+is what catches it: the staged knee must lie between the dry and the saturated
+field cell by cell, because the mixing darkens monotonically.
+
+`--mode scaled` refuses the third point rather than scaling it, because that mode
+multiplies already-reduced endmembers by a per-cell factor and the mixing of two
+scaled endmembers is not the scaling of their mixing. `landini` then stops on the
+sentinel. In `--mode modelled` the third point is composited exactly as the two
+ends are: a canopy's wetting ratio is one, so its mixed albedo is its dry one at
+every saturation, and the blend is affine in its endmembers.
 
 The switch itself and its five companions reach `landmod_nl` from
 `surface.soil_albedo_moisture`, written unconditionally by `configure_otherargs`

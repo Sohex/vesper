@@ -1,6 +1,6 @@
 {
   "contract_version": "vesper-partial-surface-area-store/1",
-  "generated": "2026-08-28T11:08:49+00:00",
+  "generated": "2026-08-31T05:24:19+00:00",
   "source_build": "canonical-10m-carve2",
   "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
   "threshold": 0.5,
@@ -18,7 +18,13 @@
             "below_datum_land_dropped": 0.06441017231154111,
             "land_dropped_of_mesh_land": 0.1157824972143338,
             "water_promoted_of_model_land": 0.10555594571247862,
-            "land_volume_closure_relative": 0.027733510212091618
+            "land_volume_closure_relative": 0.027733510212091618,
+            "model_ocean_area_relative": 0.008725695243099407,
+            "ocean_promoted_of_mesh_ocean": 0.07963658701665637,
+            "land_added_of_model_ocean": 0.08759792942367825,
+            "ocean_area_gap_km2": 3637389.596971333,
+            "ocean_area_gap_of_planet": 0.004952246504131168,
+            "ocean_area_gap_over_bar": 4.952246504131168
           },
           "area_conserving": {
             "threshold": 0.4911753694371712,
@@ -27,7 +33,13 @@
             "below_datum_land_dropped": 0.06047866078806996,
             "land_dropped_of_mesh_land": 0.11019878335037023,
             "water_promoted_of_model_land": 0.11008345514669482,
-            "land_volume_closure_relative": 0.03668776428483679
+            "land_volume_closure_relative": 0.03668776428483679,
+            "model_ocean_area_relative": 9.890318074834425e-05,
+            "ocean_promoted_of_mesh_ocean": 0.08400202945902213,
+            "land_added_of_model_ocean": 0.08409261561260888,
+            "ocean_area_gap_km2": 41228.73773819208,
+            "ocean_area_gap_of_planet": 5.6132252784719125e-05,
+            "ocean_area_gap_over_bar": 0.056132252784719124
           },
           "exempt_below_datum_share_any": {
             "land_cells": 1405,
@@ -35,7 +47,13 @@
             "below_datum_land_dropped": 0.0,
             "land_dropped_of_mesh_land": 0.0058890674094286,
             "water_promoted_of_model_land": 0.3227294982635276,
-            "land_volume_closure_relative": 0.3844275747571293
+            "land_volume_closure_relative": 0.3844275747571293,
+            "model_ocean_area_relative": -0.357028139631835,
+            "ocean_promoted_of_mesh_ocean": 0.3615225273778115,
+            "land_added_of_model_ocean": 0.006990022461329811,
+            "ocean_area_gap_km2": 148830597.99159068,
+            "ocean_area_gap_of_planet": 0.2026304273881759,
+            "ocean_area_gap_over_bar": 202.63042738817592
           },
           "exempt_below_datum_share_0.10": {
             "land_cells": 1021,
@@ -43,7 +61,13 @@
             "below_datum_land_dropped": 0.060231233768668804,
             "land_dropped_of_mesh_land": 0.11483183946518452,
             "water_promoted_of_model_land": 0.10682482433487464,
-            "land_volume_closure_relative": 0.027754492590138142
+            "land_volume_closure_relative": 0.027754492590138142,
+            "model_ocean_area_relative": 0.006841605326805444,
+            "ocean_promoted_of_mesh_ocean": 0.08079515891093661,
+            "land_added_of_model_ocean": 0.08704126227411561,
+            "ocean_area_gap_km2": 2851988.678149879,
+            "ocean_area_gap_of_planet": 0.0038829359860020297,
+            "ocean_area_gap_over_bar": 3.8829359860020296
           },
           "exempt_below_datum_share_0.25": {
             "land_cells": 1019,
@@ -51,7 +75,13 @@
             "below_datum_land_dropped": 0.06441017231154111,
             "land_dropped_of_mesh_land": 0.1157824972143338,
             "water_promoted_of_model_land": 0.10555594571247862,
-            "land_volume_closure_relative": 0.027733510212091618
+            "land_volume_closure_relative": 0.027733510212091618,
+            "model_ocean_area_relative": 0.008725695243099407,
+            "ocean_promoted_of_mesh_ocean": 0.07963658701665637,
+            "land_added_of_model_ocean": 0.08759792942367825,
+            "ocean_area_gap_km2": 3637389.596971333,
+            "ocean_area_gap_of_planet": 0.004952246504131168,
+            "ocean_area_gap_over_bar": 4.952246504131168
           }
         },
         "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
@@ -66,6 +96,26 @@
         "mesh_land_area": 318136714.761382,
         "model_land_area": 314499325.1644106,
         "net_land_area_relative": -0.011433416604240765,
+        "ocean_side": {
+          "why": "the land rows are shares of the land and quote no bar; the same cut against the ocean's own denominators, against the one bar this project declares on a planetary area fraction",
+          "bar": {
+            "id": "sea_ice_area",
+            "threshold": 0.001,
+            "units": "fraction_of_planet",
+            "source": "transport_loop.yaml:sea_ice_area",
+            "statistic": "absolute_planetary_sea_ice_area_fraction_change",
+            "derivation": "ExoPlaSim's declared ice-area drift threshold."
+          },
+          "planet_area": 734492839.5500951,
+          "planet_area_source": "4*pi*r^2 from the mesh manifest's radiusKm",
+          "mesh_ocean_area": 416859573.43604285,
+          "model_ocean_area": 420496963.0330142,
+          "net_ocean_area_relative": 0.008725695243099421,
+          "ocean_area_gap_km2": 3637389.596971333,
+          "ocean_area_gap_of_planet": 0.004952246504131168,
+          "ocean_area_gap_over_bar": 4.952246504131168,
+          "goldstein_is_not_this_mask": "the ocean audit's 12.3 times the bar on the 36 x 36 GOLDSTEIN candidate is that grid's own binarisation and is OCN-11's; what is priced here is the ladder ExoPlaSim binarises"
+        },
         "land_dropped_to_ocean": {
           "area": 36834663.29063702,
           "of_mesh_land": 0.1157824972143338,
@@ -102,7 +152,13 @@
             "below_datum_land_dropped": 0.03187636485489724,
             "land_dropped_of_mesh_land": 0.07737115472266153,
             "water_promoted_of_model_land": 0.06817302289244465,
-            "land_volume_closure_relative": 0.02517307173846596
+            "land_volume_closure_relative": 0.02517307173846596,
+            "model_ocean_area_relative": 0.0075333537682296114,
+            "ocean_promoted_of_mesh_ocean": 0.05151436049648465,
+            "land_added_of_model_ocean": 0.058606212929698635,
+            "ocean_area_gap_km2": 3140350.6383669972,
+            "ocean_area_gap_of_planet": 0.004275536083225239,
+            "ocean_area_gap_over_bar": 4.275536083225239
           },
           "area_conserving": {
             "threshold": 0.47923805614979764,
@@ -111,7 +167,13 @@
             "below_datum_land_dropped": 0.02952801318662938,
             "land_dropped_of_mesh_land": 0.07262917534659331,
             "water_promoted_of_model_land": 0.07244111025866597,
-            "land_volume_closure_relative": 0.03308256029772574
+            "land_volume_closure_relative": 0.03308256029772574,
+            "model_ocean_area_relative": 0.00015473576327584837,
+            "ocean_promoted_of_mesh_ocean": 0.05527401941712693,
+            "land_added_of_model_ocean": 0.055420179696596544,
+            "ocean_area_gap_km2": 64503.084274470806,
+            "ocean_area_gap_of_planet": 8.781989530896096e-05,
+            "ocean_area_gap_over_bar": 0.08781989530896095
           },
           "exempt_below_datum_share_any": {
             "land_cells": 4828,
@@ -119,7 +181,13 @@
             "below_datum_land_dropped": 0.0,
             "land_dropped_of_mesh_land": 0.01710425698019689,
             "water_promoted_of_model_land": 0.19120297064563552,
-            "land_volume_closure_relative": 0.13819595579260058
+            "land_volume_closure_relative": 0.13819595579260058,
+            "model_ocean_area_relative": -0.16427823459990298,
+            "ocean_promoted_of_mesh_ocean": 0.17733177221992638,
+            "land_added_of_model_ocean": 0.015619477869855469,
+            "ocean_area_gap_km2": 68480954.80014175,
+            "ocean_area_gap_of_planet": 0.09323570103432044,
+            "ocean_area_gap_over_bar": 93.23570103432044
           },
           "exempt_below_datum_share_0.10": {
             "land_cells": 4118,
@@ -127,7 +195,13 @@
             "below_datum_land_dropped": 0.03108112018078226,
             "land_dropped_of_mesh_land": 0.07713103322098545,
             "water_promoted_of_model_land": 0.06840934829175385,
-            "land_volume_closure_relative": 0.02516999628197552
+            "land_volume_closure_relative": 0.02516999628197552,
+            "model_ocean_area_relative": 0.007144951483309736,
+            "ocean_promoted_of_mesh_ocean": 0.051719508106317834,
+            "land_added_of_model_ocean": 0.05844685961333844,
+            "ocean_area_gap_km2": 2978441.4275537133,
+            "ocean_area_gap_of_planet": 0.004055099338174791,
+            "ocean_area_gap_over_bar": 4.055099338174791
           },
           "exempt_below_datum_share_0.25": {
             "land_cells": 4116,
@@ -135,7 +209,13 @@
             "below_datum_land_dropped": 0.03187636485489724,
             "land_dropped_of_mesh_land": 0.07737115472266153,
             "water_promoted_of_model_land": 0.06817302289244465,
-            "land_volume_closure_relative": 0.02517307173846596
+            "land_volume_closure_relative": 0.02517307173846596,
+            "model_ocean_area_relative": 0.0075333537682296114,
+            "ocean_promoted_of_mesh_ocean": 0.05151436049648465,
+            "land_added_of_model_ocean": 0.058606212929698635,
+            "ocean_area_gap_km2": 3140350.6383669972,
+            "ocean_area_gap_of_planet": 0.004275536083225239,
+            "ocean_area_gap_over_bar": 4.275536083225239
           }
         },
         "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
@@ -150,6 +230,26 @@
         "mesh_land_area": 318136714.761382,
         "model_land_area": 314996364.1230149,
         "net_land_area_relative": -0.009871072695028214,
+        "ocean_side": {
+          "why": "the land rows are shares of the land and quote no bar; the same cut against the ocean's own denominators, against the one bar this project declares on a planetary area fraction",
+          "bar": {
+            "id": "sea_ice_area",
+            "threshold": 0.001,
+            "units": "fraction_of_planet",
+            "source": "transport_loop.yaml:sea_ice_area",
+            "statistic": "absolute_planetary_sea_ice_area_fraction_change",
+            "derivation": "ExoPlaSim's declared ice-area drift threshold."
+          },
+          "planet_area": 734492839.5500951,
+          "planet_area_source": "4*pi*r^2 from the mesh manifest's radiusKm",
+          "mesh_ocean_area": 416859573.43604285,
+          "model_ocean_area": 419999924.07440984,
+          "net_ocean_area_relative": 0.0075333537682296,
+          "ocean_area_gap_km2": 3140350.6383669972,
+          "ocean_area_gap_of_planet": 0.004275536083225239,
+          "ocean_area_gap_over_bar": 4.275536083225239,
+          "goldstein_is_not_this_mask": "the ocean audit's 12.3 times the bar on the 36 x 36 GOLDSTEIN candidate is that grid's own binarisation and is OCN-11's; what is priced here is the ladder ExoPlaSim binarises"
+        },
         "land_dropped_to_ocean": {
           "area": 24614604.980762124,
           "of_mesh_land": 0.07737115472266153,
@@ -186,7 +286,13 @@
             "below_datum_land_dropped": 0.01323990496268604,
             "land_dropped_of_mesh_land": 0.05382572361416721,
             "water_promoted_of_model_land": 0.04427188960342304,
-            "land_volume_closure_relative": 0.011730879613992188
+            "land_volume_closure_relative": 0.011730879613992188,
+            "model_ocean_area_relative": 0.007628995238998071,
+            "ocean_promoted_of_mesh_ocean": 0.03344943973400271,
+            "land_added_of_model_ocean": 0.04076742051597807,
+            "ocean_area_gap_km2": 3180219.701074302,
+            "ocean_area_gap_of_planet": 0.004329817160671448,
+            "ocean_area_gap_over_bar": 4.329817160671448
           },
           "area_conserving": {
             "threshold": 0.47426918882022284,
@@ -195,7 +301,13 @@
             "below_datum_land_dropped": 0.011305647742861458,
             "land_dropped_of_mesh_land": 0.04892854548677616,
             "water_promoted_of_model_land": 0.04898424220292733,
-            "land_volume_closure_relative": 0.016921052900121098
+            "land_volume_closure_relative": 0.016921052900121098,
+            "model_ocean_area_relative": -4.4695715027964766e-05,
+            "ocean_promoted_of_mesh_ocean": 0.037385727830256656,
+            "land_added_of_model_ocean": 0.03734270117395874,
+            "ocean_area_gap_km2": 18631.836700975895,
+            "ocean_area_gap_of_planet": 2.5366941238513102e-05,
+            "ocean_area_gap_over_bar": 0.025366941238513102
           },
           "exempt_below_datum_share_any": {
             "land_cells": 17459,
@@ -203,7 +315,13 @@
             "below_datum_land_dropped": 0.0,
             "land_dropped_of_mesh_land": 0.030993577202393485,
             "water_promoted_of_model_land": 0.08916276185336465,
-            "land_volume_closure_relative": 0.03132148236962191
+            "land_volume_closure_relative": 0.03132148236962191,
+            "model_ocean_area_relative": -0.04873895472291234,
+            "ocean_promoted_of_mesh_ocean": 0.07239247129828619,
+            "land_added_of_model_ocean": 0.024865431726455257,
+            "ocean_area_gap_km2": 20317299.875511825,
+            "ocean_area_gap_of_planet": 0.02766167181147327,
+            "ocean_area_gap_over_bar": 27.66167181147327
           },
           "exempt_below_datum_share_0.10": {
             "land_cells": 16576,
@@ -211,7 +329,13 @@
             "below_datum_land_dropped": 0.012682498449120271,
             "land_dropped_of_mesh_land": 0.05369073116771774,
             "water_promoted_of_model_land": 0.04444850778201975,
-            "land_volume_closure_relative": 0.011793533857947392
+            "land_volume_closure_relative": 0.011793533857947392,
+            "model_ocean_area_relative": 0.007381529818213606,
+            "ocean_promoted_of_mesh_ocean": 0.03359388232367637,
+            "land_added_of_model_ocean": 0.04067516718247163,
+            "ocean_area_gap_km2": 3077061.37132591,
+            "ocean_area_gap_of_planet": 0.004189368780246691,
+            "ocean_area_gap_over_bar": 4.18936878024669
           },
           "exempt_below_datum_share_0.25": {
             "land_cells": 16567,
@@ -219,7 +343,13 @@
             "below_datum_land_dropped": 0.01323990496268604,
             "land_dropped_of_mesh_land": 0.05382572361416721,
             "water_promoted_of_model_land": 0.04427188960342304,
-            "land_volume_closure_relative": 0.011730879613992188
+            "land_volume_closure_relative": 0.011730879613992188,
+            "model_ocean_area_relative": 0.007628995238998071,
+            "ocean_promoted_of_mesh_ocean": 0.03344943973400271,
+            "land_added_of_model_ocean": 0.04076742051597807,
+            "ocean_area_gap_km2": 3180219.701074302,
+            "ocean_area_gap_of_planet": 0.004329817160671448,
+            "ocean_area_gap_over_bar": 4.329817160671448
           }
         },
         "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
@@ -234,6 +364,26 @@
         "mesh_land_area": 318136714.761382,
         "model_land_area": 314956495.0603076,
         "net_land_area_relative": -0.009996393228174501,
+        "ocean_side": {
+          "why": "the land rows are shares of the land and quote no bar; the same cut against the ocean's own denominators, against the one bar this project declares on a planetary area fraction",
+          "bar": {
+            "id": "sea_ice_area",
+            "threshold": 0.001,
+            "units": "fraction_of_planet",
+            "source": "transport_loop.yaml:sea_ice_area",
+            "statistic": "absolute_planetary_sea_ice_area_fraction_change",
+            "derivation": "ExoPlaSim's declared ice-area drift threshold."
+          },
+          "planet_area": 734492839.5500951,
+          "planet_area_source": "4*pi*r^2 from the mesh manifest's radiusKm",
+          "mesh_ocean_area": 416859573.43604285,
+          "model_ocean_area": 420039793.13711715,
+          "net_ocean_area_relative": 0.007628995238997986,
+          "ocean_area_gap_km2": 3180219.701074302,
+          "ocean_area_gap_of_planet": 0.004329817160671448,
+          "ocean_area_gap_over_bar": 4.329817160671448,
+          "goldstein_is_not_this_mask": "the ocean audit's 12.3 times the bar on the 36 x 36 GOLDSTEIN candidate is that grid's own binarisation and is OCN-11's; what is priced here is the ladder ExoPlaSim binarises"
+        },
         "land_dropped_to_ocean": {
           "area": 17123938.880265296,
           "of_mesh_land": 0.05382572361416721,
@@ -270,7 +420,13 @@
             "below_datum_land_dropped": 0.00816527767456076,
             "land_dropped_of_mesh_land": 0.043684550988321726,
             "water_promoted_of_model_land": 0.034375820940782766,
-            "land_volume_closure_relative": 0.004294205920716885
+            "land_volume_closure_relative": 0.004294205920716885,
+            "model_ocean_area_relative": 0.00735709419251207,
+            "ocean_promoted_of_mesh_ocean": 0.025981853555998684,
+            "land_added_of_model_ocean": 0.033095461322218654,
+            "ocean_area_gap_km2": 3066875.1468194127,
+            "ocean_area_gap_of_planet": 0.0041755004020161595,
+            "ocean_area_gap_over_bar": 4.1755004020161595
           },
           "area_conserving": {
             "threshold": 0.466222126637006,
@@ -279,7 +435,13 @@
             "below_datum_land_dropped": 0.0064729089689324615,
             "land_dropped_of_mesh_land": 0.03902274803105594,
             "water_promoted_of_model_land": 0.03902929099783358,
-            "land_volume_closure_relative": 0.007826951188820175
+            "land_volume_closure_relative": 0.007826951188820175,
+            "model_ocean_area_relative": -5.196232526150091e-06,
+            "ocean_promoted_of_mesh_ocean": 0.029786373517797386,
+            "land_added_of_model_ocean": 0.029781332035997407,
+            "ocean_area_gap_km2": 2166.0992743372917,
+            "ocean_area_gap_of_planet": 2.94910876961593e-06,
+            "ocean_area_gap_over_bar": 0.0029491087696159298
           },
           "exempt_below_datum_share_any": {
             "land_cells": 38248,
@@ -287,7 +449,13 @@
             "below_datum_land_dropped": 0.0,
             "land_dropped_of_mesh_land": 0.031998411638007956,
             "water_promoted_of_model_land": 0.055341438759481845,
-            "land_volume_closure_relative": 0.011621262160759977
+            "land_volume_closure_relative": 0.011621262160759977,
+            "model_ocean_area_relative": -0.01885846421517523,
+            "ocean_promoted_of_mesh_ocean": 0.04327884509353376,
+            "land_added_of_model_ocean": 0.0248897635944282,
+            "ocean_area_gap_km2": 7861331.348396838,
+            "ocean_area_gap_of_planet": 0.010703074182741119,
+            "ocean_area_gap_over_bar": 10.703074182741119
           },
           "exempt_below_datum_share_0.10": {
             "land_cells": 37349,
@@ -295,7 +463,13 @@
             "below_datum_land_dropped": 0.007542080252326173,
             "land_dropped_of_mesh_land": 0.04350822090162041,
             "water_promoted_of_model_land": 0.03459780912650933,
-            "land_volume_closure_relative": 0.004340131064250367
+            "land_volume_closure_relative": 0.004340131064250367,
+            "model_ocean_area_relative": 0.0070439052685149495,
+            "ocean_promoted_of_mesh_ocean": 0.02616047180423008,
+            "land_added_of_model_ocean": 0.03297212455090676,
+            "ocean_area_gap_km2": 2936319.345557034,
+            "ocean_area_gap_of_planet": 0.0039977508117786985,
+            "ocean_area_gap_over_bar": 3.9977508117786984
           },
           "exempt_below_datum_share_0.25": {
             "land_cells": 37333,
@@ -303,7 +477,13 @@
             "below_datum_land_dropped": 0.00815734284967212,
             "land_dropped_of_mesh_land": 0.043683839435525555,
             "water_promoted_of_model_land": 0.03437679571049365,
-            "land_volume_closure_relative": 0.0042941121853792815
+            "land_volume_closure_relative": 0.0042941121853792815,
+            "model_ocean_area_relative": 0.007355768843932964,
+            "ocean_promoted_of_mesh_ocean": 0.025982635865426654,
+            "land_added_of_model_ocean": 0.033094965791102375,
+            "ocean_area_gap_km2": 3066322.6625760198,
+            "ocean_area_gap_of_planet": 0.004174748203745947,
+            "ocean_area_gap_over_bar": 4.174748203745947
           }
         },
         "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
@@ -318,6 +498,26 @@
         "mesh_land_area": 318136714.761382,
         "model_land_area": 315069839.6145625,
         "net_land_area_relative": -0.009640116982787661,
+        "ocean_side": {
+          "why": "the land rows are shares of the land and quote no bar; the same cut against the ocean's own denominators, against the one bar this project declares on a planetary area fraction",
+          "bar": {
+            "id": "sea_ice_area",
+            "threshold": 0.001,
+            "units": "fraction_of_planet",
+            "source": "transport_loop.yaml:sea_ice_area",
+            "statistic": "absolute_planetary_sea_ice_area_fraction_change",
+            "derivation": "ExoPlaSim's declared ice-area drift threshold."
+          },
+          "planet_area": 734492839.5500951,
+          "planet_area_source": "4*pi*r^2 from the mesh manifest's radiusKm",
+          "mesh_ocean_area": 416859573.43604285,
+          "model_ocean_area": 419926448.58286226,
+          "net_ocean_area_relative": 0.0073570941925121735,
+          "ocean_area_gap_km2": 3066875.1468194127,
+          "ocean_area_gap_of_planet": 0.0041755004020161595,
+          "ocean_area_gap_over_bar": 4.1755004020161595,
+          "goldstein_is_not_this_mask": "the ocean audit's 12.3 times the bar on the 36 x 36 GOLDSTEIN candidate is that grid's own binarisation and is OCN-11's; what is priced here is the ladder ExoPlaSim binarises"
+        },
         "land_dropped_to_ocean": {
           "area": 13897659.537250757,
           "of_mesh_land": 0.043684550988321726,
@@ -354,7 +554,13 @@
             "below_datum_land_dropped": 0.004655530728287104,
             "land_dropped_of_mesh_land": 0.03672130422784081,
             "water_promoted_of_model_land": 0.029338783750588227,
-            "land_volume_closure_relative": 0.003037695943026582
+            "land_volume_closure_relative": 0.003037695943026582,
+            "model_ocean_area_relative": 0.005804448940120999,
+            "ocean_promoted_of_mesh_ocean": 0.02222032446859359,
+            "land_added_of_model_ocean": 0.027863043793697723,
+            "ocean_area_gap_km2": 2419640.1092101336,
+            "ocean_area_gap_of_planet": 0.0032943004736332836,
+            "ocean_area_gap_over_bar": 3.2943004736332835
           },
           "area_conserving": {
             "threshold": 0.4653802057984626,
@@ -363,7 +569,13 @@
             "below_datum_land_dropped": 0.003914368219566126,
             "land_dropped_of_mesh_land": 0.03305615456273811,
             "water_promoted_of_model_land": 0.03304116937964504,
-            "land_volume_closure_relative": 0.005630712020809684
+            "land_volume_closure_relative": 0.005630712020809684,
+            "model_ocean_area_relative": 1.1827094910987768e-05,
+            "ocean_promoted_of_mesh_ocean": 0.025215796511165258,
+            "land_added_of_model_ocean": 0.025227325240106235,
+            "ocean_area_gap_km2": 4930.237739562988,
+            "ocean_area_gap_of_planet": 6.712438126126522e-06,
+            "ocean_area_gap_over_bar": 0.006712438126126522
           },
           "exempt_below_datum_share_any": {
             "land_cells": 67012,
@@ -371,7 +583,13 @@
             "below_datum_land_dropped": 0.0,
             "land_dropped_of_mesh_land": 0.031093420944243774,
             "water_promoted_of_model_land": 0.039697390287744265,
-            "land_volume_closure_relative": 0.006231115970805905
+            "land_volume_closure_relative": 0.006231115970805905,
+            "model_ocean_area_relative": -0.006837774234579541,
+            "ocean_promoted_of_mesh_ocean": 0.03056748903603694,
+            "land_added_of_model_ocean": 0.023893090359099277,
+            "ocean_area_gap_km2": 2850391.6506788135,
+            "ocean_area_gap_of_planet": 0.003880761659194373,
+            "ocean_area_gap_over_bar": 3.880761659194373
           },
           "exempt_below_datum_share_0.10": {
             "land_cells": 66253,
@@ -379,7 +597,13 @@
             "below_datum_land_dropped": 0.004293897397013568,
             "land_dropped_of_mesh_land": 0.03663503066690857,
             "water_promoted_of_model_land": 0.0294559407258962,
-            "land_volume_closure_relative": 0.003041848884296854
+            "land_volume_closure_relative": 0.003041848884296854,
+            "model_ocean_area_relative": 0.005645184636434042,
+            "ocean_promoted_of_mesh_ocean": 0.022313746966083067,
+            "land_added_of_model_ocean": 0.02780198426806463,
+            "ocean_area_gap_km2": 2353249.25951159,
+            "ocean_area_gap_of_planet": 0.003203910416544081,
+            "ocean_area_gap_over_bar": 3.2039104165440806
           },
           "exempt_below_datum_share_0.25": {
             "land_cells": 66240,
@@ -387,7 +611,13 @@
             "below_datum_land_dropped": 0.004655530728287104,
             "land_dropped_of_mesh_land": 0.03672130422784081,
             "water_promoted_of_model_land": 0.029338783750588227,
-            "land_volume_closure_relative": 0.003037695943026582
+            "land_volume_closure_relative": 0.003037695943026582,
+            "model_ocean_area_relative": 0.005804448940120999,
+            "ocean_promoted_of_mesh_ocean": 0.02222032446859359,
+            "land_added_of_model_ocean": 0.027863043793697723,
+            "ocean_area_gap_km2": 2419640.1092101336,
+            "ocean_area_gap_of_planet": 0.0032943004736332836,
+            "ocean_area_gap_over_bar": 3.2943004736332835
           }
         },
         "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
@@ -402,6 +632,26 @@
         "mesh_land_area": 318136714.761382,
         "model_land_area": 315717074.65217185,
         "net_land_area_relative": -0.0076056613303025445,
+        "ocean_side": {
+          "why": "the land rows are shares of the land and quote no bar; the same cut against the ocean's own denominators, against the one bar this project declares on a planetary area fraction",
+          "bar": {
+            "id": "sea_ice_area",
+            "threshold": 0.001,
+            "units": "fraction_of_planet",
+            "source": "transport_loop.yaml:sea_ice_area",
+            "statistic": "absolute_planetary_sea_ice_area_fraction_change",
+            "derivation": "ExoPlaSim's declared ice-area drift threshold."
+          },
+          "planet_area": 734492839.5500951,
+          "planet_area_source": "4*pi*r^2 from the mesh manifest's radiusKm",
+          "mesh_ocean_area": 416859573.43604285,
+          "model_ocean_area": 419279213.545253,
+          "net_ocean_area_relative": 0.005804448940121006,
+          "ocean_area_gap_km2": 2419640.1092101336,
+          "ocean_area_gap_of_planet": 0.0032943004736332836,
+          "ocean_area_gap_over_bar": 3.2943004736332835,
+          "goldstein_is_not_this_mask": "the ocean audit's 12.3 times the bar on the 36 x 36 GOLDSTEIN candidate is that grid's own binarisation and is OCN-11's; what is priced here is the ladder ExoPlaSim binarises"
+        },
         "land_dropped_to_ocean": {
           "area": 11682395.088798523,
           "of_mesh_land": 0.03672130422784081,
@@ -437,5 +687,5 @@
     "model_form_bracket_selected": false,
     "reason": "author decision: cost bracket first, choose a tile model only if the measured response is material"
   },
-  "config_sha256": "ee67a2b9be8a3fba2a788d5a0418c94bed38417dc32766a53b1175994f038d4e"
+  "config_sha256": "5b5af300556abfb825d78463bf50c4db95ead31078f368c5825474f2aa24ed2d"
 }

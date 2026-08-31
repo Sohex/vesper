@@ -7,6 +7,28 @@ atmosphere_boundary:
   reason: >-
     ExoPlaSim hard-binarises yls at 0.5. Alternative builder thresholds add a
     second rounding and worsen the below-datum land-volume closure.
+  cost_land_side: >-
+    analysis/coastline_threshold_cost.json, candidate_rules: the land dropped
+    into the slab ocean and the water promoted to dry land, each as a share of
+    the land, plus the below-datum land-volume closure the reason above rests
+    on. Five rules priced in the same terms on every ladder rung.
+  cost_ocean_side: >-
+    The same rules in the same artifact under ocean_side and the per-rule
+    ocean_area_gap_over_bar, against ocean/config/transport_loop.yaml's
+    sea_ice_area criterion, this project's one declared bar on a planetary area
+    fraction. The retained rule sits over that bar at every rung and barely
+    falls along the ladder, because a mask error is a coastline-length quantity
+    and a coastline does not get shorter. The area-conserving alternative is the
+    only one of the five under the bar, and it is worse on the land-volume
+    closure the reason above rests on: the two sides of this boundary do not
+    select the same rule and the record now says so rather than pricing one.
+  cost_ocean_side_does_not_reopen_this: >-
+    The tile model is selected, so the binary mask's role is topology and legacy
+    output only and the atmosphere reads the fractional land area rather than
+    the mask. What the ocean-side cost still bears on is TOPOLOGY, which is what
+    a connectivity criterion reads, and that is OCN-11's to take rather than
+    this record's. notes/audits/ocean-support-nonlinear-reductions.md section 3
+    is the measurement of why.
 surface_partition:
   top_level: [ocean, inherited_inland_water, subaerial, solved_lake]
   subaerial_partition: [rootable, dry_barren]

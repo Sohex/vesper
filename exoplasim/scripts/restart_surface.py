@@ -281,6 +281,14 @@ REREAD_EVERY_START = {
     1742: "dalbwet",
     1750: "dalbwet1",
     1760: "dalbwet2",
+    # The THIRD point of the same mixing, on the same terms and for the same
+    # reason: the cell's own mixed albedo at the evaporation limiter's knee is a
+    # property of the lithology under the cell, not a state a run advances.
+    # `landmod`'s `landini` reads these under nwetsoil = 2 and aborts on the
+    # negative sentinel, so a resume with nothing staged stops.
+    1743: "dalbknee",
+    1751: "dalbknee1",
+    1761: "dalbknee2",
 }
 
 # Fields SIMBA owns once coupled vegetation is on: `simba.f90:484,487` assigns

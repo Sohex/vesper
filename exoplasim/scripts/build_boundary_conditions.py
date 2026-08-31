@@ -44,12 +44,13 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
+import math
 from pathlib import Path
 
 import numpy as np
 import yaml
 
-from _paths import CONFIG, INPUTS
+from _paths import CONFIG, INPUTS, PROJECT_ROOT
 from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
 from gridding import cell_fraction, cell_sum, land_weighted, region_cells, transfer_ledger
@@ -62,6 +63,54 @@ LAND_MASK_CODE = 172
 # atmosphere boundary selected by SPAT-5.
 LAND_FRACTION_CODE = 1720
 TOPOGRAPHY_CODE = 129
+
+TRANSPORT_LOOP = PROJECT_ROOT / "ocean" / "config" / "transport_loop.yaml"
+PLANETARY_AREA_CRITERION = "sea_ice_area"
+
+
+def _planetary_area_bar(path: Path = TRANSPORT_LOOP) -> dict:
+    """The one bar this project declares on a planetary AREA FRACTION.
+
+    Read from `ocean/config/transport_loop.yaml` rather than written down here,
+    because a threshold copied into a script is a declaration that cannot
+    propagate: nothing re-derives it and nothing objects when the two disagree.
+
+    It is the ocean loop's `sea_ice_area` criterion, and it is the right
+    instrument for a mask error because the area it was set for has the same
+    climate role -- an albedo and insulation contrast switched by a threshold on
+    a continuous field -- as a wet/dry partition. `notes/audits/ocean-support-
+    nonlinear-reductions.md` states that reasoning and uses the same bar, so the
+    ocean side of the coastline cut and the ocean support's own area errors are
+    quoted in one unit.
+    """
+    loop = yaml.safe_load(path.read_text(encoding="utf-8"))
+    for criteria in _walk_criteria(loop):
+        for row in criteria:
+            if isinstance(row, dict) and row.get("id") == PLANETARY_AREA_CRITERION:
+                if row.get("units") != "fraction_of_planet":
+                    raise ValueError(
+                        f"{PLANETARY_AREA_CRITERION} is declared in "
+                        f"{row.get('units')!r} and not fraction_of_planet; the "
+                        "ocean-side area cost has no bar in its own units")
+                return {"id": row["id"], "threshold": float(row["threshold"]),
+                        "units": row["units"],
+                        "source": f"{path.name}:{row['id']}",
+                        "statistic": row.get("statistic"),
+                        "derivation": row.get("derivation")}
+    raise ValueError(f"{path} declares no {PLANETARY_AREA_CRITERION} criterion")
+
+
+def _walk_criteria(node):
+    """Every list named `criteria` anywhere in the loop declaration."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "criteria" and isinstance(value, list):
+                yield value
+            else:
+                yield from _walk_criteria(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _walk_criteria(item)
 
 
 def coastline_ledger(mesh: Export, grid_dir: Path, mask: np.ndarray,
@@ -126,11 +175,22 @@ def coastline_ledger(mesh: Export, grid_dir: Path, mask: np.ndarray,
         return float(cell_sum(cell, ncell, area, selector)[cells].sum())
 
     is_land = sc == LAND
+    is_ocean = sc == OCEAN
     mesh_land = float(area[is_land].sum())
+    mesh_ocean = float(area[is_ocean].sum())
     model_land = float(total[flat].sum())
     dropped = area_of(is_land, ~flat)
-    promoted_ocean = area_of(sc == OCEAN, flat)
+    promoted_ocean = area_of(is_ocean, flat)
     promoted_inland = area_of(sc == INLAND_WATER, flat)
+
+    # THE DENOMINATOR FOR THE OCEAN SIDE IS THE PLANET AND NOT THE MESH'S OWN
+    # SUM. The bar below is a fraction of planetary area, so the area it is a
+    # fraction of is the sphere the manifest declares, 4*pi*r^2, and not the sum
+    # of the mesh's polygon areas, which exceeds it by about 7e-4 of the planet
+    # -- the same order as the bar. Reporting both puts that difference where a
+    # reader can see it rather than inside a ratio.
+    planet_area = 4.0 * math.pi * mesh.radius_km ** 2
+    bar = _planetary_area_bar()
 
     # The land the threshold drops, in the terrain the fork exists to preserve.
     below = is_land & (elev_m < 0.0)
@@ -171,6 +231,8 @@ def coastline_ledger(mesh: Export, grid_dir: Path, mask: np.ndarray,
     def cost(m) -> dict:
         m = np.asarray(m, dtype=bool)
         model = float(total[m].sum())
+        model_wet = float(total[covered & ~m].sum())
+        ocean_gap = abs(model_wet - mesh_ocean)
         return {
             "land_cells": int(m.sum()),
             "model_land_area_relative": model / mesh_land - 1.0,
@@ -184,6 +246,21 @@ def coastline_ledger(mesh: Export, grid_dir: Path, mask: np.ndarray,
             "land_volume_closure_relative": (
                 float((total[m] * per_cell_elev[m]).sum()) - mesh_volume)
                 / abs(mesh_volume),
+            # THE OCEAN SIDE OF THE SAME CUT. Every row above is a share of the
+            # LAND, so a rule that looks cheap against a land denominator says
+            # nothing about the sea it moves; and the land side quotes no bar at
+            # all, which is what stops a reader re-taking the decision. These are
+            # the same three flows against the ocean's own denominators plus the
+            # one declared bar on a planetary area fraction.
+            "model_ocean_area_relative": model_wet / mesh_ocean - 1.0,
+            "ocean_promoted_of_mesh_ocean": float(
+                cell_sum(cell, ncell, area, is_ocean)[m].sum()) / mesh_ocean,
+            "land_added_of_model_ocean": (
+                float(cell_sum(cell, ncell, area, is_land)[covered & ~m].sum())
+                / model_wet if model_wet > 0 else 0.0),
+            "ocean_area_gap_km2": ocean_gap,
+            "ocean_area_gap_of_planet": ocean_gap / planet_area,
+            "ocean_area_gap_over_bar": ocean_gap / planet_area / bar["threshold"],
         }
 
     # The threshold that conserves land AREA. Bisected rather than solved: the
@@ -232,6 +309,35 @@ def coastline_ledger(mesh: Export, grid_dir: Path, mask: np.ndarray,
         "mesh_land_area": mesh_land,
         "model_land_area": model_land,
         "net_land_area_relative": (model_land - mesh_land) / mesh_land,
+        # THE VERDICT'S OTHER HALF. `notes/audits/ocean-support-nonlinear-
+        # reductions.md` section 2 measures this cut from the wet side and finds
+        # it 3.3 to 5.0 times the bar across the ladder, on a quantity that
+        # barely falls along it because a coastline does not get shorter. The
+        # numbers were reconstructible from the two one-signed halves above and
+        # nothing carried them, so the decision record priced one side of a
+        # boundary and not the other.
+        "ocean_side": {
+            "why": ("the land rows are shares of the land and quote no bar; the "
+                    "same cut against the ocean's own denominators, against the "
+                    "one bar this project declares on a planetary area fraction"),
+            "bar": bar,
+            "planet_area": planet_area,
+            "planet_area_source": "4*pi*r^2 from the mesh manifest's radiusKm",
+            "mesh_ocean_area": mesh_ocean,
+            "model_ocean_area": float(total[covered & ~flat].sum()),
+            "net_ocean_area_relative": (
+                float(total[covered & ~flat].sum()) - mesh_ocean) / mesh_ocean,
+            "ocean_area_gap_km2": abs(float(total[covered & ~flat].sum()) - mesh_ocean),
+            "ocean_area_gap_of_planet": abs(
+                float(total[covered & ~flat].sum()) - mesh_ocean) / planet_area,
+            "ocean_area_gap_over_bar": abs(
+                float(total[covered & ~flat].sum()) - mesh_ocean)
+                / planet_area / bar["threshold"],
+            "goldstein_is_not_this_mask": (
+                "the ocean audit's 12.3 times the bar on the 36 x 36 GOLDSTEIN "
+                "candidate is that grid's own binarisation and is OCN-11's; what "
+                "is priced here is the ladder ExoPlaSim binarises"),
+        },
         "land_dropped_to_ocean": {
             "area": dropped,
             "of_mesh_land": dropped / mesh_land,

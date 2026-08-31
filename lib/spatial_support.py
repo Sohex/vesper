@@ -93,6 +93,33 @@ def grid_support_contract(spec: Any, artifact_id: str, support_id: str,
     return contract
 
 
+def _quantile_probabilities(field: dict, where: str) -> list[float]:
+    """The probability vector a quantile table is unreadable without.
+
+    `lib/gridding.py:cell_quantiles` requires `probs` from its caller and
+    declines to default it, because a quantile vector states which part of the
+    distribution a consumer needs resolved and on this world the tails are where
+    the ice and the abyssal floor are. The same argument applies one layer out:
+    a table whose probabilities are not written down beside it is a block of
+    numbers in the field's units and nothing more, so the contract carries them
+    under the same precondition the operator enforces.
+    """
+    probs = field.get("quantile_probabilities")
+    if not isinstance(probs, list) or not probs:
+        raise SpatialContractError(
+            f"{where} needs quantile_probabilities; a quantile table without the "
+            "probabilities it is taken at cannot be read")
+    if any(not isinstance(p, (int, float)) or isinstance(p, bool) for p in probs):
+        raise SpatialContractError(f"{where}.quantile_probabilities must be numbers")
+    values = [float(p) for p in probs]
+    if values[0] < 0.0 or values[-1] > 1.0 or \
+            any(b <= a for a, b in zip(values, values[1:])):
+        raise SpatialContractError(
+            f"{where}.quantile_probabilities must strictly increase inside [0, 1]; "
+            "an unordered vector describes an unordered table and nothing says so")
+    return values
+
+
 def _need(mapping: dict, key: str, where: str) -> Any:
     if key not in mapping:
         raise SpatialContractError(f"{where} is missing {key!r}")
@@ -228,6 +255,23 @@ def validate_contract(contract: dict[str, Any], vocabulary: dict[str, Any] | Non
         if semantics == "vector_component" and aggregation["operator"] not in {
                 "identity", "vector_rotation_and_component_remap"}:
             raise SpatialContractError(f"{where} vectors require declared rotation/remap semantics")
+        # The distribution pair is BIDIRECTIONAL, unlike the categorical pair
+        # above. A quantile table is not a value of anything else, so the
+        # operator implies the semantics as strongly as the semantics implies
+        # the operator, and a field that declares one and not the other is a
+        # cell mean wearing a distribution's name or the reverse.
+        if semantics == "distribution_quantiles" and aggregation["operator"] not in {
+                "identity", "area_weighted_distribution"}:
+            raise SpatialContractError(
+                f"{where} is a distribution and must carry the distribution operator; "
+                "a mean is not a reduction of it, it is a different quantity")
+        if aggregation["operator"] == "area_weighted_distribution" and \
+                semantics != "distribution_quantiles":
+            raise SpatialContractError(
+                f"{where} carries the distribution operator, so its semantics is "
+                "distribution_quantiles and not a single value per cell")
+        if aggregation["operator"] == "area_weighted_distribution":
+            _quantile_probabilities(field, where)
         if semantics == "vector_component" and field.get("vector_basis") not in \
                 vocab["vector_bases"]:
             raise SpatialContractError(f"{where} vector_basis is not declared")

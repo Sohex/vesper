@@ -27,9 +27,33 @@
       "pass": true
     },
     {
+      "check": "every aggregation operator says which reduction it is",
+      "pass": true,
+      "missing": [],
+      "undeclared": []
+    },
+    {
+      "check": "every reduction lib/gridding.py exposes has a vocabulary term",
+      "pass": true,
+      "exposed": [
+        "cell_expectation",
+        "cell_fraction",
+        "cell_mean",
+        "cell_moments",
+        "cell_quantiles",
+        "cell_sum"
+      ],
+      "unnamed": []
+    },
+    {
+      "check": "no vocabulary term names a reduction that is not there",
+      "pass": true,
+      "unresolved": []
+    },
+    {
       "check": "complete chronological contract",
       "pass": true,
-      "identity": "a73badc78bab12d11dc64ba451616bea6d2bc12ba8cacdb883b3e0f7369361b2"
+      "identity": "c6b0a8496e35c097d6925f02b06ec22cbcba4ce5cb083ce670aaa0306c7525dd"
     },
     {
       "check": "shape is not support identity",
@@ -100,6 +124,31 @@
       "check": "vector basis is explicit",
       "pass": true,
       "refusal": "fields[0] vector_basis is not declared"
+    },
+    {
+      "check": "a distribution cannot be reduced to a mean",
+      "pass": true,
+      "refusal": "fields[2] is a distribution and must carry the distribution operator; a mean is not a reduction of it, it is a different quantity"
+    },
+    {
+      "check": "the distribution operator cannot carry a single-valued field",
+      "pass": true,
+      "refusal": "fields[2] carries the distribution operator, so its semantics is distribution_quantiles and not a single value per cell"
+    },
+    {
+      "check": "a quantile table declares its probabilities",
+      "pass": true,
+      "refusal": "fields[2] needs quantile_probabilities; a quantile table without the probabilities it is taken at cannot be read"
+    },
+    {
+      "check": "quantile probabilities are ordered",
+      "pass": true,
+      "refusal": "fields[2].quantile_probabilities must strictly increase inside [0, 1]; an unordered vector describes an unordered table and nothing says so"
+    },
+    {
+      "check": "quantile probabilities stay inside [0, 1]",
+      "pass": true,
+      "refusal": "fields[2].quantile_probabilities must strictly increase inside [0, 1]; an unordered vector describes an unordered table and nothing says so"
     },
     {
       "check": "coordinate identity changes the contract digest",

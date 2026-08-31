@@ -157,6 +157,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -176,6 +177,9 @@ from orogen import Export, LAND
 from lpj_output import reduce_table, require_lpj_acceptance
 from rootable import read_rootable_partition
 
+sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
+from soil_albedo_wetting import sadeghi_mix  # noqa: E402
+
 # 174 broadband, 175 below 0.75 um, 176 above. With NSIMPLEALBEDO=0 the
 # radiation uses the two-band pair; 174 is written too so the broadband
 # diagnostic agrees rather than silently keeping 0.22.
@@ -189,6 +193,55 @@ ALBEDO_CODES = (174, 175, 176)
 # a material is a property of the material, and the season is carried by the
 # saturation of the surface layer that the mixing reads.
 WET_ALBEDO_CODES = (1742, 1750, 1760)
+
+# The THIRD staged point, read by `landmod`'s `wetalb` at `nwetsoil = 2`. The
+# mixing is linear in the Kubelka-Munk transform and therefore concave in the
+# albedo, so mixing a cell's MEAN dry albedo toward its MEAN saturated one is
+# not the mean of the mixings of the rocks the cell holds. No other PAIR repairs
+# it: code 174 IS the dry albedo, the radiation reads the same field on dry
+# ground, so it is pinned to the cell's area-mean dry albedo by a boundary
+# condition that has nothing to do with wetting, and 1742 is pinned at the other
+# end by the same argument. 1743, 1751 and 1761 carry the cell's own mixed
+# albedo at the evaporation limiter's knee, so the composition is exact at three
+# saturations rather than two. Each is an area mean of a per-region mixing, the
+# same reduction the other two staged fields are; nothing here is fitted.
+# `notes/audits/nonlinear-spatial-reductions.md` section 7 prices both forms.
+KNEE_ALBEDO_CODES = (1743, 1751, 1761)
+
+# `drhsfull`, READ from the model source. It is the fill fraction of the surface
+# layer above which the evaporation limiter's wetness factor reaches one, and it
+# is landmod's own: nothing routes it through a namelist, so a value written
+# here would be a declaration nothing re-derives.
+LANDMOD_SRC = PROJECT_ROOT / "vendor/exoplasim/exoplasim/plasim/src/landmod.f90"
+_DRHSFULL = re.compile(r"^\s*real\s*::\s*drhsfull\s*=\s*([0-9.eEdD+-]+)", re.M)
+
+
+def knee_saturation(config: dict, path: Path = LANDMOD_SRC) -> float:
+    """The saturation the third staged point sits at, derived from two files.
+
+    `wetalb` maps the surface layer's fill fraction onto a degree of saturation
+    through `skinsrad` and `skinsrfc`, which `config/planet.yaml` declares, and
+    the knee is the image of `drhsfull` under that map. The model recomputes the
+    same expression from its own two constants, so the staged field and the
+    saturation the model mixes it at are one fact rather than two declarations
+    that can drift apart.
+    """
+    match = _DRHSFULL.search(path.read_text(encoding="utf-8"))
+    if match is None:
+        raise SystemExit(
+            f"{path} declares no `real :: drhsfull = ...`; the knee cannot be "
+            "read and must not be guessed")
+    fill = float(match.group(1).replace("d", "e").replace("D", "e"))
+    moisture = (config.get("surface", {}) or {}).get("soil_albedo_moisture", {}) or {}
+    lo = float(moisture["saturation_at_empty_layer"])
+    hi = float(moisture["saturation_at_full_layer"])
+    knee = lo + fill * (hi - lo)
+    if not lo < knee < hi:
+        raise SystemExit(
+            f"the evaporation knee maps to a saturation of {knee}, outside the "
+            f"declared range {lo} to {hi}; a third staged point at an end is "
+            "the two-field form under another name")
+    return knee
 
 # Where the wetting ratios come from. Per class and per band, derived per
 # WAVELENGTH from the same reflectance spectra the dry band ratios come from.
@@ -427,9 +480,6 @@ def _full_layer_fall(config: dict, dry_fields: dict, wet_fields: dict,
     is checked bitwise against the compiled `wet_soil_albedo`; a second copy
     would be free to agree with neither.
     """
-    sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
-    from soil_albedo_wetting import sadeghi_mix
-
     moisture = (config.get("surface", {}) or {}).get("soil_albedo_moisture", {}) or {}
     saturation = float(moisture["saturation_at_full_layer"])
     sigma = {
@@ -972,6 +1022,9 @@ def main() -> None:
     # the write is what proves that rather than this comment.
     band_grids = None
     wet_grids = None
+    knee_grids = None
+    knee_sat = None
+    knee_refused = None
     if not args.flat_bands:
         shape1, shape2 = band_shapes(region_rho, z1, z2)
         band_grids = [land_weighted(mesh, grid_dir, region_albedo * shape1)[1],
@@ -983,6 +1036,25 @@ def main() -> None:
                           region_albedo * shape1 * region_wet1)[1],
             land_weighted(mesh, grid_dir,
                           region_albedo * shape2 * region_wet2)[1]]
+        # THE THIRD POINT, AND THE ORDER IS THE WHOLE OF IT. The mixing is
+        # applied to each REGION's own pair and the result reduced afterwards,
+        # so what is staged is the cell's own mean of the mixings rather than
+        # the mixing of the cell's means. Reducing first and mixing after would
+        # reproduce the defect this field exists to remove.
+        knee_sat = knee_saturation(config)
+        moisture_cfg = (config.get("surface", {}) or {}).get(
+            "soil_albedo_moisture", {}) or {}
+        sigma_band = (float(moisture_cfg.get("shape_sigma_band1", 1.0)),
+                      float(moisture_cfg.get("shape_sigma_band2", 1.0)))
+        knee_grids = [
+            land_weighted(mesh, grid_dir,
+                          sadeghi_mix(region_albedo * shape1,
+                                      region_albedo * shape1 * region_wet1,
+                                      knee_sat, sigma_band[0]))[1],
+            land_weighted(mesh, grid_dir,
+                          sadeghi_mix(region_albedo * shape2,
+                                      region_albedo * shape2 * region_wet2,
+                                      knee_sat, sigma_band[1]))[1]]
 
     raw_fraction, raw_alb, _ = land_weighted(mesh, grid_dir,
                                              mesh.rock_albedo.astype(np.float64))
@@ -998,6 +1070,17 @@ def main() -> None:
                 factor = np.where(alb_grid > 0, scaled_grid / alb_grid, 1.0)
             band_grids = [g * factor for g in band_grids]
             wet_grids = [g * factor for g in wet_grids]
+            # THE THIRD POINT IS REFUSED HERE RATHER THAN SCALED. This factor
+            # multiplies fields that have already been reduced, and the mixing
+            # of two scaled endmembers is not the scaling of their mixing, so a
+            # knee field carried through it would still be called exact and
+            # would not be. A refusal leaves `nwetsoil = 2` with nothing staged
+            # and `landini` stops; that is the correct outcome for a mode that
+            # moves a level after the reduction.
+            knee_grids = None
+            knee_refused = ("--mode scaled multiplies the reduced endmembers by "
+                            "a per-cell factor, and the mixing of two scaled "
+                            "endmembers is not the scaling of their mixing")
         alb_grid = scaled_grid
 
     # --- the loop closure -----------------------------------------------------
@@ -1113,7 +1196,7 @@ def main() -> None:
             cs1, cs2 = band_shapes(cover_rho[name], z1, z2)
             cover_shapes[name] = (cs1, cs2)
         if band_grids is not None:
-            blended, wet_blended = [], []
+            blended, wet_blended, knee_blended = [], [], []
             for index in (0, 1):
                 shape = shape1 if index == 0 else shape2
                 wet_ratio = region_wet1 if index == 0 else region_wet2
@@ -1136,8 +1219,32 @@ def main() -> None:
                     args.grass_albedo * cover_shapes["grass"][index])
                 blended.append(np.where(land_cells, dry, band_grids[index]))
                 wet_blended.append(np.where(land_cells, wet, wet_grids[index]))
+                if knee_grids is not None:
+                    rootable_knee_band = land_weighted(
+                        mesh, grid_dir, np.where(
+                            native_rootable,
+                            sadeghi_mix(region_albedo * shape,
+                                        region_albedo * shape * wet_ratio,
+                                        knee_sat, sigma_band[index]), 0.0))[1]
+                    # THE CANOPY'S KNEE ALBEDO IS ITS DRY ONE. `region_wet1` and
+                    # `region_wet2` are set to 1 wherever vegetation is painted,
+                    # so a canopy does not darken and its mixing returns the same
+                    # albedo at every saturation. The composite therefore takes
+                    # the same canopy endmembers as the dry blend above, and the
+                    # blend is affine in them, so compositing the three points
+                    # separately reproduces the cell's own mean of the mixings at
+                    # each of them.
+                    knee, _t, _g, _c = composite_rootable(
+                        knee_grids[index], rootable_knee_band, rootable,
+                        tree_fpc, grass_fpc,
+                        args.tree_albedo * cover_shapes["tree"][index],
+                        args.grass_albedo * cover_shapes["grass"][index])
+                    knee_blended.append(
+                        np.where(land_cells, knee, knee_grids[index]))
             band_grids = blended
             wet_grids = wet_blended
+            if knee_grids is not None:
+                knee_grids = knee_blended
 
         composite, tree_cover, grass_cover, conditional_cover = composite_rootable(
             alb_grid, rootable_broadband, rootable,
@@ -1437,6 +1544,21 @@ def main() -> None:
         }
         wet_fields[1742] = z1 * wet_fields[1750] + z2 * wet_fields[1760]
 
+        # --- the third point, codes 1743, 1751 and 1761 --------------------
+        #
+        # Same treatment as the saturated pair, for the same reasons: the water
+        # cells carry the mixing of the water albedo, which does not darken, so
+        # they take the dry water value; and the broadband member is RECOMBINED
+        # from the pair rather than gridded on its own, so the identity holds at
+        # the third point by construction.
+        knee_fields = None
+        if knee_grids is not None:
+            knee_fields = {
+                1751: np.where(land_cells, knee_grids[0], water_albedo * ws1),
+                1761: np.where(land_cells, knee_grids[1], water_albedo * ws2),
+            }
+            knee_fields[1743] = z1 * knee_fields[1751] + z2 * knee_fields[1761]
+
         # THREE CHECKS THAT CAN FAIL, on the arrays about to be written.
         #
         # The wet field must not be brighter than the dry one anywhere: the
@@ -1468,6 +1590,30 @@ def main() -> None:
                     f"the saturated field {code} is negative somewhere. The "
                     "maps cannot produce that, so a cover weight or a repaint "
                     "is out of range.")
+        # THE THIRD POINT IS BRACKETED BY THE TWO ENDS, cell by cell. The
+        # mixing is monotone in saturation, so a cell's albedo at the knee lies
+        # between its dry and its saturated one; a knee outside that bracket is
+        # a reduction taken in the wrong order or a repaint that moved one array
+        # and not the others, and either makes the staged field a number nobody
+        # can read. The tolerance is the `.sra` write quantum, because that is
+        # how all three reach the model.
+        if knee_fields is not None:
+            for code, dry_code, wet_code in ((1751, 175, 1750),
+                                             (1761, 176, 1760),
+                                             (1743, 174, 1742)):
+                above = float((knee_fields[code] - band_fields[dry_code]).max())
+                below = float((wet_fields[wet_code] - knee_fields[code]).max())
+                if above > RECOMBINATION_TOLERANCE:
+                    raise SystemExit(
+                        f"the knee field {code} is brighter than the dry field "
+                        f"{dry_code} by {above:.3e}; the mixing darkens "
+                        "monotonically, so this is a reduction taken in the "
+                        "wrong order or a repaint that moved one array only")
+                if below > RECOMBINATION_TOLERANCE:
+                    raise SystemExit(
+                        f"the knee field {code} is darker than the saturated "
+                        f"field {wet_code} by {below:.3e}; the knee sits inside "
+                        "the saturation range, so it cannot pass its own end")
         refused_ids = [_rock_id(mesh.root, code) for code in WETTING_REFUSED
                        if any(r["code"] == code for r in json.loads(
                            (mesh.root / "manifest.json").read_text(
@@ -1526,6 +1672,41 @@ def main() -> None:
             path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
             write_sra(path, code, wet_fields[code])
             written.append(str(path))
+        if knee_fields is not None:
+            wetting_report["third_point"] = {
+                "staged": True,
+                "codes": list(KNEE_ALBEDO_CODES),
+                "knee_saturation": knee_sat,
+                "knee_source": ("landmod.f90 drhsfull, mapped through "
+                                "config/planet.yaml soil_albedo_moisture's "
+                                "declared saturation endpoints; the model "
+                                "recomputes the same expression from its own "
+                                "two constants"),
+                "read_at": "landmod nwetsoil = 2",
+                "operator": ("the mixing per REGION and the area mean after, so "
+                             "the staged field is the cell's own mean of the "
+                             "mixings and not the mixing of the cell's means"),
+                "band1_land_mean_at_knee": gmean(knee_fields[1751]),
+                "band2_land_mean_at_knee": gmean(knee_fields[1761]),
+                "broadband_land_mean_at_knee": gmean(knee_fields[1743]),
+                "why": ("the two-field mixing reproduces a cell's own mixture "
+                        "of rocks at the two ends and nowhere between them, at "
+                        "a measured 0.147 W m-2 of global-mean absorbed "
+                        "shortwave against a 0.12 W m-2 storage tolerance; the "
+                        "three-point form is measured at 0.042. "
+                        "notes/audits/nonlinear-spatial-reductions.md section 7"),
+            }
+            for code in KNEE_ALBEDO_CODES:
+                path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
+                write_sra(path, code, knee_fields[code])
+                written.append(str(path))
+        else:
+            wetting_report["third_point"] = {
+                "staged": False,
+                "why_not": knee_refused or (
+                    "--flat-bands writes one field to all three dry codes and "
+                    "there is no pair for a third point to sit inside"),
+            }
     else:
         wetting_report["staged"] = False
         wetting_report["why_not"] = ("--flat-bands writes one field to all "
@@ -1547,7 +1728,8 @@ def main() -> None:
         "resolution": resolution,
         "terrain_hash": mesh.terrain_hash,
         "codes": list(ALBEDO_CODES) + [FOREST_CODE]
-                 + (list(WET_ALBEDO_CODES) if band_grids is not None else []),
+                 + (list(WET_ALBEDO_CODES) if band_grids is not None else [])
+                 + (list(KNEE_ALBEDO_CODES) if knee_grids is not None else []),
         "forest_fraction_value": forest_value,
         "vegetation": vegetation_summary,
         "forest_fraction_land_mean": gmean(forest),

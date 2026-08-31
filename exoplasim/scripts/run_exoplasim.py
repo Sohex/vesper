@@ -1149,8 +1149,15 @@ def soil_albedo_moisture(config: dict) -> dict:
     """
     block = config.get("surface", {}).get("soil_albedo_moisture", {}) or {}
     enabled = bool(block.get("enabled", False))
+    # THE THIRD POINT IS A SETTING OF THE MIXING AND NOT A SWITCH BESIDE IT, so
+    # it is read only when the mixing is on: `enabled: false` is the whole term
+    # off, and it has to stay the one key that turns it off. A third point of a
+    # mixing that is not happening is not a contradiction to refuse, it is
+    # nothing, and refusing it would mean a caller could not switch the term off
+    # without editing two keys.
+    three_point = enabled and bool(block.get("three_point", False))
     declared = {
-        "NWETSOIL": 1 if enabled else 0,
+        "NWETSOIL": (2 if three_point else 1) if enabled else 0,
         "SKINSRAD": block.get("saturation_at_empty_layer"),
         "SKINSRFC": block.get("saturation_at_full_layer"),
         "WETSIGMA": block.get("shape_sigma_broadband"),
@@ -1792,6 +1799,17 @@ ALBEDO_SURFACE_CODES = {174, 175, 176, 212}
 # on every start rather than carried through the restart, being a boundary
 # condition and not a state.
 WET_ALBEDO_SURFACE_CODES = {1742, 1750, 1760}
+# dalbknee, dalbknee1 and dalbknee2, the THIRD point of the same mixing, staged
+# only when `surface.soil_albedo_moisture.three_point` is on. The two-field
+# mixing reproduces a cell's own mixture of rocks at its two ends and nowhere
+# between them, because the mixing is concave in the albedo and neither staged
+# field is free: each is pinned by the radiation reading it at one end of the
+# saturation axis. These three carry the cell's own mixed albedo at the
+# evaporation limiter's knee, which makes the composition exact at three
+# saturations. `landini` refuses on the same negative sentinel, so they are
+# mandatory when the switch is at 2, and they are read on every start rather
+# than carried through the restart for the reason the saturated pair is.
+KNEE_ALBEDO_SURFACE_CODES = {1743, 1751, 1761}
 # dwmax, the soil water bucket whose overflow *is* ExoPlaSim's runoff. Supplied
 # from pedology when asked for; otherwise the uniform namelist default stands.
 SOIL_WATER_SURFACE_CODES = {229}
@@ -2098,8 +2116,10 @@ def intended_surface_codes(config: dict) -> set[int]:
     codes |= LAND_FRACTION_SURFACE_CODES
     if str(config["model"].get("land_albedo_source", "uniform")) != "uniform":
         codes |= ALBEDO_SURFACE_CODES
-        if soil_albedo_moisture(config)["NWETSOIL"] == 1:
+        if soil_albedo_moisture(config)["NWETSOIL"] >= 1:
             codes |= WET_ALBEDO_SURFACE_CODES
+        if soil_albedo_moisture(config)["NWETSOIL"] == 2:
+            codes |= KNEE_ALBEDO_SURFACE_CODES
     if str(config["model"].get("soil_water_source", "uniform")) != "uniform":
         codes |= SOIL_WATER_SURFACE_CODES
         if int((config.get("surface", {}).get("land_water_column", {})
@@ -3204,6 +3224,9 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
             elif code in ROUGHNESS_SURFACE_CODES:
                 builder, setting = ("build_surface_roughness.py",
                                     "model.roughness_source")
+            elif code in KNEE_ALBEDO_SURFACE_CODES:
+                builder, setting = ("build_surface_albedo.py",
+                                    "surface.soil_albedo_moisture.three_point")
             elif code in WET_ALBEDO_SURFACE_CODES:
                 # A different switch from the dry pair's, so a different
                 # message: the fields come from the same builder, and what
@@ -3217,7 +3240,7 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
                 fallback = "none"
             elif code in DUST_SURFACE_CODES | DUST_EMISSION_SURFACE_CODES:
                 fallback = "none"
-            elif code in WET_ALBEDO_SURFACE_CODES:
+            elif code in WET_ALBEDO_SURFACE_CODES | KNEE_ALBEDO_SURFACE_CODES:
                 fallback = "false"
             else:
                 fallback = "uniform"
