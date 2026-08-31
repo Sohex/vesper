@@ -26,7 +26,11 @@ CLIM-17, `TFREEZE` from salinity. Counts the ocean whose coldest output bin sits
 between the current freezing point and the bracket value, which is the area
 newly able to freeze seasonally, and converts through an ice albedo contrast
 carried as a BRACKET (0.25 to 0.40 of planetary albedo per unit area: surface
-contrast ~0.5 times the budget's attenuation 0.5, up to weakly attenuated).
+contrast ~0.5 times the budget's measured attenuation, up to weakly attenuated).
+That attenuation is 0.38 with a measured span of 0.29 to 0.48, so the low end of
+this bracket now sits slightly above what the surface-contrast route gives and
+the bracket is kept as it is: it was fixed before the measurement and its width
+is about how attenuated sea ice is, not about the constant.
 
 This prints. It writes nothing.
 """

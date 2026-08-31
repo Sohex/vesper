@@ -85,8 +85,9 @@ repeating. See `exoplasim/notes/parameter-decisions.md`.
 
 ## What is wrong with this and must be fixed downstream
 
-- **The -4.7 K offset is a proxy**, not a measurement. The redo against the
-  real 0.945 climatology is CLIM-34.
+- **The -4.7 K offset is a proxy**, not a measurement. The redo against the real
+  0.945 climatology is the last section of this note and it is done; the table
+  above is the dated record of what the proxy produced.
 - **The lapse rate is no longer assumed.** It is measured from the model's own
   10-level profile by `lib/lapse.py`, and the measurement says the bracket this
   note explored sat entirely on the shallow side; the correction section below
@@ -119,26 +120,28 @@ weighted, output bins weighted by their record counts.
 Two things follow, one about the audit's expectation and one about this note.
 
 The audit that opened PHYS-12 expected "nearer 8.5" by scaling Earth's 6.5 with
-the gravity ratio. The measurement lands below that: this atmosphere is more
-stably stratified relative to its own adiabats than a pure `g/cp` scaling
-assumes, which is exactly why the rate had to be measured rather than derived.
-The warm-season rate, the operative one here, is 7.8.
+the gravity ratio. On this climatology the warm-season rate lands close to it,
+and on the one measured here it lands below: the rate is a property of the
+climatology it is read from and it moves by more than a kelvin per kilometre
+between two of them, which is exactly why `lib/lapse.py` measures it at call
+time instead of declaring it. The redo section below carries the rate the real
+0.945 baseline gives and is the one to quote.
 
-For this note's table: `z* = cell_mean + (T_warmest - 273.15) / lapse`, so at
-7.8 K/km the height term shrinks to 0.83 of its 6.5 value, the freezing surface
-drops, and every area in the table grows. By the note's own measured
-sensitivity -- 5.5 K/km roughly halves the areas relative to 6.5 -- 7.8 roughly
-DOUBLES them, putting the 0.945 cycle-mean nearer 3.5 than 1.85 Mkm2. The exact
-factor is not computed here, because this note already owes a redo against the
-real 0.945 climatology and the two corrections belong in one pass.
+For this note's table: `z* = cell_mean + (T_warmest - 273.15) / lapse`, so a
+steeper rate shrinks the height term, drops the freezing surface, and grows
+every area. By the note's own measured sensitivity, 5.5 K/km roughly halves the
+areas relative to 6.5, so the direction of a rate above 6.5 is an increase and
+the redo measures how large it is.
 
 The direction is the finding. Every other caveat in the section above pushes
 the same way, making the areas an upper bound; the lapse assumption pushed the
 OPPOSITE way, an undercount, and the bracket 5.5 to 6.5 could never have said
-so because both ends sat below the measurement. The note's areas are therefore
-no longer a clean upper bound: the missing mass balance still argues they are
-too large, the corrected lapse argues they are too small, and only the redo
-settles which wins.
+so because both ends sat below the measurement. The redo settles which wins and
+the lapse wins by a wide margin: on the real 0.945 climatology at its own
+measured rate the criterion admits 7.087 per cent of land, an order of magnitude
+above the 0.583 per cent this note's proxy row carried. The missing mass balance
+is now the whole of what stands between that and a smaller number, which makes
+it the next thing worth building rather than a caveat to carry.
 
 ## Extension, 2026-08-24: the resolution ladder never closes this gap
 
@@ -236,3 +239,70 @@ is the whole of the difference above.
 
 **No terrain has been regenerated.** Generating is loop A and the numbers above
 are what a regeneration would face, not what one produced.
+
+## The redo, 2026-08-30: the real 0.945 climatology and the measured rate
+
+*Measured on `canonical-10m-carve2`, the configured build, against
+`baseline_regular_climatology.nc`: `run_67323a923013`, flux ratio 0.945, 57
+orbits from year index 70 to 126, T21. The mesh is that build's T42 export and
+the grid its T21 one, because only the T42 export keeps `raw/`. Warm-season
+environmental lapse rate 8.437 K/km, read by `lib/lapse.py` from the same
+climatology. `analysis/ice_mask_freezing_height.py` is the generator and
+`analysis/ice_mask_freezing_height.json` the artifact.*
+
+**Both proxies are gone at once.** The 0.945 rows above slid a 0.968 T42
+climatology on another build by a uniform -4.7 K and assumed 6.5 K/km. This
+evaluates the criterion on a real 0.945 climatology of the configured build at
+the rate that climatology's own profile gives.
+
+| rate, from `lib/lapse.py` on this climatology | K/km |
+| --- | ---: |
+| annual mean | 6.799 |
+| warmest bin per cell, the one this criterion extrapolates | 8.437 |
+| dry adiabat `g/cp`, from the configured composition | 12.748 |
+
+| land below freezing in the warmest bin | share of land |
+| --- | ---: |
+| on the model's own orography | 1.206% |
+| corrected to the mesh, the criterion | 7.087% |
+| criterion minus 5 K | 3.766% |
+| criterion minus 10 K | 1.744% |
+
+**The number went up by a factor of seven and the reason is mostly the rate.**
+The same generator on the previous baseline and on `canonical-10m-carve1`, at
+8.376 K/km, gave 7.023%. So moving build and climatology is worth 0.06
+percentage points and the whole of the difference from the 0.967% the 2026-08-25
+extension measured is the lapse rate and the bootstrap climatology it used.
+
+**The claim this note exists to test survives, and now the artifact carries the
+evidence for it.** Land-area weighted over the mesh regions below freezing:
+
+| | glaciated land | all land |
+| --- | ---: | ---: |
+| mean \|latitude\| | 45.0 deg | 35.8 deg |
+| mean elevation | 1.42 km | 0.37 km |
+
+Glaciated regions span 0 to 90 degrees. So the ice sits 3.8 times higher than
+the land it is drawn from and only 1.26 times further from the equator, and it
+reaches the tropics. Relief places it; latitude modulates it.
+
+**What the redo refutes is the scale, not the mechanism.** "Some permanent
+glacier, not a lot" reads as a few times Earth's mountain glaciation, and 7.087%
+of land is about twenty times it. The thermal criterion has grown past the brief
+it was written to check.
+
+Three things stand between that and a statement about the world, and they do not
+point the same way. The criterion is thermal: there is no mass balance, so a cold
+dry peak glaciates here and would not, which makes 7.087% an upper bound and is
+the largest single reason. The sub-grid correction is now doing most of the work:
+the model's own orography puts 1.206% below freezing and the mesh puts 7.087%,
+and the peak excess that carries the difference is 2.36 km on land average at
+T21, worth 19.9 K at this rate. And the criterion is a step: the -5 K margin
+halves the area and the -10 K margin quarters it, so a fifth of a percent of land
+sits within a kelvin of the threshold wherever the transition actually is.
+
+**The design flux is not reopened by this.** It was settled at 0.945 on
+`cold_extreme_cap_admits_no_candidate` and the cap stands as a recorded unmet
+preference; `exoplasim/analysis/design_flux.json` and
+`notes/audits/design-flux-two-point-response.md` carry that decision. A glaciated
+area larger than a brief expected is not an argument about the flux.

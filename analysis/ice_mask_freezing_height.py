@@ -113,6 +113,32 @@ def subgrid_peak_excess(grid_root: Path) -> dict | None:
             "source_build": build}
 
 
+def glaciated_geometry(area, elev, lat, land, below_freezing) -> dict | None:
+    """Where the ice is: latitude and elevation, land-area weighted.
+
+    Returns None where nothing is below freezing, because a mean over an empty
+    population is not a small number, it is not a number. The comparands are the
+    same statistics over ALL land, so the reader can see the ice line against
+    the land it is drawn from rather than against nothing.
+    """
+    ice = land & below_freezing
+    if not ice.any():
+        return None
+    absolute = np.abs(np.asarray(lat, float))
+    return {
+        "mean_abs_latitude_deg": float(np.average(absolute[ice],
+                                                  weights=area[ice])),
+        "mean_abs_latitude_deg_all_land": float(np.average(absolute[land],
+                                                           weights=area[land])),
+        "abs_latitude_range_deg": [float(absolute[ice].min()),
+                                   float(absolute[ice].max())],
+        "mean_elevation_km": float(np.average(elev[ice], weights=area[ice])),
+        "mean_elevation_km_all_land": float(np.average(elev[land],
+                                                       weights=area[land])),
+        "weighting": "land area of the mesh regions below freezing",
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--climatology", type=Path, required=True)
@@ -182,6 +208,16 @@ def main() -> None:
         "corrected_land_below_freezing":
             float(area[land & (t_local < FREEZE_K)].sum() / la),
         "by_margin_k": {},
+        # WHERE the ice sits, not just how much. `notes/glacier-rough-pass.md`
+        # rests its whole conclusion on ice being placed by relief rather than
+        # by latitude, and until these two rows existed that claim could not be
+        # checked against this artifact at all -- which is the standard the
+        # project applies to every other claim. Both are LAND-AREA weighted,
+        # because a cell is not a unit of land, and both carry the all-land
+        # comparand beside them: a mean latitude means nothing without the mean
+        # latitude of the land it is drawn from.
+        "glaciated_land": glaciated_geometry(area, elev, e.lat, land,
+                                             t_local < FREEZE_K),
     }
     # What the grid cannot see: the ground inside a cell against its mean. READ
     # from the spatial support rather than rebuilt here. This block used to take
@@ -217,6 +253,15 @@ def main() -> None:
         v = float(area[land & (t_local < FREEZE_K + m)].sum() / la)
         out["by_margin_k"][f"{m:g}"] = v
         print(f"     margin {m:+5.1f} K              {v:7.3%}")
+    g = out["glaciated_land"]
+    if g is not None:
+        print(f"\nwhere it sits, land-area weighted, against all land:")
+        print(f"  mean |latitude|   {g['mean_abs_latitude_deg']:6.1f} deg "
+              f"against {g['mean_abs_latitude_deg_all_land']:.1f}, spanning "
+              f"{g['abs_latitude_range_deg'][0]:.0f} to "
+              f"{g['abs_latitude_range_deg'][1]:.0f}")
+        print(f"  mean elevation    {g['mean_elevation_km']:6.2f} km  "
+              f"against {g['mean_elevation_km_all_land']:.2f}")
     if a.write_mask is not None:
         write_mask(a.write_mask, root, e, t_local, land, a.mask_margin_k, rate, a.climatology)
         out["mask"] = {"path": str(a.write_mask), "margin_k": a.mask_margin_k}

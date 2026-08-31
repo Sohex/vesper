@@ -1,19 +1,46 @@
 {
   "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
-  "mesh_export": "source/canonical-10m-carve1/exoplasim-T42",
-  "grid_export": "source/canonical-10m-carve1/exoplasim-T21",
-  "source_build": "canonical-10m-carve1",
-  "lapse_k_per_km_warmest": 8.376221008920714,
-  "grid_cells_with_glac": 0,
-  "uncorrected_land_below_freezing": 0.012643907778857827,
-  "corrected_land_below_freezing": 0.07023127194330714,
-  "by_margin_k": {
-    "0": 0.07023127194330714,
-    "-5": 0.037947334553344085,
-    "-10": 0.017391617106668793
+  "mesh_export": "source/canonical-10m-carve2/exoplasim-T42",
+  "grid_export": "source/canonical-10m-carve2/exoplasim-T21",
+  "source_build": "canonical-10m-carve2",
+  "build_verdict": {
+    "build": "canonical-10m-carve2",
+    "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
+    "registered": true,
+    "activation_refusal": null
   },
-  "mask": {
-    "path": "source/canonical-10m-carve1/ice_mask_baseline.txt",
-    "margin_k": 0.0
+  "lapse_k_per_km_warmest": 8.4374438645348,
+  "grid_cells_with_glac": 0,
+  "uncorrected_land_below_freezing": 0.01205790816614815,
+  "corrected_land_below_freezing": 0.0708668376227141,
+  "by_margin_k": {
+    "0": 0.0708668376227141,
+    "-5": 0.037662947004996075,
+    "-10": 0.017442918251530166
+  },
+  "glaciated_land": {
+    "mean_abs_latitude_deg": 45.03471501548227,
+    "mean_abs_latitude_deg_all_land": 35.75278530043985,
+    "abs_latitude_range_deg": [
+      0.00038200162816792727,
+      89.93147277832031
+    ],
+    "mean_elevation_km": 1.4206262790640283,
+    "mean_elevation_km_all_land": 0.37261191233935426,
+    "weighting": "land area of the mesh regions below freezing"
+  },
+  "subgrid_peak_excess_km": {
+    "mean": 2.355729520638233,
+    "median": 1.2382407287844432,
+    "p90": 3.942411584959926,
+    "max": 5.341333346938281,
+    "weighting": "land area, over cells that hold land",
+    "population": "surface_class == LAND inside each cell",
+    "source": "hydrography/data/canonical-10m-carve2/support_exoplasim-T21.nc",
+    "source_build": "canonical-10m-carve2"
+  },
+  "temperature_the_grid_never_sees_k": {
+    "mean": 19.876335590412566,
+    "p90": 33.26387643899104
   }
 }

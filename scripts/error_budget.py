@@ -23,14 +23,20 @@ A land-mean albedo change reaches temperature through three steps:
     temperature            d_T       = sensitivity.planetary_albedo_to_kelvin(d_toa)
 
 **The attenuation is the step it is tempting to skip, and skipping it doubles
-every answer.** A surface albedo change does not arrive at the top of the
-atmosphere intact; everything above the surface scatters and absorbs. This
-project measured it the expensive way: a lithology fix that moved planet-mean
-*surface* albedo by +0.0033 was predicted at -0.81 K on the naive conversion, and
-the run came in about a kelvin warmer, with planetary albedo having moved -0.0017
--- the opposite sign, once the warmer state's reduced sea ice is included. A
-factor of 0.5 is used here as a conservative default and both columns are
-reported, because the honest claim is a factor of two rather than a number.
+every answer.** A surface albedo change does not arrive at the top of the modelled
+atmosphere intact; everything above the surface scatters and absorbs. It was a
+declared 0.5 with a declared factor of two around it; it is now MEASURED on two
+terms across three builds, and `ATTENUATION_PAIRS` below names the arms.
+`notes/audits/albedo-attenuation.md` carries the measurement with its evidence,
+its null and what it does not cover.
+
+**The denominator is the STAGED land-mean albedo and never the diagnosed one.**
+Every item in `albedo_items` is a delta of a boundary condition read from
+`albedo_report.json`. A run's diagnosed `alb` is that boundary condition as
+realised through the modelled snow; it is a different quantity, nothing can set
+it, and back-solving against it instead moves the answer by a factor of 1.45 and
+would refuse a single constant outright. Both columns are still printed, because
+a bracket of 1.62 is still a bracket.
 
 ## The second currency, and why kelvin is not enough
 
@@ -92,6 +98,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+CONVERGENCE = ROOT / "exoplasim" / "analysis" / "convergence"
 sys.path.insert(0, str(ROOT / "lib"))
 
 import numpy as np  # noqa: E402
@@ -104,8 +111,95 @@ import climatology
 import paths  # noqa: E402
 import sensitivity  # noqa: E402
 
-# Measured, not assumed; see the module docstring.
-DEFAULT_ATTENUATION = 0.5
+# The surface-to-planetary attenuation. MEASURED 2026-08-30, and the value is
+# the MIDPOINT of the measured span rather than an average over the rows below:
+# a mean would weight the term that happens to have three builds behind it.
+# Median 0.411, mean 0.396 and 0.362 weighting the two terms equally all sit
+# inside 13 per cent of it, against a bracket that spans 62 per cent, so the
+# choice of rule is below what the measurement resolves.
+#
+# `notes/audits/albedo-attenuation.md` is the finding. What it replaced was a
+# declared 0.5 carrying a declared factor of two, which is to say 0.25 to 1.00;
+# the measured bracket is a factor of 1.62 and contains the value that was
+# declared. Every albedo item therefore falls to 0.76 of the kelvin it used to
+# report, and the ranking between them does not move, because the constant
+# multiplies all of them.
+#
+# The span is the measured endpoints 0.2917 and 0.4725 rounded OUTWARD, so that
+# it contains every row rather than clipping the one it was taken from.
+# `verify_attenuation` checks exactly that, and it fired on a span rounded the
+# other way.
+DEFAULT_ATTENUATION = 0.38
+ATTENUATION_SPREAD = (0.29, 0.48)
+
+# WHERE IT CAME FROM, named so that something can check it, on the pattern
+# `HYDROLOGICAL_RESPONSE_SECANT` below sets. Each row is a paired pair of
+# equilibrated runs differing in one thing, with the temperature difference
+# taken between the two convergence reports' FITTED ASYMPTOTES -- the estimator
+# `lib/sensitivity.py` measures its own slope with.
+#
+# `d_land_staged` is NOT re-derivable by this file: it needs the staged surface
+# fields the runs were handed, and PHYS-15's two arms have been deleted. So the
+# albedo half of each row is declared and the KELVIN half is re-read, which is
+# exactly the split the hydrological secant lives with and for the same reason.
+# `verify_attenuation` re-reads the asymptotes, re-derives each attenuation from
+# them, and refuses when a row no longer reproduces its declared value.
+#
+# THE BUILDS ARE NOT THE CONFIGURED ONE and that is deliberate rather than
+# overlooked. There is no bare-rock endmember run on `canonical-10m-carve2`, so
+# no pair on it exists to prefer. The cross-build read is defensible here in a
+# way it is not for the hydrological response: that response composes with an
+# amplification taken from the configured build's own water balance, so two
+# builds are two worlds, while the attenuation is a property of the modelled
+# atmosphere and the builds it is measured across differ only in carved
+# closed-basin floors. The agreement BETWEEN the two builds is what makes that
+# evidence instead of an assumption.
+ATTENUATION_PAIRS = {
+    "soil wetting": {
+        "cold": "run_598eb57c5a34", "warm": "run_a1c35075747c",
+        "source_build": "canonical-10m-base",
+        "d_land_staged": -0.006745, "delta_t_k": 0.1958, "attenuation": 0.292,
+        "note": "PHYS-15's NWETSOIL pair. Both run directories are deleted; "
+                "their convergence diagnostics survive and are what is re-read. "
+                "The staged delta is the staged pair mixed at the donor's own "
+                "measured skin fill fraction, which is the figure the arm's "
+                "prediction was registered on and which the wet arm's own "
+                "restarts reproduced to half a percent.",
+    },
+    "biosphere endmember, uniform soil water": {
+        "cold": "run_4b7281ee038a", "warm": "run_76e441e0a761",
+        "source_build": "canonical-10m-carve1",
+        "d_land_staged": -0.082856, "delta_t_k": 3.1381, "attenuation": 0.381,
+        "note": "The CLEAN pair: neither arm stages a soil-water field capacity, "
+                "so the arms differ in the six albedo codes and in the forest "
+                "fraction, and NVEG = 0 makes the forest fraction an albedo "
+                "effect alone through landmod's snowcanopymask.",
+    },
+    "biosphere endmember, pedology soil water": {
+        "cold": "run_bd7de9ba67a4", "warm": "run_8ff97d5e189a",
+        "source_build": "canonical-10m-carve1",
+        "d_land_staged": -0.080385, "delta_t_k": 3.5256, "attenuation": 0.441,
+        "note": "Carries a soil-water field capacity difference between its "
+                "arms, because the pedology field depends on the vegetation. "
+                "That is a non-albedo forcing and it is why the clean pair "
+                "above sits lower.",
+    },
+    "biosphere endmember, base": {
+        "cold": "run_58f467b0872d", "warm": "run_893e276ee029",
+        "source_build": "canonical-10m-base",
+        "d_land_staged": -0.069569, "delta_t_k": 3.2714, "attenuation": 0.473,
+        "note": "Same soil-water field capacity difference as the row above.",
+    },
+}
+# The land area fraction the staged deltas were meaned over: the T21 land-sea
+# mask every one of these runs shares. It is NOT `land_fraction()` below, which
+# is the mesh's surface_class figure the budget composes with, and the two
+# differ by 1.2 per cent. Declared here so the back-solve is reproducible in the
+# units it was taken in rather than in the units it is consumed in.
+ATTENUATION_LAND_FRACTION = 0.427692
+# The asymptotes are declared to four decimals, so a unit in the last place is
+# what agreement can mean. Fixed on that precision, not on today's residual.
+ATTENUATION_TOLERANCE = 0.005
 
 # BUDG-1. Fractional change in each land-mean quantity per kelvin of global-mean
 # surface temperature. This is the whole of the kelvin-to-carve conversion; the
@@ -257,6 +351,83 @@ def verify_hydrological_response(config) -> list[str]:
                 f"{declared:.4f}, so every fractional response divided by it "
                 "has moved")
     return problems
+
+def _asymptote(run_id: str) -> float | None:
+    """The fitted asymptote from a run's convergence report, or None.
+
+    Two filenames, because an A/B arm's orbits are assessed as an EXPERIMENT and
+    written to `_convergence_diagnostic.json` while a spin-up's verdict goes to
+    `_convergence.json`. Two of the four pairs below are arms, so a resolver that
+    knew only one name would find half the rows and report the other half as
+    missing runs, which is a different failure from the one it would be
+    describing.
+    """
+    for suffix in ("_convergence.json", "_convergence_diagnostic.json"):
+        path = CONVERGENCE / f"{run_id}{suffix}"
+        if path.is_file():
+            metrics = json.loads(path.read_text(encoding="utf-8"))["metrics"]
+            return float(metrics["temperature_asymptote_k"])
+    return None
+
+
+def verify_attenuation(planetary_albedo: float) -> list[str]:
+    """Re-derive every attenuation row from the reports it names. Empty agrees.
+
+    The albedo half of each row cannot be re-read here -- it needs staged fields,
+    and PHYS-15's arms are deleted -- so this checks the half that CAN move. An
+    extended, re-run or re-assessed arm moves its asymptote, which moves the
+    separation, which moves the attenuation that separation implies. Three of the
+    four rows would go on agreeing with a declaration nobody had re-derived
+    otherwise, which is what `lib/sensitivity.py` learned the expensive way.
+
+    It also checks the declared span still contains every row and the value, so
+    the bracket cannot be left describing a set it no longer covers.
+    """
+    problems = []
+    lo, hi = ATTENUATION_SPREAD
+    if not lo <= DEFAULT_ATTENUATION <= hi:
+        problems.append(f"DEFAULT_ATTENUATION {DEFAULT_ATTENUATION} is outside "
+                        f"its own declared span {ATTENUATION_SPREAD}")
+    for label, row in ATTENUATION_PAIRS.items():
+        cold, warm = _asymptote(row["cold"]), _asymptote(row["warm"])
+        missing = [r for r, a in ((row["cold"], cold), (row["warm"], warm))
+                   if a is None]
+        if missing:
+            problems.append(f"{label}: no convergence report for "
+                            f"{', '.join(missing)}, so the separation the "
+                            "attenuation was back-solved from cannot be re-read")
+            continue
+        delta = warm - cold
+        if abs(delta - row["delta_t_k"]) > ATTENUATION_TOLERANCE:
+            problems.append(
+                f"{label} now separates by {delta:.4f} K against the declared "
+                f"{row['delta_t_k']:.4f}, so its attenuation has moved")
+        measured = albedo_to_attenuation(row["d_land_staged"], delta,
+                                         planetary_albedo)
+        if abs(measured - row["attenuation"]) > ATTENUATION_TOLERANCE:
+            problems.append(
+                f"{label} re-derives to {measured:.4f} against the declared "
+                f"{row['attenuation']:.4f}")
+        if not lo <= row["attenuation"] <= hi:
+            problems.append(
+                f"{label}'s {row['attenuation']} is outside the declared span "
+                f"{ATTENUATION_SPREAD}, which is meant to be that set's own")
+    return problems
+
+
+def albedo_to_attenuation(d_land, delta_t_k, planetary_albedo) -> float:
+    """Invert `albedo_to_kelvin` for the attenuation. The one back-solve.
+
+    Written once because the measurement and the check are the same arithmetic,
+    and a second copy is how the two would drift apart. The land fraction is
+    `ATTENUATION_LAND_FRACTION`, the mean the deltas were taken over, and not
+    `land_fraction()`, the mesh figure the budget consumes: the back-solve has to
+    run in the units it was measured in.
+    """
+    unit = albedo_to_kelvin(d_land, ATTENUATION_LAND_FRACTION, planetary_albedo,
+                            1.0)
+    return delta_t_k / unit
+
 
 # Perturbation sizes the basin response is tabulated at. Both signs, because the
 # criterion is a threshold and the basin population is not symmetric about it.
@@ -892,9 +1063,16 @@ def main() -> None:
     print(f"slope {conversion['slope_k_per_flux_ratio']} K per unit flux ratio, "
           f"{conversion['kelvin_per_w_m2_absorbed']} K per W/m2 absorbed, land "
           f"{fraction:.4f}, planetary albedo {planetary_albedo:.4f}, "
-          f"attenuation {DEFAULT_ATTENUATION}")
+          f"attenuation {DEFAULT_ATTENUATION} {ATTENUATION_SPREAD}, measured on "
+          f"{len(ATTENUATION_PAIRS)} pairs")
     if problems:
         print("SENSITIVITY DISAGREES WITH THE RUN INDEX: " + "; ".join(problems))
+    attenuation_problems = verify_attenuation(planetary_albedo)
+    if attenuation_problems:
+        print("THE ATTENUATION NO LONGER MATCHES THE ARMS IT WAS MEASURED ON, "
+              "so every kelvin in the albedo table below is stale:")
+        for problem in attenuation_problems:
+            print(f"  {problem}")
     if carve_problems:
         print("CARVE CURRENCY UNAVAILABLE, so every runoff and basin column "
               "below reads --:")
@@ -975,11 +1153,21 @@ def main() -> None:
                 "a factor of two is expected and is enough to rank refinements.",
         "conversion": dict(conversion, land_fraction=fraction,
                            attenuation=DEFAULT_ATTENUATION,
+                           attenuation_spread=list(ATTENUATION_SPREAD),
                            attenuation_note="A surface albedo change does not "
-                                            "reach the top of the atmosphere "
-                                            "intact. Skipping this step doubles "
-                                            "every answer, which this project "
-                                            "did once and paid a kelvin for.",
+                                            "reach the top of the modelled "
+                                            "atmosphere intact. Skipping this "
+                                            "step doubles every answer, which "
+                                            "this project did once and paid a "
+                                            "kelvin for. MEASURED on the pairs "
+                                            "below, against STAGED land-mean "
+                                            "deltas, which is the quantity "
+                                            "every albedo item here is. "
+                                            "notes/audits/albedo-attenuation.md.",
+                           attenuation_pairs={
+                               k: dict(v) for k, v in ATTENUATION_PAIRS.items()},
+                           attenuation_verify=(attenuation_problems
+                                               or "re-derives from its arms"),
                            verify=problems or "agrees with the run index"),
         "albedo_items": [],
         "forcing_items": [],
