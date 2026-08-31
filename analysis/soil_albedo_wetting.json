@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-26",
+  "generated": "2026-08-30",
   "generator": "analysis/soil_albedo_wetting.py",
   "spectrum": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
   "library": "references/ecospeclib-all",
@@ -251,11 +251,47 @@
     "schist"
   ],
   "band2_liquid_absorption": {
-    "skin_equivalent_water_m": 0.009000000000000001,
-    "band1_single_pass_absorptance": 0.0307,
-    "band2_single_pass_absorptance": 0.5855,
+    "optical_path_m": [
+      0.0006,
+      0.0007
+    ],
+    "optical_path_source": "Nolet, Poortinga, Roosjen, Bartholomeus and Ruessink (2014), references/nolet2014-surface-moisture-beach-sand-reflectance.pdf. Their optical model Eq. (6), Rh = fs Rd exp(-a d), separates an elastic-scattering fraction from an optical path length d in water; d at saturation is 0.06 to 0.07 cm. The path is what a photon traverses, and it is not the layer's water inventory",
+    "optical_path_transfers_because": "d is fitted, but against a(l), pure water's own absorption coefficient, so it comes out a geometric length with a physical meaning rather than the residual of a fit. Nolet's OTHER regressions -- Eq. (7)'s water-retention parameters and the field model -- have no such anchor and are not read here",
+    "unconstrained_tail": {
+      "above_um": 2.1,
+      "band2_flux_share": 0.0541,
+      "band2_with_tail_fully_absorbing": [
+        0.2567,
+        0.2757
+      ],
+      "band2_with_tail_transparent": [
+        0.2017,
+        0.2207
+      ],
+      "why": "d is measured only up to 2100 nm and is held flat above it. These two are the band-2 magnitude with the tail's absorptance forced to 1 and to 0, so the flat extrapolation is bracketed by what it cannot be. The tail carries a twentieth of the band's flux and is already strongly absorbing at the measured path, so the upward room is small and the downward room is a fifth of the magnitude"
+    },
+    "grains_deep": [
+      2.08,
+      2.43
+    ],
+    "grain_size_support": "the path over Nolet's 288 um median grain. Their own physical check on d is that it is a few grains deep, so a value outside roughly 1 to 5 would say the inversion had returned something other than a path through the wetted skin",
+    "skin_water_inventory_m": 0.009000000000000001,
+    "path_inside_its_inventory": true,
+    "band1_single_pass_absorptance": [
+      0.0021,
+      0.0024
+    ],
+    "band2_single_pass_absorptance": [
+      0.2484,
+      0.2694
+    ],
     "direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it",
-    "what_would_close_it": "an absolute scattering coefficient for the dry soil, or a wet-and-dry reflectance spectrum pair measured on one sample"
+    "what_the_path_does_not_carry": [
+      "ONE MATERIAL. Quartz beach sand at a dry bulk density of 1.655 g/cm3 and a 288 um median grain. This world's playa mud and fan fill are neither that mineralogy nor that grain size, and the path is a few grains deep, so a medium of another grain size has another path. The direction is not asserted here: penetration into a scattering medium is set by the single-scattering albedo as well as the grain, and this tree carries no absolute scattering coefficient to settle it",
+      "AN ANALYSIS STOPPING AT 2100 nm, against a working range reaching 2.49 um. Nolet cut the fit there for signal to noise, so d above 2100 nm is unconstrained and is held flat at its saturated value across the rest of band 2. What that is worth is bounded rather than argued: `unconstrained_tail` reports the band-2 magnitude with the tail's absorptance driven to each of its two extremes, which is what the flat extrapolation is being trusted instead of",
+      "A BICONICAL REFLECTANCE FACTOR and not a flux albedo. Nolet measured at nadir under a single 30 degree source, so the quantity d was inverted from is not the hemispherically integrated reflectance this script's endmembers are"
+    ],
+    "what_would_close_it": "an absolute scattering coefficient for the dry soil, or a wet-and-dry reflectance spectrum pair on one sample of a material this world actually carries"
   },
   "classes": {
     "morb": {

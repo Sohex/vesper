@@ -116,7 +116,12 @@ hydrography/data/*/wetness_*.nc
 # LPJ-GUESS output: one set of files per gridcell per year, tens of MB per run
 # and regenerable from the driver file. The manifest and the analysis products
 # that summarise a run are tracked under biosphere/analysis/.
-biosphere/runs/
+#
+# NO TRAILING SLASH, because scripts/link_worktree.py replaces this with a
+# SYMLINK in every worktree and a trailing slash matches only a directory. With
+# the slash the link showed as untracked in every worktree, so an `git add -A`
+# there would have committed an absolute path into the tree.
+biosphere/runs
 
 # The generated LPJ-GUESS inputs and the gate reports beside them. Every file
 # here is written by a step registered in config/pipeline.yaml -- vesper.h and

@@ -311,11 +311,12 @@ below stands as the answer instead, and it is a bracket on the WATER rather than
 on the optics.
 ### What this is worth, and what would settle it
 
-**world-jgen, the band-1 optical depth. Bracket: +0.9 to +2.1 W m-2 at the top
-of the atmosphere, +0.7 to +1.7 K, warming.** Measured on the bootstrap
-climatology of run_2b20e3324bb0, 2026-08-25, by
-`exoplasim/scripts/cloud_optical_depth_bracket.py`. It is a bracket and not a
-measurement, and the reasons are in the script.
+**world-jgen, the band-1 optical depth. Bracket: +0.71 to +1.75 W m-2 at the top
+of the atmosphere, +0.48 to +1.20 K, warming.** Measured 2026-08-30 on the
+BASELINE climatology of run_67323a923013 by
+`exoplasim/scripts/cloud_optical_depth_bracket.py`, which resolves the best
+available climatology and stamps `climatology_stage` with the one it took. It is
+a bracket and not a measurement, and the reasons are in the script.
 
 The instrument carries the model's own per-layer cloud water path, built from
 its temperature, humidity and sigma grid; the model's own total cloud cover with
@@ -326,8 +327,8 @@ that the band-1 incident flux it reconstructs agrees with the climatology's
 per-layer cloud fraction, which is not written out at any cadence and cannot be
 recovered from a time mean of `hur` -- the diagnosis is the square of a
 threshold difference, so the mean of the diagnosis is not the diagnosis of the
-mean, and on this field it leaves 72 per cent of columns cloudless against a
-written cover of 0.61. The bracket's width is therefore the spread over where in
+mean, and on this field it leaves 59 per cent of columns cloudless against a
+written cover of 0.578. The bracket's width is therefore the spread over where in
 the column the model's own cover is placed. It still leans HIGH, because band-1
 gas absorption and Rayleigh scattering are not in the chain and neither is
 multiple reflection between layers.
@@ -335,10 +336,12 @@ multiple reflection between layers.
 That replaces an earlier hand chain of 0.6 to 3.4 W m-2 and 0.5 to 3.1 K, which
 had no cloud fraction, no overlap and no surface in it.
 
-**world-f9ig, the tuned coefficients against the tables. Bracket: -6.5 to
--25.4 W m-2, -5.3 to -20.6 K, cooling**, on the same cover and insolation and
-over a black surface, so it is a magnitude upper bound. Measured 2026-08-25 by
-`exoplasim/scripts/stephens_tables_vs_fits.py`, with `cloud_absorption_scale`
+**world-f9ig, the tuned coefficients against the tables. Bracket: -7.22 to
+-23.37 W m-2, -4.94 to -15.98 K, cooling**, on the same cover and insolation and
+over a black surface, so it is a magnitude upper bound. Measured 2026-08-30 by
+`exoplasim/scripts/stephens_tables_vs_fits.py`, which takes its layer optical
+depths, cover, insolation and planetary albedo from the world-jgen artifact and
+therefore moved with it onto the baseline, with `cloud_absorption_scale`
 applied to both sides, which is what the model does. It is an order of magnitude
 larger than anything else in this document, and that is why the tables were
 adopted rather than the coefficients kept: three numbers whose provenance is a

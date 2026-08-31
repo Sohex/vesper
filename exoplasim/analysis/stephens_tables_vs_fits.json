@@ -440,141 +440,139 @@
   "per_layer": [
     {
       "level": 1,
-      "water_path_g_m2_mean": 0.1810643387358745,
-      "tau_band1": 0.033199605480168405,
-      "tau_band2": 0.04046065628565895,
-      "d_reflectance_band1_table_minus_fit": 0.002269397949041345,
-      "d_reflectance_band2_table_minus_fit": 0.004163973373691646,
-      "d_absorptance_band2_table_minus_fit": -0.0003780164718837074,
-      "d_absorptance_band2_1984_minus_1978": -0.0012718970553252684
+      "water_path_g_m2_mean": 0.04804598025955504,
+      "tau_band1": 0.008809617623556623,
+      "tau_band2": 0.010736359830773512,
+      "d_reflectance_band1_table_minus_fit": 0.0006180704300236193,
+      "d_reflectance_band2_table_minus_fit": 0.0011351334788056154,
+      "d_absorptance_band2_table_minus_fit": -0.00016423611413825086,
+      "d_absorptance_band2_1984_minus_1978": -0.00033839378744635556
     },
     {
       "level": 2,
-      "water_path_g_m2_mean": 0.5850943324305656,
-      "tau_band1": 0.10728176040072213,
-      "tau_band2": 0.13074524141218855,
-      "d_reflectance_band1_table_minus_fit": 0.006810697012403949,
-      "d_reflectance_band2_table_minus_fit": 0.012542404240727334,
-      "d_absorptance_band2_table_minus_fit": -0.0005331762970143745,
-      "d_absorptance_band2_1984_minus_1978": -0.004076334202552647
+      "water_path_g_m2_mean": 0.185638991442994,
+      "tau_band1": 0.034038404915471346,
+      "tau_band2": 0.041482908663467176,
+      "d_reflectance_band1_table_minus_fit": 0.0023246917128544723,
+      "d_reflectance_band2_table_minus_fit": 0.004265482718151205,
+      "d_absorptance_band2_table_minus_fit": -0.0003829195710971703,
+      "d_absorptance_band2_1984_minus_1978": -0.0013039127762784282
     },
     {
       "level": 3,
-      "water_path_g_m2_mean": 2.504497348186316,
-      "tau_band1": 0.45921976942795617,
-      "tau_band2": 0.5596552423342184,
-      "d_reflectance_band1_table_minus_fit": 0.021874968567303706,
-      "d_reflectance_band2_table_minus_fit": 0.04152469969806036,
-      "d_absorptance_band2_table_minus_fit": 0.0013294710161318153,
-      "d_absorptance_band2_1984_minus_1978": -0.016715448150171546
+      "water_path_g_m2_mean": 0.9260253879225405,
+      "tau_band1": 0.16979421656572158,
+      "tau_band2": 0.20692973113376747,
+      "d_reflectance_band1_table_minus_fit": 0.010176044425603492,
+      "d_reflectance_band2_table_minus_fit": 0.018826814545117063,
+      "d_absorptance_band2_table_minus_fit": -0.0004186068271442785,
+      "d_absorptance_band2_1984_minus_1978": -0.006405391243209111
     },
     {
       "level": 4,
-      "water_path_g_m2_mean": 7.227978642322573,
-      "tau_band1": 1.3253081253854209,
-      "tau_band2": 1.6151648719392708,
-      "d_reflectance_band1_table_minus_fit": 0.036687641305920976,
-      "d_reflectance_band2_table_minus_fit": 0.07748975253709764,
-      "d_absorptance_band2_table_minus_fit": 0.005431516548285732,
-      "d_absorptance_band2_1984_minus_1978": -0.038684351243064796
+      "water_path_g_m2_mean": 3.043765998450064,
+      "tau_band1": 0.5580990217510539,
+      "tau_band2": 0.6801602719622845,
+      "d_reflectance_band1_table_minus_fit": 0.024815149124758358,
+      "d_reflectance_band2_table_minus_fit": 0.04754944436677376,
+      "d_absorptance_band2_table_minus_fit": 0.0021886718712032676,
+      "d_absorptance_band2_1984_minus_1978": -0.02005245659479871
     },
     {
       "level": 5,
-      "water_path_g_m2_mean": 17.220881559892174,
-      "tau_band1": 4.222659543151041,
-      "tau_band2": 5.003316603935428,
-      "d_reflectance_band1_table_minus_fit": 0.038204299515666305,
-      "d_reflectance_band2_table_minus_fit": 0.12449917433613188,
-      "d_absorptance_band2_table_minus_fit": -0.004563008678644138,
-      "d_absorptance_band2_1984_minus_1978": -0.06093605201798886
+      "water_path_g_m2_mean": 8.342110526976564,
+      "tau_band1": 1.529593183843817,
+      "tau_band2": 1.8641289007292596,
+      "d_reflectance_band1_table_minus_fit": 0.03778431292380621,
+      "d_reflectance_band2_table_minus_fit": 0.0829600183717689,
+      "d_absorptance_band2_table_minus_fit": 0.0047861659450282815,
+      "d_absorptance_band2_1984_minus_1978": -0.04169525161313658
     },
     {
       "level": 6,
-      "water_path_g_m2_mean": 35.004439186852586,
-      "tau_band1": 10.139180633957384,
-      "tau_band2": 11.663656956530186,
-      "d_reflectance_band1_table_minus_fit": 0.02973668315318178,
-      "d_reflectance_band2_table_minus_fit": 0.15970136954251746,
-      "d_absorptance_band2_table_minus_fit": -0.02765042759448626,
-      "d_absorptance_band2_1984_minus_1978": -0.0700008381422194
+      "water_path_g_m2_mean": 19.358447902154744,
+      "tau_band1": 4.948330344587003,
+      "tau_band2": 5.831845042438292,
+      "d_reflectance_band1_table_minus_fit": 0.0366352714932807,
+      "d_reflectance_band2_table_minus_fit": 0.1308818812209676,
+      "d_absorptance_band2_table_minus_fit": -0.005785639826148477,
+      "d_absorptance_band2_1984_minus_1978": -0.06454000801066899
     },
     {
       "level": 7,
-      "water_path_g_m2_mean": 60.60307005406244,
-      "tau_band1": 17.84081502340427,
-      "tau_band2": 20.135540448472643,
-      "d_reflectance_band1_table_minus_fit": 0.023603451756679,
-      "d_reflectance_band2_table_minus_fit": 0.18319267475404438,
-      "d_absorptance_band2_table_minus_fit": -0.06759770554305264,
-      "d_absorptance_band2_1984_minus_1978": -0.07778419943006595
+      "water_path_g_m2_mean": 37.80261568551405,
+      "tau_band1": 11.030225930428047,
+      "tau_band2": 12.652652048356158,
+      "d_reflectance_band1_table_minus_fit": 0.02893705507423587,
+      "d_reflectance_band2_table_minus_fit": 0.1629678691790308,
+      "d_absorptance_band2_table_minus_fit": -0.03167447089879913,
+      "d_absorptance_band2_1984_minus_1978": -0.0714864069373967
     },
     {
       "level": 8,
-      "water_path_g_m2_mean": 86.25293053566016,
-      "tau_band1": 24.685220672060346,
-      "tau_band2": 27.556607471217717,
-      "d_reflectance_band1_table_minus_fit": 0.019962684076099947,
-      "d_reflectance_band2_table_minus_fit": 0.19965788938699697,
-      "d_absorptance_band2_table_minus_fit": -0.10482333636935984,
-      "d_absorptance_band2_1984_minus_1978": -0.08324745648965111
+      "water_path_g_m2_mean": 59.97007228809781,
+      "tau_band1": 17.66183290726149,
+      "tau_band2": 19.940322217337986,
+      "d_reflectance_band1_table_minus_fit": 0.023710621925996746,
+      "d_reflectance_band2_table_minus_fit": 0.18272908357449275,
+      "d_absorptance_band2_table_minus_fit": -0.0666108742180582,
+      "d_absorptance_band2_1984_minus_1978": -0.07767254837826998
     },
     {
       "level": 9,
-      "water_path_g_m2_mean": 90.42117515186725,
-      "tau_band1": 25.730150280736186,
-      "tau_band2": 28.682918148724603,
-      "d_reflectance_band1_table_minus_fit": 0.01951730951842214,
-      "d_reflectance_band2_table_minus_fit": 0.20137220309127885,
-      "d_absorptance_band2_table_minus_fit": -0.1092145401222544,
-      "d_absorptance_band2_1984_minus_1978": -0.08495974318976462
+      "water_path_g_m2_mean": 69.42340038587275,
+      "tau_band1": 20.281158131019293,
+      "tau_band2": 22.79093143465551,
+      "d_reflectance_band1_table_minus_fit": 0.022205245221557063,
+      "d_reflectance_band2_table_minus_fit": 0.18983259625292498,
+      "d_absorptance_band2_table_minus_fit": -0.08199108869595657,
+      "d_absorptance_band2_1984_minus_1978": -0.07888869026441216
     },
     {
       "level": 10,
-      "water_path_g_m2_mean": 43.82448008018247,
-      "tau_band1": 12.90541026396638,
-      "tau_band2": 14.725412611182334,
-      "d_reflectance_band1_table_minus_fit": 0.02728858379663822,
-      "d_reflectance_band2_table_minus_fit": 0.1696055635331023,
-      "d_absorptance_band2_table_minus_fit": -0.041670617703575684,
-      "d_absorptance_band2_1984_minus_1978": -0.07354473924618246
+      "water_path_g_m2_mean": 37.30335362994252,
+      "tau_band1": 10.872161501001166,
+      "tau_band2": 12.477415294137774,
+      "d_reflectance_band1_table_minus_fit": 0.029078540554538054,
+      "d_reflectance_band2_table_minus_fit": 0.16239768875206081,
+      "d_absorptance_band2_table_minus_fit": -0.030926129403451973,
+      "d_absorptance_band2_1984_minus_1978": -0.07124925453057686
     }
   ],
   "flux_w_m2_if_tables_replaced_fits": {
-    "cover": 0.5979950980320167,
-    "band1_incident_w_m2": 122.96715708763791,
-    "band2_incident_w_m2": 198.62322910014348,
+    "cover": 0.5778994892497672,
+    "band1_incident_w_m2": 122.9574682140234,
+    "band2_incident_w_m2": 198.6075791053868,
     "per_layer_band1": [
-      -1.608548626452566,
-      -2.697780106465205,
-      -2.8093056829513046,
-      -2.1866500376508453,
-      -1.7356504895506342,
-      -1.4679311630606404,
-      -1.4351810984923026,
-      -2.00663209406973
+      -1.76329149262997,
+      -2.6848421179522086,
+      -2.6031946142866533,
+      -2.056182003083646,
+      -1.6848070393162635,
+      -1.5778393993961193,
+      -2.0662355450750014
     ],
     "per_layer_band2": [
-      -4.932125994678429,
-      -9.203900945423822,
-      -14.78747874215018,
-      -18.96864473033597,
-      -21.75884135849145,
-      -23.714509037960262,
-      -23.91812787796158,
-      -20.145022476412315
+      -5.457497867992794,
+      -9.521754237552015,
+      -15.021996518248304,
+      -18.70467279776197,
+      -20.972770498342932,
+      -21.78807771831317,
+      -18.63923021465716
     ],
     "bracket_w_m2": [
-      -25.353308976453885,
-      -6.540674621130995
+      -23.365917117709287,
+      -7.220789360622764
     ],
     "bracket_kelvin": [
-      -20.629596038857837,
-      -5.322045945988962
+      -15.977297796580231,
+      -4.937478009523917
     ]
   },
   "flux_ratio_that_would_offset_it": [
-    0.10212671306365266,
-    0.02634676210885625
+    0.10004569691033334,
+    0.03091720732325559
   ],
   "settles_it": "a T21 commissioning pair on the adopted scheme. The bracket here is a magnitude bound over a black surface on one layer carrying all of the model's cover, not a prediction of the modelled balance"
 }

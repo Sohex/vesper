@@ -1,11 +1,11 @@
 {
   "what": "band-1 cloud optical depth, Stephens Eq. (10b) replaced by Eq. (10a), at the top of the atmosphere",
   "issue": "world-jgen",
-  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-  "climatology_is_bootstrap": true,
-  "run_id": "run_2b20e3324bb0",
+  "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "climatology_stage": "baseline",
+  "run_id": "run_67323a923013",
   "flux_ratio": 0.945,
-  "constants_from": "exoplasim/runs/run_ec32946bec89",
+  "constants_from": "exoplasim/runs/run_67323a923013",
   "constants": {
     "ga_m_s2": 12.81,
     "gascon_j_kg_k": 287.0171275001432,
@@ -14,173 +14,173 @@
     "clwhsc_m": 535.9144938975418,
     "zsolar1": 0.3823719935950933
   },
-  "planetary_albedo": 0.2703792764521009,
+  "planetary_albedo": 0.31358576068845306,
   "geometry_check": {
-    "band1_incident_reconstructed_w_m2": 122.96715708763791,
-    "band1_incident_from_climatology_w_m2": 122.96703272761809,
-    "relative_error": 1.0113281345702774e-06
+    "band1_incident_reconstructed_w_m2": 122.9574682140234,
+    "band1_incident_from_climatology_w_m2": 122.95277618524773,
+    "relative_error": 3.81612267834619e-05
   },
   "layers": [
     {
       "level": 1,
       "sigma": 0.024999618530273438,
-      "water_path_g_m2_mean": 0.1810643387358745,
-      "water_path_g_m2_p10": 0.00039248358507900207,
-      "water_path_g_m2_p90": 0.5651387289831029,
-      "tau_band1_inherited": 0.006010835697748168,
-      "tau_band1_eq10a": 0.033199605480168405,
-      "tau_band2_eq10b": 0.04046065628565895,
-      "d_reflectance_diffuse": 0.005031179784385942
+      "water_path_g_m2_mean": 0.04804598025955504,
+      "water_path_g_m2_p10": 0.00037458065315695,
+      "water_path_g_m2_p90": 0.18763714641500617,
+      "tau_band1_inherited": 0.003063664007194711,
+      "tau_band1_eq10a": 0.008809617623556623,
+      "tau_band2_eq10b": 0.010736359830773512,
+      "d_reflectance_diffuse": 0.001068679571998632
     },
     {
       "level": 2,
       "sigma": 0.09372425079345703,
-      "water_path_g_m2_mean": 0.5850943324305656,
-      "water_path_g_m2_p10": 0.0013460575345391628,
-      "water_path_g_m2_p90": 1.5971994757349681,
-      "tau_band1_inherited": 0.023253106506833578,
-      "tau_band1_eq10a": 0.10728176040072213,
-      "tau_band2_eq10b": 0.13074524141218855,
-      "d_reflectance_diffuse": 0.015289594042491639
+      "water_path_g_m2_mean": 0.185638991442994,
+      "water_path_g_m2_p10": 0.0006623490084716789,
+      "water_path_g_m2_p90": 0.6617264444219353,
+      "tau_band1_inherited": 0.006134416627488303,
+      "tau_band1_eq10a": 0.034038404915471346,
+      "tau_band2_eq10b": 0.041482908663467176,
+      "d_reflectance_diffuse": 0.005162607254844853
     },
     {
       "level": 3,
       "sigma": 0.18811702728271484,
-      "water_path_g_m2_mean": 2.504497348186316,
-      "water_path_g_m2_p10": 0.03529074969348632,
-      "water_path_g_m2_p90": 5.905869532572378,
-      "tau_band1_inherited": 0.27733038658508874,
-      "tau_band1_eq10a": 0.45921976942795617,
-      "tau_band2_eq10b": 0.5596552423342184,
-      "d_reflectance_diffuse": 0.0296957598203057
+      "water_path_g_m2_mean": 0.9260253879225405,
+      "water_path_g_m2_p10": 0.0007794468736858199,
+      "water_path_g_m2_p90": 2.878654895753884,
+      "tau_band1_inherited": 0.048291016654190166,
+      "tau_band1_eq10a": 0.16979421656572158,
+      "tau_band2_eq10b": 0.20692973113376747,
+      "d_reflectance_diffuse": 0.02175753062500374
     },
     {
       "level": 4,
       "sigma": 0.29717063903808594,
-      "water_path_g_m2_mean": 7.227978642322573,
-      "water_path_g_m2_p10": 0.30856555799857877,
-      "water_path_g_m2_p90": 15.100162299023381,
-      "tau_band1_inherited": 1.5771541365505686,
-      "tau_band1_eq10a": 1.3253081253854209,
-      "tau_band2_eq10b": 1.6151648719392708,
-      "d_reflectance_diffuse": -0.02866501455814896
+      "water_path_g_m2_mean": 3.043765998450064,
+      "water_path_g_m2_p10": 0.0009052037607682514,
+      "water_path_g_m2_p90": 8.434814737627573,
+      "tau_band1_inherited": 0.38958922525699213,
+      "tau_band1_eq10a": 0.5580990217510539,
+      "tau_band2_eq10b": 0.6801602719622845,
+      "d_reflectance_diffuse": 0.02652434460841724
     },
     {
       "level": 5,
       "sigma": 0.4205760955810547,
-      "water_path_g_m2_mean": 17.220881559892174,
-      "water_path_g_m2_p10": 1.7705255193922675,
-      "water_path_g_m2_p90": 31.903233289911157,
-      "tau_band1_inherited": 5.116396078353824,
-      "tau_band1_eq10a": 4.222659543151041,
-      "tau_band2_eq10b": 5.003316603935428,
-      "d_reflectance_diffuse": -0.0381455801690318
+      "water_path_g_m2_mean": 8.342110526976564,
+      "water_path_g_m2_p10": 0.0010146260440248162,
+      "water_path_g_m2_p90": 20.49156739150044,
+      "tau_band1_inherited": 1.9466262002663743,
+      "tau_band1_eq10a": 1.529593183843817,
+      "tau_band2_eq10b": 1.8641289007292596,
+      "d_reflectance_diffuse": -0.0435786570490071
     },
     {
       "level": 6,
       "sigma": 0.5543212890625,
-      "water_path_g_m2_mean": 35.004439186852586,
-      "water_path_g_m2_p10": 7.366703121512229,
-      "water_path_g_m2_p90": 57.300564504964164,
-      "tau_band1_inherited": 11.396219540012122,
-      "tau_band1_eq10a": 10.139180633957384,
-      "tau_band2_eq10b": 11.663656956530186,
-      "d_reflectance_diffuse": -0.024887417779792864
+      "water_path_g_m2_mean": 19.358447902154744,
+      "water_path_g_m2_p10": 0.001080703517708529,
+      "water_path_g_m2_p90": 41.55916987889607,
+      "tau_band1_inherited": 5.893140102749071,
+      "tau_band1_eq10a": 4.948330344587003,
+      "tau_band2_eq10b": 5.831845042438292,
+      "d_reflectance_diffuse": -0.03782211887595832
     },
     {
       "level": 7,
       "sigma": 0.6906890869140625,
-      "water_path_g_m2_mean": 60.60307005406244,
-      "water_path_g_m2_p10": 22.798789064192512,
-      "water_path_g_m2_p90": 87.58994119696592,
-      "tau_band1_inherited": 19.502933169824246,
-      "tau_band1_eq10a": 17.84081502340427,
-      "tau_band2_eq10b": 20.135540448472643,
-      "d_reflectance_diffuse": -0.01664358868263871
+      "water_path_g_m2_mean": 37.80261568551405,
+      "water_path_g_m2_p10": 0.001078857509550187,
+      "water_path_g_m2_p90": 70.2438074479991,
+      "tau_band1_inherited": 12.336222710865647,
+      "tau_band1_eq10a": 11.030225930428047,
+      "tau_band2_eq10b": 12.652652048356158,
+      "d_reflectance_diffuse": -0.02316525630170596
     },
     {
       "level": 8,
       "sigma": 0.8182611465454102,
-      "water_path_g_m2_mean": 86.25293053566016,
-      "water_path_g_m2_p10": 50.30218743587365,
-      "water_path_g_m2_p90": 110.40389403860945,
-      "tau_band1_inherited": 26.687136023386575,
-      "tau_band1_eq10a": 24.685220672060346,
-      "tau_band2_eq10b": 27.556607471217717,
-      "d_reflectance_diffuse": -0.013030590698461242
+      "water_path_g_m2_mean": 59.97007228809781,
+      "water_path_g_m2_p10": 0.0012538062009489902,
+      "water_path_g_m2_p90": 96.37213639550902,
+      "tau_band1_inherited": 19.314875900239354,
+      "tau_band1_eq10a": 17.66183290726149,
+      "tau_band2_eq10b": 19.940322217337986,
+      "d_reflectance_diffuse": -0.016798296602419494
     },
     {
       "level": 9,
       "sigma": 0.9219131469726562,
-      "water_path_g_m2_mean": 90.42117515186725,
-      "water_path_g_m2_p10": 70.14050311646751,
-      "water_path_g_m2_p90": 104.01521081418508,
-      "tau_band1_inherited": 27.78290752530634,
-      "tau_band1_eq10a": 25.730150280736186,
-      "tau_band2_eq10b": 28.682918148724603,
-      "d_reflectance_diffuse": -0.012686837913972848
+      "water_path_g_m2_mean": 69.42340038587275,
+      "water_path_g_m2_p10": 0.9924349473392446,
+      "water_path_g_m2_p90": 96.66826891623418,
+      "tau_band1_inherited": 22.065940668964895,
+      "tau_band1_eq10a": 20.281158131019293,
+      "tau_band2_eq10b": 22.79093143465551,
+      "d_reflectance_diffuse": -0.014763150309018647
     },
     {
       "level": 10,
       "sigma": 0.982818603515625,
-      "water_path_g_m2_mean": 43.82448008018247,
-      "water_path_g_m2_p10": 38.7664790868589,
-      "water_path_g_m2_p90": 47.2447018100053,
-      "tau_band1_inherited": 14.312176252245331,
-      "tau_band1_eq10a": 12.90541026396638,
-      "tau_band2_eq10b": 14.725412611182334,
-      "d_reflectance_diffuse": -0.02012200707082612
+      "water_path_g_m2_mean": 37.30335362994252,
+      "water_path_g_m2_p10": 13.891186410754349,
+      "water_path_g_m2_p90": 45.52062726311857,
+      "tau_band1_inherited": 12.169530747312695,
+      "tau_band1_eq10a": 10.872161501001166,
+      "tau_band2_eq10b": 12.477415294137774,
+      "d_reflectance_diffuse": -0.023456123485480762
     }
   ],
   "arms": {
     "uniform": {
-      "cloud_fraction_total_mean": 0.5979950980320167,
-      "band1_incident_w_m2": 122.96715708763791,
-      "band1_cloud_reflectance_old": 0.32241114633366114,
-      "band1_cloud_reflectance_new": 0.31559712754635083,
-      "d_reflected_w_m2": -0.7259290698267682,
-      "d_reflected_black_surface_w_m2": -0.8379005186172934,
-      "forcing_w_m2": 0.7259290698267682,
-      "forcing_black_surface_w_m2": 0.8379005186172934
+      "cloud_fraction_total_mean": 0.5778994892497672,
+      "band1_incident_w_m2": 122.9574682140234,
+      "band1_cloud_reflectance_old": 0.292285580400862,
+      "band1_cloud_reflectance_new": 0.2854750376996697,
+      "d_reflected_w_m2": -0.7065203103894848,
+      "d_reflected_black_surface_w_m2": -0.8374070877021013,
+      "forcing_w_m2": 0.7065203103894848,
+      "forcing_black_surface_w_m2": 0.8374070877021013
     },
     "water_weighted": {
-      "cloud_fraction_total_mean": 0.5979950980320167,
-      "band1_incident_w_m2": 122.96715708763791,
-      "band1_cloud_reflectance_old": 0.45200804108203024,
-      "band1_cloud_reflectance_new": 0.4440994549733143,
-      "d_reflected_w_m2": -0.8633596452157707,
-      "d_reflected_black_surface_w_m2": -0.9724963503715894,
-      "forcing_w_m2": 0.8633596452157707,
-      "forcing_black_surface_w_m2": 0.9724963503715894
+      "cloud_fraction_total_mean": 0.5778994892497672,
+      "band1_incident_w_m2": 122.9574682140234,
+      "band1_cloud_reflectance_old": 0.4465792412699377,
+      "band1_cloud_reflectance_new": 0.4376426694682625,
+      "d_reflected_w_m2": -0.9219032757302515,
+      "d_reflected_black_surface_w_m2": -1.098818243246811,
+      "forcing_w_m2": 0.9219032757302515,
+      "forcing_black_surface_w_m2": 1.098818243246811
     },
     "thickest_layer": {
-      "cloud_fraction_total_mean": 0.5979950980320167,
-      "band1_incident_w_m2": 122.96715708763791,
-      "band1_cloud_reflectance_old": 0.4392408044582454,
-      "band1_cloud_reflectance_new": 0.43154092823654006,
-      "d_reflected_w_m2": -0.839160807964635,
-      "d_reflected_black_surface_w_m2": -0.9468318889097965,
-      "forcing_w_m2": 0.839160807964635,
-      "forcing_black_surface_w_m2": 0.9468318889097965
+      "cloud_fraction_total_mean": 0.5778994892497673,
+      "band1_incident_w_m2": 122.9574682140234,
+      "band1_cloud_reflectance_old": 0.4321759151842604,
+      "band1_cloud_reflectance_new": 0.42368804868771637,
+      "d_reflected_w_m2": -0.8836653158133884,
+      "d_reflected_black_surface_w_m2": -1.0436465749536852,
+      "forcing_w_m2": 0.8836653158133884,
+      "forcing_black_surface_w_m2": 1.0436465749536852
     },
     "largest_move": {
-      "cloud_fraction_total_mean": 0.5979950980320167,
-      "band1_incident_w_m2": 122.96715708763791,
-      "band1_cloud_reflectance_old": 0.2563176773659317,
-      "band1_cloud_reflectance_new": 0.23747114501345623,
-      "d_reflected_w_m2": -2.004708629321575,
-      "d_reflected_black_surface_w_m2": -2.3175045043440976,
-      "forcing_w_m2": 2.004708629321575,
-      "forcing_black_surface_w_m2": 2.3175045043440976
+      "cloud_fraction_total_mean": 0.5778994892497673,
+      "band1_incident_w_m2": 122.9574682140234,
+      "band1_cloud_reflectance_old": 0.1637202940365695,
+      "band1_cloud_reflectance_new": 0.14791641998465183,
+      "d_reflected_w_m2": -1.7484537763158203,
+      "d_reflected_black_surface_w_m2": -1.9432043413970996,
+      "forcing_w_m2": 1.7484537763158203,
+      "forcing_black_surface_w_m2": 1.9432043413970996
     }
   },
   "bracket_w_m2": [
-    0.7259290698267682,
-    2.004708629321575
+    0.7065203103894848,
+    1.7484537763158203
   ],
   "bracket_kelvin": [
-    0.5906772751950528,
-    1.631200457381122
+    0.4831090233504929,
+    1.1955690216233998
   ],
   "sign": "positive forcing warms; over the paths this model's cloud water actually reaches the correction makes band-1 cloud less bright, so it is a warming",
   "leans": "high: no band-1 gas absorption or Rayleigh above or below the cloud, and no multiple reflection between layers",

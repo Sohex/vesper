@@ -28,10 +28,12 @@ WHERE in the column it sits. The spread between them is the bracket's width.
 
 WHAT ELSE MAKES IT A BRACKET AND NOT A MEASUREMENT:
 
-  1. The field is a BOOTSTRAP climatology, on terrain-only surface fields, and
-     the cloud in it was made by the optical depth being corrected. Under the
-     correction the cloud and the humidity move too, which is exactly what only
-     a run can say.
+  1. The cloud in the field was made by the optical depth being corrected.
+     Under the correction the cloud and the humidity move too, which is exactly
+     what only a run can say. The field is whichever climatology
+     `best_available_climatology` returns -- the baseline once one is named, the
+     bootstrap before that -- and the artifact records which, because on a
+     bootstrap the surface fields are terrain-only as well.
   2. Band-1 gas absorption and Rayleigh scattering above and below the cloud
      are not in this chain. Both attenuate the change, so this leans HIGH.
   3. The column is composed by random overlap without multiple reflection
@@ -58,10 +60,9 @@ import _paths  # noqa: F401  anchors every path on this file and adds lib/
 import sensitivity  # noqa: E402
 import stellar  # noqa: E402
 import stephens_tables_vs_fits as stephens  # noqa: E402
-from paths import rel  # noqa: E402
+from paths import best_available_climatology, rel  # noqa: E402
 
 ROOT = _paths.PROJECT_ROOT
-DEFAULT_CLIM = _paths.ANALYSIS / "climatology" / "bootstrap_regular_climatology.nc"
 DEFAULT_OUT = _paths.ANALYSIS / "cloud_optical_depth_bracket.json"
 
 # --------------------------------------------------------------------------
@@ -177,8 +178,8 @@ def cloud_fraction(clt, shape):
     with rcrit = max(0.85, max(sigma, 1 - sigma)), and `hur` in a climatology is
     a mean over time bins and orbits. That square of a threshold difference is
     strongly convex, so the mean of the diagnosis is not the diagnosis of the
-    mean: run on this field it leaves 72 per cent of columns with no cloud at
-    all against a written total cover of 0.61. The convective branch is worse
+    mean: run on this field it leaves 59 per cent of columns with no cloud at
+    all against a written total cover of 0.578. The convective branch is worse
     off still, since the flags it needs are not written at any cadence.
 
     So the AMOUNT of cloud is taken from `clt`, which the model does write, and
@@ -267,31 +268,19 @@ def gaussian_weights(nlat, nlon):
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--climatology", type=Path, default=DEFAULT_CLIM)
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="override the best available climatology")
     ap.add_argument("--run", type=Path, default=None,
-                    help="run directory whose namelists supply the constants")
+                    help="run directory whose namelists supply the constants; "
+                         "by default the run that wrote the climatology")
     ap.add_argument("--hours", type=int, default=48,
                     help="hour angles per day in the zenith integration")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = ap.parse_args()
 
-    run_dir = args.run
-    if run_dir is None:
-        runs = sorted((ROOT / "exoplasim" / "runs").glob("run_*"))
-        runs = [r for r in runs if (r / "planet_namelist").exists()]
-        if not runs:
-            raise SystemExit("no run directory carries namelists; pass --run")
-        run_dir = runs[-1]
-    nl = read_namelists(run_dir)
-    ga = float(nl["GA"])
-    gascon = float(nl["GASCON"])
-    gsol0 = float(nl["GSOL0"])
-    clwref = float(nl.get("CLWREF", 0.00021))
-    clwhsc = float(nl["CLWHSC"]) if "CLWHSC" in nl \
-        else 700.0 * (gascon / ga) / (287.0 / 9.80665)
-    zsolar1 = float(stellar.band1_fraction())
+    clim = best_available_climatology(args.climatology)
 
-    with Dataset(args.climatology) as ds:
+    with Dataset(clim.path) as ds:
         lev = np.asarray(ds.variables["lev"][:], dtype=float)
         lat = np.asarray(ds.variables["lat"][:], dtype=float)
         centres = np.asarray(ds.variables["time"][:], dtype=float)
@@ -306,6 +295,34 @@ def main() -> None:
         rsut = np.abs(np.asarray(ds.variables["rsut"][:], dtype=float))
         run_id = getattr(ds, "vesper_run_id", None)
         flux_ratio = float(getattr(ds, "vesper_flux_ratio", float("nan")))
+
+    # THE CONSTANTS COME FROM THE RUN THAT WROTE THE FIELD, not from whichever
+    # run directory sorts last. GA, GASCON, GSOL0, CLWREF and CLWHSC are what
+    # the water paths and the incident flux are reconstructed with, so reading
+    # them from another run reconstructs this field under another planet's
+    # numbers -- and the geometry check below would still pass, because it is
+    # internally consistent in whatever GSOL0 it was handed. Rule 5: the
+    # pointing is deliberate or it is refused.
+    run_dir = args.run
+    if run_dir is None:
+        if run_id is None:
+            raise SystemExit(
+                f"{rel(clim.path)} carries no vesper_run_id, so the run whose "
+                f"namelists describe it cannot be identified; pass --run")
+        run_dir = ROOT / "exoplasim" / "runs" / str(run_id)
+    if not (run_dir / "planet_namelist").exists():
+        raise SystemExit(
+            f"{rel(run_dir)} carries no planet_namelist, so the constants "
+            f"{rel(clim.path)} was integrated under cannot be read; the run "
+            f"output is untracked and may have been deleted")
+    nl = read_namelists(run_dir)
+    ga = float(nl["GA"])
+    gascon = float(nl["GASCON"])
+    gsol0 = float(nl["GSOL0"])
+    clwref = float(nl.get("CLWREF", 0.00021))
+    clwhsc = float(nl["CLWHSC"]) if "CLWHSC" in nl \
+        else 700.0 * (gascon / ga) / (287.0 / 9.80665)
+    zsolar1 = float(stellar.band1_fraction())
 
     ntime, nlev, nlat, nlon = ta.shape
     sigma, sigmah, dsigma = sigma_grid(lev)
@@ -441,8 +458,8 @@ def main() -> None:
         "what": "band-1 cloud optical depth, Stephens Eq. (10b) replaced by "
                 "Eq. (10a), at the top of the atmosphere",
         "issue": "world-jgen",
-        "climatology": rel(args.climatology),
-        "climatology_is_bootstrap": True,
+        "climatology": rel(clim.path),
+        "climatology_stage": clim.stage,
         "run_id": run_id,
         "flux_ratio": flux_ratio,
         "constants_from": rel(run_dir),
@@ -473,7 +490,7 @@ def main() -> None:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
 
-    print(f"climatology   {rel(args.climatology)} (bootstrap)")
+    print(f"climatology   {rel(clim.path)} ({clim.stage})")
     print(f"constants     {rel(run_dir)}")
     print(f"zsolar1       {zsolar1:.4f}")
     print(f"geometry      reconstructed band-1 incident "
