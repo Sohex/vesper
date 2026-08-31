@@ -29,7 +29,7 @@ cited measurements.
 | `PFRAC_MINTOMAX` | `guess.h` | `Pft::init_ctop_limits` and `Pft::init_ctop_min` | 3.68 | dimensionless | McGroddy et al. (2004) foliar dispersion contrast; BRACKET 3.68 to 4.41 | yes, from 2.78 |
 | `PFRAC_MINTOMAX_CROPGREEN` | `guess.h` | `Pft::init_ctop_limits` | 7.77 | dimensionless | the same transfer applied to its nitrogen counterpart 5.0; cropland is refused under BIO-27 | yes, from 5.0 |
 | `PFRAC_LEAFTOROOT` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` fine-root P demand | 1.16 | dimensionless | Yuan et al. (2011); root N:P is not separable from leaf N:P, so the nitrogen proportion carries; BRACKET 1.02 to 1.35. The tissue window is mean-anchored, so the contrast the model runs on is the derived 1.0 for any leaf window width | no, and now for a reason |
-| `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` sapwood P demand | 6.9 | dimensionless | UNDERIVED. Nitrogen's, for sapwood PLUS BARK, from Friend et al. (1997) Table 4 p. 254; Heineman et al. (2016) reject the proportional form for phosphorus, and the 6.9 the model applies sits below the 10.1 to 15.5 that dataset brackets a forced scalar at | no |
+| `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` sapwood P demand | 6.9 | dimensionless | UNDERIVED, on the LEVEL and not the form. Nitrogen's, for sapwood PLUS BARK, from Friend et al. (1997) Table 4 p. 254. The proportional form stands: Yan et al. (2016) put the phosphorus exponent at 1.58 tropical, 0.97 temperate and 0.80 boreal over 335 species and 12 sites, so it crosses 1 inside the climate range a global model spans. The 6.9 sits below the 10.1 to 15.5 the one paired leaf-and-bole-wood phosphorus dataset brackets a scalar at | no |
 | `PFRAC_MAXTOMIN` | `guess.h` | `Pft::init_ctop_limits` | 0.9 | dimensionless | nothing to transfer: the nitrogen original is declared arbitrary in `Pft::init_cton_limits`. It sets the tissue window's WIDTH only, so it no longer moves the applied proportion | no |
 | `PMASS_SAT` | `somdynam.cpp` | `somfluxes` through `setptoc`, and the P-limitation-off pin | 0.002 * 6.6 | kgP/m2 labile P | Parton, Stewart and Cole (1988) Fig. 3 p. 115, whose labile-P axis saturates at 2.0 gP/m2, CONVERTED into this fork's Hedley-labile currency by 6.6, the low end of the 6.6 to 11.3 bracket | yes, and it is a declared divergence from the vendored 0.002 |
 | `PCONC_SAT` | was `somdynam.cpp` | nowhere | removed | -- | the ramp it was the threshold of is removed: a decomposer community's biomass C:P is homeostatic with respect to its resource's phosphorus content, so the surface microbial pool's C:P does not vary with litter P. The surface microbial pool holds the C:P `soil.cpp` initialises it to, which is `world-634q` | deleted |
@@ -185,10 +185,10 @@ what it cost the established C-N configuration, is
 
 ## Sapwood: the constant is nitrogen's, and it is not the quantity the model applies
 
-Three claims are stacked inside `PFRAC_LEAFTOSAP`, and having both papers
-separates them. The element was never phosphorus, the tissue is not the model's
-sapwood, and the proportional form the constant asserts is the one thing the only
-phosphorus measurement of this tissue rejects.
+Three claims are stacked inside `PFRAC_LEAFTOSAP`, and having the papers
+separates them. The element was never phosphorus and the tissue is not the
+model's sapwood; the proportional form the constant asserts looked refuted on one
+dataset and is not refuted on two.
 
 ### What 6.9 is in Friend et al. (1997)
 
@@ -293,11 +293,13 @@ level. Wood P falls 35 percent from the outer 5 cm to the adjacent 5 to 10 cm
 annulus, in 88 of 110 trees and in 14 of 18 species tested individually; wood N
 has no consistent radial direction.
 
-So it licenses the rejection of the fixed proportion for phosphorus, with
-nitrogen as its own control. It does not license a global exponent: these are
-tropical lower montane angiosperms, with no needleleaf, temperate or boreal type
-in the sample. It does not license a whole-sapwood tissue ratio, because the
-outer annulus is the phosphorus-rich end of a 35 percent radial gradient. It does
+So it licenses the rejection of the fixed proportion for phosphorus AT THAT
+SITE, with nitrogen as its own control. It does not license a global exponent:
+these are tropical lower montane angiosperms, with no needleleaf, temperate or
+boreal type in the sample, and the section below is what happens when a dataset
+that does span those is read. It does not license a whole-sapwood tissue ratio,
+because the outer annulus is the phosphorus-rich end of a 35 percent radial
+gradient. It does
 not license a sun-leaf level. And it does not license a scalar of any value,
 because it is the scalar form that it rejects.
 
@@ -366,27 +368,77 @@ measured form differ by a factor of 2.50 in RELATIVE sapwood phosphorus demand,
 simulated plant types on a large carbon pool, and it is the whole of what the
 proportional form removes.
 
+### Yan et al. (2016) runs the same test across 32 degrees of latitude, and the refutation does not survive
+
+The same regression, on the same pair of tissues in the sense that matters --
+woody stem against leaf, log-log, reduced major axis -- for 335 woody species in
+198 genera and 73 families at 12 forest sites across eastern China, 18.7 to
+50.9 degrees north, mean annual temperature -5.7 to 25.3 C and annual
+precipitation 423 to 2031 mm, boreal coniferous forest through tropical
+rainforest. The wood is the terminal 10 to 20 cm of the twig stems supporting the
+sampled leaves; the leaves are fully expanded SUN leaves.
+
+**The phosphorus exponent crosses 1 inside the climate range a global model
+spans.** By biome it is 1.58 in tropical forest, 0.97 in temperate and 0.80 in
+boreal. By site it runs 1.36 at Mt. Dinghu, 23.2 N, down to 0.71 at Mt. Genhe,
+50.9 N. By functional group it is 1.26 for evergreen broad-leaved, 0.96 for
+deciduous broad-leaved and 0.70 for coniferous plants, and 1.86 for legumes
+against 0.88 for non-legumes. It correlates significantly with mean annual
+temperature and not with precipitation or with soil total N or P.
+
+The nitrogen exponent behaves the same way and less steeply: 1.30, 0.97 and 0.89
+by biome, 1.45 to 0.74 by site, 1.20, 1.19 and 0.95 by group. So the phosphorus
+exponent exceeds the nitrogen one in the tropics, which is Heineman's finding,
+and falls below it towards the pole, which is the part one tropical site cannot
+show.
+
+**What that does to the form claim.** Heineman's 2.10 is the tropical extreme of
+a gradient rather than a universal rejection of isometry, and a proportional form
+is the unbiased default over the whole range a global model has to cover. Its
+residual is one-signed within a biome and changes sign between them: at a fixed
+scalar the model under-supplies the simulated tropical types' sapwood P demand
+relative to leaf and over-supplies the boreal ones'. That is a statement about
+which way the error goes, which the one-site reading could not make, and it is
+strictly better than adopting a tropical exponent everywhere.
+
+**What it does NOT do is supply the level, and it says why with a number.** The
+leaf-to-wood phosphorus ratio is a property of which wood. Read off Yan's
+Fig. 4a against its own axis, leaf P over twig stem P runs 0.77 at 18.7 N to
+2.63 at 50.9 N -- a factor of 3.4 across the gradient FOR ONE TISSUE -- while
+Heineman's outer 5 cm bole annulus brackets a forced scalar at 10.1 to 15.5. The
+nitrogen counterparts sit the same way round: Yan's leaf N over twig stem N runs
+1.8 to 3.0 where Friend's bole bark-plus-sapwood figure is 6.9. This model's
+sapwood pool is the whole living sapwood of the simulated individual, whose mass
+is overwhelmingly bole and large branches rather than terminal twigs, so its
+value belongs at the bole end of that factor of twenty -- which is where the
+phosphorus bracket sits and where the applied 6.9 does not.
+
 ### What is still open
 
-The refutation stands and is stronger than the summary that opened this row. The
-constant's own source measures a different element in a different tissue on nine
-temperate species, and the one dataset that measures phosphorus in this model's
-own tissue rejects the proportional form the constant asserts. What the model
-applies is now the number the constant names, which is world-xms4 and is the one
-of the three claims that is settled. Nothing above derives a value and nothing
-above should: a proportion kept because it is convenient is a knob.
+ONE thing, and it is the level. The form is settled: the proportional relation
+the constant asserts is not refuted, and the reading that said it was rested on
+one site. What the model applies is the number the constant names, which is
+world-xms4 and is also settled. What is left is that the constant's own source
+measures a different element in a different tissue on nine temperate species,
+and no accessible measurement gives the right element in this model's tissue.
 
-Two decisions are needed and neither of them is arithmetic.
+Nothing above derives a value and nothing above should: a proportion kept
+because it is convenient is a knob. Adopting Heineman's 10.1 to 15.5 would import
+one Panamanian lower montane site's climate into every simulated plant type, and
+Yan's 3.4-fold latitudinal span of the same ratio is the measure of what that
+costs.
 
-- Whether simulated sapwood C:P follows leaf C:P proportionally at all, or as a
-  power with an exponent measured on one tropical gradient and applied to
-  simulated boreal and temperate types.
-- What anchors the level, given that the only paired leaf-and-sapwood phosphorus
-  measurement this project holds is one Panamanian fertility gradient, and that
-  the nitrogen value the constant carries sits below the 10.1 to 15.5 that
-  gradient brackets a forced scalar at.
+What would settle it is one measurement: paired leaf and WHOLE-SAPWOOD phosphorus
+concentrations over more than one region. It is not in the accessible literature
+and it is not a decision anyone can make from what is here.
 
-`ifplim 1` keeps refusing and keeps naming `PFRAC_LEAFTOSAP` until they are
+A second finding falls out of Yan and is NOT this row: the leaf-to-wood
+phosphorus ratio, not just its exponent, varies systematically with mean annual
+temperature and by plant functional type, along the same axis the model's plant
+types already distinguish. A single scalar applied to every type is wrong in a
+direction the model could resolve. `world-3e5n` owns it.
+
+`ifplim 1` keeps refusing and keeps naming `PFRAC_LEAFTOSAP` until the level is
 answered. BIO-34.
 
 ## The saturation pair: one is its source's value, and the other's ramp is gone
@@ -869,10 +921,10 @@ break in a conservation sum.
 
 ## What is still open
 
-- `PFRAC_LEAFTOSAP`, and the modelling decision behind it: a scalar on a form
-  the measurement rejects, or a nonlinear wood-leaf phosphorus relation, and what
-  anchors the level if a scalar is kept. The applied proportion equals the
-  declared constant now, so this is a question about the constant alone.
+- `PFRAC_LEAFTOSAP`'s LEVEL. The form is settled and the applied proportion
+  equals the declared constant, so this is a question about one number, and it
+  needs paired leaf and whole-sapwood phosphorus concentrations over more than
+  one region, which the accessible literature does not have.
 - The surface microbial pool's fixed C:P of 80, as WORLD-634Q. It is Fig. 3's
   active soil line's `ctop_max` end applied to a pool that paper does not have,
   which is what its three neighbours in the initialiser also are, and removing
