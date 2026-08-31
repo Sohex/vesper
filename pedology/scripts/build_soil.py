@@ -1397,7 +1397,9 @@ def main() -> None:
                  "pipeline. The multiplier below is what this world's own "
                  "soil implies, one-signed upward at every step."),
         "form": ("CEC = clay_cec * clay + organic_matter_cec * organic, "
-                 "cmol(+)/kg of fine earth, no intercept"),
+                 "cmol(+)/kg of fine earth, no intercept. Sulfur does not read "
+                 "it: sulfate is an anion, so its pool is the andic anion "
+                 "exchange capacity instead"),
         "sources": ("Sahrawat (1983) 10.1080/00103628309367409 for the two "
                     "slopes; Solly et al. (2020) 10.3389/ffgc.2020.00098 for "
                     "the organic-share check, the measured envelope and the "
@@ -1405,8 +1407,11 @@ def main() -> None:
                     "10.1016/j.chemgeo.2002.09.001 and Solly for base "
                     "saturation against pH; Vitousek and Sanford (1986) "
                     "10.1146/annurev.es.17.110186.001033 Table 7 for the root "
-                    "term. pedology/config/pedogenesis.yaml carries what each "
-                    "does and does not license."),
+                    "term; Dahlgren, Saigusa and Ugolini (2004) "
+                    "10.1016/S0065-2113(03)82003-5 for the andic anion "
+                    "exchange ceiling, which is sulfate's only retention term. "
+                    "pedology/config/pedogenesis.yaml carries what each does "
+                    "and does not license."),
         "cec_cmol_kg": land_stats(cec),
         "dropped_intercept_cmol_kg": intercept,
         "cec_is_blind_to_ph": (
