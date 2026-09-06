@@ -33,12 +33,13 @@ cited measurements.
 | `PFRAC_MAXTOMIN` | `guess.h` | `Pft::init_ctop_limits` | 0.9 | dimensionless | nothing to transfer: the nitrogen original is declared arbitrary in `Pft::init_cton_limits`. It sets the tissue window's WIDTH only, so it no longer moves the applied proportion | no |
 | `PMASS_SAT` | `somdynam.cpp` | `somfluxes` through `setptoc`, and the P-limitation-off pin | 0.002 * 6.6 | kgP/m2 labile P | Parton, Stewart and Cole (1988) Fig. 3 p. 115, whose labile-P axis saturates at 2.0 gP/m2, CONVERTED into this fork's Hedley-labile currency by 6.6, the low end of the 6.6 to 11.3 bracket | yes, and it is a declared divergence from the vendored 0.002 |
 | `PCONC_SAT` | was `somdynam.cpp` | nowhere | removed | -- | the ramp it was the threshold of is removed: a decomposer community's biomass C:P is homeostatic with respect to its resource's phosphorus content, so the surface microbial pool's C:P does not vary with litter P. The surface microbial pool holds the C:P `soil.cpp` initialises it to, which is `world-634q` | deleted |
+| `sompool[SURFMICRO].ptoc` | `soil.cpp` | `somfluxes` through `transferdecomp`, and nothing overwrites it | 1 / 63.31 | kgP per kgC | the pool's own C:N of 20 (Parton et al. 1993 p. 791) times a measured decomposer biomass N:P of 3.1655 by mass (Cleveland and Liptzin 2007, 60:7:1 by mole); BRACKET 54.27 to 63.31 on that source against Xu et al. (2013)'s 42:6:1 | yes, from 80 |
 | `USORB` | `somdynam.cpp` | `somfluxes` | 0.0067 / `VESPER_EARTH_YEAR_DAYS` | per absolute day | Wang et al. (2010) Appendix D | divisor, under the time-base contract |
 | `USSORB` | `somdynam.cpp` | `somfluxes` | 0.0067 / `VESPER_EARTH_YEAR_DAYS` | per absolute day | the same, and equal to `USORB` in that source | divisor, under the time-base contract |
 | `UOCC` | was `somdynam.cpp` | nowhere | removed | -- | no citation anywhere in the tree | deleted |
 | `Soiltype::pwtr` | the soil input | `somdynam.cpp:soilpadd` | per BIO-5 | kgP/m2 per EARTH year | BIO-5 emits it against `biosphere/notes/time-base-unit-contract.md` | divisor, under that contract |
 
-The three declared divergences from the vendored CNP fork are registered in
+The declared divergences from the vendored CNP fork are registered in
 `biosphere/config/somdynam.yaml` and checked by
 `biosphere/scripts/somdynam_gate.py`, which refuses a form the source stops
 recording, a form the source goes back to running, a changed line the source
@@ -693,16 +694,94 @@ to 30, and the pool was already at the 80 `soil.cpp` initialises it to. The
 removal moves the surface microbial pool's C:P by at most 2.4 per cent and makes
 what the model runs visible where it is set.
 
-**What is not settled by this.** The 80 the pool now holds for the whole of a
-run is Fig. 3's ACTIVE SOIL line's `ctop_max` end applied to a pool that paper
-does not have, which is the standing its three neighbours in `soil.cpp`'s
-initialiser share. That is not what `PCONC_SAT` was and the removal did not
-create it; `world-634q` owns it. The obvious substitution is refused there:
-measured decomposer biomass C:P is 66.5 by MOLE, which is 25.8 by mass and the
-model's ratios are mass ratios, and CENTURY's microbial pools are conceptual SOM
-pools rather than measured biomass -- the same offset sits in the nitrogen side,
-where the pool's sourced C:N of 10 to 20 stands against a measured microbial
-biomass C:N of about 7 by mass.
+**What the removal made load-bearing, and what settled it.** The value the pool
+now holds for the whole of a run was Fig. 3's ACTIVE SOIL line's `ctop_max` end
+applied to a pool that paper does not have, which is the standing its three
+neighbours in `soil.cpp`'s initialiser share -- except that theirs are
+overwritten on the first call to `somfluxes` and this one is not. That is not
+what `PCONC_SAT` was and the removal did not create it. The section below
+derives it.
+
+### The surface microbial pool's C:P is the pool's own stoichiometry, not another pool's endpoint
+
+`sompool[SURFMICRO].ptoc` is the one C:P initialiser nothing overwrites, so it is
+the phosphorus content of every transfer out of `SURFSTRUCT`, `SURFMETA`,
+`SURFFWD` and `SURFCWD` for the whole of a run.
+
+**The 80 was a block convention, not a claim about this pool.** The four
+initialisers are the `ctop_max` ends of Fig. 3's lines, and this is the pool with
+no Fig. 3 line: 80 is the ACTIVE SOIL line's end and Parton, Stewart and Cole
+(1988) has no surface microbial pool. The fork's own methods say the same from
+the other side. Dantas de Paula et al. (2025) section 2.2 enumerates what it took
+from CENTURY as "the values for the C:P ratios of the slow, passive, and active
+(microbial) organic matter pools", and this is not among them. The fork's
+commented-out alternative initialisation puts the same pool at 35, which is the
+fork disagreeing with itself for want of a source.
+
+**Parton, Schimel, Cole and Ojima (1987), `10.2136/sssaj1987.03615995005100050015x`,
+is where a CENTURY pool endpoint would be settled from outside, and it still
+cannot be fetched:** no open-access route, no reachable PDF at the publisher, and
+no Sci-Hub copy, on a second attempt. Neither can the CENTURY 4.0 technical
+documentation nor Parton, Ojima, Cole and Schimel (1994),
+`10.2136/sssaspecpub39.c9`.
+
+**What replaces it is an identity on the pool's own two quantities:**
+
+    C:P = C:N * N:P
+
+The C:N is this model's for THIS pool and is exactly sourced. Parton et al.
+(1993) p. 791: the C:N of newly formed surface microbial biomass "increases from
+10 to 20 as the N content decreases from 2.0% to 0.01%", which is the `setntoc`
+pair and `NCONC_SAT`, and 20 is what `soil.cpp` initialises the pool at four
+lines above. So the two initialisers describe one pool at one moment instead of
+being two free numbers.
+
+The N:P is measured. Cleveland and Liptzin (2007) find soil microbial biomass
+C:N:P "well-constrained at the global scale" at 60:7:1 by mole, which by mass is
+C:N 7.35, C:P 23.27 and N:P 3.1655. At the pool's C:N of 20 that gives a C:P of
+63.31.
+
+**The N:P is the ratio in which the conceptual-pool offset cancels, and that is
+what refuses the direct substitution.** CENTURY's pools carry more carbon than
+the biomass they are named for: this pool's C:N of 20 is 2.72 times the same
+source's measured 7.35. Substituting the measured C:P of 23.27 would have put
+that offset on phosphorus and not on nitrogen, which is why the earlier reading
+refused it. A nutrient-to-nutrient ratio carries no carbon, so the offset lands
+on both elements identically -- 63.31 over 23.27 is the same 2.72 -- and the
+consistency between the elements is preserved exactly.
+
+**Bracketed, not measured.** The two global meta-analyses of decomposer
+stoichiometry give molar N:P of 7 (Cleveland and Liptzin 2007, n over 100 studies)
+and 6 (Xu et al. 2013 on a fourfold larger dataset, reported by Mooshammer et al.
+2014), which are 63.31 and 54.27 here. 80 is outside that bracket. A run that
+uses the value says which end it is on, as it does for every derived constant in
+this document.
+
+**What one constant does not resolve is larger than the bracket**, and it is a
+missing dependence rather than an uncertainty: Xu et al. (2013) put microbial N:P
+between 3.5 and 10.6 by mole across major biomes excluding wetlands, which is
+31.7 to 95.9 here. A single scalar over every simulated cell is wrong in a
+direction the model could resolve, which is exactly the standing `world-3e5n`
+records for `PFRAC_LEAFTOSAP`.
+
+**The form stays a constant on the measurement rather than on the absence of
+one.** A constant C:P beside a ramping C:N cannot hold a fixed N:P, and
+Mooshammer et al. (2014) Table 2 says which of the two to keep. On the Xu et al.
+(2013) dataset, microbial C:P is the most invariant of the three ratios: it moves
+from 66.5 to 67.3 by mole over a soil C:P of 156 to 1611 (n = 405, P = 0.118),
+where microbial C:N moves 7.8 to 9.4 (n = 1023, P = 0.044) and microbial N:P 6.9
+to 9.1 (n = 294, P = 0.081). So a constant C:P is the arm the data supports and
+strict N:P homeostasis is not; the N:P this line is derived through is a global
+mean of a ratio that drifts by up to 1.32 over the measured range, which is
+inside the declared bracket.
+
+The same table bounds something the nitrogen side asserts and cannot be repaired
+from here. Measured microbial C:N varies by 1.21 over the whole soil C:N range
+where `setntoc` ramps this pool's C:N by a factor of 2. The ramp is Parton et al.
+(1993) p. 791 for a conceptual pool and the table measures biomass, so the two
+are not the same quantity and the offset need not be constant along the ramp;
+narrowing the ramp to make the implied N:P come out would be fitting a term to a
+comparison.
 
 ### The same-relative-position transfer is refuted for one and unnecessary for both
 
@@ -925,11 +1004,11 @@ break in a conservation sum.
   equals the declared constant, so this is a question about one number, and it
   needs paired leaf and whole-sapwood phosphorus concentrations over more than
   one region, which the accessible literature does not have.
-- The surface microbial pool's fixed C:P of 80, as WORLD-634Q. It is Fig. 3's
-  active soil line's `ctop_max` end applied to a pool that paper does not have,
-  which is what its three neighbours in the initialiser also are, and removing
-  the ramp made it load-bearing for the whole of a run rather than for the
-  fraction of a per cent the dead ramp left it.
+- The surface microbial pool's C:P is now derived through the pool's own C:N
+  and a measured decomposer N:P, and what one constant does not resolve is the
+  across-biome spread: Xu et al. (2013) put microbial N:P between 3.5 and 10.6
+  by mole excluding wetlands, which is 31.7 to 95.9 here, wider than the
+  bracket. That is the same standing as `PFRAC_LEAFTOSAP`'s shape.
 - Whether to represent terminal occlusion after all, now that the cited CENTURY
   submodel is held and does carry it, as WORLD-2LCW.
 - Every derived value above is BRACKETED. A run that uses them has to say which

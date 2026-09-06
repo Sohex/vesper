@@ -357,7 +357,7 @@ mainline_divergences:
         - "setptoc(soil, litter_pmass / (litter_cmass * 2.0), SURFMICRO, 80.0, 30.0, 0.0, PCONC_SAT);"
         - "double litter_pmass = soil.sompool[SURFSTRUCT].pmass + soil.sompool[SURFMETA].pmass +"
       now_source_file: vendor/lpj-guess/modules/soil.cpp
-      now: "sompool[SURFMICRO].ptoc = 1.0 / 80.0;"
+      now: "sompool[SURFMICRO].ptoc = 1.0 / (20.0 * 7.0 * 14.007 / 30.974);"
       bites_under: ifplim_1
       settles: >
         That the surface microbial pool's C:P should not ramp against a litter
@@ -403,10 +403,86 @@ mainline_divergences:
         The litter phosphorus mass both call sites accumulated, which had no
         other reader, and soil.cpp's initialiser comment, which said setptoc
         overwrote all four C:P initialisers on the first call to somfluxes and
-        now says three. The 80 the surface microbial pool holds for the whole of
-        a run is Fig. 3's active soil line's ctop_max end applied to a pool that
-        paper does not have; that is the standing its three neighbours share, it
-        is not what PCONC_SAT was, and WORLD-634Q owns it.
+        now says three. What the surface microbial pool holds for the whole of a
+        run became load-bearing here and was Fig. 3's active soil line's
+        ctop_max end applied to a pool that paper does not have; it is derived
+        from the pool's own C:N and a measured decomposer N:P under
+        surfmicro_ptoc_own_stoichiometry, WORLD-634Q.
+    - id: surfmicro_ptoc_own_stoichiometry
+      owner: world-634q
+      measured_against: fork
+      execution: none
+      why_no_execution: >
+        The value is inert under the `ifplim 0` this project runs and
+        `framework/parameters.cpp` refuses `ifplim 1`, so there is no
+        configuration in which an arm could measure it today. It needs the
+        `ifplim 1` pair the comparison arm above describes.
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/soil.cpp
+      mainline_form: line
+      mainline: ["sompool[SURFMICRO].ptoc = 1.0 / 80.0;"]
+      live: "sompool[SURFMICRO].ptoc = 1.0 / (20.0 * 7.0 * 14.007 / 30.974);"
+      bites_under: ifplim_1
+      settles: >
+        What the 80 was, which was this block's convention and not a statement
+        about this pool. The four C:P initialisers are the ctop_max ends of
+        Fig. 3's lines, and the surface microbial pool is the one with no Fig. 3
+        line: 80 is the ACTIVE SOIL line's end, and Parton, Stewart and Cole
+        (1988) has no surface microbial pool. The fork's own methods say the
+        same from the other side -- Dantas de Paula et al. (2025) section 2.2
+        enumerates the pools it took CENTURY C:P values for as "the slow,
+        passive, and active (microbial)" ones, and this is not among them -- and
+        the fork's commented-out alternative initialisation puts the same pool
+        at 35, which is it disagreeing with itself for want of a source. Parton,
+        Schimel, Cole and Ojima (1987), 10.2136/sssaj1987.03615995005100050015x,
+        is where a CENTURY pool endpoint would be settled from outside and it
+        could not be fetched: no open-access route and no reachable PDF at the
+        publisher, on two attempts.
+        WHAT REPLACES IT IS AN IDENTITY, C:P = C:N * N:P, on the pool's own two
+        quantities. The C:N is this model's for THIS pool and is exactly
+        sourced: Parton et al. (1993) p. 791 says the C:N of newly formed
+        surface microbial biomass "increases from 10 to 20 as the N content
+        decreases from 2.0% to 0.01%", and 20 is what soil.cpp initialises it
+        at, so the two initialisers describe one pool at one moment. The N:P is
+        measured: Cleveland and Liptzin (2007) find soil microbial biomass
+        C:N:P "well-constrained at the global scale" at 60:7:1 by mole, which is
+        3.1655 by mass, and 20 * 3.1655 = 63.31.
+        THE N:P IS THE RATIO FOR WHICH THE CONCEPTUAL-POOL OFFSET CANCELS, which
+        is what refuses the direct substitution the row was blocked on. CENTURY's
+        pools carry more carbon than the biomass they are named for: this pool's
+        C:N of 20 is 2.72 times the same source's measured biomass C:N of 7.35
+        by mass. Substituting the measured C:P of 23.27 would have applied that
+        offset to nitrogen and not to phosphorus. Transferring the N:P carries
+        no carbon, so the offset lands on both elements identically -- 63.31
+        over 23.27 is the same 2.72 -- and the consistency between the elements
+        is preserved exactly rather than broken.
+        THE FORM STAYS A CONSTANT, on the measurement rather than on the absence
+        of one. Mooshammer et al. (2014) Table 2, on the Xu et al. (2013)
+        dataset, makes microbial C:P the most invariant of the three ratios:
+        66.5 to 67.3 by mole over a soil C:P of 156 to 1611 (n = 405,
+        P = 0.118), against microbial C:N 7.8 to 9.4 (n = 1023, P = 0.044) and
+        microbial N:P 6.9 to 9.1 (n = 294, P = 0.081). So a constant C:P is the
+        arm the data supports and strict N:P homeostasis is not; WORLD-GQIR
+        carries what that costs the derivation.
+      worth: >
+        The value moves from 80 to 63.31, which is 1.26 times more phosphorus
+        immobilised per unit carbon entering the surface microbial pool out of
+        SURFSTRUCT, SURFMETA, SURFFWD and SURFCWD. Inert under `ifplim 0`.
+        WHAT THE NUMBER IS NOW is derived rather than conventional, and that is
+        the change that survives whichever end of the bracket a run takes. The
+        bracket is the two global meta-analyses of decomposer stoichiometry:
+        molar N:P of 7 (Cleveland and Liptzin 2007) and 6 (Xu et al. 2013 on a
+        fourfold larger dataset, reported by Mooshammer et al. 2014), which are
+        63.31 and 54.27 here. 80 is outside it.
+        WHAT ONE CONSTANT DOES NOT RESOLVE is larger than the bracket and is a
+        missing dependence rather than an uncertainty: Xu et al. (2013) put
+        microbial N:P between 3.5 and 10.6 by mole across major biomes excluding
+        wetlands, which is 31.7 to 95.9 here. A single scalar over every
+        simulated cell is wrong in a direction this model could resolve, which
+        is the standing WORLD-3E5N records for the leaf-to-sapwood phosphorus
+        ratio.
+
     - id: passivesom_cton_ramp
       owner: world-xfif
       measured_against: release
