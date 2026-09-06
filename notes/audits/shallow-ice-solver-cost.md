@@ -57,61 +57,109 @@ taken above a load of about 4 is reported as unusable rather than quoted.
 commissioned, so no route is charged for output it would invalidate. The cost of
 each route is what it costs to build and to run once.
 
-## The gate: the diffusion converges on this mesh, and the damping is the price
+## The gate: the diffusion converges on this mesh, and what the damping is for
 
-Measured 2026-09-05 with `analysis/shallow_ice_route_a.py`, on a synthetic
-mesh of 20,000 regions from Orogen's own generator at the jitter the refinement
-sweep runs at, with a Halfar dome of 3,000 m and a 2,500 km radius. The dome is
-sized so 13 cells span its radius and the sphericity contamination is 1.78 per
-cent, well below GW-8's 12 per cent floor. The host was contended throughout, so
-every wall clock in this section is a shape and not a timing; the timings that
-count are in the section below, taken under the lock.
+Measured 2026-09-05 with `analysis/shallow_ice_route_a.py` -> `analysis/shallow_ice_route_a.json`,
+on synthetic meshes of 20,000 and 80,000 regions from Orogen's own generator at
+the jitter the refinement sweep runs at, with a Halfar dome of 3,000 m and a
+2,500 km radius. The dome is sized so 13 cells span its radius at the coarse arm
+and the sphericity contamination is 1.78 per cent, below GW-8's 12 per cent
+floor.
 
-**UNDAMPED PICARD DIVERGES, and it does so in the shape GW-9 recorded.** At a
-step equal to the explicit diffusion limit the relative residual OSCILLATES with
-growing amplitude -- 1.65e-3, 1.18e-3, 1.62e-3, 9.89e-4, 2.99e-3, 1.04e-3,
-4.93e-3 over the first seven passes -- and at five times that step it climbs to
-0.6 within ten. Sixty passes reach neither tolerance nor a stall; the map is not
-a contraction, which is exactly what a conductance that COLLAPSES as the unknown
-falls should do. `D` goes as `H^(n+2)`, so it is GW-9's sign and not GW-15's.
+**THE LOAD, AND WHICH NUMBERS IT REACHES.** The sweep ran under
+`scripts/lock_and_run` on a host whose one-minute load went from 1.41 to 18.34
+across it, with the fifteen-minute figure above 21 throughout: the lock was held
+but the machine had not settled from what came before. So **every wall clock in
+this section is a shape and not a price**, and is marked as such. The iteration
+counts, the residual traces, the profile errors, the margin positions and the
+volume change are arithmetic and are unaffected by what else the machine was
+doing; they are the numbers the gate is decided on.
 
-**DAMPED PICARD CONVERGES, and cheaply.** Under-relaxing the update at w = 0.5
-the residual falls monotonically and geometrically at a ratio of about 0.49 --
-1.48e-3, 6.83e-4, 3.28e-4, 1.59e-4, 7.80e-5, 3.84e-5, ... -- reaching the
-declared 1e-8 in 18 passes. w = 0.25 converges in 43 and w = 0.1 does not reach
-the tolerance in 60, so the damping has an optimum rather than a monotone
-benefit and 0.5 is inside the basin rather than at its edge.
+**THE TWO-POINT SLOPE IS WHAT MAKES THE MAP NON-CONTRACTIVE, AND THAT IS THE
+FINDING.** `D` depends on `|grad z_S|^(n-1)`, and a two-point flux across a face
+gives only the normal component. With that approximation, undamped Picard
+DIVERGES at every step size tested, in exactly GW-9's shape: the relative
+residual oscillates with growing amplitude -- 1.65e-3, 1.18e-3, 1.62e-3,
+9.89e-4, 2.99e-3, 1.04e-3, 4.93e-3 over the first seven passes at the explicit
+diffusion limit -- and sixty passes reach neither the tolerance nor a stall. A
+head-step bar would have called that convergence, which is why the bar is the
+residual.
 
-**And it holds as the step grows, which is the point of an implicit scheme.**
+**With the full gradient reconstructed, undamped Picard CONVERGES**, in 7 passes
+at 20,000 regions and 5 at 80,000, at the explicit step. That is the same
+operator, the same mesh and the same dome; what changed is that `D` now sees the
+whole surface slope rather than its component across each face. The transverse
+component is not a refinement of the diffusivity, it is what makes the fixed
+point attractive.
 
-| step, as a multiple of the explicit diffusion limit | passes | profile RMS |
-| --- | ---: | ---: |
-| 1 | 18 | 0.0133 |
-| 2 | 19 | 0.0199 |
-| 5 | 21 | 0.0333 |
-| 20 | 24 | 0.0553 |
+**Damping recovers the normal-only arm, and buys the large step for both.**
 
-Twenty times the step costs six extra passes. The accuracy degradation is time
-truncation and every arm stays below the 12 per cent operator floor.
+| slope | step, x the explicit limit | undamped | damped at 0.5 |
+| --- | ---: | ---: | ---: |
+| normal, 20k | 1 | diverges | 18 passes |
+| normal, 20k | 20 | diverges | 24 |
+| full, 20k | 1 | **7** | 20 |
+| full, 20k | 20 | diverges | 49 |
+| normal, 80k | 1 | diverges | 16 |
+| normal, 80k | 20 | diverges | 21 |
+| full, 80k | 1 | **5** | 17 |
+| full, 80k | 20 | diverges | 26 |
+
+Damping is not free where it is not needed: at the explicit step the full arm
+costs 20 damped passes against 7 undamped. The disposition a solver would take
+is a line search rather than a fixed weight, and this measurement is what says
+so.
 
 **The three thresholds fixed above, against the result.**
 
-- **CONVERGES: PASSES at w = 0.5, FAILS undamped.** The bar was a monotone fall
-  of the nonlinear residual to 1e-8 in a bounded pass count, and the residual
-  was the bar precisely because GW-9's head step would have passed the failure.
-- **ACCURATE: PASSES.** The margin radius lands 0.61 to 0.81 cells beyond
-  Halfar's closed form at every step size, inside the one-cell bar. The profile's
-  relative RMS is 1.33 per cent at the explicit step, an order below the 12 per
-  cent floor, and 5.53 per cent at twenty times it, still below.
+- **CONVERGES: PASSES.** At the explicit step the full-gradient form converges
+  undamped in 5 to 7 passes and every arm converges damped, monotonically. At
+  twenty times the step every arm needs damping and every damped arm converges,
+  in 21 to 49 passes.
+- **ACCURATE: PASSES, and it improves with refinement.** The margin radius lands
+  0.35 to 0.91 cells beyond Halfar's closed form at every arm, inside the
+  one-cell bar. The profile's relative RMS is 1.33 to 1.60 per cent at 20,000
+  regions and **0.203 to 0.233 per cent at 80,000** -- an order better for four
+  times the cells, so the SOLVED field converges even though GW-8 measured the
+  operator's own truncation error not converging at all. That is the same
+  supraconvergence GW-8 found for the water table, reproduced here for a
+  nonlinear operator.
 - **CONSERVES: PASSES exactly.** The volume change is 0.0 to the last reported
-  digit at every arm, which is not a coincidence and is worth saying why: the
-  face fluxes are antisymmetric and the assembled operator's row sums are zero,
-  so the implicit step conserves `sum A H` by construction and the only thing
-  that could break it is the active set's clip. It did not fire on a Halfar
-  dome, whose support shrinks rather than grows.
+  digit at every one of the sixteen arms, and by construction rather than by
+  luck: the face fluxes are antisymmetric and the assembled operator's row sums
+  are zero, so the implicit step conserves `sum A H` and only the active set's
+  clip could break it. It did not fire on a Halfar dome, whose support shrinks.
+
+**WHAT THIS TEST CANNOT DISCRIMINATE, and it has to be said because the table
+above invites the wrong reading.** Halfar's dome is radially symmetric, so its
+surface gradient is radial and the normal component across a face between two
+neighbours is very nearly the whole of it. That is why the two slope arms agree
+on the profile error to within a fifth of a per cent, and it means **this
+identity says nothing about which slope is more accurate on a real ice sheet**,
+where the transverse component is not small. What it does discriminate, and
+decisively, is the convergence behaviour above. An accuracy comparison between
+the two needs a test whose surface slope is not radial, and there is not one
+here.
+
+**The gradient reconstruction is itself checked against an identity** before
+either arm is quoted: on a sphere `H = R cos(theta)` has tangential gradient
+magnitude exactly `sin(theta)`, and the least-squares operator reproduces it to
+a median 0.30 per cent, 1.5 per cent at the ninth decile, over 19,602 cells away
+from the poles. That is an order below the two-point operator's own noise floor,
+so the `full` arm measures the scheme and not the reconstruction.
 
 **SO ROUTE A IS AVAILABLE.** The prior gate the row declares is passed, and the
 comparison is live.
+
+**The cost per step is NOT settled by this sweep and is not quoted as though it
+were.** What the contaminated timings do show, and what contention cannot
+invent, is the shape: the cost is one sparse factorisation per Picard pass, the
+per-solve cost grew about 3.4 times for four times the regions between the two
+arms, and a direct factorisation is the wrong solver at the active build's
+10,000,005 regions -- GW-8 already found the LINEAR water-table case there
+beyond this host's memory at about 10 GB of factor entries. A production Route A
+needs an iterative solver with a preconditioner, and that is a cost item this
+gate does not price.
 
 ## Route B, read against the artifact, and it is not what the row assumed
 
@@ -173,7 +221,7 @@ implementation size. It does not get there:
 
 | | what would be written | the free boundary | the nonlinearity | gravity | licence |
 | --- | --- | --- | --- | --- | --- |
-| A, native on the region mesh | the operator, the damped Picard and the active set, on `groundwater.py`'s existing `Geometry` | active set, exact by construction | converged to 1e-8 in 18 to 24 passes | `config/planet.yaml` | this project's |
+| A, native on the region mesh | the operator, the Picard with a line search, the active set and the least-squares gradient, on `groundwater.py`'s existing `Geometry` | active set, exact by construction | converged to 1e-8 in 5 to 7 passes undamped with the full slope, 16 to 49 damped | `config/planet.yaml` | this project's |
 | B, port MITgcmIS | the whole time loop, which is a notebook cell string, plus a cubed-sphere crossing under rule 3 | clipped | lagged one step, never asked | Earth's, at the third power, in a module literal | not stated |
 | C, SICOPOLIS behind CLIMBER-X's adapter | ~1.2k lines of adapter around a 27k-line solver | clipped, then rebooked as a mass balance correction | its own | one parameter and two literals, with Earth-tuned limiters on `g^3` and `g^4` | GPL-3 over GPL-2-or-later |
 
@@ -190,20 +238,25 @@ turns from an assumption into a fact.
 including its own test harness, and it reuses `hydrography/scripts/groundwater.py`'s
 `Geometry` for the faces, widths and areas -- the piece that took a wrong first
 attempt and put the operator 178x off its analytic eigenvalue. A production
-version is the operator, the damped Picard, the active set and a mass balance
-input: call it 600 to 900 lines, bracketed because the surface mass balance's
-interface is CLIM-63's and does not exist yet.
+version is the operator, the Picard with a line search, the active set, the
+least-squares gradient and a mass balance input: call it 600 to 900 lines,
+bracketed because the surface mass balance's interface is CLIM-63's and does not
+exist yet. The bracket does NOT cover the linear solver: a direct factorisation
+does not reach the active build's region count and an iterative solver with a
+preconditioner is a separate piece of work this gate did not price.
 
 ## Three things Route A would still owe, and they are named rather than hidden
 
-**THE TWO-POINT FLUX SCHEME CANNOT SEE THE TRANSVERSE SLOPE.** `D` depends on
-`|grad z_S|^(n-1)`, and a two-point flux across a face gives only the normal
-component of that gradient. MITgcmIS does it properly and only because its grid
-is structured: `dsdx_c` and `dsdy_c` are centred east-minus-west and
-north-minus-south differences, which a Voronoi mesh has no equivalent of. On this
-mesh the full gradient is a per-cell least-squares solve over each cell's
-neighbours, precomputable but not free. Both arms are implemented and the sweep
-below prices the difference.
+**THE TRANSVERSE SLOPE IS NOT OPTIONAL, and the gate turned that from a
+suspicion into a measurement.** `D` depends on `|grad z_S|^(n-1)` and a two-point
+flux gives only the normal component; with that approximation the Picard map is
+not a contraction at any step size tested, and with the full gradient it
+converges undamped in five to seven passes. MITgcmIS does it properly and only
+because its grid is structured: `dsdx_c` and `dsdy_c` are centred east-minus-west
+and north-minus-south differences, which a Voronoi mesh has no equivalent of. On
+this mesh the full gradient is a per-cell least-squares solve over each cell's
+neighbours, precomputable but not free, and it is now a REQUIREMENT of Route A
+rather than a refinement of it.
 
 **THE ACTIVE SET DOES NOT INHERIT THE GROUNDWATER SOLVER'S TERMINATION PROOF.**
 That proof rests on the matrix being fixed and SPD, and here `D` depends on the
