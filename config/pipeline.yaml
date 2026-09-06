@@ -2303,16 +2303,33 @@ checks:
   - id: verify_uninitialised_reads
     script: exoplasim/scripts/verify_uninitialised_reads.sh
   # Is a continued LPJ-GUESS run the same experiment as the run it continues?
-  # Three modes over the same forcing. The default takes two runs of the same
+  # Four modes over the same forcing. The default takes two runs of the same
   # length, one whole and one split, and compares their output tables from the
   # restart point on. `--one-day` splits at an arbitrary simulated DAY and
   # compares the two runs' STATE FILES one day later, so lost state shows up as
   # bytes that differ after one day rather than as a year of divergence.
   # `--round-trip` restarts and writes the state again with no day in between,
-  # which names what the write-and-read of a state file does not carry. All
-  # three are wrong answers rather than merely different ones. It is the
-  # behavioural half of the WET-3 restart repair, where the wetland_gate probe
-  # and soil_restart_state_gate over Soil::serialize are the static half.
+  # which names what the write-and-read of a state file does not carry.
+  # `--runner` is the fourth and its subject is the RUNNER rather than the
+  # model: a parent that saves, a continuation from it, an uninterrupted control
+  # twice as long, and a continuation at a patch count the parent never ran,
+  # which has to be refused. All four are wrong answers rather than merely
+  # different ones. It is the behavioural half of the WET-3 restart repair,
+  # where the wetland_gate probe and soil_restart_state_gate over
+  # Soil::serialize are the static half.
+  #
+  # EVERY MODE ALSO ASKS THE MODEL WHICH RESTART INSTANTS IT PARSED, and refuses
+  # when they differ from what the arm asked for. `state_day -1` and
+  # `save_day -1` are the year-boundary sentinel and libraries/plib delivered 0
+  # for both, so every restart taken here was an arbitrary-day restart at day 0
+  # of state_year while four documents reported a year boundary and all four
+  # held copies of the same rule. world-glu7.
+  #
+  # `--cells` slices the driver to named lon,lat pairs. Cells are independent in
+  # LPJ-GUESS and the stochastic streams are keyed by coordinate, so a cell
+  # integrates the same trajectory either way; what a subset loses is reach, so
+  # its verdict goes to lpj_restart_continuity_subset.json and the continuation
+  # gate keeps reading only the whole-grid report. `--runner` requires it.
   #
   # LIKE the row above it takes arguments -- a run length, a restart year, a
   # rank count -- and it is not run by smoke_test. It needs a compiled model and
@@ -2323,15 +2340,18 @@ checks:
   # run_lpj_guess.py's --save-state and --continue-from decide against the
   # arithmetic framework/framework.cpp performs on them, so a continuation that
   # would silently skip or repeat a simulated year is refused before the run is
-  # bought. The three model modes test the serializer; that tests the runner. It
+  # bought. The three model modes test the serializer; that and `--runner` test
+  # the runner, the first without a model and the second with one. It
   # reads the spin-up out of the PFT file the runs import rather than carrying a
   # copy, because the failure it was built for was a save point computed from
   # `nyear` alone and thousands of simulated years early.
   #
-  # Its own `--nyear-spinup` defaults to ZERO. The PFT file declares the DERIVED
-  # spin-up floor, and inheriting it turns a twelve-year bed into a
-  # twelve-thousand-year one; zero also puts every simulated year into the
-  # output tables the annual mode compares.
+  # Its own `--nyear-spinup` is ONE by default, which is the model's own minimum.
+  # The PFT file declares the DERIVED spin-up floor, and inheriting it turns a
+  # twelve-year bed into a twelve-thousand-year one. A bed above `freenyears`
+  # costs more and buys something the cheap one cannot: it puts the split where
+  # the simulated plants are nitrogen limited, so the nitrogen pools feeding
+  # that limitation are live state at the instant the state file is written.
   - id: verify_lpj_restart_continuity
     script: biosphere/scripts/verify_lpj_restart_continuity.py
   # Is the executable a function of the model source, or of where the checkout
