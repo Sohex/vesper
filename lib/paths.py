@@ -54,18 +54,79 @@ class Climatology(NamedTuple):
     stage: str
 
 
+_PROJECT_ROOTS: tuple[Path, ...] | None = None
+
+
+def _project_roots() -> tuple[Path, ...]:
+    """Every absolute prefix that spells the same project tree.
+
+    THE WORKTREE IS WHY THERE IS MORE THAN ONE. `link_worktree.py` links a
+    worktree's ignored payload per file and per directory INTO THE MAIN
+    CHECKOUT, so `exoplasim/runs/run_x` inside a worktree resolves to a path
+    under the main checkout and is under the worktree root by no spelling at
+    all. A record written from a worktree therefore carried an absolute path
+    naming one machine's home directory, which is the half of world-fvpt that
+    reached a tracked artifact: a guard comparing a repo-relative stamp against
+    it can never match.
+
+    Computed once and cached. The git call is made only when the cheap
+    `relative_to` has already failed, so the common case pays nothing.
+    """
+    global _PROJECT_ROOTS
+    if _PROJECT_ROOTS is None:
+        import subprocess
+        roots = [PROJECT_ROOT, PROJECT_ROOT.resolve()]
+        try:
+            out = subprocess.run(
+                ["git", "rev-parse", "--path-format=absolute",
+                 "--show-toplevel", "--git-common-dir"],
+                cwd=PROJECT_ROOT, check=True, capture_output=True,
+                text=True).stdout.split()
+            if len(out) == 2:
+                roots += [Path(out[0]).resolve(), Path(out[1]).parent.resolve()]
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+        seen: list[Path] = []
+        for r in roots:
+            if r not in seen:
+                seen.append(r)
+        _PROJECT_ROOTS = tuple(seen)
+    return _PROJECT_ROOTS
+
+
 def rel(path: Path | str, root: Path | None = None) -> str:
     """Path relative to the project root, or absolute if it lies outside.
 
     Never raises. Use for anything printed to a human or written into a
     provenance record.
+
+    THREE SPELLINGS ARE TRIED, not one, and the order is cheapest first: the
+    path as given, the path resolved, and the path resolved against the OTHER
+    absolute prefixes of this same tree that `_project_roots` knows about. A
+    linked worktree is what makes the third necessary and a relative argument
+    from another working directory is what makes the second: both are project
+    paths that the first spelling alone reports as absolute or as unrelated.
+    An absolute return therefore now means the path is genuinely outside the
+    tree, which is what a reader of a provenance record has to be able to
+    assume.
     """
     p = Path(path)
     base = Path(root) if root is not None else PROJECT_ROOT
     try:
         return str(p.relative_to(base))
     except ValueError:
+        pass
+    try:
+        resolved = p.resolve()
+    except OSError:
         return str(p)
+    for candidate in ((base, base.resolve()) if root is not None
+                      else _project_roots()):
+        try:
+            return str(resolved.relative_to(candidate))
+        except ValueError:
+            continue
+    return str(p)
 
 
 def bootstrap_climatology_path(root: Path | None = None) -> Path:

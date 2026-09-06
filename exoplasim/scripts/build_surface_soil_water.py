@@ -549,7 +549,7 @@ def main() -> None:
         before = float(field[land].mean())
         field = np.where(land, (1.0 - f_lake) * field + f_lake * depth, field)
         lake_report = {
-            "source": str(args.lakes),
+            "source": rel(args.lakes),
             "lake_dwmax_m": depth,
             "mean_lake_fraction_of_land_cells": float(f_lake[land].mean()),
             "land_mean_dwmax_before_m": round(before, 5),

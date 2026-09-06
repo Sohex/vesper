@@ -6,19 +6,19 @@
   "generator_sha256": "ea2c0a9afe4728d210ab658a2adbf67a5bf9fb7117031be9b0f15bf9a03834a9",
   "schema_sha256": "e2b784b3cc1c0a332cd7b6fbc1e80db9e70d1653476abe1eddf0dee07ff9ba0c",
   "output": {
-    "path": "/home/cfutro/docs/world/exoplasim/inputs/templates/T42_l10_p8.rest",
+    "path": "exoplasim/inputs/templates/T42_l10_p8.rest",
     "sha256": "c6930d9542e957f9290eb0f36bcc546bd7a2f09e96a6f7ff8f65f2eef28093dd"
   },
   "cut_from": {
-    "run_dir": "/home/cfutro/docs/world/exoplasim/runs/run_61c53dd52f13",
+    "run_dir": "exoplasim/runs/run_61c53dd52f13",
     "run_id": "run_61c53dd52f13",
-    "restart": "/home/cfutro/docs/world/exoplasim/runs/run_61c53dd52f13/MOST_REST.00000",
+    "restart": "exoplasim/runs/run_61c53dd52f13/MOST_REST.00000",
     "restart_sha256": "3aec929a1f0157f37bdf63a3a0772c60e31e252f6176ce4310d559680e1f921c",
     "completed_orbits": null,
     "status": "prepared"
   },
   "executable": {
-    "path": "/home/cfutro/docs/world/exoplasim/runs/run_61c53dd52f13/most_plasim_t42_l10_p8.x",
+    "path": "exoplasim/runs/run_61c53dd52f13/most_plasim_t42_l10_p8.x",
     "sha256": "037c24e7cfebd6e15478ffe68be921f337a1db117143dc36a4aa2ab318298c98",
     "arm": null,
     "manifest_entry": {
@@ -26,7 +26,7 @@
       "sha256": "037c24e7cfebd6e15478ffe68be921f337a1db117143dc36a4aa2ab318298c98",
       "profile": "production",
       "effective_f90_opts": "-O2 -cpp -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -march=znver4 -funroll-loops -g -fopenmp -DOMPSHARED -fdefault-real-8",
-      "manifest": "/home/cfutro/docs/world/exoplasim/binary_manifest.json"
+      "manifest": "exoplasim/binary_manifest.json"
     },
     "note": "Built precision is not encoded in the filename. The registry's naming carries no precision at all, which is why `arm` below is the only statement of an arm's."
   },

@@ -686,6 +686,34 @@ def self_test() -> int:
          ["star.activity"],
          "otherwise the case above would pass on an edit that never happened")
 
+    # THE STAGED SOIL WATER FIELD AGAINST THE THRESHOLD ITS MASK IS CUT AT.
+    # WORLD-B12P. `build_surface_soil_water.py` never pulls
+    # `geography_land_threshold` out of the config, so the textual trace that
+    # builds these sets once called it inert; WORLD-QGB6 moved the builder onto
+    # surface code 0172, which IS cut at that threshold, and the value became
+    # load-bearing on what is staged. The trace in `check_consistency`'s own
+    # inert-vs-generator pass catches only the form where the generator still
+    # names the key in its source, so this case is what holds the disposition
+    # when the prose is reworded. The control beside it is what says the case is
+    # reading the set rather than calling every edit drift.
+    from provenance import SURFACE_INERT_CONFIG_KEYS as _SURFACE_INERT
+    _, thresholded = edited(
+        r"^(\s*geography_land_threshold:\s*)([0-9.]+)(.*)$",
+        lambda m: f"{m.group(1)}{float(m.group(2)) + 0.1}{m.group(3)}")
+    case("the land threshold is drift under the staged soil water field",
+         [d.split(":")[0] for d in
+          config_drift(base, thresholded, _SURFACE_INERT["surface_soil_water"])],
+         ["model.geography_land_threshold"],
+         "code 0172 is cut at it and the builder reads that mask, and the "
+         "mask's own hash does not move until build_boundary_conditions.py "
+         "re-runs")
+    _, ozone = edited(r"^(\s*ozone_scale:\s*)([0-9.]+)(.*)$",
+                      lambda m: f"{m.group(1)}{float(m.group(2)) + 0.1}{m.group(3)}")
+    case("an ozone edit is not drift under the same field",
+         config_drift(base, ozone, _SURFACE_INERT["surface_soil_water"]), [],
+         "no radiation constant reaches a soil water capacity, so the case "
+         "above is reading the inert set and not flagging every edit")
+
     # Every allowlist entry names a live key. `star.surface_uv` sat in the
     # resume guard's list excusing nothing, because the key is
     # `star.surface_uv_relative_to_earth`.

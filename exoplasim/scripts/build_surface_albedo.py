@@ -179,6 +179,7 @@ from rootable import read_rootable_partition
 
 sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
 from soil_albedo_wetting import sadeghi_mix  # noqa: E402
+from paths import rel  # noqa: E402
 
 # 174 broadband, 175 below 0.75 um, 176 above. With NSIMPLEALBEDO=0 the
 # radiation uses the two-band pair; 174 is written too so the broadband
@@ -560,7 +561,7 @@ def rock_wetting_ratios(path: Path, mesh_root: Path, arm: str
     return ratios, {
         "arm": arm,
         "arms_available": list(WETTING_ARMS),
-        "source": str(path),
+        "source": rel(path),
         "generated": table.get("generated"),
         "refused_classes": refused,
         "held_pair_bracket_passes": table["held_pair_bracket"]["passes"],
@@ -797,6 +798,46 @@ def main() -> None:
                          "exported_albedo": exported, "regions": int(sel.sum())}
         region_albedo[sel] = value
 
+    # HOW FAR THE STAGED LAND MEAN MOVES PER UNIT OF THIS CLASS'S ALBEDO.
+    # WORLD-SU9O. `scripts/error_budget.py` prices a class-albedo item as a step
+    # times this number, and it carried a literal 0.147 -- an AREA-shaped number
+    # standing where a staged-mean sensitivity belongs, which overstated the
+    # playa item by 1.727 and ranked it one place too high. It is not an area
+    # fraction and cannot be one: the repaints below take cells out of the
+    # class's reach, and the reduction to the grid weights a cell by its own
+    # land area while the land mean weights it by its Gaussian row.
+    #
+    # IT IS COMPUTED, NOT DIFFERENCED. Every operation between here and
+    # `final_mean` is affine in this class's albedo with coefficients that do
+    # not depend on it -- an overwrite zeroes the dependence, an area-weighted
+    # mean and the Gaussian land mean are linear, and `composite_rootable` is
+    # linear in the two albedo-carrying arrays it is handed -- so an INDICATOR
+    # carried through the identical arithmetic arrives as the exact derivative.
+    # That is why it can be emitted from the same run that stages the field
+    # rather than costing three of them, and it is what removed the declaration
+    # rather than putting a check beside it: `error_budget.py:land_mean_share`
+    # reads this key and refuses a report that carries none, so there is no
+    # second copy of the number to drift from the terrain it describes.
+    override_sensitivity = {code: (rock == spec["rock_id"]).astype(np.float64)
+                            for code, spec in applied.items()}
+
+    def effective_albedo(code: str) -> float:
+        """The albedo the field carries for this class, overrides applied.
+
+        THE ONE DOOR ONTO A CLASS LEVEL, and it exists because the repaints
+        below install a class's albedo onto ground Orogen called something else.
+        Reading the export's table there put the exported playa albedo onto
+        cells the same run had just given the OVERRIDDEN one, so one field
+        carried two levels for one material -- the level the override exists to
+        remove among them -- while `region_material`, `region_rho` and the
+        wetting pair all said playa. An override is a statement about what the
+        class IS, so it has to reach every cell painted as that class.
+        """
+        if code in applied:
+            return float(applied[code]["albedo"])
+        return float(next(r["albedo"] for r in mesh.manifest["lithology"]["rockClasses"]
+                          if r["code"] == code))
+
     # The two endmembers the error budget's biosphere item is the difference of,
     # captured here because this is the only place both are unambiguous.
     #
@@ -840,6 +881,14 @@ def main() -> None:
         # question by accident.
         region_wet1[veg_painted] = 1.0
         region_wet2[veg_painted] = 1.0
+        # Canopy is not a rock class, so a cell it covers carries no class's
+        # albedo and none of any class's sensitivity. The indicator is assigned
+        # at every site the albedo is assigned and at no other, which is what
+        # makes it the derivative of what is actually staged; here that
+        # assignment is zero for every class, and at the repaints below it is
+        # the class the cell is painted as.
+        for _s in override_sensitivity.values():
+            _s[veg_painted] = 0.0
         endmembers["vegetated"] = _land_mean(region_albedo)
 
     # Lakes, last, because a lake covers whatever lithology is under it and no
@@ -864,9 +913,7 @@ def main() -> None:
     evap_report = None
     if args.lakes is not None:
         area_r = mesh.cell_area.astype(np.float64)
-        water_albedo_value = float(next(
-            r["albedo"] for r in mesh.manifest["lithology"]["rockClasses"]
-            if r["code"] == "water"))
+        water_albedo_value = effective_albedo("water")
         with Dataset(args.lakes) as lds:
             lake = np.asarray(lds["lake"][:]).astype(bool)
             lake_terrain = getattr(lds, "terrain_hash", None)
@@ -919,12 +966,8 @@ def main() -> None:
                     depth_m = np.asarray(lds["lake_depth_km"][:]) * 1000.0
                 e_local = ev_grid[cellidx]
                 ephemeral = is_land & (depth_m > 0) & (depth_m <= e_local)
-                salt_a = float(next(r["albedo"] for r in
-                                    mesh.manifest["lithology"]["rockClasses"]
-                                    if r["code"] == "evaporite"))
-                playa_a = float(next(r["albedo"] for r in
-                                     mesh.manifest["lithology"]["rockClasses"]
-                                     if r["code"] == "playa_clastic"))
+                salt_a = effective_albedo("evaporite")
+                playa_a = effective_albedo("playa_clastic")
                 geo_salt = is_land & (mesh.substrate_class == evaporite_id)
                 before_e = float(np.average(region_albedo[is_land],
                                             weights=area_r[is_land]))
@@ -947,6 +990,15 @@ def main() -> None:
                 ew1, ew2 = rock_wet[evaporite_id]
                 region_wet1[ephemeral] = ew1
                 region_wet2[ephemeral] = ew2
+                # THE INDICATOR FOLLOWS THE MATERIAL, which is the whole reason
+                # a share is not an area fraction. The split moves ground into
+                # and out of the overridden class, so a cell repainted as playa
+                # gains the playa override's sensitivity and one repainted as
+                # salt crust loses it -- and it is `effective_albedo` above that
+                # makes the first of those true rather than merely intended.
+                for _code, _s in override_sensitivity.items():
+                    _s[geo_salt & ~ephemeral] = float(_code == "playa_clastic")
+                    _s[ephemeral] = float(_code == "evaporite")
                 after_e = float(np.average(region_albedo[is_land],
                                            weights=area_r[is_land]))
                 evap_report = {
@@ -956,7 +1008,7 @@ def main() -> None:
                     # The albedo now depends on a CLIMATOLOGY, which it did not
                     # before. Record which one: an evaporite split derived from
                     # another climate describes another world's salt flats.
-                    "climatology": str(args.climatology),
+                    "climatology": rel(args.climatology),
                     "orbital_year_seconds": year_s,
                     "geometric_salt_fraction_of_land":
                         float(area_r[geo_salt].sum() / area_r[is_land].sum()),
@@ -983,9 +1035,11 @@ def main() -> None:
         ww1, ww2 = rock_wet[_rock_id(mesh.root, "water")]
         region_wet1[paint_water] = ww1
         region_wet2[paint_water] = ww2
+        for _code, _s in override_sensitivity.items():
+            _s[paint_water] = float(_code == "water")
         after = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
         lake_report = {
-            "source": str(args.lakes),
+            "source": rel(args.lakes),
             "terrain_hash": lake_terrain,
             "lake_regions": int(lake.sum()),
             "lake_fraction_of_land": float(area_r[lake].sum() / area_r[is_land].sum()),
@@ -996,6 +1050,12 @@ def main() -> None:
         }
 
     fraction, alb_grid, _empty = land_weighted(mesh, grid_dir, region_albedo)
+    # The indicator through the SAME reduction, which is where a share stops
+    # being an area fraction: `land_weighted` normalises by the cell's own land
+    # area and the land mean below weights the cell by its Gaussian row.
+    sensitivity_grids = {code: land_weighted(mesh, grid_dir, s)[1]
+                         for code, s in override_sensitivity.items()}
+    sensitivity_refused = None
     # THE POPULATION IS GROUND, NOT OWNERSHIP. `geography_land_threshold` is
     # ExoPlaSim's binary 0.5 coastline rounding and it belongs to code 172 in
     # build_boundary_conditions.py, which is where the model's ownership mask is
@@ -1082,6 +1142,17 @@ def main() -> None:
                             "a per-cell factor, and the mixing of two scaled "
                             "endmembers is not the scaling of their mixing")
         alb_grid = scaled_grid
+        # REFUSED IN THIS MODE, not approximated. The clip is what makes the
+        # response piecewise: a cell against either rail stops responding to the
+        # class at all, and a finite step in the class albedo -- which is what
+        # the budget prices -- can carry a cell across the rail. A single share
+        # is then not the right shape for the item, so none is emitted rather
+        # than one that is exact only for an infinitesimal step.
+        sensitivity_grids = {}
+        sensitivity_refused = (
+            "--mode scaled clips the reduced field to [0.05, 0.80], so the "
+            "staged land mean is piecewise in a class albedo and a finite step "
+            "can cross a rail; a single share does not describe the item")
 
     # --- the loop closure -----------------------------------------------------
     # Blend the lithology substrate against what actually grew, cell by cell,
@@ -1249,6 +1320,20 @@ def main() -> None:
         composite, tree_cover, grass_cover, conditional_cover = composite_rootable(
             alb_grid, rootable_broadband, rootable,
             tree_fpc, grass_fpc, args.tree_albedo, args.grass_albedo)
+        # THE SAME BLEND ON THE INDICATOR. `composite_rootable` returns
+        # `total - root + (1 - cover) * root` plus canopy terms that carry no
+        # substrate albedo, and cover, rootable and the two FPCs do not depend
+        # on a class albedo -- so the composite is affine in its two substrate
+        # arrays and the indicator takes the identical combination. The rootable
+        # substrate contribution is gridded from the same selection the albedo's
+        # is.
+        for _code, _s in override_sensitivity.items():
+            _root = land_weighted(mesh, grid_dir,
+                                  np.where(native_rootable, _s, 0.0))[1]
+            _blend = (sensitivity_grids[_code] - _root
+                      + (1.0 - conditional_cover) * _root)
+            sensitivity_grids[_code] = np.where(land_cells, _blend,
+                                                sensitivity_grids[_code])
         alb_grid = np.where(land_cells, composite, alb_grid)
         total_cover = tree_cover + grass_cover
         pure_water = land_cells & (partition["water"] >= 1.0 - 2.0e-6)
@@ -1271,7 +1356,7 @@ def main() -> None:
 
         missing = int(land_cells.sum()) - matched
         vegetation_summary = {
-            "source": str(args.vegetation),
+            "source": rel(args.vegetation),
             "equilibrium_window": equilibrium_window,
             "rootable_surface": rootable_provenance,
             "rootable_partition_max_absolute_residual": partition_residual,
@@ -1301,14 +1386,12 @@ def main() -> None:
             "barren_and_lakes_masked": (
                 "BIO-11 rootable fraction excludes dry barren substrate and "
                 "persistent solved water, with overlap deducted once"),
-            "coordinate_source": str(args.climatology),
+            "coordinate_source": rel(args.climatology),
         }
 
     # Ocean cells carry the water value; ExoPlaSim computes ocean albedo itself,
     # so it is inert, but the array has to be full.
-    water_albedo = float(next(r["albedo"] for r in json.loads(
-        (mesh.root / "manifest.json").read_text(encoding="utf-8"))["lithology"]["rockClasses"]
-        if r["code"] == "water"))
+    water_albedo = effective_albedo("water")
     # --- the moisture term, declared absent -----------------------------------
     #
     # The ceiling on what a moisture-dependent soil albedo could be worth, and
@@ -1480,6 +1563,16 @@ def main() -> None:
         den = (land_cells.mean(axis=1) * gw).sum()
         return float(num / den) if den else 0.0
     final_mean = gmean(field)
+
+    # The last link, and the same one `final_mean` takes: `field` is `alb_grid`
+    # over land and the water value elsewhere, and `gmean` already masks to
+    # land, so the share is that mean of the reduced indicator.
+    for _code, _grid in sensitivity_grids.items():
+        applied[_code]["land_mean_share"] = gmean(np.where(land_cells, _grid, 0.0))
+    if sensitivity_refused is not None:
+        for _spec in applied.values():
+            _spec["land_mean_share"] = None
+            _spec["land_mean_share_refused"] = sensitivity_refused
 
     output.mkdir(parents=True, exist_ok=True)
     written = []
@@ -1671,7 +1764,7 @@ def main() -> None:
         for code in WET_ALBEDO_CODES:
             path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
             write_sra(path, code, wet_fields[code])
-            written.append(str(path))
+            written.append(rel(path))
         if knee_fields is not None:
             wetting_report["third_point"] = {
                 "staged": True,
@@ -1699,7 +1792,7 @@ def main() -> None:
             for code in KNEE_ALBEDO_CODES:
                 path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
                 write_sra(path, code, knee_fields[code])
-                written.append(str(path))
+                written.append(rel(path))
         else:
             wetting_report["third_point"] = {
                 "staged": False,
@@ -1716,15 +1809,15 @@ def main() -> None:
     for code in ALBEDO_CODES:
         path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
         write_sra(path, code, band_fields[code])
-        written.append(str(path))
+        written.append(rel(path))
     forest_path = output / f"orogen_{resolution}_surf_{FOREST_CODE:04d}.sra"
     write_sra(forest_path, FOREST_CODE, forest)
-    written.append(str(forest_path))
+    written.append(rel(forest_path))
 
     report = {
         "mode": mode,
-        "mesh": str(mesh.root),
-        "grid": str(grid_dir),
+        "mesh": rel(mesh.root),
+        "grid": rel(grid_dir),
         "resolution": resolution,
         "terrain_hash": mesh.terrain_hash,
         "codes": list(ALBEDO_CODES) + [FOREST_CODE]

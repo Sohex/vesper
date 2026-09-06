@@ -191,6 +191,54 @@ single share is the right shape. Code 212, the forest fraction, is
 byte-identical across all three, so the override moves albedo alone and the
 confound the endmember pairs had to disprove is absent here by construction.
 
+### The share is computed rather than differenced, and it is a property of the staging
+
+*Measured 2026-09-05, on `canonical-10m-carve2` at T21 in `vegetated` mode.*
+
+Every operation between the override and the staged land mean is affine in the
+class albedo with coefficients that do not depend on it: a repaint replaces the
+dependence, `land_weighted` and the Gaussian land mean are linear, and
+`composite_rootable` is linear in the two substrate arrays it is handed. So an
+INDICATOR carried through the identical arithmetic arrives as the exact
+derivative, and `build_surface_albedo.py` now emits it under each
+`lithology_albedo_overrides` entry from the same run that stages the field.
+
+Checked against the finite difference it replaces, on the invocation the staged
+report is built with -- no `--lakes`, so no lake paint and no derived evaporite
+split:
+
+| step in the class albedo | d(staged land mean) | finite-difference share | emitted minus differenced |
+| --- | ---: | ---: | ---: |
+| 0.23 to 0.25 | +0.0018649841 | 0.0932492048 | -1.8e-15 |
+| 0.23 to 0.33 | +0.0093249205 | 0.0932492048 | -1.4e-16 |
+| 0.25 to 0.33 | +0.0074599364 | 0.0932492048 | +2.9e-16 |
+
+Agreement at floating-point roundoff across a factor of five in step size, and
+one emitted value identical in all three runs, which is what an exactly linear
+response requires.
+
+**The share is not one number for the class; it is one number for the class ON A
+STAGING.** 0.0932492 above is the bootstrap-stage surface. The 0.0851423 in the
+table above it was taken on a surface this measurement cannot reproduce and the
+record does not name, and the same three generator runs that produced it were
+differencing a base land mean this one reproduces exactly. The repaints are what
+separate the two: the lake paint and the derived evaporite split take playa
+ground out of the class, so a with-lakes surface responds less to the override
+than a lakeless one does. A share measured on one and applied to the other prices
+the item as though it had been measured on it.
+
+That is why the number moved out of `scripts/error_budget.py` and into the report
+the items are priced against, rather than being redeclared with a check beside
+it. A report that carries no share is refused rather than fallen back on.
+
+**What this does to the arm sizing below.** The predicted separations are
+computed at the smaller share, so on a bootstrap-stage surface the
+`playa_clastic` arms perturb the staged land mean about 9.5% further than the
+table says: 0.25 to 0.33 gives 0.0074599 rather than 0.006811. The predictions
+are therefore conservative and `world-3ooi` does not need re-sizing, but the arm
+has to state which staging it is run on, because the two shares are different
+numbers and the arm's own perturbation is whichever one it is built at.
+
 **The instrument is the quadrature sum of the two fitted asymptote half-widths,
 and across every pair on disk it runs 0.028 to 0.067 K**, with PHYS-15's own
 16-orbit-span pair at 0.046 K. That range does not track the fit span, which
