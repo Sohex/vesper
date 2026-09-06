@@ -202,3 +202,85 @@ number this host cannot give today:** a cost per timestep for both schemes,
 measured rather than counted. The command is a wrapped `radstep` on
 `bench/bed_t170cold` under `perf`, with the candidate stood up far enough to run
 one column, on a machine with nothing else on it.
+
+## The buy criterion, fixed before the cost per timestep was measured
+
+Declared 2026-09-05, before the candidate had been compiled or run. The
+measurement that follows is judged against these and nothing else.
+
+**What the price is compared against is a COMMISSIONING, not a run.** One
+commissioning is the bootstrap plus the baseline plus their settling, and
+`lib/run_lengths.py` puts its span at 37.8 to 77.4 orbits. At the ladder's
+measured wall clock -- `notes/audits/resolution-ladder-wall-clock.md`, 13.45 s an
+orbit at T21, 75.74 at T42, 491.96 at T85 -- that is 8 to 17 minutes at T21, 48
+to 98 minutes at T42, and 5.2 to 10.6 hours at T85. The rung the criterion is
+stated at is T85, because that is where the answer changes.
+
+- **AFFORDABLE at a whole-model slowdown of 1.5x or less.** A T85 commissioning
+  stays inside one overnight, so the cadence of loop A is still set by the
+  physics rather than by the clock.
+- **MARGINAL between 1.5x and 3x.** Buyable, but the commissioning span has to be
+  re-derived against the new clock before it is, and the escalation route through
+  the rungs is a separate decision.
+- **PROHIBITIVE above 3x.** A T85 commissioning no longer fits a day, and the
+  iteration cadence of loop A becomes the binding constraint on the world.
+
+**And a second criterion that is not a time.** A thread team's working set on one
+die targets 32 MB. The candidate carries roughly (bands x k-terms x levels) more
+state per column than the broadband scheme, and at T170 on sixteen the model is
+already about eight times over that target
+(`docs/src/reference/environment.md`). So the increment is what is judged:
+**a candidate that adds more per-die state than the whole present radiation
+holds is a regression on the standing constraint whatever it costs in seconds**,
+and the disposition then is to block the columns rather than to refuse the
+scheme.
+
+**Rule 7 removes the other half of the arithmetic.** No canonical climatology
+lineage has been declared, so every build, run and climatology in the tree is
+disposable. The price of this swap is what the NEXT cycle runs. There is no
+invalidated output to weigh against it and none is priced in below.
+
+**What would make the measurement not a measurement.** The model's own startup at
+T21 is about 1.6 s (`where-the-time-goes.md`), and a 2.94 s bed against it
+returned a confident number with the wrong SIGN. Both arms below are therefore
+sized against their own startup and the size is stated.
+
+## The maintenance half, counted from the graph rather than asserted
+
+Read 2026-09-06 from `config/pipeline.yaml`. CLIM-61's case rests on seven manual
+per-star derivations that a band-resolved scheme would perform as configuration,
+and the count has always been the argument. What has never been established is
+how much of this project's per-star work that actually is.
+
+**A change to the stellar spectrum invalidates 77 steps**, taken as the
+transitive closure of `stellar_spectrum` through every `needs` in the graph.
+**Ten of those are per-star RADIATIVE re-derivations**: `shortwave_band_weights`,
+`cloud_band_weight`, `ice_albedo`, `playa_albedo`, `rock_albedo_bands`,
+`snow_albedo_grain`, `snow_albedo_zenith`, `soil_albedo_wetting`,
+`surface_albedo` and `vegetation_albedo`.
+
+**A band-resolved scheme retires TWO of the ten and leaves eight.** The seven
+corrections are written by `shortwave_band_weights` -- which produces
+`shortwave_band_weights.json` and `h2o_sw_level.json`, so `h2o_sw_weight`,
+`h2o_sw_level`, `co2_sw_weight`, `ozone_scale` and `ozone_uv_weight` are its --
+by `cloud_band_weight` for `cloud_absorption_scale`, and by
+`lib/stellar.py:ozone_visible_weight`. The other eight are SURFACE albedos, and
+the candidate does not touch them: its albedo argument is one broadband value per
+column, so a band-resolved atmosphere does not resolve the surface and PHYS-14
+stays a separate decision. That is a correction to this row's own framing, and it
+is against the swap rather than for it.
+
+**One of the two is inside the loop, and that is the part worth more than the
+count.** `shortwave_band_weights` declares `needs: [stellar_spectrum,
+baseline_climatology]`, so it is not a step a spectrum change simply re-runs: it
+reads a converged climatology, and re-deriving it after a spectrum change needs a
+commissioning first. `cloud_band_weight` needs only the spectrum. A band-resolved
+scheme re-weights its k-tables against a stellar spectrum with no run at all --
+`examples/trappist1/mk_ga_trappist` rewrites block 2 of a shortwave file and
+carries every other block over, with no `corr_k` pass -- so what it retires is
+one loop-coupled derivation and one standalone one.
+
+**The surface of the seven, for scale.** Eleven scripts, twenty notes, twenty run
+arm files and sixteen lines of `config/planet.yaml` name at least one of them.
+That is what a per-star re-derivation has to stay consistent across, and
+`check_consistency.py` is what holds it there.
