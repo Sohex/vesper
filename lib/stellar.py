@@ -470,6 +470,252 @@ def ozone_visible_weight(name: str | None = None) -> float:
     return star / sun
 
 
+# --- the photon currency ----------------------------------------------------
+#
+# A photosystem counts quanta and a radiation scheme carries joules, so
+# something has to convert between them, and the conversion is a property of
+# the SPECTRUM inside the window: a redder star delivers more photons per joule
+# because each photon carries less energy. That is why these live here beside
+# the band split rather than in the component that consumes them.
+
+PLANCK_CONSTANT_J_S = 6.62607015e-34
+SPEED_OF_LIGHT_M_S = 2.99792458e8
+AVOGADRO_PER_MOL = 6.02214076e23
+"""SI defining constants, exact since the 2019 redefinition. Not measurements."""
+
+EARTH_PHOTOSYSTEM_WINDOW_UM = (0.40, 0.70)
+"""The window Earth's photosynthesis constants are anchored to.
+
+The solar reference is always taken over THIS window, whatever window another
+world's photosystem is declared to use. Widening both sides of a ratio cancels
+most of the effect the ratio exists to carry.
+"""
+
+LPJ_GUESS_CQ_MOL_PER_J = 4.6e-6
+"""`canexch.h`'s shipped photon conversion, mol quanta per joule."""
+
+LPJ_GUESS_CQ_WAVELENGTH_NM = 550.0
+"""The wavelength `canexch.h` names for it.
+
+The shipped constant is `lambda / (h c N_A)` at one wavelength, not an integral,
+so `monochromatic_photon_conversion(550)` reproduces it to five figures and is
+an identity rather than an agreement. What the spectrum-weighted integral is
+worth against it is a separate statement, and `photon_conversion_identity`
+makes both.
+"""
+
+PHOTON_CONVERSION_QUADRATURE_TOLERANCE = 1.0e-5
+"""How far the two integration variables may disagree, relative.
+
+Set from the quadrature's own accuracy and not from any error it is meant to
+catch: integrating in wavelength and in frequency over the same samples differs
+by 7e-07 on this file for both the star and a solar Planck, and the tolerance is
+an order above that. It leaves the check able to fail at 400x below the 3.9%
+that moving the window from 400-700 to 400-750 nm is worth.
+"""
+
+SOLAR_PHOTON_CONVERSION_TOLERANCE = 0.02
+"""How far the Sun through this code may sit from `LPJ_GUESS_CQ_MOL_PER_J`.
+
+The spectrum-weighted solar integral over Earth's own window is 4.567e-06
+against the shipped 4.6e-06, which is 0.7% low and is the difference between a
+band mean and the single wavelength the constant names -- a real difference,
+not an error, so the bar is set above it. It is still an order below the 3.9%
+of a wrong window, 6.5% of the wrong star and any factor a units slip produces.
+"""
+
+
+def _window_samples(wavelength_m: np.ndarray, flux: np.ndarray,
+                    window_um: tuple[float, float]):
+    """A spectrum restricted to a window, with both edges interpolated onto it.
+
+    Interpolated rather than snapped to the nearest sample, for the reason
+    `_band_share` gives: the file's grid is logarithmic, so a snapped edge moves
+    the window by a fraction of a percent, and a fraction of a percent is the
+    size of the quantities this is used for.
+    """
+    lo, hi = float(window_um[0]), float(window_um[1])
+    if not hi > lo:
+        raise SystemExit(f"photosystem window {window_um} is not ascending")
+    um = np.asarray(wavelength_m, dtype=float) * 1.0e6
+    if lo < um[0] or hi > um[-1]:
+        raise SystemExit(
+            f"window {lo}-{hi} um reaches outside the spectrum, which spans "
+            f"{um[0]:.4f}-{um[-1]:.4f} um. Holding an endpoint value across the "
+            "gap would report an extrapolation as a measurement.")
+    inside = um[(um > lo) & (um < hi)]
+    edges = np.concatenate([[lo], inside, [hi]])
+    return edges * 1.0e-6, np.interp(edges, um, np.asarray(flux, dtype=float))
+
+
+def _spectrum(name: str | None, path: Path | None, temperature_k: float | None):
+    """The hi-res file, or a Planck curve sampled on that same grid.
+
+    ONE GRID for both sides of every ratio taken below, which is
+    `ozone_visible_weight`'s idiom and is load-bearing here for the same reason:
+    a window's share of a whole spectrum depends on where the spectrum starts.
+    The hi-res file starts at 0.2 um and the model's own blackbody grid at
+    `minwavel`, and a solar Planck evaluated on the second reports a 4.3% larger
+    share of Earth's own window than the same curve on the first, purely because
+    the ultraviolet between them is missing from its denominator. Sampling the
+    reference on the star's grid makes the ratio a difference between two
+    SPECTRA rather than between two integrations.
+    """
+    wavelength, flux = read_hires(path if path is not None
+                                  else spectrum_paths(name)[1])
+    if temperature_k is not None:
+        return wavelength, _planck(wavelength, float(temperature_k))
+    return wavelength, flux
+
+
+def _photon_conversion_in_wavelength(wavelength_m, flux, window_um) -> float:
+    """mol quanta per joule, integrating in wavelength."""
+    lam, f = _window_samples(wavelength_m, flux, window_um)
+    photons = float(np.trapezoid(f * lam, lam)) / (PLANCK_CONSTANT_J_S
+                                                   * SPEED_OF_LIGHT_M_S)
+    return photons / float(np.trapezoid(f, lam)) / AVOGADRO_PER_MOL
+
+
+def _photon_conversion_in_frequency(wavelength_m, flux, window_um) -> float:
+    """The same number, integrating in frequency.
+
+    The SECOND ROUTE, and it is a different arithmetic rather than a rearranged
+    one: the variable of integration is `c/lambda`, so the samples are unevenly
+    spaced where the wavelength route's are even and the trapezoid weights every
+    interval differently. `F_nu = F_lambda lambda^2 / c` is the change of
+    variable; the photon count is `F_nu / (h nu)`.
+    """
+    lam, f = _window_samples(wavelength_m, flux, window_um)
+    nu = SPEED_OF_LIGHT_M_S / lam
+    f_nu = f * lam ** 2 / SPEED_OF_LIGHT_M_S
+    order = np.argsort(nu)
+    nu, f_nu = nu[order], f_nu[order]
+    photons = float(np.trapezoid(f_nu / (PLANCK_CONSTANT_J_S * nu), nu))
+    return photons / float(np.trapezoid(f_nu, nu)) / AVOGADRO_PER_MOL
+
+
+def monochromatic_photon_conversion(wavelength_nm: float) -> float:
+    """`lambda / (h c N_A)`: mol quanta per joule of light at one wavelength.
+
+    No spectrum in it. This is what a constant quoted "at 550 nm" means, and it
+    is the identity the shipped LPJ-GUESS value is checked against.
+    """
+    return (float(wavelength_nm) * 1.0e-9
+            / (PLANCK_CONSTANT_J_S * SPEED_OF_LIGHT_M_S * AVOGADRO_PER_MOL))
+
+
+def photon_conversion(window_um: tuple[float, float],
+                      name: str | None = None, path: Path | None = None,
+                      temperature_k: float | None = None) -> float:
+    """mol quanta per joule of flux inside a photosystem window.
+
+    The flux-weighted mean of `lambda / (h c N_A)` over the window, which is the
+    conversion a canopy absorbing that window experiences. With `temperature_k`
+    the weighting is a Planck curve, which is how a solar reference is taken;
+    otherwise it is the named or configured stellar spectrum.
+
+    Both routes are computed and required to agree, so a caller cannot get a
+    number out of this without the closure test having passed on the very
+    spectrum and window it asked about.
+    """
+    wavelength, flux = _spectrum(name, path, temperature_k)
+    in_lambda = _photon_conversion_in_wavelength(wavelength, flux, window_um)
+    in_nu = _photon_conversion_in_frequency(wavelength, flux, window_um)
+    if abs(in_nu - in_lambda) > PHOTON_CONVERSION_QUADRATURE_TOLERANCE * in_lambda:
+        raise SystemExit(
+            f"the photon conversion over {window_um} integrates to "
+            f"{in_lambda:.6e} in wavelength and {in_nu:.6e} in frequency, a "
+            f"relative gap of {abs(in_nu - in_lambda) / in_lambda:.2e}. One of "
+            "the two changes of variable is wrong, or the window is sampled too "
+            "coarsely to integrate.")
+    return in_lambda
+
+
+def window_energy_fraction(window_um: tuple[float, float],
+                           name: str | None = None, path: Path | None = None,
+                           temperature_k: float | None = None) -> float:
+    """The share of a spectrum's whole integrated flux inside a window.
+
+    The energy half of the pair `photon_conversion` is the photon half of. Both
+    read the SAME file over the SAME window, which is the whole point: the two
+    are multiplied together to get a photon supply, and the error decomposes
+    into a window part and a star part only while neither of them is measured on
+    a different basis from the other.
+
+    The denominator is the whole spectrum, so it is taken from the hi-res file
+    and never from the low-resolution companion: `k25v.dat` starts at 0.34 um
+    and drops the ultraviolet a solar reference carries, which inflates the
+    Sun's share of its own truncated total and deflates any ratio against it.
+    """
+    wavelength, flux = _spectrum(name, path, temperature_k)
+    lam, f = _window_samples(wavelength, flux, window_um)
+    return float(np.trapezoid(f, lam)) / float(np.trapezoid(flux, wavelength))
+
+
+def photon_conversion_identity(
+        name: str | None = None,
+        tolerance: float = SOLAR_PHOTON_CONVERSION_TOLERANCE) -> dict:
+    """Reproduce what the other side already knows about this conversion, or raise.
+
+    TWO STATEMENTS WITH RIGHT ANSWERS, neither of them a comparison between two
+    formulations of this project's own:
+
+    - `canexch.h` names 550 nm, and `lambda / (h c N_A)` there is 4.5976e-06.
+      Rounded to the two figures the header carries, that IS 4.6e-06, so the
+      shipped constant is monochromatic and its derivation is now stated rather
+      than inherited. A units slip anywhere in this block moves it by orders.
+    - The Sun's spectrum through the SAME integral over Earth's OWN 400-700 nm
+      window is 4.567e-06, 0.7% below the monochromatic value because the band
+      mean is not the value at 550 nm. That is the code being run against the
+      only figure that exists independently of it.
+
+    Returns both, and the star's own conversion is only ever taken after this
+    has passed.
+    """
+    monochromatic = monochromatic_photon_conversion(LPJ_GUESS_CQ_WAVELENGTH_NM)
+    if abs(monochromatic - LPJ_GUESS_CQ_MOL_PER_J) > 0.005 * LPJ_GUESS_CQ_MOL_PER_J:
+        raise SystemExit(
+            f"{LPJ_GUESS_CQ_WAVELENGTH_NM} nm gives {monochromatic:.6e} mol/J "
+            f"against canexch.h's {LPJ_GUESS_CQ_MOL_PER_J}. The shipped constant "
+            "is not the monochromatic conversion this claims it is.")
+    solar = photon_conversion(EARTH_PHOTOSYSTEM_WINDOW_UM, name=name,
+                              temperature_k=SOLAR_EFFECTIVE_TEMPERATURE_K)
+    if abs(solar - LPJ_GUESS_CQ_MOL_PER_J) > tolerance * LPJ_GUESS_CQ_MOL_PER_J:
+        raise SystemExit(
+            f"a {SOLAR_EFFECTIVE_TEMPERATURE_K} K spectrum over "
+            f"{EARTH_PHOTOSYSTEM_WINDOW_UM} um gives {solar:.6e} mol/J against "
+            f"canexch.h's {LPJ_GUESS_CQ_MOL_PER_J}. This module no longer "
+            "reproduces the figure it is supposed to reproduce.")
+    return {"monochromatic_550nm": monochromatic,
+            "solar_over_earth_window": solar,
+            "shipped": LPJ_GUESS_CQ_MOL_PER_J}
+
+
+def photosystem_photon_conversion(window_um: tuple[float, float],
+                                  name: str | None = None) -> dict:
+    """This world's photon conversion over a declared window, with its controls.
+
+    THE ONE ACCESSOR. Read it; do not integrate a spectrum yourself and do not
+    copy the result into a header, a script or a note. The controls run first,
+    so no caller can obtain the number without them having passed, and the solar
+    reference travels back with it because the distance from Earth's figure is
+    the finding rather than the number alone.
+    """
+    controls = photon_conversion_identity(name=name)
+    star = photon_conversion(window_um, name=name)
+    solar_same_window = photon_conversion(
+        window_um, name=name, temperature_k=SOLAR_EFFECTIVE_TEMPERATURE_K)
+    return {
+        "window_um": [float(window_um[0]), float(window_um[1])],
+        "star_mol_per_j": star,
+        "solar_same_window_mol_per_j": solar_same_window,
+        "stellar_shift": star / solar_same_window,
+        "window_shift": solar_same_window / controls["solar_over_earth_window"],
+        "against_shipped": star / controls["shipped"],
+        "controls": controls,
+    }
+
+
 def band1_fraction(name: str | None = None) -> float:
     """The canonical band-1 share for this world's star.
 
@@ -506,3 +752,23 @@ if __name__ == "__main__":
     print(f"  this star, as coded  : "
           f"{rayleigh_coefficient(as_the_model_does=True):.6f}  "
           "(the mismatched reference grid; 3.4x too weak)")
+    print()
+    print("Photon currency, mol quanta per joule inside the window")
+    controls = photon_conversion_identity()
+    print(f"  {LPJ_GUESS_CQ_WAVELENGTH_NM:.0f} nm, monochromatic : "
+          f"{controls['monochromatic_550nm']:.4e}  "
+          f"(canexch.h says {LPJ_GUESS_CQ_MOL_PER_J:.1e})")
+    print(f"  the Sun over {EARTH_PHOTOSYSTEM_WINDOW_UM[0]}-"
+          f"{EARTH_PHOTOSYSTEM_WINDOW_UM[1]} um  : "
+          f"{controls['solar_over_earth_window']:.4e}  (the control)")
+    for window in ((0.40, 0.70), (0.40, 0.75)):
+        report = photosystem_photon_conversion(window)
+        print(f"  this star over {window[0]}-{window[1]} um: "
+              f"{report['star_mol_per_j']:.4e}  "
+              f"window x{report['window_shift']:.4f}, "
+              f"star x{report['stellar_shift']:.4f}, "
+              f"against the shipped constant x{report['against_shipped']:.4f}")
+        print(f"    energy share of shortwave  : "
+              f"{window_energy_fraction(window):.6f}  "
+              f"(the Sun over its own window: "
+              f"{window_energy_fraction(EARTH_PHOTOSYSTEM_WINDOW_UM, temperature_k=SOLAR_EFFECTIVE_TEMPERATURE_K):.6f})")

@@ -1688,7 +1688,14 @@ void transfer_litter(Patch& patch) {
 
 	Soil& soil = patch.soil;
 
-	double lat = patch.get_climate().lat;
+	// VESPER. The month the summergreen canopy sheds in, from the coldest day
+	// Climate derives per gridcell from its own temperature forcing. The
+	// vendored source read a hemisphere off the latitude and dropped the
+	// litter in January or July, which are Earth calendar months on a year
+	// that is not twelve of anything here. It is the same landmark the
+	// summergreen degree-day sum and the annual leaf-on sum reset on, so the
+	// canopy sheds into the season its phenology restarts in.
+	int coldest_month = date.month_of(patch.get_climate().coldest_day);
 
 	double EPS = -1.0e-16;
 
@@ -1718,8 +1725,8 @@ void transfer_litter(Patch& patch) {
 	while (patch.pft.isobj) {
 		Patchpft& pft=patch.pft.getobj();
 
-		// For stands with yearly growth, drop leaf and root litter on first month of the year for northern hemisphere
-		// and first month of the second half of the year for southern hemisphere for summergreen trees. For evergreens
+		// For stands with yearly growth, drop leaf and root litter over the month
+		// containing this gridcell's coldest day for summergreen trees. For evergreens
 		// as a fraction every day and for raingreens on the drierst month from last year. 
 		// For stands with daily growth, harvest and/or turnover, do this when patch.is_litter_day is true.
 
@@ -1731,9 +1738,9 @@ void transfer_litter(Patch& patch) {
 		if (patch.is_litter_day) {
 			frac_lr = 1.0;
 		}
-		// For summergreens drop leaf litter over all days during Jan in NH and July SH
+		// For summergreens drop leaf litter over all days of the coldest month
 		// and raingreens on the month with lowest phen
-		else if ((pft.pft.phenology == SUMMERGREEN && ((lat >= 0.0 && date.month == 0) || (lat < 0.0 && date.month == 6))) ||
+		else if ((pft.pft.phenology == SUMMERGREEN && date.month == coldest_month) ||
 			(pft.pft.phenology == RAINGREEN && date.month == pft.driest_mth)) {
 			frac_lr = 1.0 / (date.ndaymonth[date.month] - date.dayofmonth);
 		}

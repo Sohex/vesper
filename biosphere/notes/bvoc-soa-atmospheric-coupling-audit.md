@@ -133,7 +133,9 @@ Several constants are explicitly Earth-specific:
 
 - `daytime_temp()` maps daylength to radians with `/24`, while Vesper rotates in
   30 h and a forcing step covers 0.8 rotation;
-- the standard conversion assumes a 12 h light period and Earth `CQ`;
+- the standard conversion assumes a 12 h light period; its `CQ` is now
+  `VESPER_CQ`, derived over the declared window on this star's spectrum,
+  so what remains Earth-specific here is the light period;
 - seasonality uses an 11 h photoperiod threshold, a 5 C threshold, GDD and a
   fixed 0.05 d-1 decay;
 - monoterpene storage uses 2, 80 and 365 **day** time constants;

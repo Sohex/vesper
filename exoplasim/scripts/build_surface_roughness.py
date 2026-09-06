@@ -38,6 +38,24 @@ value, everything else takes a canopy value scaled by forest fraction. It is
 integrated to the grid over land only, so a coastal cell is not dragged toward
 open water.
 
+**Under `model.land_albedo_source: modelled` the canopy is the one that grew.**
+The forest fraction the other modes imply is an assumption about land cover,
+and the albedo field stopped making it as soon as an LPJ-GUESS run existed to
+read. While this field went on making it, one cell could be optically forest and
+aerodynamically bare ground, and the surface energy balance was reporting on
+two worlds at once. It now reads the same run's `fpc.out` through the same
+reader and multiplies it by BIO-11's rootable fraction through the same
+`rootable_cover_shares`, so both fields describe one cover. Solved water and dry
+barren keep the roughness the native mesh gave them, and the orographic term is
+taken on the cover roughness the mixture produces.
+
+The cover mixture is taken in `ce` for the reason the region reduction is: tree,
+grass and uncovered rootable ground are FRACTIONS of a cell's rootable area with
+no position on the mesh, forest and bare ground are two orders apart in `z0`,
+and `ce` is logarithmic in it, so mixing the lengths one scale further down
+repeats the same error at the same place -- a canopy minority setting a
+mostly-bare cell's exchange.
+
 **It is integrated in `ce`, not in the length.** The model applies one exchange
 coefficient to a whole cell and the turbulent flux is linear in it, so what the
 cell owes the atmosphere is the area mean of `ce` over its own surfaces, and the
@@ -234,9 +252,11 @@ from builds import resolution_of, grid_export, mesh_export
 # cover. Re-deriving it here would be two formulations of one quantity, which
 # is failure class 17. The same idiom continue_exoplasim.py uses on
 # run_exoplasim.py, and for the same reason.
-from build_surface_albedo import MODE_FOREST_FRACTION
-from gridding import (cell_expectation, cell_mean, cell_moments, gaussian_grid,
-                      region_cells, transfer_ledger)
+from build_surface_albedo import (MODE_FOREST_FRACTION, foliar_cover_on_grid,
+                                  read_foliar_cover, rootable_cover_shares)
+from rootable import read_rootable_partition
+from gridding import (cell_expectation, cell_fraction, cell_mean, cell_moments,
+                      gaussian_grid, region_cells, transfer_ledger)
 from provenance import config_stamp
 from orogen import Export, LAND
 # ONE derivation of the height a bulk transfer coefficient is taken over.
@@ -661,6 +681,20 @@ def main() -> None:
                          "model.land_albedo_source, the same override "
                          "build_surface_albedo.py takes, for a pair that "
                          "moves both fields together")
+    ap.add_argument("--vegetation", type=Path, default=None,
+                    help="fpc.out from an accepted LPJ-GUESS run. Required "
+                         "under model.land_albedo_source: modelled, which is "
+                         "the mode in which the canopy this field describes is "
+                         "the canopy the albedo field describes")
+    ap.add_argument("--vegetation-peer", type=Path, action="append", default=[],
+                    help="comparable LPJ run for the equilibrium reducer's "
+                         "stochastic spread; repeat")
+    ap.add_argument("--rootable", type=Path, default=None,
+                    help="BIO-11 rootable-fraction artifact; default the "
+                         "active build and rung")
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="the climatology the LPJ-GUESS driver was built from, "
+                         "for its coordinate labels. Required with --vegetation")
     ap.add_argument("--lakes", type=Path, default=None,
                     help="surface_water.nc; open water is smooth, so lake "
                          "regions take the ocean value before integration")
@@ -716,10 +750,31 @@ def main() -> None:
     # `model.forest_fraction_assumed`, a key the config does not carry, so it
     # silently used zero forest while 212 asserted half a canopy; that is
     # CLIM-36. An explicit --forest-fraction still overrides, for a sensitivity
-    # pair. `modelled` is absent from the mapping because it does not imply a
-    # fraction, it reads tree cover per cell, so it falls back to no blend here
-    # until this reads that field too.
+    # pair.
+    #
+    # `modelled` is absent from the mapping because it does not imply a
+    # fraction: it reads tree and grass cover PER CELL from the LPJ-GUESS run,
+    # and this file reads the same field through the same reader below. That is
+    # BIO-16 and it is what closes the aerodynamic half of the vegetation
+    # feedback. Until it did, this field asserted one canopy over all land while
+    # the albedo field carried another, so a cell could be optically forest and
+    # aerodynamically bare ground, and the surface energy balance was reporting
+    # on two different worlds.
     mode = str(model.get("land_albedo_source", "lithology"))
+    modelled_cover = mode == "modelled"
+    if args.vegetation is not None and not modelled_cover:
+        raise SystemExit(
+            f"--vegetation was given but model.land_albedo_source is {mode!r}, "
+            "so the albedo field is not reading the LPJ run either. Deriving "
+            "the roughness from a canopy the albedo does not have is the "
+            "mismatch this arm exists to close, in the other direction.")
+    if modelled_cover and args.vegetation is None:
+        raise SystemExit(
+            "model.land_albedo_source is 'modelled', so the roughness comes "
+            "from the same LPJ-GUESS cover the albedo does. Pass --vegetation "
+            "<run>/fpc.out and --climatology, the one its driver was built "
+            "from. There is no per-mode fraction to fall back to and falling "
+            "back is what put two land covers in one surface.")
     forest_fraction = (args.forest_fraction if args.forest_fraction is not None
                        else MODE_FOREST_FRACTION.get(mode))
     forest_fraction = float(forest_fraction) if forest_fraction else None
@@ -729,6 +784,7 @@ def main() -> None:
                      + forest_fraction * args.forest_z0)
     z0_surface = np.where(barren, args.bare_z0, canopy_z0)
 
+    lake_mask = np.zeros(is_land.shape, dtype=bool)
     if args.lakes is not None:
         from netCDF4 import Dataset
         with Dataset(args.lakes) as lds:
@@ -738,7 +794,8 @@ def main() -> None:
             raise SystemExit(
                 f"lake solution is on terrain {lake_terrain[:16]}, mesh is "
                 f"{mesh.terrain_hash[:16]}; re-run surface_water.py")
-        z0_surface = np.where(lake & is_land, OCEAN_Z0_M, z0_surface)
+        lake_mask = lake & is_land
+        z0_surface = np.where(lake_mask, OCEAN_Z0_M, z0_surface)
 
     # Orographic term: the standard deviation of elevation among the mesh regions
     # inside each cell, which is subgrid relief by construction. `cell_moments`
@@ -756,6 +813,103 @@ def main() -> None:
 
     def land_mean(field):
         return float((field * weight).sum() / weight.sum())
+
+    # -- THE MODELLED CANOPY, read from the run the albedo field reads --------
+    #
+    # `cover_weights` is None in every mode that implies one cover for all land,
+    # and the reduction below is then exactly what it always was. Under
+    # `modelled` it is the four populations a land cell is made of -- tree,
+    # grass, uncovered rootable ground, and the non-rootable water and barren
+    # the mesh placed -- each with the share of the cell it occupies.
+    #
+    # The shares come from `build_surface_albedo.rootable_cover_shares`, the one
+    # derivation of how much canopy a cell carries, not from a second reading of
+    # the same run. LPJ FPC is conditional on the rootable environment and is
+    # multiplied by BIO-11's rootable fraction exactly once, there.
+    cover_weights = None
+    # BIO-11's three populations, on the mesh. A lake over barren ground is a
+    # lake, which is the order the albedo builder's native masks take too.
+    sel_water = lake_mask & is_land
+    sel_barren = barren & is_land & ~sel_water
+    sel_root = is_land & ~barren & ~sel_water
+    sel_non = sel_water | sel_barren
+    vegetation_provenance = None
+    if modelled_cover:
+        if args.climatology is None or not args.climatology.is_file():
+            raise SystemExit(
+                "--vegetation needs --climatology, the same one the LPJ-GUESS "
+                "driver was built from. Its coordinate labels are the run's "
+                "own; the export's planet.nc labels the same grid differently "
+                "and matching against it returns zero cells.")
+        from netCDF4 import Dataset as _Dataset
+        with _Dataset(args.climatology) as data:
+            lat_axis = np.asarray(data["lat"][:], dtype=float)
+            lon_axis = np.asarray(data["lon"][:], dtype=float)
+        table, equilibrium_window = read_foliar_cover(
+            args.vegetation, args.vegetation_peer)
+        tree_fpc, grass_fpc, matched = foliar_cover_on_grid(
+            table, lat_axis, lon_axis, land_cells)
+        partition, rootable_provenance = read_rootable_partition(
+            config, lat_axis, lon_axis, args.rootable, land=land_cells)
+        rootable = partition["rootable"]
+
+        # The same check the albedo builder makes, for the same reason: the
+        # artifact is what the algebra uses, and the native masks supplied to
+        # THIS builder have to be the population it was built from. Compositing
+        # two worlds is how a cell ends up with more surface than it has.
+        native = {
+            "rootable": cell_fraction(cells, n, area, sel_root, sel)[0],
+            "water": cell_fraction(cells, n, area, sel_water, sel)[0],
+            "barren": cell_fraction(cells, n, area, sel_barren, sel)[0],
+        }
+        partition_residual = max(
+            float(np.max(np.abs(native[name].reshape(nlat, nlon)[land_cells]
+                                - partition[name][land_cells])))
+            for name in partition)
+        if partition_residual > 2.0e-6:
+            raise SystemExit(
+                "the lake/barren inputs supplied to surface roughness disagree "
+                f"with BIO-11's rootable partition by {partition_residual:.3e}; "
+                "rebuild both from the same derived surface rather than "
+                "compositing two worlds")
+
+        tree_share, grass_share, _ = rootable_cover_shares(
+            rootable, tree_fpc, grass_fpc)
+        bare_share = np.clip(rootable - tree_share - grass_share, 0.0, None)
+        nonroot_share = np.clip(1.0 - rootable, 0.0, 1.0)
+        cover_weights = [
+            (tree_share.reshape(-1), args.forest_z0),
+            (grass_share.reshape(-1), args.canopy_z0),
+            (bare_share.reshape(-1), args.bare_z0),
+            (nonroot_share.reshape(-1), None),
+        ]
+        # THE PARTITION IS AN IDENTITY AND IS CHECKED AS ONE. Tree, grass, what
+        # neither covers, and the non-rootable remainder are the whole of a land
+        # cell. If they do not sum to one the reduction below silently drops or
+        # double-counts area, and the roughness written out is an average over a
+        # cell that is not this one. There is a right answer here rather than a
+        # plausible one.
+        weight_sum = (tree_share + grass_share + bare_share + nonroot_share)
+        worst = float(np.max(np.abs(weight_sum[land_cells] - 1.0)))
+        if worst > 1e-9:
+            raise SystemExit(
+                f"the cover partition does not sum to one: worst residual "
+                f"{worst:.3e} over {int(land_cells.sum())} land cells. Nothing "
+                "was written.")
+
+        vegetation_provenance = {
+            "vegetation": str(args.vegetation),
+            "climatology": str(args.climatology),
+            "cells_matched": matched,
+            "equilibrium_window": equilibrium_window,
+            "rootable_surface": rootable_provenance,
+            "rootable_partition_max_absolute_residual": partition_residual,
+            "land_mean_tree_share": land_mean(tree_share),
+            "land_mean_grass_share": land_mean(grass_share),
+            "note": "tree, grass and uncovered rootable ground are mixed in ce "
+                    "over the cell's rootable regions; solved water and dry "
+                    "barren keep the roughness the native mesh gave them",
+        }
 
     # THE SURFACE TERM IS REDUCED IN THE EXCHANGE COEFFICIENT, NOT IN THE LENGTH.
     #
@@ -789,10 +943,13 @@ def main() -> None:
     # is the whole of Mason's finding. The height depends on the roughness it is
     # averaging, so it is iterated, as he prescribes.
 
-    def region_z0(k_oro: float) -> np.ndarray:
+    def region_z0_from(surface_z0: np.ndarray, k_oro: float) -> np.ndarray:
         """Total roughness PER MESH REGION, the two terms in quadrature."""
-        return np.sqrt(z0_surface ** 2
+        return np.sqrt(np.asarray(surface_z0, dtype=np.float64) ** 2
                        + (k_oro * sigma_m.reshape(-1)[cells]) ** 2)
+
+    def region_z0(k_oro: float) -> np.ndarray:
+        return region_z0_from(z0_surface, k_oro)
 
     def reduce_ce(k_oro: float, z_ref: float):
         """`(cell z0, ce expectation, ce of the mean length, covered)`.
@@ -802,9 +959,35 @@ def main() -> None:
         a caller cannot hand it a field that has already been reduced. The
         three bincounts that used to be here were the same reduction written a
         second time, which is what `lib/gridding.py` exists to stop.
+
+        WITH A MODELLED CANOPY THE MIXTURE IS ALSO IN `ce`. The cover shares
+        inside a cell's rootable ground -- tree, grass and what neither covers
+        -- are FRACTIONS with no position on the mesh, so mixing their lengths
+        first repeats, one scale down, exactly the error mixing region lengths
+        makes: forest and bare ground are two orders apart in `z0`, and `ce` is
+        logarithmic in it, so a mostly-bare cell with a canopy minority has its
+        exchange set by the minority once the lengths are mixed. Each cover
+        takes the same reduction over the same rootable regions, and the four
+        expectations are combined with the cover shares, which is linear and is
+        where the mixture belongs.
         """
-        ce_bar, z0_bar, covered = cell_expectation(
-            cells, n, area, lambda v: neutral_ce(v, z_ref), region_z0(k_oro), sel)
+        law = lambda v: neutral_ce(v, z_ref)
+        if cover_weights is None:
+            ce_bar, z0_bar, covered = cell_expectation(
+                cells, n, area, law, region_z0(k_oro), sel)
+        else:
+            ce_bar = np.zeros(n)
+            z0_bar = np.zeros(n)
+            for weight, surface in cover_weights:
+                population = sel_non if surface is None else sel_root
+                values = (region_z0(k_oro) if surface is None
+                          else region_z0_from(np.full(z0_surface.shape, surface),
+                                              k_oro))
+                part, mean, part_covered = cell_expectation(
+                    cells, n, area, law, values, population)
+                ce_bar += weight * np.where(part_covered, part, 0.0)
+                z0_bar += weight * np.where(part_covered, mean, 0.0)
+            covered = covered_land
         out = np.zeros(n)
         np.copyto(out, effective_length(ce_bar, z_ref), where=covered)
         return (out.reshape(nlat, nlon), ce_bar,
@@ -813,6 +996,46 @@ def main() -> None:
     def effective_z0(k_oro: float, z_ref: float) -> np.ndarray:
         """Cell roughness whose `ce` is the area mean of the regions' own."""
         return reduce_ce(k_oro, z_ref)[0]
+
+    # THE MIXTURE IS CHECKED AGAINST THE REDUCTION IT GENERALISES. Give every
+    # cover inside the rootable ground one roughness and the split expectation
+    # must equal a single-cover reduction over one array carrying that roughness
+    # on rootable regions and the mesh's own value elsewhere. The law is the
+    # same law and the populations are a partition of the cell's land, so this
+    # has a right answer rather than a plausible one, and it fails if the
+    # populations, the areas or the combination ever stop being each other's
+    # complement.
+    #
+    # THE WEIGHTS HERE ARE THE MESH'S OWN AREA FRACTIONS, not BIO-11's, which is
+    # what makes the tolerance meaningful: the two agree only to the 2e-6 the
+    # partition check above allows, so a control weighted by the artifact could
+    # not be held to anything tighter than that bar and would be measuring the
+    # bar rather than the reduction.
+    if cover_weights is not None:
+        control_z0, control_height = 0.1, 10.0
+        control_law = lambda v: neutral_ce(v, control_height)
+        control_surface = np.where(sel_root, control_z0, z0_surface)
+        root_frac, _ = cell_fraction(cells, n, area, sel_root, sel)
+        non_frac, _ = cell_fraction(cells, n, area, sel_non, sel)
+        mixed = np.zeros(n)
+        for share, population, values in (
+                (root_frac, sel_root,
+                 region_z0_from(np.full(z0_surface.shape, control_z0), 0.0)),
+                (non_frac, sel_non, region_z0_from(control_surface, 0.0))):
+            part, _, part_covered = cell_expectation(
+                cells, n, area, control_law, values, population)
+            mixed += share * np.where(part_covered, part, 0.0)
+        direct, _, direct_covered = cell_expectation(
+            cells, n, area, control_law, region_z0_from(control_surface, 0.0), sel)
+        worst = float(np.max(np.abs(
+            mixed[direct_covered] / direct[direct_covered] - 1.0)))
+        if worst > 1e-9:
+            raise SystemExit(
+                f"the cover mixture does not reproduce the single-cover "
+                f"reduction on a uniform cover: worst relative residual "
+                f"{worst:.3e}. The populations are not a partition of the "
+                "cell's land, or the shares are not their areas. Nothing was "
+                "written.")
 
     # The mesh spacing, per cell: the scale over which the cover varies, which
     # is what sets the blending height, and the scale the resolved slope belongs
@@ -1039,7 +1262,16 @@ def main() -> None:
         "replaces_uniform": EXOPLASIM_DZ0LAND_M,
         "surface_z0_m": {"bare": args.bare_z0, "canopy": canopy_z0,
                          "forest": args.forest_z0,
+                         "cover_source": mode,
                          "forest_fraction_used": forest_fraction},
+        # WHERE THE COVER CAME FROM, and it is the same place code 174 and code
+        # 212 came from or it is a per-mode fraction. Null under every mode that
+        # implies one cover for all land; under `modelled` it names the LPJ run,
+        # the climatology whose labels matched it, BIO-11's rootable partition
+        # and the equilibrium window the cover was reduced over. That edge is
+        # the aerodynamic half of the vegetation feedback and it is a BACK edge
+        # in loop C: config/pipeline.yaml carries it on this step's `needs`.
+        "modelled_cover": vegetation_provenance,
         # THE ANCHOR, AND BOTH ENDS OF THE BRACKET IT SITS AT.
         #
         # `arm` is the end that was WRITTEN. `earth_reference` is the high end,

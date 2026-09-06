@@ -372,6 +372,80 @@ def read_foliar_cover(path: Path, peers: list[Path] | None = None):
     return cover, reduced.report
 
 
+def foliar_cover_on_grid(cover: dict, lat_axis, lon_axis, land_cells):
+    """Tree and grass FPC per model cell, from an fpc.out table and ONE axis pair.
+
+    Coordinates come from the climatology the LPJ-GUESS driver was built from,
+    never from the export's planet.nc, and this is not a preference. The two
+    label the same grid differently -- planet.nc runs its longitudes from
+    -178.5938, ExoPlaSim's output from 0, offset by half a cell and an origin --
+    and the GRIDS are identical: taking the land mask from each gives the same
+    cells and 100% cellwise agreement. Only the labels disagree. LPJ-GUESS's
+    printed coordinates descend from the driver file, so matching against
+    planet.nc's labels returns ZERO cells out of thousands, and that failure has
+    now happened three times in this project on three different scripts. Share
+    the coordinate source; never reconstruct one.
+
+    Returns `(tree_fpc, grass_fpc, matched)`, conditional on the rootable
+    environment because that is what LPJ reports.
+    """
+    lat_axis = np.asarray(lat_axis, dtype=float)
+    lon_axis = np.asarray(lon_axis, dtype=float)
+    land_cells = np.asarray(land_cells, dtype=bool)
+    shape = (len(lat_axis), len(lon_axis))
+    if land_cells.shape != shape:
+        raise SystemExit(
+            f"the climatology grid is {shape[0]}x{shape[1]} but the surface "
+            f"grid is {land_cells.shape[0]}x{land_cells.shape[1]}")
+    lon_signed = np.where(lon_axis > 180.0, lon_axis - 360.0, lon_axis)
+    tree_fpc = np.zeros(shape)
+    grass_fpc = np.zeros(shape)
+    matched = 0
+    for j in range(shape[0]):
+        for i in range(shape[1]):
+            if not land_cells[j, i]:
+                continue
+            entry = cover.get((round(float(lon_signed[i]), 2),
+                               round(float(lat_axis[j]), 2)))
+            if entry is None:
+                continue
+            tree_fpc[j, i], grass_fpc[j, i] = entry
+            matched += 1
+    return tree_fpc, grass_fpc, matched
+
+
+def rootable_cover_shares(rootable_fraction: np.ndarray, tree_fpc: np.ndarray,
+                          grass_fpc: np.ndarray):
+    """Tree and grass cover as fractions of the WHOLE land cell.
+
+    LPJ FPC is conditional on the rootable environment, so it is multiplied by
+    BIO-11's rootable fraction exactly once. Where overlapping FPCs sum above
+    one, the relative shares are retained under a total-cover ceiling of one.
+
+    THE ONE DERIVATION of how much canopy a cell carries. Both the modelled
+    albedo and the aerodynamic roughness read it, because a cell whose optical
+    surface is forest and whose aerodynamic surface is bare ground is two
+    worlds, and the feedback each field carries into the climate is then
+    reporting on a different one.
+    """
+    arrays = [np.asarray(value, dtype=float)
+              for value in (rootable_fraction, tree_fpc, grass_fpc)]
+    if any(value.shape != arrays[0].shape for value in arrays[1:]):
+        raise ValueError("rootable cover arrays have different shapes")
+    rootable, tree, grass = arrays
+    if np.any((rootable < -1e-9) | (rootable > 1.0 + 1e-9)):
+        raise ValueError("rootable fraction is outside [0,1]")
+    if np.any(tree < -1e-9) or np.any(grass < -1e-9):
+        raise ValueError("LPJ foliar cover is negative")
+    cover = np.clip(tree + grass, 0.0, 1.0)
+    tree_share = rootable * tree
+    grass_share = rootable * grass
+    raw_share = tree_share + grass_share
+    rescale = np.ones_like(raw_share)
+    np.divide(rootable * cover, raw_share, out=rescale, where=raw_share > 0)
+    return tree_share * rescale, grass_share * rescale, cover
+
+
 def composite_rootable(total_surface: np.ndarray,
                        rootable_substrate_contribution: np.ndarray,
                        rootable_fraction: np.ndarray,
@@ -391,20 +465,7 @@ def composite_rootable(total_surface: np.ndarray,
     if any(value.shape != arrays[0].shape for value in arrays[1:]):
         raise ValueError("rootable compositing arrays have different shapes")
     total_surface, root_contribution, rootable, tree, grass = arrays
-    if np.any((rootable < -1e-9) | (rootable > 1.0 + 1e-9)):
-        raise ValueError("rootable fraction is outside [0,1]")
-    if np.any(tree < -1e-9) or np.any(grass < -1e-9):
-        raise ValueError("LPJ foliar cover is negative")
-    cover = np.clip(tree + grass, 0.0, 1.0)
-    tree_share = rootable * tree
-    grass_share = rootable * grass
-    # When overlapping FPCs sum above one, retain their relative shares while
-    # enforcing the same total-cover ceiling the old code used.
-    raw_share = tree_share + grass_share
-    rescale = np.ones_like(raw_share)
-    np.divide(rootable * cover, raw_share, out=rescale, where=raw_share > 0)
-    tree_share *= rescale
-    grass_share *= rescale
+    tree_share, grass_share, cover = rootable_cover_shares(rootable, tree, grass)
     nonrootable = total_surface - root_contribution
     result = (nonrootable + (1.0 - cover) * root_contribution
               + tree_share * tree_albedo + grass_share * grass_albedo)
@@ -1165,22 +1226,9 @@ def main() -> None:
             raise SystemExit("--mode modelled needs --vegetation <run>/fpc.out")
         cover, equilibrium_window = read_foliar_cover(
             args.vegetation, args.vegetation_peer)
-        nlat_g, nlon_g = alb_grid.shape
 
         # Coordinates come from the climatology, not from the export's
-        # planet.nc, and this is not a preference.
-        #
-        # The two label the same grid differently. planet.nc runs its longitudes
-        # from -178.5938, ExoPlaSim's output from 0, offset by half a cell and an
-        # origin. The *grids* are identical: taking the land mask from each and
-        # comparing gives 4106 cells both ways and 100% cellwise agreement. Only
-        # the labels disagree.
-        #
-        # LPJ-GUESS's printed coordinates descend from the driver file, which was
-        # built from the climatology, so matching against planet.nc's labels
-        # returns zero cells out of 4106. That failure has now happened three
-        # times in this project on three different scripts. Share the coordinate
-        # source; never reconstruct one.
+        # planet.nc; `foliar_cover_on_grid` carries the argument.
         if args.climatology is None or not args.climatology.is_file():
             raise SystemExit(
                 "--mode modelled needs --climatology, the same one the LPJ-GUESS "
@@ -1188,25 +1236,8 @@ def main() -> None:
         with Dataset(args.climatology) as data:
             lat_axis = np.asarray(data["lat"][:], dtype=float)
             lon_axis = np.asarray(data["lon"][:], dtype=float)
-        if (len(lat_axis), len(lon_axis)) != (nlat_g, nlon_g):
-            raise SystemExit(
-                f"climatology grid is {len(lat_axis)}x{len(lon_axis)} but the "
-                f"surface grid is {nlat_g}x{nlon_g}")
-        lon_signed = np.where(lon_axis > 180.0, lon_axis - 360.0, lon_axis)
-
-        tree_fpc = np.zeros_like(alb_grid)
-        grass_fpc = np.zeros_like(alb_grid)
-        matched = 0
-        for j in range(nlat_g):
-            for i in range(nlon_g):
-                if not land_cells[j, i]:
-                    continue
-                entry = cover.get((round(float(lon_signed[i]), 2),
-                                   round(float(lat_axis[j]), 2)))
-                if entry is None:
-                    continue
-                tree_fpc[j, i], grass_fpc[j, i] = entry
-                matched += 1
+        tree_fpc, grass_fpc, matched = foliar_cover_on_grid(
+            cover, lat_axis, lon_axis, land_cells)
 
         # BIO-11 is the population contract. It subtracts persistent solved
         # water and dry barren substrate once, including water over barren, and

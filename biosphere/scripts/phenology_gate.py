@@ -34,13 +34,14 @@ sixteen-orbit drifting forcing, and over a gridcell whose air temperature never
 reaches the chilling base at all.
 
     python biosphere/scripts/phenology_gate.py            # status, exit 0
-    python biosphere/scripts/phenology_gate.py --strict   # refuses on the
-                                                          # named residual
 
-`--strict` refuses on exactly one thing: the summergreen leaf litter release in
-`modules/somdynam.cpp`, which still selects its month by hemisphere from an Earth
-calendar. That is BIO-31 and is the last natural-vegetation reader of an Earth
-ordinal date.
+Every natural-vegetation reader of a seasonal landmark is covered by the wiring
+list, the summergreen leaf litter release in `modules/somdynam.cpp` included: it
+sheds over the month containing `Climate::coldest_day`, the same landmark the
+degree-day and leaf-on sums reset on, rather than over a hemisphere's January or
+July. A month is an Earth calendar artifact and this world's year is not twelve
+of anything, so the month is taken from `Date::month_of` on this world's own
+month lengths.
 
 Nothing here is verified by execution. LPJ-GUESS builds and runs on this tree,
 but no run it has made has passed acceptance (`world-qcse` has why), so the
@@ -68,17 +69,6 @@ REPORT = GENERATED / "phenology_gate_report.json"
 
 FRAMEWORK = GUESS_SOURCE / "framework"
 MODULES = GUESS_SOURCE / "modules"
-
-# The residual: one natural-vegetation reader still on an Earth calendar, in a
-# file this issue does not own. --strict refuses on it and on nothing else.
-RESIDUAL = {
-    "what": "summergreen leaf litter release month",
-    "where": "modules/somdynam.cpp",
-    "detail": "selects month 0 in the north and month 6 in the south, which is "
-              "January and July on an Earth calendar. It should follow "
-              "Climate::coldest_day like every other summergreen event.",
-    "owner": "bio-31",
-}
 
 # The Earth ordinal dates that used to decide these events, as they appeared in
 # the source. Any of them back in a compiled file is a finding.
@@ -267,6 +257,7 @@ def check_source() -> list[dict]:
     driver = read_source(MODULES / "driver.cpp")
     growth = read_source(MODULES / "growth.cpp")
     vesperinput = read_source(MODULES / "vesperinput.cpp")
+    somdynam = read_source(MODULES / "somdynam.cpp")
 
     wiring = [
         ("the coldest-day reset of the summergreen degree-day sum",
@@ -279,6 +270,11 @@ def check_source() -> list[dict]:
          driver, r"climate\.find_seasonal_landmarks\(\)"),
         ("the coldest-day reset of the annual leaf-on sum",
          growth, r"date\.day\s*==\s*climate\.coldest_day"),
+        ("the summergreen leaf litter release, on the coldest day's month",
+         somdynam,
+         r"date\.month_of\(patch\.get_climate\(\)\.coldest_day\)"),
+        ("the month lengths that release is placed on",
+         guess_h, r"int\s+month_of\(int\s+julian_day\)\s*const"),
         ("the Vesper forcing handing over the whole year",
          vesperinput, r"climate\.set_seasonal_cycle\(dtemp\)"),
         ("the seasonal cycle the landmarks are read off",
@@ -324,12 +320,6 @@ def check_source() -> list[dict]:
                     "detail": "not in Climate::serialize, so a resumed run would "
                               "lose the seasonal cycle it derived"})
     return findings
-
-
-def check_residual() -> bool:
-    """Whether the last Earth ordinal reader is still there."""
-    text = read_source(MODULES / "somdynam.cpp")
-    return bool(re.search(r"SUMMERGREEN.*?date\.month\s*==\s*\d+", text, re.S))
 
 
 # ---------------------------------------------------------------------------
@@ -392,9 +382,6 @@ def _fixtures(length: int) -> list[dict]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--strict", action="store_true",
-                        help="refuse while a natural-vegetation event is still "
-                             "on an Earth calendar")
     parser.add_argument("--json", action="store_true", help="report only")
     args = parser.parse_args()
 
@@ -403,7 +390,6 @@ def main() -> int:
 
     findings = check_source()
     fixtures = _fixtures(length)
-    residual = check_residual()
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -411,7 +397,6 @@ def main() -> int:
         "source": rel(GUESS_SOURCE),
         "findings": findings,
         "fixtures": fixtures,
-        "residual": dict(RESIDUAL, present=residual),
     }
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text(json.dumps(report, indent=2) + "\n")
@@ -431,11 +416,9 @@ def main() -> int:
             for finding in findings:
                 print(f"    [{finding['kind']}] {finding['what']}: {finding['detail']}")
         else:
-            print("  every landmark reader is on the derived pair, the chill-day")
-            print("  count cannot leave its table, and a resumed run keeps its cycle")
-        if residual:
-            print(f"\n  residual, and what --strict refuses on:")
-            print(f"    {RESIDUAL['what']} in {RESIDUAL['where']}  [{RESIDUAL['owner']}]")
+            print("  every landmark reader is on the derived pair, leaf litter")
+            print("  included, the chill-day count cannot leave its table, and a")
+            print("  resumed run keeps its cycle")
         print(f"\n  report: {rel(REPORT)}")
 
     if broken := [case for case in fixtures if not case["pass"]]:
@@ -444,13 +427,6 @@ def main() -> int:
         print("this checker, not in the model.", file=sys.stderr)
         return 2
     if findings:
-        return 1
-    if args.strict and residual:
-        print("\n--strict: refused, on exactly what is still on an Earth calendar.",
-              file=sys.stderr)
-        print(f"  {RESIDUAL['what']} in {RESIDUAL['where']}: {RESIDUAL['detail']}",
-              file=sys.stderr)
-        print(f"  Tracked as {RESIDUAL['owner']}.", file=sys.stderr)
         return 1
     return 0
 

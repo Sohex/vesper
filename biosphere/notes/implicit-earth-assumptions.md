@@ -50,9 +50,11 @@ whose air temperature never reaches the chilling base, and four cases built to b
 wrong in a named way, including the two Earth ordinal dates on this calendar and
 the chill-day guard the vendored source shipped.
 
-One reader remains on an Earth calendar: the summergreen leaf litter release
-month in `modules/somdynam.cpp`. That is BIO-31, and it is what the gate's
-`--strict` arm refuses on.
+The summergreen leaf litter release in `modules/somdynam.cpp` is on the same
+pair. It sheds over the month containing `Climate::coldest_day`, placed by
+`Date::month_of` on this world's own month lengths, rather than over the
+January or July a hemisphere test used to select. No natural-vegetation event
+now reads an Earth ordinal date, and the gate's wiring list is what holds that.
 
 ## 2. A model year is still treated as an Earth year in ecological rates
 
@@ -130,18 +132,32 @@ unambiguous before the field is emitted. The mass-balance diagnostics must name
 their reporting interval as well. The definitions and the per-quantity state are
 in `biosphere/notes/time-base-unit-contract.md`.
 
-## 5. The PAR correction changes energy but not photons per joule
+## 5. Energy and photons are one currency conversion, in two halves
 
-`build_vesper_header.py` derives `VESPER_FRADPAR` from the energy inside the
-selected photosynthetic window. `modules/canexch.h` then converts that energy to
-quanta using `CQ=4.6e-6 mol/J`, explicitly a 550 nm value. This is used directly
-in the electron-transport-limited photosynthesis calculation.
+Corrected 2026-09-05. `driver.cpp` forms `par = rad * VESPER_FRADPAR`, the energy
+inside the declared photosystem window, and `canexch.cpp` turns that into a
+photon supply with `CQ`. The two are one conversion and were on different
+windows and different stars: `FRADPAR` derived for this K2.5V over 400-750 nm,
+`CQ` shipped as `lambda / (h c N_A)` at 550 nm on the Sun, a sound derivation for
+the wrong star and the wrong window and carrying no spectrum at all.
 
-The registered productivity prediction instead integrates spectrum-weighted
-photon supply for the K star and the selected 400-750 nm window. Thus the
-prediction and executable model currently use different light currencies.
-BIO-25 generates a spectrum/window-weighted `VESPER_CQ` beside `FRADPAR` and
-checks their combined photon supply against the registered calculation.
+`lib/stellar.py` now owns both integrals over one window on one file and
+`build_vesper_header.py` emits `VESPER_CQ` beside `VESPER_FRADPAR`, which
+`canexch.h` reads. `CQ` is 4.864e-6 mol/J here, 5.7% above the shipped constant:
+3.9 points of it is the wider window this world declares, which would exist on
+Earth's spectrum too, and 2.6 points is the star being redder. One-signed, so
+the shipped constant understated absorbed photon flux and assimilation with it.
+
+Two controls stand behind the code rather than beside it. The monochromatic
+conversion at 550 nm reproduces the shipped 4.6e-6, which is where that number
+comes from; and a solar spectrum through the same integral over Earth's own
+400-700 nm window gives 4.567e-6, 0.7% below it. Both run before the star's own
+value is returned, and integrating in wavelength and in frequency must agree.
+
+`FRADPAR` moved to 0.4913 in the same pass, and not because of the star: it had
+been integrating the low-resolution `k25v.dat`, which starts at 0.34 um and
+drops the ultraviolet the solar reference carries, inflating the Sun's share of
+its own truncated total by 6.4%.
 
 ## 6. An active canopy scalar is tuned to Earth global totals
 

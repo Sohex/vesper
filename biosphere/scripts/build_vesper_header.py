@@ -38,21 +38,23 @@ from paths import rel  # noqa: E402
 from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 
 import orbit  # lib/orbit.py, the single source of truth for the year length
+import stellar  # lib/stellar.py, the single source of truth for the spectrum
 
 EARTH_SOLAR_CONSTANT_DEFAULT = 1361.0
-SOLAR_EFFECTIVE_TEMPERATURE_K = 5772.0
 
 # LPJ-GUESS's FRADPAR is 0.5 for Earth. It is a surface quantity, while what we
 # can measure is top-of-atmosphere, so the star is applied as a ratio against the
 # Sun rather than as an absolute.
 EARTH_FRADPAR = 0.5
 
-# The window Earth's 0.5 is anchored to. The solar reference must always be
-# measured over THIS window, never over whatever window this world's biosphere
-# is given: 0.5 means "half of shortwave is 400-700 nm light, as Earth's plants
-# use it". Scaling the star's wider window against the Sun's equally widened one
-# would cancel most of the very effect being modelled.
-EARTH_PAR_WINDOW_UM = (0.40, 0.70)
+# The window Earth's 0.5 and canexch.h's CQ are both anchored to. The solar
+# reference is always measured over THIS window, never over whatever window this
+# world's biosphere is given: 0.5 means "half of shortwave is 400-700 nm light,
+# as Earth's plants use it". Scaling the star's wider window against the Sun's
+# equally widened one would cancel most of the very effect being modelled.
+# `lib/stellar.py` owns it, because the ozone weight and the band split take
+# their solar references the same way.
+EARTH_PAR_WINDOW_UM = stellar.EARTH_PHOTOSYSTEM_WINDOW_UM
 
 # The photosystem window this world's biosphere is taken to use.
 #
@@ -73,61 +75,58 @@ EARTH_PAR_WINDOW_UM = (0.40, 0.70)
 PAR_WINDOW_UM = (0.40, 0.75)
 
 
-def planck(wavelength_um: np.ndarray, temperature_k: float) -> np.ndarray:
-    """Spectral radiance, in whatever units; only ratios are ever taken."""
-    h, c, k_b = 6.62607015e-34, 2.99792458e8, 1.380649e-23
-    wl = wavelength_um * 1e-6
-    return (1.0 / wl**5) / (np.exp(h * c / (wl * k_b * temperature_k)) - 1.0)
+def derive_light_constants(config: dict,
+                           window: tuple[float, float]) -> tuple[float, float, dict]:
+    """The energy fraction and the photon conversion, over ONE window and ONE file.
 
+    LPJ-GUESS reaches absorbed photons through a product of two constants:
+    `driver.cpp` forms `par = rad * FRADPAR`, the energy inside the photosystem
+    window, and `canexch.cpp` forms the photon supply as `par * CQ`. So the two
+    are one currency conversion in two halves, and they are derived together
+    here because deriving them apart is what let them end up on different
+    windows and different stars.
 
-def par_fraction(wavelength_um: np.ndarray, flux: np.ndarray,
-                 window: tuple[float, float]) -> float:
-    inside = (wavelength_um >= window[0]) & (wavelength_um <= window[1])
-    return float(np.trapezoid(flux[inside], wavelength_um[inside])
-                 / np.trapezoid(flux, wavelength_um))
+    - `FRADPAR` is Earth's 0.5 scaled by this star's share of its own shortwave
+      inside the declared window, against the Sun's share of Earth's 400-700 nm
+      window. Earth's 0.5 is anchored there, so the reference stays there.
+    - `CQ` is the flux-weighted mean of `lambda / (h c N_A)` inside the SAME
+      declared window on the SAME star, which is what a canopy absorbing that
+      window experiences. `canexch.h` ships the monochromatic 550 nm value for
+      the Sun instead, and its derivation is sound for the wrong star and the
+      wrong window: implicit-Earth in both halves.
 
-
-def resolve_spectrum(config: dict) -> Path | None:
-    """Find the configured spectrum the same way run_exoplasim.py does."""
+    `lib/stellar.py` owns both integrals and runs its own controls before
+    returning either. Nothing here reimplements a Planck curve or a spectrum
+    reader; a second integration of the same file is exactly what put three
+    values of the band split into circulation at once.
+    """
+    # THE NAME COMES FROM THE CONFIG THIS RUN PARSED, not from the one
+    # lib/stellar.py would read for itself. They are the same file in every
+    # ordinary invocation and are not under `--config`, which is exactly the
+    # invocation where a silent disagreement would matter.
     name = config.get("radiation", {}).get("stellar_spectrum")
     if not name:
-        return None
-    roots = [PROJECT_ROOT / "exoplasim" / "inputs" / "stellarspectra"]
-    try:
-        import exoplasim as exo
-
-        roots.append(Path(exo.__file__).resolve().parent / "stellarspectra")
-    except ImportError:
-        pass
-    for base in roots:
-        candidate = base / f"{name}.dat"
-        if candidate.is_file():
-            return candidate
-    raise SystemExit(f"stellar spectrum {name!r} not found under {roots}")
-
-
-def derive_fradpar(config: dict, window: tuple[float, float]) -> tuple[float, dict]:
-    """Scale Earth's FRADPAR by this star's PAR fraction against the Sun's."""
-    spectrum = resolve_spectrum(config)
-    if spectrum is None:
         raise SystemExit(
-            "radiation.stellar_spectrum is unset, so the PAR fraction cannot be "
-            "measured. Set it, or pass --fradpar explicitly and say why."
-        )
-    wavelength, flux = np.loadtxt(spectrum, skiprows=1, unpack=True)
-    star = par_fraction(wavelength, flux, window)
-    sun = par_fraction(wavelength, planck(wavelength, SOLAR_EFFECTIVE_TEMPERATURE_K),
-                       EARTH_PAR_WINDOW_UM)
-    return EARTH_FRADPAR * star / sun, {
+            "radiation.stellar_spectrum is unset, so neither the PAR fraction "
+            "nor the photon conversion can be measured. Set it.")
+    spectrum = stellar.spectrum_paths(name)[1]
+    star_energy = stellar.window_energy_fraction(window, name=name)
+    solar_energy = stellar.window_energy_fraction(
+        EARTH_PAR_WINDOW_UM, name=name,
+        temperature_k=stellar.SOLAR_EFFECTIVE_TEMPERATURE_K)
+    photons = stellar.photosystem_photon_conversion(window, name=name)
+    detail = {
         "spectrum": rel(spectrum),
         "spectrum_sha256": hashlib.sha256(spectrum.read_bytes()).hexdigest(),
         "par_window_um": list(window),
         "solar_reference_window_um": list(EARTH_PAR_WINDOW_UM),
-        "star_par_fraction": star,
-        "solar_par_fraction_over_earth_window": sun,
-        "ratio": star / sun,
+        "star_par_fraction": star_energy,
+        "solar_par_fraction_over_earth_window": solar_energy,
+        "ratio": star_energy / solar_energy,
         "earth_fradpar": EARTH_FRADPAR,
+        "photon_conversion": photons,
     }
+    return EARTH_FRADPAR * star_energy / solar_energy, photons["star_mol_per_j"], detail
 
 
 def month_lengths(year_length: int) -> list[int]:
@@ -277,6 +276,30 @@ const double VESPER_SOLSTICE_OFFSET_DAYS = {constants['solstice_offset_days']};
  */
 const double VESPER_FRADPAR = {constants['fradpar']:.6f};
 
+/// mol quanta per joule of light inside the photosystem window. canexch.h's CQ.
+/** THE OTHER HALF OF THE SAME CURRENCY CONVERSION. driver.cpp forms
+ *  `par = rad * VESPER_FRADPAR`, the energy inside the window, and canexch.cpp
+ *  turns that into a photon supply with this. A photosystem counts quanta, so
+ *  the pair has to be measured over ONE window on ONE star or the model's light
+ *  is priced in two currencies at once.
+ *
+ *  LPJ-GUESS ships {constants['cq_detail']['controls']['shipped']:.1e}, which is `lambda / (h c N_A)` at
+ *  {constants['cq_detail']['wavelength_nm']:.0f} nm on the Sun and carries no spectrum at all. Integrating a
+ *  solar spectrum over Earth's own {constants['fradpar_detail']['solar_reference_window_um'][0]}-{constants['fradpar_detail']['solar_reference_window_um'][1]} um window through the same
+ *  code reproduces it to {constants['cq_detail']['control_gap_percent']:.1f}%, which is what says the code is right
+ *  before anything is read off this star.
+ *
+ *  Here it is {constants['cq']:.4e}: {constants['cq_detail']['against_shipped_percent']:+.1f}% against the shipped constant, of which
+ *  {constants['cq_detail']['window_percent']:+.1f}% is the wider window this world declares and {constants['cq_detail']['stellar_percent']:+.1f}% is the
+ *  star being redder. One-signed both ways -- more photons per joule than the
+ *  shipped constant assumes -- so the shipped value understates absorbed photon
+ *  flux and assimilation with it.
+ *
+ *  Derived by lib/stellar.py from the spectrum the climate model reads, so a
+ *  rebuilt spectrum moves it. See biosphere/notes/implicit-earth-assumptions.md.
+ */
+const double VESPER_CQ = {constants['cq']:.6e};
+
 #endif // LPJ_GUESS_VESPER_H
 """
 
@@ -319,7 +342,19 @@ def main() -> None:
         )
     obliquity = float(config["planet"]["obliquity_degrees"])
     offset, solstice_fit = fit_solstice_offset(year_length, obliquity, climatology)
-    fradpar, fradpar_detail = derive_fradpar(config, tuple(args.par_window))
+    fradpar, cq, fradpar_detail = derive_light_constants(
+        config, tuple(args.par_window))
+    photons = fradpar_detail["photon_conversion"]
+    cq_detail = {
+        "wavelength_nm": stellar.LPJ_GUESS_CQ_WAVELENGTH_NM,
+        "controls": photons["controls"],
+        "control_gap_percent": 100.0 * abs(
+            photons["controls"]["solar_over_earth_window"]
+            / photons["controls"]["shipped"] - 1.0),
+        "against_shipped_percent": 100.0 * (photons["against_shipped"] - 1.0),
+        "window_percent": 100.0 * (photons["window_shift"] - 1.0),
+        "stellar_percent": 100.0 * (photons["stellar_shift"] - 1.0),
+    }
 
     constants = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -351,6 +386,8 @@ def main() -> None:
         "solstice_fit": solstice_fit,
         "fradpar": fradpar,
         "fradpar_detail": fradpar_detail,
+        "cq": cq,
+        "cq_detail": cq_detail,
         "source_build": config.get("source_build"),
         "git_commit": subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
@@ -398,6 +435,11 @@ def main() -> None:
           f"{solstice_fit['bins']} bins)")
     print(f"FRADPAR        {fradpar:.4f} "
           f"({args.par_window[0]}-{args.par_window[1]} um)")
+    print(f"CQ             {cq:.4e} mol/J "
+          f"({cq_detail['against_shipped_percent']:+.1f}% against LPJ-GUESS's "
+          f"{stellar.LPJ_GUESS_CQ_MOL_PER_J:.1e}: "
+          f"window {cq_detail['window_percent']:+.1f}%, "
+          f"star {cq_detail['stellar_percent']:+.1f}%)")
     print(f"\nwrote {rel(header)}{installed}")
     print("REBUILD LPJ-GUESS: the year length sizes arrays at compile time.")
 

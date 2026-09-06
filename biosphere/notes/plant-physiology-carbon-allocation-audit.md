@@ -73,8 +73,9 @@ fixtures without launching LPJ-GUESS.
 ### 2. Photon correction alone does not close the K-star physiology contract
 
 `VESPER_FRADPAR` converts surface shortwave into energy inside the declared
-0.40--0.75 micrometre photosystem window. BIO-25 correctly owns replacement of
-the fixed 550 nm `CQ` energy-to-photon conversion. Downstream, however,
+0.40--0.75 micrometre photosystem window, and `VESPER_CQ` turns that energy into
+quanta over the same window on the same spectrum, so the photon supply itself is
+now derived for this star. Downstream, however,
 `canexch.h` retains fixed Earth C3/C4 quantum efficiencies (`ALPHA_C3`,
 `ALPHA_C4`), curvature, leaf-respiration-to-Vmax ratios and the globally tuned
 canopy scalar `ALPHAA_NLIM`.
