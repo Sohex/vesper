@@ -133,3 +133,116 @@ would have to remove three quarters of the term to reach it.
 two is a unit of the derivative and not a prediction. Whether this world's
 aerosol can move droplet number by a third is the aerosol side's question, and
 the answer to it does not exist yet.
+
+## What it would cost to build, and the chain has four breaks rather than one
+
+Read 2026-09-05 from `vendor/exoplasim`, `aeolian/`, `references/pyrcel/` and
+`references/cloudmicrophysics/`. The row names the updraft as the blocker. It is
+one of four, it is correctly identified, and it is stated slightly wrong.
+
+**1. Hygroscopicity, and it is the only genuinely missing aerosol input.**
+`notes/external-model-survey.md` section 50a establishes that a condensation
+solver reads four numbers per mode -- number concentration, median dry radius,
+geometric standard deviation, and kappa -- and that composition collapses into
+the last before the run starts. Three of the four already exist in this
+project's products in some form. The dust optics carry a number median radius
+and a geometric standard deviation; the sea salt source function IS a number
+flux in three declared lognormal modes before it is converted to mass; the
+volcanic sulfate carries an OPAC size. **Kappa exists nowhere**, and grep for it
+across `aeolian/` returns von Karman's constant and two hygroscopic-GROWTH
+headers. The repair is three declared literals from a paper that is already on
+disk: `references/pdf/petters2007-kappa-hygroscopicity.pdf`, currently recorded
+as `held` and declined for the OPTICS use because pairing a different growth
+curve with OPAC's refractive indices would break a consistency the optics script
+checks. That reason does not reach the CCN-activity half of the same paper. This
+is the cheapest link in the whole chain.
+
+**2. The parameterisation, and it is already acquired.** Section 50b's
+instruction was to price acquiring an ARG implementation rather than PySDM's
+tree. Two are now on disk and neither is recorded.
+`references/pyrcel/pyrcel/activation/_arg2000.py` is 112 lines of which about 60
+are arithmetic, BSD 3-clause, in this project's own language, and carries four
+schemes side by side in its legacy module so the row gets a second opinion free.
+`references/cloudmicrophysics/src/AerosolActivation.jl` is 435 lines, Apache-2.0,
+Julia, and is the better-retargeted of the two: gravity, the water and ice
+densities, the surface tension and the six ARG fit coefficients are all fields of
+one runtime parameter struct rather than module globals, so a Vesper instance is
+a constructor call. It also carries a Korolev and Mazin (2003) correction for
+pre-existing liquid and ice that a diagnostic-cloud host actually needs, since a
+model that re-diagnoses `dcc` and `dql` every step would otherwise activate a
+full aerosol population into an already-cloudy cell every timestep. **Gravity
+enters both at FIRST POWER and in one place**, inside the coefficient that
+multiplies the updraft, so on this world gravity and the updraft are degenerate
+in the ARG algebra: a 1.31x gravity is exactly a 1.31x updraft. That is worth
+knowing because it puts the gravity retarget two orders of magnitude below the
+uncertainty in the next item.
+
+**3. The updraft, which is the blocker, and the row states it one step too
+early.** It is not that nothing supplies a vertical velocity.
+`plasimmod.f90` declares `dw(NHOR,NLEV)`, the grid-scale pressure velocity,
+`calcgp` writes it at every level every timestep, and exactly one branch reads
+it -- `rainmod`'s `clwfac` cloud suppression, which is dead by default because
+`clwcrit1 < clwcrit2` makes `rainini` set `clwfac = -1` and the guard that reads
+it tests `clwfac > 0`. So a cell-mean omega is there and free. What is missing is
+a SUB-GRID updraft, and the model carries neither of the two quantities every
+GCM-scale ARG implementation builds one from. **There is no TKE anywhere in the
+model source**: `vdiff` is first-order Louis K-theory with no prognostic
+turbulence energy and no boundary-layer depth. There is no convective mass flux
+either: `kuo` is moisture-accession and iterates a parcel temperature, never a
+parcel velocity, and `mkshallow` is implemented as an enhanced diffusivity. The
+one convective velocity scale that exists is `fluxmod`'s `freeconv`, which the
+source itself identifies as `w*` with the gravity and the inversion height folded
+into a fitted coefficient -- ocean-only, not exposed as a velocity, and with the
+inversion height absorbed so it cannot be recovered. `dust3` is `u*^3`, a surface
+shear scale with no closure relating it to a cloud base. **So this is a new
+boundary-layer diagnostic and not a plumbing change**, and it is the item that
+carries the cost.
+
+**4. The radiation side, which no row has named and which section 50 does not
+mention.** Even given a droplet number there is nothing in `radmod` to hand it
+to. The shortwave optical depth is `ztaua * log10(W)^ztaup` on the liquid water
+path alone, and the fork's own comment records that below the fit's range the
+effective radius is frozen at what the fit implies -- 8.2 um in band 1 and 6.7 um
+in band 2. Above it the radius is whatever a 1978 Mie fit to eight standard cloud
+models implies, and it is not a variable anywhere. The longwave is worse: grey
+mass absorption at `acllwr`, taken as Kiehl's liquid-only coefficient
+deliberately, because this model carries one condensate and no phase split, where
+the same paper's ice coefficient does carry an effective radius. So both bands
+and the longwave would each need re-deriving. **The one piece of good news is
+structural and already banked**: `world-f9ig` moved the two-stream to table
+lookups keyed on optical depth and zenith cosine, so those tables are agnostic
+about how the optical depth was obtained and `tau` can be re-sourced without
+touching them.
+
+## The price, bracketed
+
+**The parameterisation is free and the aerosol side is nearly free.** ARG is
+acquired, permissively licensed, and about 60 lines of arithmetic plus a Kohler
+critical-supersaturation function and five thermodynamic functions -- under 300
+lines self-contained. Kappa is three literals from a paper on disk.
+
+**The updraft closure and the radiation re-derivation are the price, and neither
+can be quoted as a point.** Bracketed by what the tree already shows: a
+boundary-layer velocity scale means a new diagnostic in `fluxmod` with its own
+derivation and its own gravity retarget, and re-deriving `tau(W, r_e)` in two
+bands plus a longwave coefficient carrying an effective radius is the same shape
+of work as `world-f9ig`, which is a landed and inspectable precedent for the
+radiation half.
+
+**And a run cost that is near zero.** ARG is closed form -- no root find in the
+2000 scheme -- so it is a handful of transcendentals per mode per cloudy column,
+against `lwr`'s 1,045 per column per call. Nothing about this term is expensive
+to integrate; what is expensive is deriving what feeds it.
+
+**Rule 7 makes the whole of that the price.** Nothing is commissioned, so no run
+is charged against adding the term.
+
+## What this changes about where the term sits
+
+`notes/audits/absent-and-inherited-physics.md` is the enumeration of absent
+physics and does not carry this term: grep it for droplet, activation,
+supersaturation or condensation nuclei and it returns nothing. Its stated scope
+was the ocean, the cryosphere, the soil parameters and the couplings between
+components, so the omission is a scope boundary rather than an oversight. The
+term is now priced and it is the largest single absent shortwave term this
+project has costed.
