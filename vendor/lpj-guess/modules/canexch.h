@@ -38,8 +38,20 @@ double alphaa(const Pft& pft);
 
 // Constants for photosynthesis calculations
 
-/// conversion factor for solar radiation at 550 nm from J/m2 to mol_quanta/m2 (E=mol quanta); mol J-1
-const double CQ = 4.6e-6;
+/// conversion factor from J/m2 to mol_quanta/m2 (E=mol quanta) inside the
+/// photosystem window; mol J-1
+/** VESPER, not Earth. The vendored constant was 4.6e-6, which is
+ *  `lambda / (h c N_A)` at 550 nm on the Sun: a sound derivation for the wrong
+ *  star and the wrong window, and it carries no spectrum at all.
+ *
+ *  This is the other half of the currency conversion VESPER_FRADPAR starts.
+ *  driver.cpp forms `par = rad * VESPER_FRADPAR`, the energy inside the
+ *  declared photosystem window, and photosynthesis() turns it into a photon
+ *  supply with this, so the two must be measured over ONE window on ONE star.
+ *  Both are derived from the spectrum the climate model reads, by
+ *  lib/stellar.py through biosphere/scripts/build_vesper_header.py.
+ */
+const double CQ = VESPER_CQ;
 
 /// intrinsic quantum efficiency of CO2 uptake, C3 plants
 const double ALPHA_C3 = 0.08;
