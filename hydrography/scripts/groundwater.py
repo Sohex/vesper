@@ -2094,6 +2094,26 @@ def factorisation_test(sizes=(40, 80, 160), verbose=True) -> dict:
         print(f"    n {tot:>7,}   {nblk} interleaved blocks solved separately: "
               f"{'BITWISE IDENTICAL' if same else 'DIFFERS -- MISS'}")
 
+    # AND THAT THE PARTITION IS ACTUALLY BEING USED, which the arms above
+    # cannot say: they build their own blocks. The uniqueness case carries a
+    # river of imposed heads across it, so its free set is more than one block
+    # by construction, and a change that quietly stopped cutting the free set
+    # would leave every arm above passing while the solve went back to
+    # factorising the union. The right answer here is "more than one".
+    export, geom, kwargs = uniqueness_case()
+    r = solve(export, geom, **kwargs, verbose=False)
+    live = int(r["matrix_repeat"]["blocks"]) > 1
+    out["partition_live"] = {"blocks": int(r["matrix_repeat"]["blocks"]),
+                             "largest_block_cells":
+                                 int(r["matrix_repeat"]["largest_block_cells"]),
+                             "passes": live}
+    out["passes"] &= live
+    if verbose:
+        print(f"    the solver's own partition on the uniqueness case: "
+              f"{r['matrix_repeat']['blocks']} blocks, largest "
+              f"{r['matrix_repeat']['largest_block_cells']:,} cells   "
+              f"{'in use' if live else 'NOT PARTITIONED -- MISS'}")
+
     # The control has to fire on at least one size or the identity above is
     # untested: a test that cannot reject anything has no right answer.
     out["passes"] = bool(out["passes"] and out["control_rejected"])
