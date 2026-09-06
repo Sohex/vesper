@@ -190,6 +190,12 @@ def perf_record_shares(bed: Path, exe: Path, threads: int) -> dict:
                           "--sort", "dso,symbol", "--stdio"],
                          cwd=str(bed), capture_output=True, text=True)
     shares, dso_total = {}, {}
+    if not data.is_file() or data.stat().st_size == 0:
+        raise SystemExit(
+            "perf record produced nothing. A profile that returns no samples "
+            "returns a radiation share of zero, and a zero share is a ratio of "
+            "one and a slowdown of one -- an ordinary-looking answer with "
+            "nothing behind it. Check /proc/sys/kernel/perf_event_paranoid.")
     for line in rep.stdout.splitlines():
         m = re.match(r"\s*([\d.]+)%\s+(\S+)\s+\[[.k]\]\s+(\S+)", line)
         if not m:
@@ -197,7 +203,14 @@ def perf_record_shares(bed: Path, exe: Path, threads: int) -> dict:
         pct, dso, sym = float(m.group(1)), m.group(2), m.group(3)
         shares[f"{dso}:{sym}"] = shares.get(f"{dso}:{sym}", 0.0) + pct
         dso_total[dso] = dso_total.get(dso, 0.0) + pct
-    return dict(by_symbol=shares, by_object=dso_total)
+    total = sum(dso_total.values())
+    if total < 50.0:
+        raise SystemExit(
+            f"perf report attributed only {total:.1f}% of samples to a named "
+            "object. The share this script divides by would be a fraction of a "
+            "profile rather than a profile.")
+    return dict(by_symbol=shares, by_object=dso_total,
+                attributed_percent=round(total, 2))
 
 
 def radiation_share(shares: dict) -> dict:
