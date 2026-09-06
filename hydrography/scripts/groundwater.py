@@ -1476,12 +1476,20 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         kept = {}
         pass_factorised = n_factorised
         with phases("factor_solve"):
+            # Sliced off the CSC arrays directly rather than through scipy's
+            # indexing, because the block count runs to the number of
+            # interfluves on a planet and a per-block object built the general
+            # way costs more than the factorisation of a small one. The columns
+            # of a block are contiguous in this ordering and every row they
+            # touch is inside it, so the slice is exact.
+            indptr, indices, data = A.indptr, A.indices, A.data
             for b0, b1 in zip(bounds[:-1], bounds[1:]):
                 if b1 <= b0:
                     continue
-                col = A[:, b0:b1]
-                sub = sp.csc_matrix((col.data, col.indices - b0, col.indptr),
-                                    shape=(b1 - b0, b1 - b0))
+                p0, p1 = indptr[b0], indptr[b1]
+                sub = sp.csc_matrix(
+                    (data[p0:p1], indices[p0:p1] - b0, indptr[b0:b1 + 1] - p0),
+                    shape=(b1 - b0, b1 - b0))
                 key = (hash(unknown_ids[order[b0:b1]].tobytes()),
                        hash(sub.data.tobytes()))
                 lu = factors.get(key)
