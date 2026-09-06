@@ -106,6 +106,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -666,6 +667,46 @@ def resume_and_save_instants(state: dict, year_length: int) -> dict:
             "state_written_covers": (save_year, save_day)}
 
 
+def instant_fixtures(year_length: int) -> list[str]:
+    """The parsed-instant gate against cases whose verdict is known in advance.
+
+    NO MODEL AND NO FORCING. Three are built to be wrong in a named way and one
+    is the case that has to be GRANTED: a gate nothing can satisfy is a wall and
+    a gate nothing can fail is decoration. The second case is the defect itself,
+    written down -- a model that parsed 0 where the instruction file declared -1
+    -- so a repair that stops catching it stops being a repair.
+    """
+    failures: list[str] = []
+    with tempfile.TemporaryDirectory() as scratch:
+        bed = Path(scratch) / "arm"
+        (bed / "run1").mkdir(parents=True)
+        asked = {"restart": True, "save_state": False, "state_year": 211,
+                 "state_day": -1, "save_year": 211, "save_day": -1,
+                 "state_path": "/x", "save_path": "/x"}
+
+        def case(name: str, state: dict, log: str, wanted: int) -> None:
+            (bed / "asked_state.json").write_text(json.dumps(state))
+            (bed / "run1" / "guess.log").write_text(log)
+            got = check_instants(bed, 1, "arm", year_length)
+            if len(got) != wanted:
+                failures.append(
+                    f"the instant gate reports {len(got)} refusals for the "
+                    f"{name} case and {wanted} is right: {got}")
+
+        case("agreeing", asked,
+             "Restart instants: state_day -1 save_day -1\n"
+             "  resume: state covers year 210 day 182\n", 0)
+        case("sentinel rounded to zero", asked,
+             "Restart instants: state_day 0 save_day 0\n"
+             "  resume: state covers year 211 day 0\n", 3)
+        case("silent model", asked, "no instants here\n", 1)
+        case("saving arm at the wrong instant",
+             {**asked, "restart": False, "save_state": True},
+             "Restart instants: state_day -1 save_day -1\n"
+             "  save: state written covers year 211 day 0\n", 1)
+    return failures
+
+
 def self_test() -> None:
     """Does the production runner's state block resume where its parent stopped?
 
@@ -798,6 +839,12 @@ def self_test() -> None:
         failures.append("a run that neither saves nor restarts declares a "
                         "state_path, so the model would look for a state file")
 
+    # THE PARSED-INSTANT GATE, on cases whose verdict is known in advance. It is
+    # the check that would have caught the sentinel plib rounded away, and it is
+    # the one check here that does not hold a copy of the rule, so it is the one
+    # worth exercising without a model.
+    failures += instant_fixtures(year_length)
+
     for failure in failures:
         print(f"  {failure}")
     if failures:
@@ -805,6 +852,9 @@ def self_test() -> None:
             f"\n{len(failures)} failures. A continuation that resumes at the "
             "wrong simulated year reports the spin-up it was asked for and "
             "integrates a different one.")
+    print("the parsed-instant gate grants an agreeing arm and refuses a model "
+          "that read 0 where the instruction file declared -1, a model that "
+          "logged nothing, and a saving arm at the wrong instant")
     print(f"restart instants agree over a {year_length}-day simulation year "
           f"and the {spinup}-year spin-up {rel(pfts)} declares: a run of "
           f"{parent_nyear} retained years writes a state covering year "
