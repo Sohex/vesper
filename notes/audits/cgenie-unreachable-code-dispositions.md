@@ -99,9 +99,12 @@ upstream commit ever, the import.
 
 `dzu(2,maxk)` is removed from `genie-goldstein/src/fortran/ocean.cmn`, from both
 the type declaration and the `/ocn_vars/` COMMON list, and its zeroing is removed
-from `initialise_goldstein.F`. The two superseded `crma` lines that also carried
-the name are gone with it, so the identifier no longer appears in the file at
-all.
+from `initialise_goldstein.F`. Two commented-out lines carried the name as well
+and go with it: the `crma` continuation of the pre-generalised-grid type
+declaration, and the commented `/ocn_vars/` continuation beside the live one.
+The two remaining `crma` lines in the header carry no `dzu` and stay. The
+identifier now appears nowhere in `genie-goldstein`, so a later grep for it
+lands on nothing rather than on a comment.
 
 `velc` was its only reader and writer anywhere in the tree, and
 `initialise_goldstein.F` only zeroed it. Threading `velc` over `j` made it the
