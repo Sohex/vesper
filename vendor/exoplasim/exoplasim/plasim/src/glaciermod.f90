@@ -135,9 +135,11 @@
 !     THE DECLARED TEMPERATURE IS THE LARGER UNCERTAINTY, not the density. Over
 !     233.15 K to the melting point the conductivity moves by about a quarter and
 !     the specific heat by about a sixth, against a fifteenth for the difference
-!     between Yen's two conductivity arms. `TGLACREF` is the temperature
-!     `landmod` already evaluates the snow conductivity at, so the two cryosphere
-!     materials are stated at one temperature rather than two.
+!     between Yen's two conductivity arms. `TGLACREF` is the melting point of the
+!     modelled snow less ten kelvin, which puts it within 0.15 K of `landmod`'s
+!     `TSNOWREF`, so the two cryosphere materials are stated at one temperature
+!     to the precision either of them turns on: 0.15 K is 0.9 J/kg/K of specific
+!     heat, a twentieth of a per cent.
 !     `notes/audits/cryosphere-material-properties.md` carries the sweep.
       real, parameter :: TGLACREF       = 263.15  ! declared ice temperature (K)
       real, parameter :: CPGLAC         = 2023.10 ! ice Ih specific heat (J/kg/K)

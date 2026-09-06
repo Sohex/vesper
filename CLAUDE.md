@@ -432,10 +432,13 @@ e-folding time of an approach measured without its asymptote, and the seed/patch
 ensemble uncertainty report),
 `sea_water.py` (the four numbers salinity reaches the model through, read
 from `icemod.f90` and the run's namelist rather than copied),
-`snow.py` (the one relation between the modelled snow's density and its thermal
-conductivity, and the check that every restatement of it in the compiled models
-agrees; the climate column and the ecology column once ran two relations that
-differed by close to a factor of two), `provenance.py` (build
+`snow.py` (the TWO material relations of the modelled snow, each declared once
+for both columns and each restated as a literal in the compiled models under a
+check that every restatement agrees: the conductivity as a function of the
+pack's DENSITY, and the specific heat of the ice in it as a function of
+TEMPERATURE, with the volumetric heat capacity their product forms. The two
+columns once ran two conductivity relations that differed by close to a factor
+of two, and then two specific heats of the same ice), `provenance.py` (build
 stamping, config drift, the declared removals that let the drift guard tell a key
 that no longer exists from a key whose value changed, the hashes of the derived
 files a generator read, and

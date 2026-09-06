@@ -68,8 +68,11 @@
 !     and it was READ NOWHERE: a grep of the whole vendored tree finds the
 !     declaration and no use. Deleting it is the fix, because exposing a
 !     constant that reaches no arithmetic would put a knob in icemod_nl that
-!     silently does nothing, and landmod's CPSNOW is the live declaration of the
-!     same quantity. WORLD-04OK.
+!     silently does nothing, and landmod's landini is where the live statement
+!     of the same quantity is: IAPWS-06's specific heat of ice Ih at TSNOWREF,
+!     restating lib/snow.py. 2090 was that relation a degree below the melting
+!     point, applied at every temperature the snow reaches. WORLD-04OK,
+!     WORLD-A2LV.
 !
 !     THE SNOW DENSITY IS LANDMOD'S, NOT A SECOND COPY. GRAV-8. 330 was declared
 !     twice, here as a hardcoded parameter and in landmod as the namelist key

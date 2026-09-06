@@ -630,6 +630,15 @@ POLICY.update({
     "dsnowz": Policy(PROGNOSTIC_GRID, REMAP, RESERVOIR, domain="land",
                      conserve="land_snow", bounds=(0.0, None),
                      why="snow depth in metres of water equivalent"),
+    "dcansn": Policy(PROGNOSTIC_GRID, REMAP, RESERVOIR, domain="land",
+                     conserve="land_snow", bounds=(0.0, None),
+                     why="canopy snow in metres of water equivalent, the "
+                         "reservoir cansnowmod holds between the snowfall and "
+                         "the ground pack. It is the SAME SUBSTANCE as dsnowz "
+                         "and conserves with it, because what a remap takes "
+                         "out of one it must not lose: the canopy is where "
+                         "some of the cell's snow is standing, not a different "
+                         "kind of snow"),
     "persistt": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, domain="land",
                        bounds=(0.0, None),
                        why="seconds of continuous snow cover at or above "
@@ -796,6 +805,11 @@ _OPTIONAL = {
     # world-onw8's four, through mpgetgp_found. The layered store and the
     # drainage rebuild from the single-layer fields a pre-LSHY-3 restart has.
     "dwatcl": (None, "landini rebuilds the layered store from dwatc"),
+    # BIO-32's canopy snow store, through the same mpgetgp_found path. A
+    # restart written before the store existed carries no canopy, and an empty
+    # canopy is exactly the state that restart's world was in.
+    "dcansn": (None, "zero: a restart written before the canopy snow store "
+                     "existed held no canopy snow"),
     "dsoili": (None, "landini rebuilds the layered store from dwatc"),
     "ddrain": (None, "zero: no drainage is in flight at the resume"),
     "adrain": (None, "zero: the drainage output window starts clean"),

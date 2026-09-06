@@ -345,15 +345,10 @@ four are now derived from the density of the substance whose volume they
 describe, at the site where that density is set. The three in `landmod` are
 `landini` and `glacierprep`; this one is `update_snow_properties`.
 
-**A check that could have failed and did not.** At `landmod`'s declared
-`rhosnow` of 330 kg/m3 the repaired vegetation-model line gives 682,111 J/m3/K
-against that column's `snowcap` of 330 * 2090 = 689,700. The 1.1 per cent
-between them is the two columns' SPECIFIC heats disagreeing and not their
-construction: `landmod` carries a fixed `CPSNOW` of 2090 J/kg/K where
-`soil.cpp` evaluates Fukusako's linear relation in absolute temperature, which
-gives 2067 at 273.15 K and 1791 at 233.15 K. The two constructions now agree;
-the specific heats differ by up to 17 per cent at the cold end of the range, and
-WORLD-A2LV owns that.
+**A check that could have failed and did not.** The two columns' repaired lines
+have the same CONSTRUCTION: the pack's own density times the specific heat of
+the ice in it. What they did not then share was the specific heat, and the
+section below is that residual.
 
 **What is NOT settled by this.** Which way the simulated soil temperature moves,
 for the same reason it is not settled for the conductivity: a faster pack
@@ -366,6 +361,71 @@ The divergence is declared beside the conductivity one, with mainline's own
 lines standing verbatim in the source, and `biosphere/scripts/snow_thermal_gate.py`
 checks that the record is there, that it is not what the model runs, and that
 the changed line still is. WORLD-2AIJ.
+
+## The third instance again: two specific heats of one ice
+
+The two columns' constructions agreed and their SPECIFIC HEATS did not.
+`landmod` declared `real, parameter :: CPSNOW = 2090.` with no citation;
+`soil.cpp` evaluated Fukusako's linear relation in absolute temperature,
+`(0.185 + 0.689 T * 0.01)` kJ/kg/K, which gives 2067.0 J/kg/K at 273.15 K and
+1791.4 at 233.15 K. They agree to 1.1 per cent at the melting point and are 16.7
+per cent apart at -40 degC, and only one of them varies with the simulated
+temperature at all.
+
+**They are not a disagreement to average, because one of them is the other
+evaluated somewhere.** 2090 is Fukusako's line at 276.49 K and IAPWS-06's ice at
+272.24 K. Both of those are at or above the melting point of the modelled snow,
+so the fixed value is the relation evaluated where this snow only sits at the
+moment it melts, applied at every temperature it reaches: 3.4 per cent high at
+263 K and 15.8 per cent high at 233 K. That is the answer to "is the constant
+the relation at a temperature this planet's modelled snow actually reaches" --
+it is not.
+
+**Neither number had to win.** IAPWS R10-06(2009), the equation of state 2006
+for H2O ice Ih, gives the specific heat exactly, and this project already holds
+it: `analysis/ice_properties.py` implements the Gibbs function and reproduces
+every quantity at every state of the release's own Table 6 to 7e-10 relative,
+and `glaciermod`'s `CPGLAC` already came from it. Fukusako (1990) itself is not
+reachable -- Springer returns no PDF -- which made its derivation OPAQUE where
+it stood, and the repair for an opaque constant is to source it rather than to
+go on quoting it. Against the standard, Fukusako's line is 0.30 per cent low at
+180 K and 1.42 per cent low at the melting point.
+
+**A Gibbs function in complex arithmetic is not something two compiled models
+restate**, so `lib/snow.py` declares the closed form they do restate: a
+least-squares quadratic in temperature, derived from IAPWS-06 over 170 K to the
+triple point and within 0.554 J/kg/K of it there. 170 K is below anything the
+simulated air over the modelled snow has reached -- the coldest monthly bin of
+the two bounding climates is -75.8 degC, 197.4 K -- and the form degrades
+gracefully rather than sharply outside it, staying within 0.9 J/kg/K of the
+standard down to 140 K. The representation error is two orders below either
+number it replaced.
+
+**Each column evaluates the relation where it has a temperature.** `landmod`'s
+`snowcap` is one compiled scalar, so `landini` evaluates the quadratic at
+`TSNOWREF`, which is the same 263 K the conductivity row is taken at, so that
+column's snow is one material stated at one temperature. `soil.cpp` has a
+simulated daily air temperature in hand and evaluates it there. Sharing the
+RELATION is what makes the two columns' snow one material; sharing a value would
+have made them one material only on the days the ecology column's snow happened
+to sit at 263 K.
+
+**What it is worth.** The ecology column's specific heat rises by 0.30 per cent
+at 180 K and 1.42 per cent at the melting point, and its thermal diffusivity
+falls by the same fraction. The climate column's falls from 2090 to 2022.05
+J/kg/K, so `snowcap` at the declared `rhosnow` of 330 falls from 689,700 to
+667,275 J/m3/K, 3.25 per cent, and that column's modelled pack warms and cools
+3.25 per cent faster per unit water equivalent. Neither is why this was done:
+what it settles is that the two columns' snow is one material, and the
+cross-column difference removed is the larger number, 16.7 per cent at -40 degC.
+
+**The loop that keeps it a derivation.** `scripts/smoke_test.py` re-derives the
+specific heat from `analysis/ice_properties.py`'s IAPWS-06 across the declared
+domain and refuses if the closed form misses by more than the declared residual,
+and `lib/snow.py`'s `check_restatements()` holds both compiled literals and both
+of `landmod`'s placeholder defaults to the one declaration. Edit a coefficient,
+widen the domain, or move `TSNOWREF` off the conductivity's row and a gate says
+so. WORLD-A2LV.
 
 ## What `CKAPSN` was, which the earlier audit had missed
 
@@ -386,8 +446,10 @@ in the vendored tree -- not in an expression, not in a namelist, not in a
 threadprivate list. Deleting it is the fix. Exposing it as WORLD-04OK's "Do:"
 line asked would have put a key in `icemod_nl` that a bracket arm could move
 with no effect whatever, which is a worse state than the one it was in.
-`landmod`'s `CPSNOW`, at the same value, is the live declaration of that
-quantity and is what `snowcap` is derived from.
+`landmod`'s `landini` carries the live statement of that quantity -- IAPWS-06's
+specific heat of ice Ih at `TSNOWREF`, restating `lib/snow.py` -- and is what
+`snowcap` is derived from. 2090 was that relation a degree below the melting
+point.
 
 ## The glacial-ice pair
 
