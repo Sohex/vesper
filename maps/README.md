@@ -68,7 +68,12 @@ argument.
 
 `INDEX.json` is tracked and the frames themselves are not: the pixels are
 regenerable while the four inputs survive, and the index is the only record of
-what a UUID was once they do not. Same rule as `exoplasim/runs/`.
+what a UUID was once they do not. Same rule as `exoplasim/runs/`, and the same
+mechanism holds it: the row is written when the frame id is taken, before
+anything is drawn, and every write of the index happens under a lock on
+`INDEX.json.lock` beside it. Nothing rebuilds the index from a directory
+listing, so a frame whose pixels are deleted keeps its row and can be redrawn
+from the inputs the row names.
 
 ## A frame at every step that can move the picture
 

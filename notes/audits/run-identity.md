@@ -82,8 +82,8 @@ a reconstruction of runs that no longer existed could say so.
 
 ## What closed it
 
-`exoplasim/runs/INDEX.json` is a LEDGER of every run that has existed. Two
-mechanisms hold that, and both are needed:
+`exoplasim/runs/INDEX.json` is a LEDGER of every run that has existed. Three
+mechanisms hold that, and all three are needed:
 
 - **register at creation.** `run_exoplasim.py` calls `index_runs.register` the
   moment the manifest is written, before a single orbit, and again when the block
@@ -96,12 +96,54 @@ mechanisms hold that, and both are needed:
   row it cannot. A vanished directory keeps its last known row untouched and
   gains `payload_present: false`, the date the disappearance was first noticed,
   and whether an `archive/runs/` stub holds its extracted products.
+- **a registration is not a scan.** `merge()` reads absence as deletion, which
+  is what a FULL listing of `exoplasim/runs/` licenses and nothing else does.
+  `index_runs.upsert()` is what `register()` calls: it lays one row over the
+  ledger and leaves every other row exactly as it found it. And a listing is
+  only authoritative in the main checkout, because a worktree's run directories
+  are the ones `link_worktree.py` linked and a run made since is absent there
+  without having been deleted; `index_runs.scan_is_authoritative()` decides that
+  from whether `.git` is a directory, and a rescan in a worktree marks nothing
+  gone.
 
 `scripts/smoke_test.py:check_run_index_is_a_ledger` refuses the regression on an
 identity rather than a comparison: a merge against a scan that sees nothing must
-return every row it was given with its identity fields untouched, and a scan that
+return every row it was given with its identity fields untouched, a scan that
 does see a run must still win for that run's live fields, so a ledger that simply
-ignored the scan fails the same gate.
+ignored the scan fails the same gate, and an upsert of one row must leave the
+payload flag of every other row alone.
+
+## The registration that reported thirty-three live runs deleted
+
+Measured 2026-09-05 at e462b20e4. `register()` passed its single row through
+`merge()`, which had no way to tell one run reporting itself from a listing of
+the tree, so every row it was not handed was marked `payload_present: false`
+with a `payload_gone_since` date. Registering three T42 arms from a worktree
+that could see only those three arms therefore recorded 33 runs as having lost
+their payloads on 2026-08-31. All 33 payloads were on disk, untouched since
+2026-08-27, 297.8 GB of them.
+
+The cost was in the consumers, because a ledger row is filtered on that flag by
+anything asking whether a measurement can still be read.
+`lib/sensitivity.py:_live_entries` dropped all 33, and three
+`check_consistency.py` rows -- the flux-to-kelvin slope, its one-window-one-
+instrument guard, and the cold start's surface temperature -- reported that
+`run_432e5e46adef` and `run_b45380e61f90` were "in no run index at all". Both
+were in the index, with their build, executable sha, orbit count and convergence
+metrics intact. The true failure those rows were covering is a currency one: the
+two runs are on `canonical-10m-base` and the configured build is
+`canonical-10m-carve2`.
+
+The flags were removed rather than answered with `payload_returned`, since
+nothing returned. Nothing else in a row was rewritten: the repair changed
+`payload_present`, `payload_gone_since` and `payload_returned`, and no identity
+field on any row.
+
+The wording was the second half of it. A row with `payload_present: false` IS a
+record -- that is what world-ww6z bought -- so "in no run index at all" is now
+one of three answers `lib/sensitivity.py:unreadable_because` gives, beside an
+`archive/runs/` stub and a ledger row whose payload has gone. The repair for a
+run nothing can name is not the repair for a run nothing can re-read.
 
 A blow-up registers too, and that is not incidental. `lib/rungs.py` reads a
 failed status as a ladder verdict, and `run_900548ae632e`'s SIGFPE in its
@@ -117,6 +159,13 @@ most of them cannot be recovered at all. The disposition per run is either a
 statement that the claim resting on it cannot be checked -- which is what
 `notes/audits/resolution-ladder.md` now says of its own rows.
 
-Also open: `maps/` uses the same UUID-plus-tracked-index pattern for rendered
-frames, with `maps/data/<build>/INDEX.json` written from what is on disk. Whether
-it has the same shape of defect is not measured here.
+`maps/` uses the same UUID-plus-tracked-index pattern for rendered frames, and
+measuring it on 2026-09-05 found the leak is not there: `maps/data/<build>/INDEX.json`
+is accumulated by `maps/frames.py` and nothing rebuilds it from a directory
+listing, so a deleted frame keeps its row and can be redrawn from the inputs the
+row names. What it did share is the concurrency half: `render_projections.py`
+read the whole index, rendered for minutes and wrote the whole index back, so
+two renders at once lost a row and left a UUID of pixels nothing could name, and
+two processes at one new fingerprint took two ids for one picture. The row is
+now taken with the id, before anything is drawn, and every write of the index is
+under a lock beside it.

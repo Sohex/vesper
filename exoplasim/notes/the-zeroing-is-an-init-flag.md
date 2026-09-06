@@ -189,7 +189,11 @@ SHTns's own scratch over-read causes is separated from one the model causes.
 
 Re-measured 2026-08-24 at 97c05751, after wave 1 and after `world-qml` changed
 `surfmod.f90`, at T21, sixteen threads, 60 steps, on a cold bed from
-`run_2b20e3324bb0`:
+`run_2b20e3324bb0`. That run has no record and no payload
+(`archive/runs/RECORDLESS.json`) and the bed went with it, so this comparison
+cannot be re-taken on the same bed. What it rests on is that both arms ran on
+ONE bed, whichever it was, and that is what the `plasim_status` hashes below
+compare; repeating it on a live bed is a fresh instance of the same test:
 
 | arm | `plasim_status` |
 | --- | --- |

@@ -3972,7 +3972,42 @@ def check_run_index_is_a_ledger() -> list[str]:
     if live["run_000000000001"].get("orbits_on_disk") != 90:
         bad.append("a scan that CAN see a run does not update its row, so the "
                    "index is frozen rather than merged")
+
+    # REGISTERING ONE RUN SAYS NOTHING ABOUT ANY OTHER. `merge()` reads absence
+    # as deletion because a full scan is the only evidence it has; `register()`
+    # has looked at one directory. Passing that one row through `merge()` marked
+    # 33 live runs payload_present false with a payload_gone_since date, from a
+    # worktree that could see only the three arms it had just run, and every
+    # consumer that filters the ledger on that flag stopped seeing the runs its
+    # own measurements were taken on.
+    other = {r["directory"]: r for r in index_runs.upsert(
+        previous, {"directory": "run_000000000002", "run_id": "run_000000000002",
+                   "orbits_on_disk": 3, "size_gb": 0.4, "physical": {},
+                   "converged": False})}
+    if other["run_000000000001"].get("payload_present") is False:
+        bad.append("index_runs.upsert marks a run payload-gone because ANOTHER "
+                   "run was registered, so registering one run reports every "
+                   "other run's payload as deleted")
+    if "run_000000000002" not in other:
+        bad.append("index_runs.upsert does not add the row it was handed")
     return bad
+
+
+def check_map_frame_index_keeps_every_row() -> list[str]:
+    """`maps/frames.py:_self_test`: two renders at once keep two rows.
+
+    The same UUID-plus-tracked-index pattern as `exoplasim/runs/`, and the same
+    thing at stake: the index is the only record of what a frame id was, so a
+    row lost to a read-modify-write leaves a directory of pixels nothing can
+    name. The fixture is in `maps/frames.py` because it is that module's
+    contract; this is the gate that runs it.
+    """
+    sys.path.insert(0, str(ROOT / "maps"))
+    try:
+        import frames
+    except ImportError as exc:
+        return [f"maps/frames.py does not import: {exc}"]
+    return frames._self_test()
 
 
 def check_commissioning_evidence_is_re_read() -> list[str]:
@@ -6740,6 +6775,8 @@ def main() -> None:
                lambda: check_fit_tail_fraction_is_stated_once()),
               ("a rescan cannot remove a run from the index",
                lambda: check_run_index_is_a_ledger()),
+              ("two renders at once keep two map frame rows",
+               lambda: check_map_frame_index_keeps_every_row()),
               ("every filename references/INDEX.md asserts is on disk",
                lambda: check_reference_index_files_exist()),
               ("no linked file's target has moved under this worktree",

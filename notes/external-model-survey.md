@@ -1308,7 +1308,12 @@ same 965 wavelengths, weights each by the configured stellar spectrum, splits at
 `plasimmod.f90:428-432` are defaults that are overwritten before they are used.
 
 The run says so directly. "Finalized Albedos" in
-`exoplasim/runs/run_2b20e3324bb0/MOST_DIAG.00001`:
+`exoplasim/runs/run_2b20e3324bb0/MOST_DIAG.00001` -- a run with no row in
+`exoplasim/runs/INDEX.json` and no payload (`archive/runs/RECORDLESS.json`), so
+these five rows are the pre-repair state and cannot be re-read. The same print
+is re-read from any live run: `run_67323a923013/MOST_DIAG.00001`, T21 on
+`canonical-10m-carve2`, gives 11f's repaired column below to every digit it
+states.
 
 | constant | band 1 | band 2 |
 | --- | ---: | ---: |

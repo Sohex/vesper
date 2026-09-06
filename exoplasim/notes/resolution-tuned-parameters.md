@@ -452,9 +452,9 @@ measured on one level in ten is a null about one level in ten.
 
 ### The re-measurement, and it is not a null
 
-Two T21 arms already on disk, `run_8044646ea7f0` and `run_a2dc0ab73074`, 85
-orbits each. Same binary by sha, same cold start, same seed, same surface fields
-by sha, same stellar spectrum, same everything the manifest records. The
+Two T21 arms, `run_8044646ea7f0` and `run_a2dc0ab73074`, 85 orbits each. Same
+binary by sha, same cold start, same seed, same surface fields by sha, same
+stellar spectrum, same everything the manifest records. The
 namelist difference is the whole of the experiment: one writes `NDEL = 4` and
 `TDISSZ = 2.2285` as scalars and the other writes `10*4` and `10*2.2285`. So
 levels 2 to 10 run `del^2` at the presets in one arm and the derived `del^4` in
@@ -462,7 +462,14 @@ the other, which is a larger perturbation than the 3.7x in `tau` the first
 experiment attempted.
 
 Measured by `exoplasim/scripts/filter_spectral_cost.py`, orbits 40 to 83 in 22
-disjoint two-orbit windows:
+disjoint two-orbit windows. Neither arm has a row in `exoplasim/runs/INDEX.json`
+or a payload any more (`archive/runs/RECORDLESS.json`); the spectra survive in
+`exoplasim/analysis/filter_spectral_cost_arms.json` and
+`exoplasim/analysis/hyperdiffusion_levels_ba0.json`, and the 85-orbit records in
+`exoplasim/analysis/convergence/run_8044646ea7f0_convergence.json`, so the
+separation below is re-derivable. The manifests are what said the two arms
+differed in the namelist alone, and they went with the payloads: the CONTROL is
+therefore no longer checkable, only the two spectra it produced.
 
 | | level 1 only | all ten levels | separation |
 | --- | ---: | ---: | ---: |
@@ -1696,6 +1703,15 @@ host load 5.0 to 7.4 over 32 cores:
 | fixer off again, `run_c24776f33d25` | -0.0206 | -0.0000256 |
 | fixer off a third time, `run_383b871dcfad` | -0.0206 | -0.000250 |
 | fixer on, `run_614579b8b44a` | +0.0034 | -0.000197 |
+
+None of those four runs has a record or a payload
+(`archive/runs/RECORDLESS.json`).
+`exoplasim/analysis/arms/world_0ov_fixer_verification.json` carries three of
+them -- `run_d3606ce0d265`, `run_c24776f33d25` and `run_614579b8b44a` -- with
+the `plasim_diag` hash each column was read from, so those rows are re-derivable
+from an artifact. The third fixer-off repeat, `run_383b871dcfad`, is in no
+artifact, and the reproduction claim below therefore rests on two published
+repeats and one this note is the sole copy of.
 
 The three fixer-off rows are one configuration run three times. `denergy26 -
 denergy27` reproduces exactly. The `Cimp - Ct` column of that table was read

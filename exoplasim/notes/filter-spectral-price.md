@@ -48,7 +48,12 @@ sign is opposite to the predicted one.
 
 `run_aedeb37bc7f2` is the third dt pair and is NOT counted here: its window is
 orbits 10 to 23 of a cold start where the others are orbits 30 upward, so it is
-a spin-up window and not comparable.
+a spin-up window and not comparable. That run has no row in
+`exoplasim/runs/INDEX.json` and no payload (`archive/runs/RECORDLESS.json`). Its
+arm survives in `exoplasim/analysis/filter_spectral_cost_arms.json`, which
+carries seven windows against the twenty-two and eighteen of the counted arms
+and so corroborates the exclusion; the orbit range itself, and the build and
+executable the arm ran on, are not recoverable from any artifact.
 
 ## Why: the filter is folded into the transform, not applied to the state
 

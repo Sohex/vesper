@@ -29,7 +29,9 @@ are recorded here because both were found by asking where a number comes from.
 `run_exoplasim.py:1031-1034` and `stability_probe.py:177-181` write `TDISSD`,
 `TDISSZ`, `TDISST`, `TDISSQ` and `NDEL` as bare scalars. Fortran namelist
 assignment of a scalar to an array sets element 1 only. The model's own echo,
-from `run_2b20e3324bb0/MOST_DIAG.00002`:
+from `run_2b20e3324bb0/MOST_DIAG.00002` -- a run with no row in
+`exoplasim/runs/INDEX.json` and no payload (`archive/runs/RECORDLESS.json`), so
+this echo cannot be re-read and no current run can reproduce it:
 
     NDEL=4          , 9*2          ,
     TDISSD= 0.4457     , 9*0.2000     ,
@@ -41,12 +43,23 @@ Levels 2 to 10 run the compiled T21 module defaults from `plasimmod.f90:877-880`
 That is the state `world-ys9` exists to end, still live after the derivation was
 written.
 
+What is re-readable is the repaired state: `run_67323a923013/MOST_DIAG.00002`,
+T21 on `canonical-10m-carve2`, echoes `TDISSD= 10*0.2691`, `TDISSZ= 10*1.3455`
+and `TDISST= 10*3.4082`, and `check_consistency.py`'s "runs vs the
+hyperdiffusion they declare" row holds every run in the ledger to its own
+declaration per level.
+
 **At T42 the array is mixed-unit.** There the `if(NTRU==42)` block at
 `plasim.f90:1443-1450` has already filled levels 2 to 10 in SECONDS, and the
-driver then overwrites level 1 in days. From `run_953ee807d32f`:
+driver then overwrites level 1 in days. From `run_953ee807d32f`, which is in no
+run index and has no payload either, so this echo is the sole copy of the
+mixed-unit state:
 
     TDISST=  2.8224     , 9*65664.0
     TDISSD=  0.2229     , 9*5184.0
+
+A live T42 run reads uniformly in days now: `run_88ed6f9d34ae/MOST_DIAG.00002`
+echoes `TDISST= 10*1.7042`.
 
 `dayseccheck` (`plasim.f90:1643-1656`) discriminates on `maxval`, sees 65664
 against a `deltsec` of 2700, and converts nothing. No "assuming [days]" line

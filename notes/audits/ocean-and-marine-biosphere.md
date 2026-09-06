@@ -1238,6 +1238,14 @@ all. The other three took the drift fallback, where the criterion quantity is
 | run_78c22fb1a1bd | 0.00747 | 0.00751 | 0.15 |
 | run_aaa95662e21a | 0.10740 | 0.10794 | 0.15 |
 
+All three run directories are gone, and two of the three ids -- `run_2b20e3324bb0`
+and `run_aaa95662e21a` -- are in no run index either
+(`archive/runs/RECORDLESS.json`). The stored quantities are not read from the
+runs: they are read from `exoplasim/analysis/convergence/run_2b20e3324bb0_convergence.json`
+and `run_aaa95662e21a_convergence.json`, and `run_78c22fb1a1bd` keeps its identity
+under `archive/runs/`. So the row above is re-derivable and what is not
+recoverable for the two is which build and which executable produced them.
+
 The margins are about 0.043 K and the correction moves them by about 0.0005 K,
 two orders of magnitude apart. Nor does the damping change reach them: those
 two nearest the tolerance would need `tau_expected` above 13.9 and 13.8 orbits

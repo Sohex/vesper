@@ -1442,7 +1442,7 @@ def check_land_column_thermal_constants(rep: "Report") -> None:
 # names its bracket runs in code: a run id inside a YAML comment is reachable by
 # a reader and by nothing else, and what makes this a check is that something
 # opens the run index.
-COLD_START_RUN = "run_432e5e46adef"
+COLD_START_RUN = "run_5994d1f9624e"
 
 
 def check_cold_start_currency(rep: "Report", config: dict) -> None:
@@ -1465,15 +1465,13 @@ def check_cold_start_currency(rep: "Report", config: dict) -> None:
         want_flux = float(config["orbit"]["baseline_flux_earth"])
         declared = config["model"]["cold_start_profile"]["surface_temperature_k"]
         live = sensitivity._live_entries()
-        archived = sensitivity._archived_entries()
         entry = live.get(COLD_START_RUN)
         problems = []
         if entry is None:
-            where = ("survives only as archived identity, on build "
-                     f"{archived[COLD_START_RUN].get('source_build')}"
-                     if COLD_START_RUN in archived else "is in no run index at all")
             rep.add(FAIL, label,
-                    f"{COLD_START_RUN} {where}; the temperature it carries "
+                    f"{COLD_START_RUN} "
+                    f"{sensitivity.unreadable_because(COLD_START_RUN)}; "
+                    f"the temperature it carries "
                     f"cannot be recomputed, so re-derive this declaration "
                     f"against a live run on {want_build}")
             return

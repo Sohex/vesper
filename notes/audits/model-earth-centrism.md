@@ -2,6 +2,11 @@
 
 Audited 2026-08-24, on `source_build: precarve-craton-10m` at T21 with the
 staged namelists and run output of `run_2b20e3324bb0` and `run_2c42c68fe9ca`.
+Neither run has a row in `exoplasim/runs/INDEX.json` or a payload any more
+(`archive/runs/RECORDLESS.json`). Where a finding rests on what the model PRINTS
+or STAGES, the same evidence is in every run and each such finding below names a
+run the ledger holds; where it rests on the state of the model before a repair,
+it says so and cannot be re-read.
 The subject is the SIMULATION of Vesper: a modelled atmosphere, a modelled
 ocean, a modelled snowpack. Line citations are to
 `vendor/exoplasim/exoplasim/plasim/src` unless another path is given.
@@ -56,8 +61,12 @@ classes are handled differently on purpose and the comment at
 WRONG value, while it does not write `NDEL`, `NHDIFF` or `TDISS*` at all, so a
 dropped key there is an ABSENT one.
 
-Checked across all nine run directories on 2026-08-24. One is missing every
-key:
+Checked across all nine run directories on 2026-08-24; all nine are gone and
+none of the three named below is in any run index
+(`archive/runs/RECORDLESS.json`), so this table cannot be re-read. What replaced
+it as the standing check is `check_consistency.py`'s "runs vs the hyperdiffusion
+they declare", which holds every run the ledger names to its own declaration per
+level. One of the nine was missing every key:
 
     run_2b20e3324bb0   NHDIFF=-    NDEL=-   TDISSZ=-        NFILTEREXP=8
     run_2c42c68fe9ca   NHDIFF=16   NDEL=4   TDISSZ=1.1143   NFILTEREXP=16
@@ -155,7 +164,9 @@ a real code-169 climatology IS supplied, and `iceini` writes a warning naming
 the CCM3 relation when it uses it (`icemod.f90:307-310`).
 
 Measured on 2026-08-24, first output bin of `run_2b20e3324bb0`, on the model as
-it stood before the repair:
+it stood before the repair. That run has no record and no payload, and the
+repair means no current run reproduces these numbers, so this is the sole copy
+of the state the repair removed:
 
     ts   ocean: min=214.832  max=271.900  mean=258.860
     sic  ocean: min=0.000    max=0.000    mean=0.000
@@ -300,7 +311,11 @@ Measured 2026-08-26 by `exoplasim/scripts/cloud_water_scale_height_ratio.py`,
 on the `NEQSIG = 4` sigma grid at a 50 hPa model top that every run on record
 integrates, with the global mean temperature profile of `run_2b20e3324bb0`'s
 climatology and a modelled column holding 25 kg/m2 of precipitable water, which
-is that climatology's median column. At this column water the e-folding length
+is that climatology's median column. That run has no record and its climatology
+is not on disk, so the two lengths are not re-readable; re-running
+`cloud_water_scale_height_ratio.py` against the configured build's best
+available climatology is what replaces them, and the ratio rather than either
+length is what the finding turns on. At this column water the e-folding length
 `hl` is 2281 m under the inherited coefficient and 1746 m under the derived one.
 
 **Two ratios, and they answer different questions.** *Inherited over derived* is
@@ -918,7 +933,10 @@ with everything else.
 **THE SIGMA SET IN THIS DOCUMENT WAS THE WRONG ONE.** Measured 2026-08-24
 against `run_2b20e3324bb0/MOST_DIAG.00001`, whose vertical table reads 0.02500,
 0.09372, 0.18812, 0.29717, 0.42058, 0.55432, 0.69069, 0.81826, 0.92191, 0.98282,
-and whose namelist carries `NEQSIG = 4` and `PTOP = 5000.0`. The set this
+and whose namelist carries `NEQSIG = 4` and `PTOP = 5000.0`. That run is in no
+run index and has no payload; the table is a property of the grid rather than of
+the run, and `run_67323a923013/MOST_DIAG.00001` -- T21 on `canonical-10m-carve2`,
+in the ledger -- prints the same set, which is where it is re-read. The set this
 document used -- 0.038, 0.12, 0.21, 0.32, 0.44, 0.57, 0.70, 0.82, 0.92, 0.98 --
 is `plasim.f90`'s `neqsig == 0` fallback, which runs the same polynomial
 UNRESCALED and puts the model top at 7660 Pa instead of 5000. Every run on
@@ -1129,7 +1147,9 @@ is the one that survives; it now assigns the same numbers landmod did.
 
 `print_planet` in `p_earth.f90` has no namelist and nothing parses it, so this
 was diagnostic only -- but it goes into `plasim_diag` beside numbers that are
-correct. Measured on 2026-08-24 from `run_2c42c68fe9ca/MOST_DIAG.00000`:
+correct. Measured on 2026-08-24 from `run_2c42c68fe9ca/MOST_DIAG.00000`, a run
+with no record and no payload; the print is still there, and
+`run_67323a923013/MOST_DIAG.00000` is where it is read now:
 
     YPLANET="Earth"
     *              Simulating: Earth                 *
@@ -1426,8 +1446,11 @@ rather than an inherited error.
 **The planetary constants reach the model correctly.** `PLARAD = 7645464.0`,
 `GA = 12.81`, `GASCON = 287.017`, `ECCEN = 0.02`, `OBLIQ = 32.0`,
 `GSOL0 = 1286.145`, `ROTSPD = 0.8`, `SIDEREAL_YEAR = 15794043.12`,
-`NFIXORB = 1`, `NGENKEPLERIAN = 1`, `PSURF = 100000`, all verified in
-`run_2c42c68fe9ca`'s staged namelists rather than in documentation. `meananom0`
+`NFIXORB = 1`, `NGENKEPLERIAN = 1`, `PSURF = 100000`, all verified in staged
+namelists rather than in documentation. They were read from
+`run_2c42c68fe9ca`, which has no record and no payload; every one of them is in
+`run_67323a923013/planet_namelist`, a run the ledger names, which is where they
+are checked now. `meananom0`
 presets Earth's Jan-1 value at `p_earth.f90:42` and all three drivers pass
 `meananomaly0=0.0`, so it never fires.
 

@@ -81,6 +81,19 @@ and in nothing else, and it is the only row that finishes.
 `run_352f6a4180e5` is the standing production configuration, full physics with
 the fixer on, and it fails identically at the same source line at `nenergy = 1`.
 
+**What survives of the six, and what does not.** None of the six has a row in
+`exoplasim/runs/INDEX.json` or a payload (`archive/runs/RECORDLESS.json`). Three
+of the crashed rows survive in
+`exoplasim/analysis/arms/world_0ov_fixer_verification.json`, which names each
+one's directory as `<run>_crashed` and carries the `plasim_diag` hash it was read
+from, so the crash outcome of `run_d3606ce0d265`, `run_c24776f33d25` and
+`run_614579b8b44a` is checkable against an artifact. **The control is not.** No
+artifact carries `run_2260d97ffc27` or `run_352f6a4180e5`, so the row that
+finishes -- the one the isolation turns on -- and the production-configuration
+row are claims this note is the sole copy of. Re-taking them is six one-orbit
+T21 arms branched from `run_14906cb7b914`'s `MOST_REST.00034`, which is still on
+disk, after a `most_plasim_t21_l10_p8.x` rebuild.
+
 ## What the diagnostics are still good for
 
 The failure is at the restart write, after the last timestep and after

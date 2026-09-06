@@ -2,7 +2,11 @@
 
 Audited 2026-08-24 against `vendor/exoplasim/` at 3ca1ab37, the five binaries in
 `exoplasim/binary_manifest.json`, and the namelists the model itself wrote in
-`exoplasim/runs/run_2b20e3324bb0/`.
+`exoplasim/runs/run_2b20e3324bb0/`. That run has no row in
+`exoplasim/runs/INDEX.json` and no payload (`archive/runs/RECORDLESS.json`), so
+the echoes quoted from it cannot be re-read. They can be re-taken: a namelist
+echo is a property of the model and the configuration rather than of the run,
+and any live T21 run's `MOST_DIAG` carries the same keys.
 
 Worldbuilding frame: this file is about the source of the Vesper project's
 climate model, a hard fork of ExoPlaSim. Every quantity named here is a property
@@ -34,7 +38,10 @@ project builds and runs. Falsified by one named namelist key. Every such claim
 below was checked against the model's own namelist echo in
 `run_2b20e3324bb0/MOST_DIAG.00003` rather than against source defaults or
 harness intent, because three keys (`NSWRCL`, `NEWRSC`, `NMOMENT`) appeared in no
-harness file at all and were invisible any other way. `NSWRCL` is now staged and
+harness file at all and were invisible any other way. That run is gone; the three
+keys are echoed by every run, and `run_67323a923013/MOST_DIAG.00003` -- T21 on
+`canonical-10m-carve2`, in the ledger -- carries `NSWRCL=1`, `NEWRSC=0` and
+`NMOMENT=0`, which is where the claim is re-read now. `NSWRCL` is now staged and
 checked by `run_exoplasim.py` at its compiled 1, so the shortwave cloud scheme a
 run used is readable from the run's own namelist; clim-68. `NEWRSC` and
 `NMOMENT` are still diagnostic-echo-only.
@@ -62,7 +69,12 @@ Found by this sweep, and they outrank everything below it.
 passes only `physicsfilter`, so the other two take `configure()`'s defaults.
 
 `config/planet.yaml:388` declares `filter_power: 16`. The staged
-`plasim_namelist` of `run_2b20e3324bb0` records `NFILTEREXP = 8`.
+`plasim_namelist` of `run_2b20e3324bb0` records `NFILTEREXP = 8`. That is the
+defect's evidence and it is unre-readable: the run has no record and no payload,
+and no artifact copied its namelist. What a reader can check is the repair --
+`run_67323a923013` echoes `NFILTEREXP=16`, and `check_consistency.py`'s
+"runs vs the hyperdiffusion they declare" row holds every run in the ledger to
+its own declaration per level.
 
 `NDEL`, `NHDIFF`, `TDISSD`, `TDISSZ`, `TDISST` and `TDISSQ` are absent from that
 namelist entirely, because `continue_exoplasim.py` never calls

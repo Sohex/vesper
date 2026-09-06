@@ -713,8 +713,10 @@ def main():
             "the frame it belongs to cannot be identified. Rebuild it:\n"
             "    python maps/build_basemap.py")
 
-    index = frames.load()
-    entry = frames.open_frame(index, src_prov["inputs"])
+    # REGISTERED BEFORE ANYTHING IS DRAWN, so the id and its row come into
+    # existence together; see frames.py. A render is minutes long and this
+    # process is not the only one that can be rendering.
+    entry = frames.register(src_prov["inputs"])
     entry["climatology_caveat"] = src_prov.get("climatology_caveat")
     entry["basemap_resolution"] = src_prov.get("resolution")
     out_dir = frames.frame_dir(entry)
@@ -765,7 +767,7 @@ def main():
         "git_commit": entry["git_commit"],
     })
     (out_dir / "provenance.json").write_text(json.dumps(prov, indent=2) + "\n")
-    frames.save(index)
+    frames.record(entry)
     print(f"frame {entry['frame_id']}  ->  {out_dir.relative_to(ROOT)}")
 
 

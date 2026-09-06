@@ -39,7 +39,12 @@ bit-identical to the whole run in every restart record.
 
 T21, ten levels, four threads, on the surface fields and namelists of
 `exoplasim/runs/run_2b20e3324bb0`, cold started from `TSST_EQ = 300.0` and
-`TSST_POL = 273.0` in `icemod_nl`. Three preparations were needed and each is
+`TSST_POL = 273.0` in `icemod_nl`. That run has no row in
+`exoplasim/runs/INDEX.json` and no payload
+(`archive/runs/RECORDLESS.json`), so the fields and namelists this bed was built
+from cannot be re-read. The findings are differences between two runs on ONE
+bed, so what the bed was does not enter them; repeating the test needs a bed,
+not that bed. Three preparations were needed and each is
 worth recording, because the bed that exists in the tree does not run as it
 stands:
 

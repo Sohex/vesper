@@ -1514,7 +1514,12 @@ bucket the donor ran, against this same control on this same restart, staging
 
 It accounts for +0.17 +/- 0.07 K of the drift and no more, so the config is not
 where the drift lives and the rest is the model source's. The bisect below takes
-it from there.
+it from there. That arm and its control have no rows in
+`exoplasim/runs/INDEX.json` and no payloads (`archive/runs/RECORDLESS.json`);
+`exoplasim/analysis/arms/bundle_split_land_column.json` carries the arm's whole
+trajectory and the control's orbit count and final `tas`, so the kelvin is
+re-derivable. The namelist difference that makes it an A/B was in the manifests,
+which went with the payloads.
 
 Removing the `cryosphere` block to build a second config arm does not work and
 should not: `derive()` indexes it rather than using `.get`, deliberately, so that
@@ -1566,7 +1571,11 @@ world-ucww.
 T21, `most_plasim_t21_l10_p8.x` at model source `a041a1e9`, both arms branched
 from `run_14906cb7b914`'s `MOST_REST.00034` and differing from the control in
 `H2OSWL` alone. `run_11b43d2c56a4` carries 1.129 and `run_fc75ca5f9fd2` carries
-1.206; `run_57a43e1fc3f4` is the central 1.163. The energy fixer and diagnostics
+1.206; `run_57a43e1fc3f4` is the central 1.163. None of the three has a record or
+a payload (`archive/runs/RECORDLESS.json`), and the four
+`exoplasim/analysis/arms/world_u9hq_*.json` artifacts carry the arms, the
+trajectories and the windows, so every kelvin in this section is re-derivable
+from them and no arm can be attributed to a build. The energy fixer and diagnostics
 are off in all three, forced by the `epilog` defect and common to every arm.
 
 The declared length is 11 orbits of settling, `lib/run_lengths.settling_bracket(0.75)`'s
@@ -1635,7 +1644,11 @@ only under `nenergy > 1`, which allocates `zcnow`; every arm in this note has no
 the decomposition never runs. The model state itself is bit-reproducible on this
 source, shown directly by `run_0730a12ecfbd` and `run_57a43e1fc3f4` writing an
 identical `MOST_REST.00000` from different cores. The instrument is clean for
-every kelvin below.
+every kelvin below. That reproducibility check is the one claim here nothing can
+re-read: `run_0730a12ecfbd` has no record, no payload and no artifact, so no file
+carries the two restarts or their hashes. What replaces it is two one-orbit T21
+arms of one configuration on different cores, compared by `MOST_REST.00000`
+hash.
 
 **The split, measured.**
 
@@ -1679,7 +1692,10 @@ Four checks with right answers, all passed:
   sites use `ALS` where the two rain sites use `ALV`.
 - **The override is reached**, and the model says so: `run_af3d2c9a4b05`'s
   `plasim_diag` prints `precip re-evaporation: CONSTANT gamma 1.0E-002`. That is
-  the first thing this note's own falsifying list says to check.
+  the first thing this note's own falsifying list says to check. The arm's
+  kelvin survives in `exoplasim/analysis/arms/bundle_split_gamma.json`; the run
+  has no record and no payload, and no artifact carries that print, so the print
+  is re-taken by staging the override again rather than re-read.
 - **Every link of the stated mechanism has the predicted sign.** Over the arm's
   settled window, orbits 15 to 24, pinning `gamma` to 0.01 against the derived
   default gives +0.291 +/- 0.011 mm/day more precipitation reaching the ground,
@@ -2229,7 +2245,10 @@ than assumed.
 ## Measured: the world-5oyp soil thermal pair, 2026-08-27
 
 `run_ae5aaf479f57` (the shipped interpolation) against `run_8f75d23c0730` (the
-retired constant column at 1.8 W/m/K and 2.4e6 J/m3/K), both 50 orbits at T21 on
+retired constant column at 1.8 W/m/K and 2.4e6 J/m3/K), neither with a record or
+a payload (`archive/runs/RECORDLESS.json`) and both carried in full by
+`exoplasim/analysis/arms/world_5oyp_arms.json` and
+`world_5oyp_land_seasonal_range.json`, both 50 orbits at T21 on
 `most_plasim_t21_l10_p8.x` sha `98b423ce`, both branched from
 `run_14906cb7b914`'s `MOST_REST.00034`, each one `diagnostic` segment at low I/O
 so the whole arm is one instrument and no window can span a regime change. Their
@@ -2661,7 +2680,12 @@ one host lock: about six minutes of wall time and twelve of model time.
 ### MEASURED 2026-08-27, and one half of it was wrong
 
 `run_a1c35075747c` at `NWETSOIL = 1` against `run_598eb57c5a34` at 0, one binary
-and one seed, orbits 15 to 24.
+and one seed, orbits 15 to 24. Neither has a record or a payload
+(`archive/runs/RECORDLESS.json`); their convergence diagnostics survive as
+`exoplasim/analysis/convergence/run_a1c35075747c_convergence_diagnostic.json` and
+`run_598eb57c5a34_convergence_diagnostic.json`, and `scripts/error_budget.py`
+reads the pair, so the numbers below are re-derivable and the one binary and one
+seed are not checkable against anything.
 
 **The `alb` half is right.** The land-mean fall is 0.006397, inside the
 registered 0.003780 to 0.006745 and near its upper end, resolved at 5.7 times the
