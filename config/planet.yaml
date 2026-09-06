@@ -1047,8 +1047,9 @@ model:
   # reference temperature, isothermal on every level, and the thing the
   # reference geopotential `Phi0_k = sum_j g(j,k) t0` is built out of -- so the
   # adiabatic conversion defect world-0ov measures, and the fixer world-mzy
-  # applies against it, are both proportional to it. It also sets the explicit
-  # gravity-wave timestep limit `nconvtime` refuses above.
+  # applies against it, are both proportional to it. It is also one of the
+  # things `nconvtime`'s stability guard depends on, through the vertical
+  # structure the guard iterates rather than through a formula: world-bt3b.
   #
   # THE DERIVATION IS RUN RATHER THAN DESCRIBED: the mass-weighted mean of the
   # `setzt` profile over the model's own sigma levels, weights `dsigma`, in
