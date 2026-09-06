@@ -1136,10 +1136,9 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     prev_free_key = None
     prev_value_key = None
     pattern_repeats = value_repeats = 0
-    lu = None
-    lu_key = None
-    lu_free_key = None
-    lu_reuses = 0
+    factors = {}
+    n_factorised = n_reused = 0
+    n_blocks_last = largest_block_last = 0
     for outer in range(max_outer):
         phases("active_set")
         # A cell with no conducting face has no LATERAL equation: nothing can
@@ -1288,17 +1287,56 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                           f"pinning {pick.size:,} cells")
                 continue
 
+        # THE FREE SET IS NOT ONE PROBLEM, AND SOLVING IT AS ONE IS THE COST.
+        # GW-17 put every river and lake cell at a fixed head, which makes them
+        # BOUNDARY rather than unknown, so a face touching one carries no
+        # off-diagonal and the channel network CUTS the free set. What is left
+        # is one block per interfluve, plus one per island, and the blocks do
+        # not exchange water directly -- they exchange it through the rivers
+        # between them, which are a Dirichlet condition on both sides.
+        #
+        # A direct factorisation's work and fill are SUPERLINEAR in the
+        # unknowns, so a partition is not bookkeeping: K blocks of n/K cells
+        # cost `K (n/K)^1.5`, which is `n^1.5 / sqrt(K)`, and the PEAK is one
+        # block rather than the whole. That is what makes the difference between
+        # a solve that fits in this host's memory and one that swaps.
+        #
+        # AND IT IS EXACT, not an approximation to the coupled solve. There is
+        # no fill between blocks because there are no entries between them, so
+        # the elimination inside a block is the same sequence of operations it
+        # would be inside the whole matrix. `--factorisation-test` asserts that
+        # equality bitwise on a scrambled multi-block case, which is the arm
+        # that could show it failing.
+        #
+        # THE REUSE LIVES HERE TOO, and it is why this row's 27x lever is
+        # reachable at all. The whole matrix repeats almost never, because the
+        # active set churns SOMEWHERE on a planet every pass and the
+        # evapotranspiration diagonal moves with the head. A single interfluve
+        # is a different matter: most blocks are untouched between passes, so
+        # most blocks skip the factorisation and pay the back-substitution
+        # alone.
+        phases("partition")
+        blk_graph = sp.coo_matrix(
+            (np.ones(int(both.sum()), dtype=np.int8),
+             (idx[src[both]], idx[dst[both]])), shape=(m, m))
+        n_blocks, blk = _components(blk_graph, directed=False)
+        del blk_graph
+        # STABLE, so the cells inside a block keep their relative order and the
+        # block's submatrix is the one the whole matrix would have held. That is
+        # the condition the bitwise equality rests on.
+        order = np.argsort(blk, kind="stable")
+        bounds = np.searchsorted(blk[order], np.arange(n_blocks + 1))
+        n_blocks_last = n_blocks
+        largest_block_last = int(np.diff(bounds).max()) if n_blocks else 0
+        pos = np.empty(m, dtype=np.int64)
+        pos[order] = np.arange(m)
+        unknown_ids = np.flatnonzero(unknown)
+        free_key = hash(unknown_ids.tobytes())
+        # `idx[unknown]` was `arange(m)`, so this relabels every free cell by
+        # its position in block order and leaves -1 everywhere else.
+        idx[unknown] = pos
+
         phases("assembly")
-        # THE FACTOR IS DROPPED BEFORE THE NEW MATRIX IS BUILT, not after.
-        # Holding a factorisation whose fill runs to gigabytes while the next
-        # pass allocates its own assembly arrays raises the peak on a host
-        # several agents share, for a factor that a changed free set has already
-        # made useless. The free set is a NECESSARY condition for the matrix to
-        # repeat, so it decides this without waiting for the values.
-        free_key = hash(np.flatnonzero(unknown).tobytes())
-        if lu_free_key != free_key:
-            lu = None
-            lu_key = None
         rows = np.concatenate([idx[src[both]], idx[dst[both]],
                                idx[src[both]], idx[dst[both]]])
         cols = np.concatenate([idx[dst[both]], idx[src[both]],
@@ -1316,8 +1354,11 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
             rows = np.concatenate([rows, idx[unknown]])
             cols = np.concatenate([cols, idx[unknown]])
             vals = np.concatenate([vals, slope])
-            rhs += (slope * head[unknown]
-                    - e_star[unknown] * area_m2[unknown])
+            # `rhs` is in BLOCK order and `slope` is in free-cell order, so
+            # this scatters rather than adds elementwise. Adding them directly
+            # puts every cell's sink term on a different cell.
+            rhs[pos] += (slope * head[unknown]
+                         - e_star[unknown] * area_m2[unknown])
         if edge_one.any():
             u_side = np.where(unknown[src[edge_one]], src[edge_one], dst[edge_one])
             p_side = np.where(unknown[src[edge_one]], dst[edge_one], src[edge_one])
@@ -1424,20 +1465,43 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # THE OLD FACTOR IS DROPPED BEFORE THE NEW ONE IS BUILT. The fill of one
         # of these runs to gigabytes at this mesh's size, so holding two at once
         # doubles the peak on a host several agents share.
-        if lu_key is not None and lu_key == value_key:
-            lu_reuses += 1
-        else:
-            lu = None
-            with phases("factorise"):
-                lu = splu(A, permc_spec="MMD_AT_PLUS_A")
-            lu_key, lu_free_key = value_key, free_key
-        with phases("back_substitute"):
-            x = lu.solve(rhs)
+        # ONE FACTORISATION PER BLOCK, KEPT ONLY WHILE THAT BLOCK IS UNCHANGED.
+        # The key is the block's own cells and its own numbers, so a block the
+        # active set did not touch and whose sink did not move is recognised
+        # whatever happened elsewhere on the planet. `factors` is rebuilt each
+        # pass from what was actually used, which is what evicts the blocks that
+        # went away: a dict that only grows would hold the fill of every free
+        # set the iteration ever passed through.
+        x = np.empty(m)
+        kept = {}
+        pass_factorised = n_factorised
+        with phases("factor_solve"):
+            for b0, b1 in zip(bounds[:-1], bounds[1:]):
+                if b1 <= b0:
+                    continue
+                col = A[:, b0:b1]
+                sub = sp.csc_matrix((col.data, col.indices - b0, col.indptr),
+                                    shape=(b1 - b0, b1 - b0))
+                key = (hash(unknown_ids[order[b0:b1]].tobytes()),
+                       hash(sub.data.tobytes()))
+                lu = factors.get(key)
+                if lu is None:
+                    lu = splu(sub, permc_spec="MMD_AT_PLUS_A")
+                    n_factorised += 1
+                else:
+                    n_reused += 1
+                kept[key] = lu
+                x[b0:b1] = lu.solve(rhs[b0:b1])
+        # The previous pass's factors are dropped here, not before the loop, so
+        # a block that survived is never rebuilt to be immediately discarded.
+        factors = kept
+        del kept, lu
+        pass_factorised = n_factorised - pass_factorised
         if not np.all(np.isfinite(x)):
             raise SystemExit(
                 f"the direct solve returned {int((~np.isfinite(x)).sum()):,} "
                 f"non-finite heads at pass {outer}; do not use this result")
-        head[unknown] = x
+        head[unknown_ids[order]] = x
 
         # No relaxation and no step limit: under the confined form the operator
         # does not depend on the answer, so a full step invalidates nothing.
@@ -1506,6 +1570,8 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                   f"  residual {residual:10.3e}  leak {leak_frac:10.3e}"
                   f"  ({infeasible:,} cells)  {time.perf_counter() - _t_start:6.1f}s"
                   f"  {resident_gb():5.2f} GB"
+                  f"  blocks {n_blocks_last:,}/{largest_block_last:,}"
+                  f"  refactored {pass_factorised:,}"
                   f"{'  matrix repeated' if repeated else ''}", flush=True)
         if (residual < bar and flips <= FLIP_TOLERANCE * m
                 and leak_frac < bar):
@@ -1535,8 +1601,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                       f"balance {bal[i]:.6e}  anchor {bool(anchor[i])}  "
                       f"failed_anchor {bool(anchor_failed[i])}  "
                       f"rowsum {rowsum[i]:.3e}  depth {surface_m[i]-head[i]:.2f} m")
-    lu = None
-    lu_key = lu_free_key = None
+    factors = {}
     phases.stop()
     result["residual_trace"] = trace
     # ON THE ARTIFACT, not in a log line, because the row this was added for
@@ -1549,12 +1614,18 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         "passes_assembled": int(len(trace)),
         "pattern_repeats": int(pattern_repeats),
         "value_repeats": int(value_repeats),
-        "factorisations_reused": int(lu_reuses),
+        "blocks": int(n_blocks_last),
+        "largest_block_cells": int(largest_block_last),
+        "block_factorisations": int(n_factorised),
+        "block_factorisations_reused": int(n_reused),
     }
     if verbose:
         print(f"  phases: {result['phase_seconds']}")
-        print(f"  matrix repeated on {value_repeats} of {len(trace)} passes "
-              f"(pattern on {pattern_repeats})", flush=True)
+        print(f"  the free set was {n_blocks_last:,} blocks, largest "
+              f"{largest_block_last:,} cells; {n_factorised:,} block "
+              f"factorisations against {n_reused:,} reused")
+        print(f"  the WHOLE matrix repeated on {value_repeats} of "
+              f"{len(trace)} passes (pattern on {pattern_repeats})", flush=True)
     # CHECKED AT THE END AND NOT PER PASS. An early pass can hold a head far
     # from the answer, so a floor computed there says nothing about the solve;
     # what matters is whether the CONVERGED configuration can be certified.
@@ -1874,30 +1945,36 @@ def factorisation_test(sizes=(40, 80, 160), verbose=True) -> dict:
     any pivoting and would therefore not be able to reject anything.
     """
     rng = np.random.default_rng(20260905)
-    out = {"identity": [], "control": [], "passes": True, "control_rejected": False}
-    for nx in sizes:
+
+    def lattice(nx, base=0):
+        """One Dirichlet-anchored lattice block, labelled from `base`."""
         n = nx * nx
+        g = np.arange(n).reshape(nx, nx)
         rows, cols, vals = [], [], []
         diag = np.zeros(n)
         for di, dj in ((1, 0), (0, 1)):
-            a = np.arange(n).reshape(nx, nx)[:nx - di, :nx - dj].ravel()
-            b = np.arange(n).reshape(nx, nx)[di:, dj:].ravel()
+            a = g[:nx - di, :nx - dj].ravel()
+            b = g[di:, dj:].ravel()
             t = 10.0 ** rng.uniform(-15.2, -11.8, a.size)
-            rows += [a, b]
-            cols += [b, a]
+            rows += [a + base, b + base]
+            cols += [b + base, a + base]
             vals += [-t, -t]
             np.add.at(diag, a, t)
             np.add.at(diag, b, t)
-        rows.append(np.arange(n))
-        cols.append(np.arange(n))
         # A Dirichlet edge, so the operator is non-singular for the same reason
         # the real one is: a boundary the water leaves by.
         edge = np.zeros(n)
         edge[:nx] = diag[:nx].mean()
+        rows.append(np.arange(n) + base)
+        cols.append(np.arange(n) + base)
         vals.append(diag + edge)
-        A = sp.coo_matrix((np.concatenate(vals),
-                           (np.concatenate(rows), np.concatenate(cols))),
-                          shape=(n, n)).tocsc()
+        return n, np.concatenate(rows), np.concatenate(cols), np.concatenate(vals)
+
+    out = {"identity": [], "control": [], "partition": [],
+           "passes": True, "control_rejected": False}
+    for nx in sizes:
+        n, r, c, v = lattice(nx)
+        A = sp.coo_matrix((v, (r, c)), shape=(n, n)).tocsc()
         rhs = rng.random(n)
         direct = spsolve(A, rhs, use_umfpack=False, permc_spec="MMD_AT_PLUS_A")
         kept = splu(A, permc_spec="MMD_AT_PLUS_A").solve(rhs)
@@ -1916,6 +1993,51 @@ def factorisation_test(sizes=(40, 80, 160), verbose=True) -> dict:
                   f"{'BITWISE IDENTICAL' if same else 'DIFFERS -- MISS'}"
                   f"   SymmetricMode control: "
                   f"{'differs by ' + format(rel, '.1e') if differs else 'IDENTICAL'}")
+    # THE PARTITION ARM. `solve` splits the free set into the blocks GW-17's
+    # river and lake baselevels cut it into and factorises each on its own, so
+    # what has to be exact is that a block-diagonal system solved block by block
+    # is the SAME arithmetic as the whole system solved at once. It is, because
+    # there are no entries between blocks and therefore no fill between them, so
+    # the elimination inside a block is the sequence it would have been inside
+    # the whole matrix -- PROVIDED the cells inside a block keep their relative
+    # order, which is why `solve` sorts them stably.
+    #
+    # The case is built to be hard rather than tidy: five lattices of different
+    # sizes, then the whole global labelling scrambled, so the blocks interleave
+    # and a partition that quietly reordered a block's cells would show up.
+    offs, R, C, V, tot = [], [], [], [], 0
+    for nx in (37, 53, 29, 61, 41):
+        n, r, c, v = lattice(nx, base=tot)
+        R.append(r)
+        C.append(c)
+        V.append(v)
+        offs.append(tot)
+        tot += n
+    scramble = rng.permutation(tot)
+    relabel = np.empty(tot, dtype=np.int64)
+    relabel[scramble] = np.arange(tot)
+    A = sp.coo_matrix((np.concatenate(V),
+                       (relabel[np.concatenate(R)], relabel[np.concatenate(C)])),
+                      shape=(tot, tot)).tocsc()
+    rhs = rng.random(tot)
+    whole = splu(A, permc_spec="MMD_AT_PLUS_A").solve(rhs)
+    nblk, lab = _components(A, directed=False)
+    order = np.argsort(lab, kind="stable")
+    bounds = np.searchsorted(lab[order], np.arange(nblk + 1))
+    Ap = A[order][:, order].tocsc()
+    piece = np.empty(tot)
+    for b0, b1 in zip(bounds[:-1], bounds[1:]):
+        col = Ap[:, b0:b1]
+        sub = sp.csc_matrix((col.data, col.indices - b0, col.indptr),
+                            shape=(b1 - b0, b1 - b0))
+        piece[b0:b1] = splu(sub, permc_spec="MMD_AT_PLUS_A").solve(rhs[order][b0:b1])
+    same = bool(np.array_equal(whole[order], piece))
+    out["partition"] = {"unknowns": tot, "blocks": int(nblk), "bitwise": same}
+    out["passes"] &= same
+    if verbose:
+        print(f"    n {tot:>7,}   {nblk} interleaved blocks solved separately: "
+              f"{'BITWISE IDENTICAL' if same else 'DIFFERS -- MISS'}")
+
     # The control has to fire on at least one size or the identity above is
     # untested: a test that cannot reject anything has no right answer.
     out["passes"] = bool(out["passes"] and out["control_rejected"])
