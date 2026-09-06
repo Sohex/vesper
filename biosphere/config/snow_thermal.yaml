@@ -262,10 +262,11 @@ mainline_divergences:
         0.554 J/kg/K of the standard there. Against that representation error,
         Fukusako's line is 29.7 J/kg/K low at the melting point and the climate
         column's fixed value was 68 J/kg/K high at its own declared temperature.
-        Fukusako (1990) itself is not reachable from this project -- Springer
-        returns no PDF and the paper is not held -- which is why what replaces
-        it is a standard this project can evaluate rather than a second
-        secondary source.
+        Fukusako (1990) is held and read, and it bounds its own relation:
+        Eq. (2) is stated for 273 K >= T >= 90 K, so the climate column's fixed
+        2090 was that line evaluated at 276.49 K, 3.3 K beyond the correlation's
+        declared upper limit and above the melting point of the substance. What
+        replaces both is a standard this project can evaluate at any state.
       worth: >
         The modelled pack's specific heat rises by 0.30 per cent at 180 K and by
         1.42 per cent at the melting point, so its volumetric heat capacity and

@@ -3029,10 +3029,11 @@ void Soil::update_snow_properties(const int& daynum, const double& dailyairtemp,
 	// LPJ-GUESS 4.1.1 and the vendored CNP fork both take the specific heat
 	// from Fukusako's linear relation in absolute temperature:
 	//     Csnow = (0.185 + 0.689 * (K2degC + dailyairtemp) * 0.01) * J_PER_KJ; // J kg-1 K-1
-	// That relation is not reachable from this project -- Springer returns no
-	// PDF for Fukusako (1990) -- so its derivation is OPAQUE where it stands,
-	// and the climate column carried a different specific heat for the same
-	// ice. IAPWS R10-06(2009), the equation of state 2006 for H2O ice Ih, gives
+	// Fukusako (1990) is held and read: the line above is its Eq. (2), stated
+	// for 273 K >= T >= 90 K. So the relation is SOURCED, and what was wrong
+	// was the climate column carrying a different specific heat for the same
+	// ice -- its fixed 2090 is this line at 276.49 K, past Eq. (2)'s own upper
+	// limit. IAPWS R10-06(2009), the equation of state 2006 for H2O ice Ih, gives
 	// cp exactly and is already implemented and checked against the release's
 	// own Table 6 in analysis/ice_properties.py, so it replaces BOTH numbers
 	// rather than picking between them. Fukusako's line is 0.30 per cent low at

@@ -71,11 +71,12 @@ because `landmod.f90` is committed model source that is read and edited by hand.
 
 The two columns then carried two SPECIFIC HEATS of the same ice. The climate
 column declared a fixed 2090 J/kg/K with no citation; the ecology column
-evaluated Fukusako's linear relation in absolute temperature, which this project
-holds no copy of. One of the two is a function of temperature and the other is
-that function evaluated somewhere: 2090 is Fukusako's line at 276.5 K and
-IAPWS-06's ice at 272.2 K, both of which are AT OR ABOVE the melting point of
-the modelled snow. So the fixed value was the specific heat the modelled pack has
+evaluated Fukusako (1990) Eq. (2), a line in absolute temperature stated for
+273 K >= T >= 90 K. One of the two is a function of temperature and the other is
+that function evaluated somewhere, and the somewhere is outside the function's
+own range: 2090 is Fukusako's line at 276.5 K and IAPWS-06's ice at 272.2 K,
+both of which are AT OR ABOVE the melting point of the modelled snow, and the
+first is 3.3 K past the limit Eq. (2) declares for itself. So the fixed value was the specific heat the modelled pack has
 at the moment it melts, applied at every temperature it reaches, and at 233 K it
 was 15.8 per cent high.
 

@@ -385,11 +385,13 @@ it is not.
 for H2O ice Ih, gives the specific heat exactly, and this project already holds
 it: `analysis/ice_properties.py` implements the Gibbs function and reproduces
 every quantity at every state of the release's own Table 6 to 7e-10 relative,
-and `glaciermod`'s `CPGLAC` already came from it. Fukusako (1990) itself is not
-reachable -- Springer returns no PDF -- which made its derivation OPAQUE where
-it stood, and the repair for an opaque constant is to source it rather than to
-go on quoting it. Against the standard, Fukusako's line is 0.30 per cent low at
-180 K and 1.42 per cent low at the melting point.
+and `glaciermod`'s `CPGLAC` already came from it. Fukusako (1990) is held and
+read, and it carries the fact that decides the fixed value: its Eq. (2) is
+stated for 273 K >= T >= 90 K, so the climate column's 2090 J/kg/K is that line
+evaluated at 276.49 K -- 3.3 K past the correlation's own upper limit, and above
+the melting point of the substance it describes. Against the standard,
+Fukusako's line is 0.30 per cent low at 180 K and 1.42 per cent low at the
+melting point.
 
 **A Gibbs function in complex arithmetic is not something two compiled models
 restate**, so `lib/snow.py` declares the closed form they do restate: a
