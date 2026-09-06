@@ -102,29 +102,158 @@ DISCARD, MEASURE = 1000, 3000
 NEUTRAL = 1.0e-10
 
 
+def namelist_scalar(path: Path, key: str):
+    """One number out of a Fortran namelist file, or None when it is unset."""
+    if not path.is_file():
+        return None
+    m = re.search(rf"^\s*{key}\s*=\s*(-?[\d.]+(?:[eEdD][-+]?\d+)?)",
+                  path.read_text(encoding="latin-1"), re.IGNORECASE | re.MULTILINE)
+    return None if m is None else float(m.group(1).replace("d", "e").replace("D", "E"))
+
+
+def namelist_list(path: Path, key: str, n: int):
+    """A per-level namelist array, `n*value` replication expanded."""
+    if not path.is_file():
+        return None
+    m = re.search(rf"^\s*{key}\s*=\s*([^\n!]+)", path.read_text(encoding="latin-1"),
+                  re.IGNORECASE | re.MULTILINE)
+    if m is None:
+        return None
+    out = []
+    for token in m.group(1).replace(",", " ").split():
+        count, star, value = token.partition("*")
+        try:
+            out.extend([float(value)] * int(count) if star else [float(count)])
+        except ValueError:
+            break
+    return out[:n] if len(out) >= n else None
+
+
+def inputs_from_config(cfg: dict, rung: str, pnu: float) -> dict:
+    """The physical inputs of the map, from the configuration as declared."""
+    ntru = int(rung.lstrip("Tt"))
+    nlev = int(cfg["model"]["layers"])
+    if int(cfg["model"]["vertical_grid"]) != 4:
+        raise SystemExit(
+            f"model.vertical_grid is {cfg['model']['vertical_grid']} and this "
+            "builds initpm's neqsig == 4 quartic only. The sigma grid is what "
+            "tau and g are built from, so another one is another column and "
+            "this would silently answer for the wrong model.")
+    hd = cfg["model"]["hyperdiffusion"]
+    if rung not in hd["timescales_days"]:
+        raise SystemExit(
+            f"model.hyperdiffusion.timescales_days has no {rung}, so this rung "
+            "has no declared damping and the map cannot be built for it. The "
+            "damping is what bounds the growth.")
+    gas_constant, cp = lapse.gas_properties(cfg)
+    sponge = [float(x) for x in cfg["model"]["rayleigh_sponge_rotations"]]
+    if len(sponge) != nlev:
+        raise SystemExit(f"model.rayleigh_sponge_rotations has {len(sponge)} "
+                         f"entries and the model has {nlev} levels")
+    sidereal = float(cfg["planet"]["rotation_hours"]) * 3600.0
+    return {
+        "rung": rung, "ntru": ntru, "nlev": nlev, "pnu": pnu,
+        "gascon": gas_constant, "akap": gas_constant / cp,
+        "t0_k": float(cfg["model"]["semi_implicit_reference_temperature_k"]),
+        "plarad": float(cfg["planet"]["radius_earth"]) * 6371000.0,
+        "sidereal": sidereal,
+        "ptop": float(cfg["model"]["model_top_hpa"]) * 100.0,
+        "psurf": 100000.0,
+        "ndel": int(hd["order_alpha"]),
+        "nhdiff": int(round(float(hd["cutoff_fraction"]) * ntru)),
+        "tdissd_days": float(hd["timescales_days"][rung]["divergence"]),
+        "tdisst_days": float(hd["timescales_days"][rung]["temperature"]),
+        "tfrc_seconds": [x * sidereal for x in sponge],
+        "source": "config/planet.yaml as declared",
+    }
+
+
+def inputs_from_run(run_dir: Path, rung: str, nlev: int) -> dict:
+    """The same inputs, out of the namelists the BINARY actually parsed.
+
+    Read from the run and not from the configuration, for the reason
+    `restart_surface.py` gives: `configure()` rewrites the namelists on every
+    continuation and the staged file is what the model reads. Here it matters
+    more than usual. `PLARAD` reaches the model as ExoPlaSim's own Earth radius
+    times the declared ratio and `config/planet.yaml` does not carry that
+    radius; `AKAP` is written to eight significant figures; `PSURF` arrives a
+    unit in the last place off 1000 hPa. Each is a fraction of a percent, and
+    `--against` compares two arms that differ by 5e-8 on a stable configuration,
+    so rebuilding the column from the configuration instead would report a
+    disagreement that is only the two sides having been handed different
+    planets.
+    """
+    planet = run_dir / "planet_namelist"
+    plasim = run_dir / "plasim_namelist"
+    ntru = int(rung.lstrip("Tt"))
+    need = {"PLARAD": planet, "GASCON": planet, "AKAP": planet,
+            "ROTSPD": planet, "PTOP": plasim, "PSURF": plasim,
+            "NEQSIG": plasim, "NHDIFF": plasim}
+    got = {}
+    for key, path in need.items():
+        value = namelist_scalar(path, key)
+        if value is None:
+            raise SystemExit(
+                f"{path} does not set {key}, so the column the model built "
+                "cannot be rebuilt from the run and a comparison against what "
+                "it printed would be against a different planet")
+        got[key] = value
+    if int(got["NEQSIG"]) != 4:
+        raise SystemExit(f"the run set NEQSIG = {int(got['NEQSIG'])} and this "
+                         "builds the neqsig == 4 quartic only")
+    t0 = namelist_list(plasim, "T0", nlev)
+    ndel = namelist_list(plasim, "NDEL", nlev)
+    tdissd = namelist_list(plasim, "TDISSD", nlev)
+    tdisst = namelist_list(plasim, "TDISST", nlev)
+    tfrc = namelist_list(plasim, "TFRC", nlev)
+    for name, value in (("T0", t0), ("NDEL", ndel), ("TDISSD", tdissd),
+                        ("TDISST", tdisst), ("TFRC", tfrc)):
+        if value is None:
+            raise SystemExit(f"{plasim} does not set {name} for all {nlev} "
+                             "levels; the run's own damping is not recoverable")
+    for name, value in (("T0", t0), ("NDEL", ndel), ("TDISSD", tdissd),
+                        ("TDISST", tdisst)):
+        if len(set(value)) != 1:
+            raise SystemExit(
+                f"{plasim} sets {name} per level as {value}, and this builds a "
+                "column with one value for all of them. A per-level "
+                f"{name} is a different column and this would answer for the "
+                "wrong one.")
+    # PNU is absent from every namelist this project writes, so the model runs
+    # `p_earth.f90`'s compiled 0.1. Reading it that way rather than assuming it
+    # is what makes a run that DOES declare it come out right.
+    pnu = namelist_scalar(planet, "PNU")
+    return {
+        "rung": rung, "ntru": ntru, "nlev": nlev,
+        "pnu": PNU_DEFAULT if pnu is None else pnu,
+        "gascon": got["GASCON"], "akap": got["AKAP"], "t0_k": t0[0],
+        "plarad": got["PLARAD"],
+        "sidereal": SECONDS_PER_ABSOLUTE_DAY / got["ROTSPD"],
+        "ptop": got["PTOP"], "psurf": got["PSURF"],
+        "ndel": int(ndel[0]), "nhdiff": int(got["NHDIFF"]),
+        "tdissd_days": tdissd[0], "tdisst_days": tdisst[0],
+        "tfrc_seconds": list(tfrc),
+        "source": f"the namelists {run_dir} staged",
+    }
+
+
 class Column:
     """The model's vertical structure at one configuration, built its way."""
 
-    def __init__(self, cfg: dict, rung: str, pnu: float):
-        self.rung = rung
-        self.ntru = int(rung.lstrip("Tt"))
-        self.nlev = int(cfg["model"]["layers"])
-        self.pnu = pnu
-        gas_constant, cp = lapse.gas_properties(cfg)
-        self.akap = gas_constant / cp
-        self.gascon = gas_constant
-        self.t0_k = float(cfg["model"]["semi_implicit_reference_temperature_k"])
-        self.plarad = float(cfg["planet"]["radius_earth"]) * 6371000.0
-        self.sidereal = float(cfg["planet"]["rotation_hours"]) * 3600.0
+    def __init__(self, inputs: dict):
+        self.inputs = inputs
+        self.rung = inputs["rung"]
+        self.ntru = inputs["ntru"]
+        self.nlev = inputs["nlev"]
+        self.pnu = inputs["pnu"]
+        self.akap = inputs["akap"]
+        self.gascon = inputs["gascon"]
+        self.t0_k = inputs["t0_k"]
+        self.plarad = inputs["plarad"]
+        self.sidereal = inputs["sidereal"]
         self.ww = 2.0 * math.pi / self.sidereal
-        ptop = float(cfg["model"]["model_top_hpa"]) * 100.0
-        psurf = 100000.0
-        if int(cfg["model"]["vertical_grid"]) != 4:
-            raise SystemExit(
-                f"model.vertical_grid is {cfg['model']['vertical_grid']} and "
-                "this builds initpm's neqsig == 4 quartic only. The sigma grid "
-                "is what tau and g are built from, so another one is another "
-                "column and this would silently answer for the wrong model.")
+        ptop, psurf = inputs["ptop"], inputs["psurf"]
+        gas_constant = self.gascon
         n = self.nlev
         sigmah = np.array([0.75 * (j / n) + 1.75 * (j / n) ** 3
                            - 1.5 * (j / n) ** 4 for j in range(1, n + 1)])
@@ -177,30 +306,19 @@ class Column:
             for j2 in range(jl + 1):
                 tkc[j2, jl] = tkp[jl] * cm[j2, jl]
         self.tkc = tkc
-        # The damping, converted as `initpm` converts it: the namelist value in
-        # days becomes seconds through the 24-hour day, then a rate in the
-        # model's own time unit through the sidereal day.
-        hd = cfg["model"]["hyperdiffusion"]
-        if rung not in hd["timescales_days"]:
-            raise SystemExit(
-                f"model.hyperdiffusion.timescales_days has no {rung}, so this "
-                "rung has no declared damping and the map cannot be built for "
-                "it. The damping is what bounds the growth.")
-        table = hd["timescales_days"][rung]
-        self.ndel = int(hd["order_alpha"])
-        self.nhdiff = int(round(float(hd["cutoff_fraction"]) * self.ntru))
+        # The damping, converted as `initpm` converts it: `dayseccheck` turns
+        # the namelist value from days into seconds through the 24-hour day,
+        # and `sidereal_day / (TWOPI * value)` turns that into a rate in the
+        # model's own time unit.
+        self.ndel = int(inputs["ndel"])
+        self.nhdiff = int(inputs["nhdiff"])
         rate = lambda days: self.sidereal / (2.0 * math.pi
                                              * float(days) * SECONDS_PER_ABSOLUTE_DAY)
-        self.tdissd = rate(table["divergence"])
-        self.tdisst = rate(table["temperature"])
-        sponge = [float(x) for x in cfg["model"]["rayleigh_sponge_rotations"]]
-        if len(sponge) != n:
-            raise SystemExit(
-                f"model.rayleigh_sponge_rotations has {len(sponge)} entries "
-                f"and the model has {n} levels")
+        self.tdissd = rate(inputs["tdissd_days"])
+        self.tdisst = rate(inputs["tdisst_days"])
         self.tfrc = np.array([
-            self.sidereal / (2.0 * math.pi * x * self.sidereal) if x > 0 else 0.0
-            for x in sponge])
+            self.sidereal / (2.0 * math.pi * x) if x > 0 else 0.0
+            for x in inputs["tfrc_seconds"]])
 
     def sak(self, jn: int) -> float:
         """`readnl`'s hyperdiffusion shape at total wavenumber `jn`."""
@@ -481,7 +599,8 @@ def main() -> int:
             return 2
         dt = printed["timestep_minutes"]
         rung = args.rung or str(cfg["model"]["resolution"]).upper()
-        column = Column(cfg, rung, pnu)
+        column = Column(inputs_from_run(args.against.parent, rung,
+                                        int(cfg["model"]["layers"])))
         here = column.verdict(dt)
         # A CHECK WITH A RIGHT ANSWER, and BOTH ARMS ARE IN IT. The same
         # iteration from the same start over the same span must return the same
@@ -500,7 +619,8 @@ def main() -> int:
                     f"the {label}'s worst wavenumber differs: model "
                     f"{printed[key + '_wavenumber']}, here "
                     f"{here[key + '_wavenumber']}")
-        print(f"{rung} at dt {dt} min, PNU {pnu}")
+        print(f"{rung} at dt {dt} min, PNU {column.pnu}, from "
+              f"{column.inputs['source']}")
         print(f"  measured arm  model {printed['on']:.12f} at n="
               f"{printed['on_wavenumber']}   here {here['on']:.12f} at n="
               f"{here['on_wavenumber']}")
@@ -534,7 +654,10 @@ def main() -> int:
     for rung, dt in wanted:
         if rung not in cfg["model"]["hyperdiffusion"]["timescales_days"]:
             continue
-        column = Column(cfg, rung, pnu)
+        # The ladder and the sweep answer for the CONFIGURATION a caller is
+        # planning, so they build from what config declares; `--against`
+        # answers for a run that happened and builds from its namelists.
+        column = Column(inputs_from_config(cfg, rung, pnu))
         guard = column.gravity_wave_limit_minutes()
         boundary = column.boundary_minutes()
         row = {"rung": rung, "timestep_minutes": dt, "pnu": pnu,
