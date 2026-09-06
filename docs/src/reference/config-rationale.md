@@ -50,14 +50,26 @@ climatology computed on pre-carve terrain under the wrong stellar spectrum --
 and six scripts across pedology and biosphere took that superseded default
 silently.
 
-The key is either a path or null, and null is a real state rather than an
-omission: a carve moves `source_build`, every climatology on the terrain it
-replaces becomes a property of a world this project no longer holds, and the
-key goes back to null until a commissioning produces one. `climatology_path()`
-raises on null rather than falling back, which is the point -- a stale default
-returns a plausible number from the wrong world, and that is worse than an
-error. Read the current state from `config/planet.yaml`; the comment above the
-key there is where the reason for the current one lives.
+The key is a path, a mapping from ladder rung to path, or null, and null is a
+real state rather than an omission: a carve moves `source_build`, every
+climatology on the terrain it replaces becomes a property of a world this
+project no longer holds, and the key goes back to null until a commissioning
+produces one. `climatology_path()` raises on null rather than falling back,
+which is the point -- a stale default returns a plausible number from the wrong
+world, and that is worse than an error. Read the current state from
+`config/planet.yaml`; the comment above the key there is where the reason for
+the current one lives.
+
+THE DECLARATION IS PER RUNG, and the scalar form is the whole declaration only
+while a world has reached one rung. A climatology carries its rung nowhere in
+its name, so a scalar answers for `model.resolution` and for nothing else; the
+mapping form is how a second rung's climatology is named once an arm at that
+rung has one. The rung is not a stage: a climatology integrated on one rung's
+land mask and orography is another world's climate rather than an earlier
+version of this one's, so a step told a grid at a rung with nothing declared is
+REFUSED rather than served the configured rung's file or a remap of it.
+`pedology/scripts/build_soil.py --grid` is the step that reads it that way, and
+`exoplasim/notes/route-step-criteria.md` carries why the soil waits.
 
 It takes the REGULAR climatology of the BASELINE run and never the bootstrap's.
 The bootstrap is the first run on a terrain and exists so that lakes, the lake
