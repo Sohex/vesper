@@ -482,7 +482,7 @@ def main() -> None:
         threads=args.threads,
         rounds=args.rounds,
         executable=dict(path=str(exe), sha256=exe_sha,
-                        built_here=not args.bed_binary),
+                        built_here=True, from_run=str(args.from_run)),
         bed=dict(source=str(SOURCE_BED.relative_to(ROOT)),
                  steps_short=short, steps_long=long,
                  wall_s_short=wall_short, wall_s_long=wall_long,
