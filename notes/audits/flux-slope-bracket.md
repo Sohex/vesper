@@ -144,13 +144,26 @@ is also the wrong direction on the mechanism above: a more settled run has less
 curvature, which drives the fit toward collapse and toward a pass by the fallback
 rather than by the run being better.
 
-The bracket was not re-declared on the arms' low-I/O blocks either. Both arms
-pass all six there, over orbits 15-69, but that window was not the one fixed in
-advance and moving to it because it passes is the same defect from the other
-side. It is also the less settled block: the cold arm's low-I/O fit puts its
-asymptote at 280.3521 +/- 0.0458 K, and the run then sits at 280.2544 K over
-orbits 75-129, about 0.05 K below that fit's own interval once the measured
--0.047 K I/O step at the join is taken out.
+The bracket was not re-declared on the arms' low-I/O blocks either, and it could
+not have been. **There is no window on which both arms pass**, and the four
+assessments the purchase took say why:
+
+| window | regime | cold | warm |
+| --- | --- | --- | --- |
+| 15-69 | low I/O | passes all six | **fails** `extrapolated_offset` |
+| 75-129 | clean I/O | **fails** `extrapolated_offset` | passes all six |
+
+The two arms fail on opposite windows, on the same criterion, and on nothing
+else: every other criterion passes on every one of the four. The arms are
+identical in build, staged surface, executable, structure and window indices and
+differ only in the flux they were given, so a verdict that flips between them and
+between windows with no pattern is the estimator and not the settling. On the
+low-I/O window the warm arm reads an offset of +0.0864 K with a half-width of
+0.1090, from a fit whose tau is 9.88 +/- 17.41 orbits -- again a time constant
+indistinguishable from zero, again admitted by `fit_usable`.
+
+That is the whole of the case for world-jejw, and it is why no choice of window
+rescues this pair.
 
 ## The warm arm is the noisiest settled run this project has, and that moves the window
 
