@@ -12,8 +12,29 @@ its seventy unserialized members correctly absent. This is the same question for
 every other Serializable class, and the answer is different: two defects, one of
 which had made the year-boundary restart untestable.
 
-Measured on 2026-09-05 against `vendor/lpj-guess` at the commits this note
-accompanies, with `biosphere/scripts/verify_lpj_restart_continuity.py`.
+Measured on 2026-09-05 and 2026-09-06 against `vendor/lpj-guess` at the commits
+this note accompanies, with `biosphere/scripts/verify_lpj_restart_continuity.py`.
+
+## What the repair measures
+
+The whole grid, in the arrangement that failed: 30 retained years behind a
+201-year spin-up, npatch 5, 16 ranks, split at simulated year 211, 1617 cells,
+22 retained tables. NO DIFFERING ROW IN ANY TABLE. Two subset beds first, one
+cell at 11.25/19.38 at npatch 1 and two cells at 11.25/19.38 and 0.00/85.76 at
+npatch 5, both clean; the second is the arrangement that previously showed every
+retained table differing.
+
+The production runner end to end, on a two-cell bed at npatch 1 on 2 ranks,
+about 20 s of model work on an otherwise idle host: a parent of 30 retained
+years that saves, a continuation of 30 more, and an uninterrupted control of 60.
+The continuation's years are the control's years row for row, its manifest names
+its parent and records state-file hashes that are the hashes on disk, and a
+continuation at a patch count the parent never ran is refused with a refusal that
+names the patch count.
+
+A continuity verdict is keyed to the binary that produced it, so none of this
+travels to another executable. It is re-taken after any change to the model
+source, which is what `run_lpj_guess.py:continuity_verdict` enforces.
 
 ## 1. The year-boundary save point never reached the model
 
