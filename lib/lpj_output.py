@@ -66,7 +66,7 @@ class ReducedTable:
 
 def read_policy(path: Path = POLICY_PATH) -> dict:
     policy = yaml.safe_load(path.read_text())
-    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/5":
+    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/6":
         raise EquilibriumWindowError("unsupported equilibrium-window contract")
     cycles = policy.get("complete_forcing_cycles")
     if not isinstance(cycles, int) or cycles < 3:

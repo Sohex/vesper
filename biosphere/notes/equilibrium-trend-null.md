@@ -750,10 +750,22 @@ the convention is reached only where there is no such artifact at all.
 
 AN ARTIFACT FROM A SUPERSEDED CONTRACT IS NOT POOLED. What a resolving length
 means is "the record at which THIS quantity closes on THAT tolerance", and both
-halves belong to the contract it was taken under, so pooling contract 4's
-artifacts would size every future run from the contract that no longer judges
-it. `ecological_timescale_brackets` names the superseded ones and refuses when
-none is current.
+halves belong to the contract it was taken under, so pooling an earlier
+contract's artifacts would size every future run from the contract that no
+longer judges it. `ecological_timescale_brackets` names the superseded ones and
+refuses when none is current.
+
+CHANGING THE ASSESSED SET IS A NEW CONTRACT, which is why contract 6 exists: the
+set is what "every assessed quantity" ranges over, so a floor taken as the
+maximum over eleven quantities is not the floor over seven. Every acceptance
+artifact on disk is therefore superseded, and none of the runs that produced
+them can be re-assessed to close that -- they predate the water closure's
+`maet.out`, `mevap.out` and `mintercep.out`, which
+`biosphere/config/lpj_acceptance.yaml` requires. The bracket is refused rather
+than pooled until a run carrying those tables is assessed, and
+`build_vesper_pfts.py` reaches the LPJ-GUESS convention meanwhile and records
+that it did. The refusal is the mechanism working: an artifact taken over a
+different assessed set is worthless for sizing rather than merely old.
 
 ## What the contract cannot yet do, and what has never been staged
 

@@ -71,16 +71,22 @@ wrong, the acceptance run refuses on water and the whole spin-up is re-bought.
 
 Do not read older notes on these as current; all four were rebuilt this session.
 
-- **The equilibrium test** is `vesper-lpj-equilibrium-window/5`: an upper
+- **The equilibrium test** is `vesper-lpj-equilibrium-window/6`: an upper
   confidence bound on each field's end-to-end drift over the WHOLE record,
   passed when the bound is inside the tolerance. Intersection-union makes the
   run-level false-acceptance rate equal the per-field one, so there is no
   window, no memory-adequacy guard and no multiplicity correction left to be
   self-referential. `biosphere/notes/equilibrium-trend-null.md`.
-- **The tolerance is scoped to what a consumer reads**: eleven assessed
-  quantities where there were 64 columns, because a column entering a consumer
-  quantity only through a SUM owes nothing beyond what the sum owes.
-  `world-mxmr`.
+- **The tolerance is scoped to what a consumer reads**, and a reader that
+  imposes no drift tolerance is not a consumer for that purpose: the closure's
+  conservation identities hold at any state of drift, so their four pool and
+  flux totals left the assessed set and keep reported bounds as diagnostics.
+  Contract 6 is that change, and it supersedes every acceptance artifact on
+  disk. `world-mxmr`, `world-cqoc`.
+- **The cover tolerance is derived through its consumer**, by
+  `biosphere/scripts/derive_cover_tolerance.py`, which declares nothing and
+  reads every link from the artifact that owns it. The bar is the climate arm's
+  own offset tolerance over its own resolving factor. `world-mqzk`.
 - **The spin-up is derived and needs no relaxation time**: the requirement is
   bounded over all tau, so 6.86325 times the record satisfies it at every tau.
   8600 cycles. `world-nhhm`.

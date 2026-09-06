@@ -3,7 +3,7 @@
 # Every number below carries its disposition. The argument, the measurement it
 # rests on and what each earlier form of this rule could and could not detect are
 # in `biosphere/notes/equilibrium-trend-null.md`.
-contract_version: vesper-lpj-equilibrium-window/5
+contract_version: vesper-lpj-equilibrium-window/6
 # The PER-CELL HALF'S window, and nothing else's. It used to name three spans at
 # once -- the reported value's, the equilibrium claim's, and this one -- and the
 # first two are the whole retained record. A slope fitted over ten cycles sits
