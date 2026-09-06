@@ -404,9 +404,15 @@ def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
     for output, fields in evaporation_columns(tables, water):
         evaporation_q[output] = sum(
             written_quantum(tables, output, field) for field in fields)
-    bound = count * (runoff_q + sum(evaporation_q.values())) / 2.0
+    # The store is differenced across the window, so each of its two endpoints
+    # carries up to half a written quantum and the difference carries a whole
+    # one -- the same term the carbon and nitrogen pools contribute.
+    storage_q = written_quantum(tables, water["storage_output"],
+                                water["storage_field"])
+    bound = storage_q + count * (runoff_q + sum(evaporation_q.values())) / 2.0
     floor = float(water["absolute_floor_mm"])
     resolution["water"] = {
+        "storage_quantum": storage_q,
         "runoff_quantum": runoff_q,
         "evaporation_quanta": evaporation_q,
         "resolution_bound_mm": bound, "absolute_floor_mm": floor,
@@ -444,9 +450,15 @@ def closure_report(tables: dict, cells: list[tuple[float, float]],
     cycles = int(closure["window_complete_forcing_cycles"])
     cycle_years = int(manifest.get("forcing", {}).get("cycle_years", 1))
     count = cycles * cycle_years
-    if len(years) < count:
-        raise AcceptanceError(f"closure needs {count} end years")
+    # ONE YEAR MORE THAN THE WINDOW. The losses are summed over the window's
+    # `count` years, and the water store is differenced across the same span,
+    # which needs its value at the end of the year BEFORE the window as well as
+    # at the end of the last year in it. Anything less would close a whole
+    # number of forcing cycles of flux against a shorter span of storage.
+    if len(years) < count + 1:
+        raise AcceptanceError(f"closure needs {count + 1} end years")
     selected = range(len(years) - count, len(years))
+    bracket = range(len(years) - count - 1, len(years))
     driver_record = manifest.get("inputs", {}).get("driver", {})
     driver = Path(driver_record.get("path", ""))
     if not driver.is_file() or sha256(driver) != driver_record.get("sha256"):
@@ -522,14 +534,24 @@ def closure_report(tables: dict, cells: list[tuple[float, float]],
             for field in fields:
                 losses += float(field_series(tables, output, field,
                                              cell, selected).sum())
+        # THE STORE IS READ, NOT LEFT OVER. Subtracting only the losses from
+        # precipitation leaves the change in soil water, ice and snowpack as
+        # the residual, and that quantity is a real store of a few hundred
+        # millimetres that moves between cycles on its own. Held to a
+        # conservation tolerance it fails gridcells for being wet. awater.out
+        # reports the store, so the difference below is what is unaccounted
+        # for and nothing else.
+        stock = field_series(tables, water["storage_output"],
+                             water["storage_field"], cell, bracket)
         p_total = cycles * float(precip[coordinate].sum())
-        residuals[cell] = p_total - losses
+        residuals[cell] = (stock[-1] - stock[0]) - (p_total - losses)
         limits[cell] = max(float(water["absolute_floor_mm"]),
                            float(water["relative_throughput_limit"]) * p_total)
     failed = np.abs(residuals) > limits
     worst = int(np.argmax(np.abs(residuals)))
     reports["water"] = {
-        "form": "precipitation - AET - runoff = implied end-minus-start storage",
+        "form": "end-minus-start water store - (precipitation - transpiration "
+                "- soil evaporation - interception - runoff)",
         "interpretation": water["interpretation"],
         "maximum_absolute_residual_mm": float(np.abs(residuals[worst])),
         "limit_at_maximum_residual_mm": float(limits[worst]),
@@ -737,6 +759,8 @@ CLOSURE_DECIMALS = {
     ("cpool.out", "Total"): 6, ("cflux.out", "NEE"): 5,
     ("npool.out", "Total"): 7, ("nflux.out", "NEE"): 5,
     ("aaet.out", "Total"): 4, ("tot_runoff.out", "Total"): 4,
+    ("awater.out", "Soil"): 4, ("awater.out", "Ice"): 4,
+    ("awater.out", "Snow"): 4, ("awater.out", "Total"): 4,
     ("soil_npool.out", "NO2"): 4, ("soil_npool.out", "NO"): 4,
     ("soil_npool.out", "N2O"): 4, ("soil_npool.out", "N2"): 4,
     **{("maet.out", month): 3 for month in MONTHS},
@@ -803,6 +827,9 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range,
         "maet.out": (list(MONTHS), [48.0] * 12),
         "tot_runoff.out": (["Surf", "Drain", "Base", "Total"],
                             [100.0, 200.0, 100.0, 400.0]),
+        # A store that does not move between cycles, so the fixture closes.
+        "awater.out": (["Soil", "Ice", "Snow", "Total"],
+                       [120.0, 0.0, 0.0, 120.0]),
         "mevap.out": (list(MONTHS), [1.0] * 12),
         "mintercep.out": (list(MONTHS), [1.0] * 12),
         "fpc.out": (["Tree", "Total"], [0.4, 0.4]),
@@ -989,6 +1016,17 @@ def selftest() -> dict:
                 lambda bed: _rewrite_ranks(
                     bed, "mevap.out", cells,
                     lambda header, line: _add_to_column(header, line, "Jun", 30.0, 3)),
+                "water closure fails"),
+            # Water appearing in the store with no precipitation behind it.
+            # A check that leaves the store as its residual cannot see this at
+            # all: it reads as a drier soil, which is exactly what the water
+            # residual used to be called.
+            "water appears in the store with no flux behind it": (
+                lambda bed: _rewrite_ranks(
+                    bed, "awater.out", cells,
+                    lambda header, line: _add_to_column(
+                        header, line, "Total", 300.0, 4)
+                    if int(line.split()[2]) == years[-1] else line),
                 "water closure fails"),
             "closure tolerance under the written precision": (
                 coarsen_npool, "finer than the output it reads"),

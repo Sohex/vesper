@@ -14,6 +14,7 @@ required_outputs:
   - cflux.out
   - firert.out
   - tot_runoff.out
+  - awater.out
   - maet.out
   - mevap.out
   - mintercep.out
@@ -35,6 +36,7 @@ nonnegative_outputs:
   - dens.out
   - agpp.out
   - tot_runoff.out
+  - awater.out
   - maet.out
   - mevap.out
   - mintercep.out
@@ -122,32 +124,43 @@ closure:
     relative_throughput_limit: 0.001
   water:
     precipitation_source: manifest-pinned VESPDRV8
-    # THE THREE EVAPORATIVE LOSSES, NONE OF WHICH HAS AN ANNUAL COLUMN THIS
-    # CHECK CAN USE. The model's own daily identity, soil.cpp:hydrology_lpjf,
-    # is
+    # WATER CLOSES STOCK AGAINST FLUX, exactly as carbon and nitrogen do. The
+    # daily identity in soil.cpp:hydrology_lpjf is
     #     initial water in column + rain_melt
     #         = final water + evap + aet_total + runoff
-    # so a gridcell year is precipitation against transpiration, soil
-    # evaporation, interception and runoff, plus the change in soil water, ice
-    # and snowpack.
+    # and soilwater.cpp:initial_infiltration sets rain_melt to precipitation
+    # less interception, less what the snowpack takes and plus what it
+    # releases. So a gridcell year is
+    #     precipitation = transpiration + soil evaporation + interception
+    #                     + runoff + change in (soil water, soil ice, snowpack)
+    # Four losses and one store, and nothing else.
     #
-    # aaet.out Total is NOT that transpiration. commonoutput.cpp builds it from
-    # indiv.aaet summed over the individuals still in patch.vegetation, and
-    # framework.cpp runs vegetation_dynamics -- establishment, mortality and
-    # disturbance by fire -- on the last day of the year BEFORE outannual. The
-    # column is therefore the transpiration of the survivors, and the water an
-    # individual moved before it died is missing from it. patch.maet is
-    # accumulated day by day alongside patch.aaet and is unaffected, so
-    # maet.out is the column that reports what left the soil.
+    # THE STORE IS READ AND NOT INFERRED. Differencing only the losses out of
+    # precipitation leaves the store as the residual, and a residual that IS
+    # the store cannot be held to a conservation tolerance: a soil that got
+    # wetter and a model that leaks read alike, and the verdict then turns on
+    # the declared window length rather than on the simulation. awater.out
+    # carries the store itself -- soil water, soil ice and the snowpack, on the
+    # same to_gridcell_average as tot_runoff.out -- so the residual below is a
+    # conservation residual and its floor is a conservation tolerance.
+    # notes/audits/closure-stocks-are-incomplete.md.
+    storage_output: awater.out
+    storage_field: Total
+    #
+    # aaet.out Total is NOT the transpiration this closure needs.
+    # commonoutput.cpp builds it from indiv.aaet summed over the individuals
+    # still in patch.vegetation, and framework.cpp runs vegetation_dynamics --
+    # establishment, mortality and disturbance by fire -- on the last day of
+    # the year BEFORE outannual. The column is therefore the transpiration of
+    # the survivors, and the water an individual moved before it died is
+    # missing from it. patch.maet is accumulated day by day alongside
+    # patch.aaet and is unaffected, so maet.out is the column that reports what
+    # left the soil.
     #
     # Soil evaporation and canopy interception reach no annual table at all:
     # commonoutput.cpp accumulates patch.aevap and patch.aintercep and sends
     # both only to the interactive plot(). mevap.out and mintercep.out are the
     # only route to them.
-    #
-    # All three are aggregated to the gridcell by the same to_gridcell_average
-    # as tot_runoff.out, so the four losses are one accounting.
-    # notes/audits/closure-stocks-are-incomplete.md.
     #
     # `fields` is the column count each table must carry. The annual flux is
     # the sum of every column, so a table that changes shape has to refuse
@@ -164,8 +177,9 @@ closure:
     absolute_floor_mm: 2.0
     relative_throughput_limit: 0.005
     interpretation: >-
-      Over ten complete forcing cycles, precipitation minus transpiration, soil
-      evaporation, canopy interception and runoff is the implied change in
-      soil water, soil ice and snowpack. Those stores are not retained as annual
-      endpoints, so this is an equilibrium-window closure, not a claim of
-      bitwise daily hydrology closure.
+      Over ten complete forcing cycles, the change in the gridcell water store
+      less precipitation and plus transpiration, soil evaporation, canopy
+      interception and runoff is zero if the model conserves water. Both sides
+      are annual endpoints and annual sums of a daily budget, so this is a
+      cycle-boundary closure and not a claim of bitwise daily hydrology
+      closure.
