@@ -2428,6 +2428,60 @@ def check_autocorrelation_estimator() -> list[str]:
     return bad
 
 
+def check_albedo_repaints_carry_the_sensitivity() -> list[str]:
+    """Every repaint of the region albedo moves the class indicator with it.
+
+    WORLD-SU9O. `build_surface_albedo.py` emits, per override class, how far the
+    staged land mean moves per unit of that class's albedo, and
+    `scripts/error_budget.py` prices every rock-class item through it. The share
+    is exact only while the indicator is assigned at the SAME selections the
+    albedo is: a repaint added without one leaves the indicator claiming a
+    sensitivity on ground that no longer carries the class, and the item is then
+    priced on a number that still looks measured.
+
+    Nothing else can catch it. The share is emitted from the run that stages the
+    field, so there is no second copy to disagree with -- that is the point of it
+    -- and a wrong share is a plausible number in a well-formed report. The
+    external check is a finite difference over two generator runs, which is not a
+    per-commit cost.
+
+    THE TEST IS THE SELECTION, not proximity: whatever a repaint indexes with has
+    to appear indexing an indicator somewhere in the same file. That is what a
+    correct pairing looks like and a nearby line is not.
+    """
+    src_path = ROOT / "exoplasim" / "scripts" / "build_surface_albedo.py"
+    if not src_path.is_file():
+        return [f"{src_path.relative_to(ROOT)} is missing"]
+    src = src_path.read_text(encoding="utf-8")
+    # Exempt by the SELECTION and with a reason, never by pattern or by line
+    # number: an exemption that matches a shape exempts the next copy too.
+    ORIGIN = {
+        "sel": "the override loop itself, where the indicator is created rather "
+               "than repainted: override_sensitivity is built from the same "
+               "`rock == rid` this selection is",
+    }
+    indicator = set(re.findall(r"_s\[([^\]]+)\]\s*=", src))
+    bad = []
+    repaints = 0
+    for selection in re.findall(r"region_albedo\[([^\]]+)\]\s*=\s*[^=]", src):
+        repaints += 1
+        if selection in ORIGIN or selection in indicator:
+            continue
+        bad.append(
+            f"build_surface_albedo.py repaints region_albedo[{selection}] and "
+            "nothing assigns an indicator at that same selection, so the "
+            "emitted land_mean_share claims a sensitivity on ground that no "
+            "longer carries the class")
+    if repaints < 5:
+        bad.append(
+            f"only {repaints} region_albedo repaints matched this lint's "
+            "pattern, against the five it was written over (the override, the "
+            "vegetated paint, the two halves of the derived evaporite split and "
+            "the lake paint); the repaints are being written some other way and "
+            "this check has stopped covering them")
+    return bad
+
+
 def check_restart_template_provenance_travels() -> list[str]:
     """A restart template's record names its files from the project root.
 
@@ -6530,6 +6584,8 @@ def main() -> None:
                lambda: check_restart_schema_covers_the_model()),
               ("every restart template's provenance travels between checkouts",
                lambda: check_restart_template_provenance_travels()),
+              ("every albedo repaint moves the class indicator with it",
+               lambda: check_albedo_repaints_carry_the_sensitivity()),
               ("every postprocessor code requested is one something produces",
                lambda: check_requested_codes_are_produced()),
               ("every code the model writes is named or refused with a reason",
