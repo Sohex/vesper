@@ -2004,8 +2004,11 @@ steps:
       chill-day count able to leave the lookup table it indexes, and on a
       landmark field missing from Climate::serialize. Eleven fixtures run on
       every invocation, four built to be wrong in a named way, over northern,
-      southern, equatorial, flat and sixteen-orbit forcings. `--strict` refuses
-      on the one natural-vegetation event still on an Earth calendar, BIO-31.
+      southern, equatorial, flat and sixteen-orbit forcings. The summergreen
+      leaf litter release is in the wiring list with the rest: it sheds over the
+      month containing Climate::coldest_day, taken through Date::month_of on
+      this world's own month lengths, rather than over a hemisphere's January
+      or July.
 
   - id: stochastic_seed_gate
     script: biosphere/scripts/stochastic_seed_gate.py

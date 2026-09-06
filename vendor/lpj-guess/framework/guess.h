@@ -627,6 +627,25 @@ public:
 		if (year >= nyear - 1) islastyear = true;
 	}
 
+	/// \returns the month (0-11) that a given day of the simulation year falls in
+	/** VESPER. The seasonal landmarks Climate derives from the temperature
+	 *  forcing are DAYS, and a phenology event keyed on one but acting over a
+	 *  whole month needs the month that day lands in. The month lengths are this
+	 *  world's, generated with the year length in vesper.h, so an Earth
+	 *  calendar's arithmetic cannot answer it and neither can a fixed ordinal.
+	 *  A day outside the year is clamped to the year's ends rather than
+	 *  returning an index no month has.
+	 */
+	int month_of(int julian_day) const {
+		if (julian_day <= 0) return 0;
+		int remaining = julian_day;
+		for (int m = 0; m < 11; m++) {
+			if (remaining < ndaymonth[m]) return m;
+			remaining -= ndaymonth[m];
+		}
+		return 11;
+	}
+
 	// \returns index (0-11) of previous month (11 if currently month 0).
 	int prevmonth() {
 		if (month > 0) return month - 1;

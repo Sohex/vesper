@@ -999,17 +999,21 @@ orbit on every gridcell including the equator. `VesperInput` hands the whole
 interpolated year over at day 0, so the landmarks are the cell's own from the
 first orbit and follow a driver file of several years as it cycles.
 
+Summergreen leaf and root litter is released over the month that coldest day
+falls in, so the canopy sheds into the season its phenology restarts in.
+`Date::month_of` places the day on this world's own month lengths, which are
+generated with the year length; a month is otherwise an Earth calendar artifact
+and this year is not twelve of anything.
+
 `phenology_gate.py` is the enforcement. It fails on an Earth ordinal date back in
-any compiled source, on a reader no longer keyed on the derived pair, on the
-chill-day count being able to leave the `Pft::gdd0` table it indexes, and on a
-landmark field missing from `Climate::serialize`. Eleven fixtures run on every
-invocation, four of them built to be wrong in a named way.
+any compiled source, on a reader no longer keyed on the derived pair -- the
+litter release included -- on the chill-day count being able to leave the
+`Pft::gdd0` table it indexes, and on a landmark field missing from
+`Climate::serialize`. Eleven fixtures run on every invocation, four of them built
+to be wrong in a named way.
 
 ```bash
 python biosphere/scripts/phenology_gate.py            # status, exit 0
-python biosphere/scripts/phenology_gate.py --strict   # refuses on the one
-                                                      # natural-vegetation event
-                                                      # still on an Earth calendar
 ```
 
 ### Fire is GLOBFIRM, with flux and occurrence diagnostics

@@ -50,9 +50,11 @@ whose air temperature never reaches the chilling base, and four cases built to b
 wrong in a named way, including the two Earth ordinal dates on this calendar and
 the chill-day guard the vendored source shipped.
 
-One reader remains on an Earth calendar: the summergreen leaf litter release
-month in `modules/somdynam.cpp`. That is BIO-31, and it is what the gate's
-`--strict` arm refuses on.
+The summergreen leaf litter release in `modules/somdynam.cpp` is on the same
+pair. It sheds over the month containing `Climate::coldest_day`, placed by
+`Date::month_of` on this world's own month lengths, rather than over the
+January or July a hemisphere test used to select. No natural-vegetation event
+now reads an Earth ordinal date, and the gate's wiring list is what holds that.
 
 ## 2. A model year is still treated as an Earth year in ecological rates
 
