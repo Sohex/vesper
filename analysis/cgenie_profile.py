@@ -42,8 +42,12 @@ instructions, so it is not free, but it is a uniform 3 per cent and it does not
 move between routines.
 
 No source file is edited and no compiler flag beyond the code model is changed.
-The tree is exported out of the repository with `git archive` and built there,
-so nothing writes through the worktree's symlinks into the shared checkout.
+The tree is exported out of the repository with `git archive` and built there
+because the code model IS the change: `-mcmodel=medium` is not what
+`vendor/cgenie` is otherwise built at, and `make` decides what to recompile from
+timestamps, so medium-model objects left in the tree are what the next build
+there silently links against. The export gives this profile a tree it is the
+only writer of.
 
 ## What a "hot routine" means here
 
@@ -69,9 +73,10 @@ sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
 
 import cgenie_cost as cc  # noqa: E402
 
-# The vendored tree is read through the repository, but a worktree's ignored
-# build products are SYMLINKS into the main checkout, so building in place would
-# write there. Build from an exported copy outside the repository instead.
+# The vendored tree is READ through the repository and BUILT outside it. Both
+# grids here compile at -mcmodel=medium, which is not the tree's code model, and
+# make recompiles by timestamp, so medium-model objects left in vendor/cgenie
+# would be what the next build there links against without saying so.
 WORK_ROOT = Path(os.environ.get("CGENIE_Z1", Path.home() / "cgenie_z1"))
 CGENIE = WORK_ROOT / "vendor" / "cgenie"
 OUT_ROOT = Path(os.environ.get("CGENIE_PROFILE_OUT", Path.home() / "cgenie_profile_out"))
