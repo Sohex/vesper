@@ -42,6 +42,15 @@ node tools/export-planet.mjs --list-fields
 node tools/export-planet.mjs --help
 ```
 
+**An `--out` directory that already holds an export is refused**, before the
+generation runs, with exit 2 and the directory named. A directory holding a
+`manifest.json` or a `planet.zip` is a finished export; rewriting one in place
+changes the terrain under everything already derived from it, and an export is
+large enough that nothing keeps a copy of the previous bytes. The refusal is by
+existence and has no override flag: export to a new directory, and remove a
+failed one yourself. `--list-basins` is exempt, because it generates and prints
+without writing a target.
+
 The same export is available in the browser under **Export → Export Raw Data**,
 which downloads a `.zip` with identical contents (no NetCDF — that's CLI only).
 

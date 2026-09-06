@@ -183,9 +183,9 @@ one and it has to be installed by the component that owns the writer.
 | `vendor/cgenie/**` build objects | NO DOOR: nothing to refuse |
 | `source/<build>/<grid>/` regrids | NO SYMLINK DOOR: the wrong instrument |
 | `exoplasim/analysis/` prerebuild record | NO DOOR: there is no generator |
-| `exoplasim/analysis/climatology/` | door wanted, two writers, world-cgct |
-| `exoplasim/analysis/` ladder | door wanted, two writers, world-cgct |
-| `hydrography/data/<build>/` | door wanted, six writers, world-pcnd |
+| `exoplasim/analysis/climatology/` | door, on `build_climatology.py:average_files`, on `analyze_climatology.py`'s classification, report and `save_map` |
+| `exoplasim/analysis/` ladder | door, on `compare_equilibria.py` and on `convert_restart.py`'s output and report |
+| `hydrography/data/<build>/` | door, one call per writer at each of the six |
 
 **`vendor/cgenie` needs no door because the link is gone.** The subtree is in
 `link_worktree.py`'s `SKIP_COMPILED`, so a worktree linked after this audit gets
@@ -200,10 +200,24 @@ is what reaches those.
 wrong with that write.** `source/` is read-only by rule 7: overwriting an
 existing build is a violation in the main checkout exactly as much as through a
 link, so a guard that fires only in a worktree would license the same write in
-the tree where it does most harm. The writer is also the vendored Node exporter,
-`vendor/orogen/tools/export-planet.mjs`, which takes its output directory from
-`--out` and has no Python door to hang a refusal on. The refusal that belongs
-here is by EXISTENCE and not by topology, and it is world-811b.
+the tree where it does most harm. The refusal that belongs here is by EXISTENCE
+and not by topology, and it is in `vendor/orogen/tools/export-planet.mjs`: a
+`--out` directory already holding a `manifest.json` or a `planet.zip` is refused
+before the generation starts, at the same point in the exporter as the
+basin-floor refusal and for the same reason, that generation is almost all of
+what an export costs.
+
+**A project-side wrapper would have been the weaker of the two places, not the
+safer.** `source/README.md` documents the invocation as the `node` command
+itself and `config/pipeline.yaml`'s `orogen` step names `vendor/orogen` rather
+than a script, so a wrapper's guard would be bypassed by the documented path; it
+would also have to restate the six-target recipe to resolve `--out`, which puts
+a second copy of the recipe beside the canonical one. In the exporter the
+refusal is tree-independent, reaches every invocation, and needs no copy of
+anything. It carries NO OVERRIDE FLAG: a flag would make the unrecoverable
+write the shorter path, and a failed export is a directory whose caller removes
+it by hand, having looked at what is in it.
+`scripts/verify_entry_points.py` exercises both arms.
 
 **The prerebuild record needs no door because nothing generates it.** The
 `.x` files under `exoplasim/analysis/prerebuild_binaries_<date>/` were copied by
@@ -215,7 +229,7 @@ complete answer rather than a gap.
 
 ## What is still carried by convention
 
-The three groups with a door prevent the write; the rest are reported by
+The groups with a door prevent the write; the rest are reported by
 `scripts/check_worktree_links.py` after it lands, which names the fact and not
 the culprit. That is the honest limit: from inside a worktree, a write from here
 and a regeneration in the main checkout are indistinguishable, and the

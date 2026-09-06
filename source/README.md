@@ -263,6 +263,17 @@ node --max-old-space-size=32000 tools/export-planet.mjs \
     --grid 512x256 --out ../../source/<build>/grid-512x256   --no-raw
 ```
 
+**An output directory that already holds an export is refused.** The exporter
+checks every `--out` for a `manifest.json` or a `planet.zip` before the
+generation starts and stops with exit 2, naming the directory. `source/` is
+read-only by rule 7 and git tracks none of this payload, so a directory
+rewritten in place has nothing to fall back on -- and the rewrite need not
+announce itself, since re-exporting the same code onto a different grid leaves a
+directory whose terrain hash still matches every reader's record while the bytes
+have moved. There is no override flag. Export to a NEW build name; if a
+directory holds a failed export, remove it yourself, having looked at what is in
+it.
+
 **One invocation, because the grid does not decide the terrain.** Six exports of
 one build used to run six generations of the same planet, and generation is
 almost all of what an export costs: over the six-grid run of 2026-08-26 the grid

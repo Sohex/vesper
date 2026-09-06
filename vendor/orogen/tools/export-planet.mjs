@@ -547,6 +547,45 @@ async function main() {
 
     const seed = args.seed ?? Math.floor(Math.random() * 16777216);
     const defaultOut = path.join('out', `planet-${args.code || seed}`);
+
+    // AN EXISTING EXPORT IS NEVER OVERWRITTEN, and the refusal is here rather
+    // than at the write because generation is almost all of what an export
+    // costs and a target that already holds a manifest is knowable before the
+    // first plate moves. The basin-floor refusal above is here for the same
+    // reason and cost two 23-minute exports to learn it.
+    //
+    // WHY REFUSING BY EXISTENCE IS THE RIGHT INSTRUMENT. An export directory is
+    // what a world is RECONSTRUCTED from; the payload is large enough that no
+    // consumer keeps it under version control, so a directory rewritten in
+    // place has nothing to fall back on. Worse, the rewrite need not announce
+    // itself: re-exporting the same code at the same seed onto a different grid
+    // leaves a directory whose terrain hash still matches every reader's
+    // record while its bytes have moved, and a reader that checks the hash
+    // learns nothing. The write is the only moment the difference is visible.
+    //
+    // NO OVERRIDE FLAG, deliberately. A flag makes the unrecoverable write the
+    // shorter path, and it buys nothing that removing the directory by hand
+    // does not: a failed export is a directory whose caller deletes it, having
+    // looked at what is in it. --list-basins is exempt because it generates and
+    // prints without writing a target at all.
+    if (!args.listBasins) {
+        for (const target of args.targets) {
+            const outDir = target.out ?? defaultOut;
+            const held = ['manifest.json', 'planet.zip']
+                .filter(name => fs.existsSync(path.join(outDir, name)));
+            if (!held.length) continue;
+            console.error(
+                `${outDir} already holds an export (${held.join(', ')}).\n` +
+                `Exporting into it would replace a build in place. An export is what a\n` +
+                `world is reconstructed from and nothing keeps a copy of one, so the\n` +
+                `terrain would change under everything already derived from it and the\n` +
+                `previous bytes would be gone.\n\n` +
+                `Export to a NEW directory. If this one holds a failed export, remove it\n` +
+                `yourself first -- deliberately, and having looked at what is in it.`);
+            process.exit(2);
+        }
+    }
+
     const log = args.quiet ? () => {} : (...m) => console.log(...m);
 
     // The simulation modules log diagnostics to console.log unconditionally.
