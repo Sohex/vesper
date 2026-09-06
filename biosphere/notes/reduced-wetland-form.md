@@ -198,8 +198,9 @@ WHAT IS DROPPED. WET-6's separation of production from oxidation, and WET-7's
 diffusion, plant-conduit and ebullition pathways.
 
 THE CONDITION. This part falls back when a consumer needs a surface methane flux
-and WET-6's substrate interface does not exist. It is BRACKETED and never a
-measurement, and the bracket is the one `wetlands.yaml` floors at the spread
+and WET-6's substrate interface does not exist. What it emits carries a
+DECLARED BRACKET and is never a measurement, and the floor on that bracket is
+the one `wetlands.yaml` sets at the spread
 between the two CH4:CO2 constants the vendored fork itself carries: a
 mechanistic ratio fitted at northern Earth sites against an emission factor
 whose own source comment says it was changed to match a global Earth total.
@@ -250,7 +251,8 @@ that decided the reduced form. A class dropped with only one of the two is
 refused, because a reason without a licence is an omission with an excuse
 attached and a licence without a reason is a decision nobody can check.
 
-**A bracketed class enters a downstream ledger as BOTH arms or as neither.**
+**A class whose share is a convention bracket enters a downstream ledger as
+BOTH arms or as neither.**
 `biosphere/config/wetlands.yaml` carries it as `extent.convention_arm_rule` and
 the gate refuses a rule that admits a single arm. It is stated before any share
 is written, because that is the constraint `world-4fr6` puts on either route. The saturated-area closure's `f_grad` is a
