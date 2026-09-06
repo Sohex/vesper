@@ -392,6 +392,38 @@ def _live_entries() -> dict[str, dict]:
     return {e.get("run_id"): e for e in runs if e.get("payload_present", True)}
 
 
+def _ledger_entries() -> dict[str, dict]:
+    """Every row the run index holds, live payload or not, keyed by id."""
+    if not RUN_INDEX.is_file():
+        return {}
+    runs = json.loads(RUN_INDEX.read_text(encoding="utf-8"))["runs"]
+    return {e.get("run_id"): e for e in runs}
+
+
+def unreadable_because(run_id: str) -> str:
+    """Why a run that is not live cannot be read, in the words that are true.
+
+    THREE STATES, NOT TWO, since `exoplasim/runs/INDEX.json` became a ledger
+    (world-ww6z). A row with `payload_present: false` IS a record: it carries
+    the source build, the executable sha, the orbit count and the convergence
+    metrics of a run whose payload has gone. Telling a reader such a run is "in
+    no run index at all" is false in the direction that costs work, because it
+    says nothing can name the run when something can, and the repair for an
+    unidentifiable run is not the repair for an unreadable one.
+    """
+    archived, ledger = _archived_entries(), _ledger_entries()
+    if run_id in archived:
+        return ("survives only as archived identity, on build "
+                f"{archived[run_id].get('source_build')}")
+    row = ledger.get(run_id)
+    if row is not None:
+        since = row.get("payload_gone_since") or "an unrecorded date"
+        return (f"is in the ledger on build {row.get('source_build')} with its "
+                f"payload gone since {since} and no archive/runs/ stub, so what "
+                f"it WAS is on record and what it measured cannot be re-read")
+    return "is in no run index at all"
+
+
 def _archived_entries() -> dict[str, dict]:
     """The runs that survive only as IDENTITY, keyed by id.
 
@@ -438,7 +470,7 @@ def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
     testable: `test_currency_refuses_a_superseded_measurement()` hands it the
     superseded one and asserts the refusals come back.
     """
-    live, archived = _live_entries(), _archived_entries()
+    live = _live_entries()
     try:
         build = active_build(cfg)
     except Exception as exc:                       # noqa: BLE001 - reported, not raised
@@ -449,14 +481,8 @@ def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
         run_id = want["run_id"]
         entry = live.get(run_id)
         if entry is None:
-            if run_id in archived:
-                was = archived[run_id].get("source_build")
-                problems.append(
-                    f"{role} run {run_id} survives only as archived identity, on "
-                    f"build {was}; the measurement it carries is superseded and "
-                    f"cannot be recomputed")
-            else:
-                problems.append(f"{role} run {run_id} is in no run index at all")
+            problems.append(f"{role} run {run_id} {unreadable_because(run_id)}; "
+                            f"the measurement it carries cannot be recomputed")
             continue
         on = entry.get("source_build")
         if on != build:

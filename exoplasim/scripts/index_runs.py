@@ -40,6 +40,12 @@ So two things hold the invariant, and both are needed:
                          row is the identity; the payload was only ever the
                          evidence.
 
+A SCAN AND A REGISTRATION ARE TWO OPERATIONS, and `merge()` is only the first.
+A row `merge()` does not see is a directory that is not on disk, which is what
+licenses it to mark that row payload-gone; a registration is one run reporting
+itself and says nothing whatever about any other. `upsert()` is the second
+operation and leaves every row it was not handed exactly as it found it.
+
 `scripts/archive_runs.py` is the deliberate deletion path and writes an
 `INDEX_ENTRY.json` stub from the row it is deleting. That stub is still the
 place a dead run's kept files live. What changed is that it is no longer the
@@ -247,31 +253,78 @@ def _gone(row: dict, today: str) -> dict:
     return row
 
 
+def _present(row: dict, was: dict, today: str) -> dict:
+    """A row the scan DID see: live fields from the scan, gone marks dropped."""
+    row = dict(row)
+    row["payload_present"] = True
+    row["archived"] = (ARCHIVE / row["directory"]).is_dir()
+    if was.get("payload_gone_since") and not was.get("payload_present", True):
+        # A directory that came back: a restore, or a purge that took the
+        # payload and left the identity. Drop the gone marks rather than
+        # carry a contradiction, and say once in the row that it happened.
+        row["payload_returned"] = today
+    return row
+
+
 def merge(previous: list[dict], scanned: list[dict]) -> list[dict]:
-    """The scan laid over the ledger, keeping every row the scan cannot see.
+    """A FULL SCAN of `exoplasim/runs/` laid over the ledger.
 
     Keyed by DIRECTORY and not by run id, because the two are not the same key:
     a crashed preparation is moved aside to `<directory>_crashed` and keeps the
     run id it was prepared under, so two rows legitimately share one id.
+
+    `scanned` is every run directory that exists, so a row absent from it is a
+    directory that is not on disk and is marked payload-gone. Hand this a
+    PARTIAL view and it reports the rest of the ledger as vanished: use
+    `upsert()` for one run reporting itself.
     """
     today = datetime.now(timezone.utc).date().isoformat()
     rows = {r["directory"]: r for r in previous}
     for row in scanned:
-        row = dict(row)
-        row["payload_present"] = True
-        row["archived"] = (ARCHIVE / row["directory"]).is_dir()
-        was = rows.get(row["directory"], {})
-        if was.get("payload_gone_since") and not was.get("payload_present", True):
-            # A directory that came back: a restore, or a purge that took the
-            # payload and left the identity. Drop the gone marks rather than
-            # carry a contradiction, and say once in the row that it happened.
-            row["payload_returned"] = today
-        rows[row["directory"]] = row
+        rows[row["directory"]] = _present(row, rows.get(row["directory"], {}),
+                                          today)
     seen = {r["directory"] for r in scanned}
     for name, row in rows.items():
         if name not in seen:
             rows[name] = _gone(row, today)
     return [rows[k] for k in sorted(rows)]
+
+
+def upsert(previous: list[dict], row: dict) -> list[dict]:
+    """One run's row laid over the ledger, EVERY OTHER ROW UNTOUCHED.
+
+    What `register()` needs, and what `merge()` cannot give it. A registration
+    is one run reporting itself; it is not a statement about the tree, so it
+    licenses nothing about any other row. Passing a single row through
+    `merge()` said the whole rest of the ledger had vanished, and it did:
+    registering three T42 arms from a checkout that could see only its own runs
+    marked 33 live runs `payload_present: false` with a `payload_gone_since`
+    date, and every consumer that filters the ledger on that flag --
+    `lib/sensitivity.py:_live_entries` is the one the flux-to-kelvin bracket
+    reads -- stopped seeing the runs its own measurements were taken on. The
+    payloads were never touched.
+    """
+    today = datetime.now(timezone.utc).date().isoformat()
+    rows = {r["directory"]: r for r in previous}
+    rows[row["directory"]] = _present(row, rows.get(row["directory"], {}), today)
+    return [rows[k] for k in sorted(rows)]
+
+
+def scan_is_authoritative(root: Path = ROOT) -> bool:
+    """Whether a listing of `exoplasim/runs/` here says what is on disk NOW.
+
+    ONLY THE MAIN CHECKOUT CAN MARK A ROW GONE. `exoplasim/runs/` is untracked
+    while `runs/INDEX.json` is tracked, so `scripts/link_worktree.py` links the
+    run directories one by one and a worktree's listing is a snapshot of what
+    existed the moment it was linked: a run made in the main checkout since is
+    simply absent here, and a worktree that was never linked sees no runs at
+    all. Neither is a deletion, and `merge()` cannot tell the difference,
+    because absence is the only evidence it has.
+
+    `.git` is a directory in the main checkout and a file in a worktree, so the
+    one fact this rests on is on disk and needs nobody to maintain it.
+    """
+    return (root / ".git").is_dir()
 
 
 def write(rows: list[dict], index: Path = INDEX) -> None:
@@ -297,10 +350,12 @@ def register(run_dir: Path, index: Path = INDEX) -> dict | None:
     when someone happens to run it, and the runs this repository has lost were
     lost in exactly that gap.
 
-    Merging rather than appending, so re-registering the same run updates its
-    row and leaves every other row alone. Under `flock`, because two arms of a
-    pair are two processes writing this one file and a lost update here is a
-    lost run.
+    Upserting rather than appending, so re-registering the same run updates its
+    row and leaves every other row alone. `upsert()` and not `merge()`: this
+    process has looked at ONE directory and knows nothing about the others, and
+    the checkout it runs in may not even be able to see them. Under `flock`,
+    because two arms of a pair are two processes writing this one file and a
+    lost update here is a lost run.
     """
     import fcntl
 
@@ -311,7 +366,7 @@ def register(run_dir: Path, index: Path = INDEX) -> dict | None:
         row = read(run_dir)
         if row is None:
             return None
-        write(merge(load(index), [row]), index)
+        write(upsert(load(index), row), index)
     return row
 
 
@@ -426,7 +481,13 @@ def main() -> None:
 
     scanned = [r for r in (read(d) for d in sorted(RUNS.iterdir()) if d.is_dir())
                if r is not None]
-    rows = merge(load(args.output), scanned)
+    authoritative = scan_is_authoritative()
+    if authoritative:
+        rows = merge(load(args.output), scanned)
+    else:
+        rows = load(args.output)
+        for row in scanned:
+            rows = upsert(rows, row)
 
     shown = rows
     for f in args.find:
@@ -445,6 +506,11 @@ def main() -> None:
     here = [r for r in rows if r.get("payload_present", True)]
     print(f"\n{len(shown)} of {len(rows)} rows, {len(here)} with a payload on "
           f"disk, {sum(r['size_gb'] for r in here):.1f} GB")
+
+    if not authoritative:
+        print("\nthis is a worktree, so no row was marked payload-gone: the "
+              "run directories here are the ones link_worktree.py linked and "
+              "absence proves nothing. Rescan in the main checkout.")
 
     write(rows, args.output)
     print(f"wrote {rel(args.output)}")

@@ -3878,6 +3878,24 @@ def check_run_index_is_a_ledger() -> list[str]:
     if live["run_000000000001"].get("orbits_on_disk") != 90:
         bad.append("a scan that CAN see a run does not update its row, so the "
                    "index is frozen rather than merged")
+
+    # REGISTERING ONE RUN SAYS NOTHING ABOUT ANY OTHER. `merge()` reads absence
+    # as deletion because a full scan is the only evidence it has; `register()`
+    # has looked at one directory. Passing that one row through `merge()` marked
+    # 33 live runs payload_present false with a payload_gone_since date, from a
+    # worktree that could see only the three arms it had just run, and every
+    # consumer that filters the ledger on that flag stopped seeing the runs its
+    # own measurements were taken on.
+    other = {r["directory"]: r for r in index_runs.upsert(
+        previous, {"directory": "run_000000000002", "run_id": "run_000000000002",
+                   "orbits_on_disk": 3, "size_gb": 0.4, "physical": {},
+                   "converged": False})}
+    if other["run_000000000001"].get("payload_present") is False:
+        bad.append("index_runs.upsert marks a run payload-gone because ANOTHER "
+                   "run was registered, so registering one run reports every "
+                   "other run's payload as deleted")
+    if "run_000000000002" not in other:
+        bad.append("index_runs.upsert does not add the row it was handed")
     return bad
 
 
