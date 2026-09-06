@@ -152,6 +152,24 @@ asymptote at 280.3521 +/- 0.0458 K, and the run then sits at 280.2544 K over
 orbits 75-129, about 0.05 K below that fit's own interval once the measured
 -0.047 K I/O step at the join is taken out.
 
+## The warm arm is the noisiest settled run this project has, and that moves the window
+
+`assess_convergence.py` sizes its default verdict window on a declared orbit
+scatter that has to bound every settled production report, and
+`check_convergence_bounds` refuses when a report exceeds it. The warm arm reads
+0.144917 K over its 55-orbit clean window against a declared 0.124, so the bound
+is raised to 0.145 and the anchor moves to it from `run_67323a923013`.
+
+The window grows as the two-thirds power of the scatter, so **the default verdict
+window goes from 55 orbits to 61**. The arms were bought with a 60-orbit clean
+block, sized to hold the 55 that was the default when the purchase was specified.
+They cannot hold 61. Re-buying this pair means a clean block of at least 66
+orbits, not 60.
+
+The cold arm reads 0.103598 over the same window indices. The 40 per cent
+difference between the two arms is the flux and nothing else: same build, same
+staged surface, same executable, same window, same regime.
+
 ## Cost, with the machine state it was taken under
 
 *Measured 2026-09-06, T21 at 16 threads, one host lock held throughout.* 260
