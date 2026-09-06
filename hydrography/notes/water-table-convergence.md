@@ -473,6 +473,21 @@ The count is a LOWER bound on the partition, because the solve also drops the
 cells that reach neither recharge nor the sea and any that the sink seeds at the
 surface, and dropping more cells can only cut further.
 
+**And it is a property of the model rather than of this build.** The same count
+on the two other ten-million-region builds that carry a `surface_water.nc`:
+
+| build | free set | blocks | largest | largest as a share |
+| --- | ---: | ---: | ---: | ---: |
+| `canonical-10m-carve2` | 3,914,015 | 13,094 | 606,808 | 15.5% |
+| `canonical-10m-base` | 3,564,594 | 16,549 | 546,293 | 15.3% |
+| `precarve-craton-10m` | 3,493,929 | 15,387 | 480,175 | 13.7% |
+
+Thirteen to seventeen thousand blocks on every one of them, with the largest
+holding a seventh of the free set and fifty or so blocks holding all but four
+per cent. A carve iteration moves the count and does not move the shape, which
+is what says the partition is the channel network's doing and not an accident of
+one terrain.
+
 **What that is worth, and the exponent is measured rather than assumed.** The
 textbook figure for a planar direct solve is `n^1.5`, which would put the sum
 over the blocks at 0.280 of the union's. The exponent this file's own recorded
