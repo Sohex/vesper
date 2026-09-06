@@ -1043,10 +1043,13 @@ model:
     # warmer, which is the surface fields and not the flux.
     #
     # `lib/sensitivity.py`'s slope bracket is NOT on this run and is not
-    # current: both its endpoints are on `canonical-10m-base`, and closing it
-    # needs a warm arm at flux ratio 1.000 on the configured build. The two
-    # declarations have separate currency rules and one does not wait on the
-    # other.
+    # current: both its endpoints are on `canonical-10m-base`. Its replacement
+    # pair is bought and sits on the configured build --
+    # `notes/audits/flux-slope-bracket.md` -- and what holds the declaration off
+    # them is a convergence criterion that cannot judge either arm, world-jejw.
+    # The two declarations have separate currency rules and one does not wait on
+    # the other: this one is on the BOOTSTRAP stage, on terrain-only fields, and
+    # the bracket arms are on the full derived surface.
     # `docs/src/practice/failure-modes.md` class 36.
     surface_temperature_k: 279.93
   # DERIVED from `cold_start_profile` above. The semi-implicit scheme's
