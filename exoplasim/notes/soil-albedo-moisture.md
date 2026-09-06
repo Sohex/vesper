@@ -264,7 +264,12 @@ on one sample. `references/INDEX.md` names the one that would do it.
 Two twenty-five-orbit runs seeded from `run_893e276ee029/MOST_REST.00209`, a
 210-orbit equilibrated state on this build. One binary, md5-identical in both run
 directories; one seed, md5-identical; `landmod_namelist` differing in one line,
-`NWETSOIL = 1` in `run_a1c35075747c` against `0` in `run_598eb57c5a34`. The wet
+`NWETSOIL = 1` in `run_a1c35075747c` against `0` in `run_598eb57c5a34`; neither
+has a row in `exoplasim/runs/INDEX.json` or a payload
+(`archive/runs/RECORDLESS.json`), so the numbers below are re-read from
+`exoplasim/analysis/convergence/run_a1c35075747c_convergence_diagnostic.json` and
+`run_598eb57c5a34_convergence_diagnostic.json` and the one binary, one seed and
+one-line namelist difference are not checkable against anything. The wet
 arm's `landini` printed the PHYS-15 banner at 0.0 to 0.7642 with both shape
 sigmas at one, so it read the staged pair rather than stopping on the sentinel;
 the dry arm printed nothing. Both segments are `diagnostic` at one I/O regime,

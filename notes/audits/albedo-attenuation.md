@@ -44,8 +44,12 @@ Paired equilibrated spin-ups that differ in `model.land_albedo_source` alone
 within one build, one flux ratio and one rung. That key is the budget's own
 "biosphere: bare rock vs vegetated" item. `dT` is the difference of the two
 convergence reports' fitted asymptotes, which is the estimator `lib/sensitivity.py`
-measures its own slope with. The fourth row is PHYS-15's `NWETSOIL` pair, whose
-run directories are deleted and whose convergence diagnostics survive.
+measures its own slope with. The fourth row is PHYS-15's `NWETSOIL` pair,
+`run_598eb57c5a34` and `run_a1c35075747c`, whose run directories are deleted and
+whose convergence diagnostics survive. Those two are in no run index either
+(`archive/runs/RECORDLESS.json`), and a convergence diagnostic records no
+`source_build`, so the `canonical-10m-base` this table attributes that row to
+rests on nothing a reader can open. Every other row's runs are in the ledger.
 
 | term and build | dT | staged d(alb) | attenuation, staged | diagnosed d(alb) | attenuation, diagnosed |
 | --- | ---: | ---: | ---: | ---: | ---: |

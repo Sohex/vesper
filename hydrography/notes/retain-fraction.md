@@ -383,7 +383,12 @@ survivors is not, and should not be quoted as though it were.
 
 Measured 2026-08-26 on `precarve-craton-10m` under the bootstrap climatology of
 `run_2b20e3324bb0`, 9,419 basins, 5,565 of them overflowing, 177.52 Mkm2 of land
-within 35 degrees. The bootstrap is the only climatology this build has, so what
+within 35 degrees. That run has no row in `exoplasim/runs/INDEX.json` and no
+payload (`archive/runs/RECORDLESS.json`), and the climatology it forced this
+sweep with is not on disk either, so the absolute coefficients here cannot be
+re-derived. The ratios are what this section says transfers, and re-taking the
+sweep under the best available climatology of the configured build is what
+replaces the absolutes. The bootstrap is the only climatology this build has, so what
 follows is a statement about the SENSITIVITY and not a verdict; the ratios below
 are what transfers, and the absolute coefficients move with the climate the way
 the section above says they must.

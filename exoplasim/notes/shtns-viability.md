@@ -861,6 +861,14 @@ object cache.
 85-orbit baseline, and PASSES on one cut from `run_9df7ffa14256`, a one-orbit
 cold start. Same build, same thread count, same everything else.
 
+Neither run has a row in `exoplasim/runs/INDEX.json` or a payload
+(`archive/runs/RECORDLESS.json`).
+`exoplasim/inputs/templates/T21_l10_p16_omp.rest.provenance.json` records the
+one-orbit bed's provenance; nothing records the 85-orbit one, so its orbit count
+-- which is the whole of what this section says the tolerance depends on -- is a
+claim this note is the sole copy of. Re-taking it is two beds cut from live runs
+at the two ends of one rung's orbit range.
+
 | bed | born at 1 step | at 20 steps | verdict |
 | --- | --- | --- | --- |
 | 85-orbit baseline | 3.35e-12 | 3.94e-10 | FAIL against 1e-10 |
