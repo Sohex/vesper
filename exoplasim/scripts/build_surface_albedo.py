@@ -814,9 +814,10 @@ def main() -> None:
     # linear in the two albedo-carrying arrays it is handed -- so an INDICATOR
     # carried through the identical arithmetic arrives as the exact derivative.
     # That is why it can be emitted from the same run that stages the field
-    # rather than costing three of them, and it is what puts the declaration
-    # inside the loop that re-derives it: `error_budget.py:verify_land_mean_shares`
-    # refuses a disagreement at 1e-6.
+    # rather than costing three of them, and it is what removed the declaration
+    # rather than putting a check beside it: `error_budget.py:land_mean_share`
+    # reads this key and refuses a report that carries none, so there is no
+    # second copy of the number to drift from the terrain it describes.
     override_sensitivity = {code: (rock == spec["rock_id"]).astype(np.float64)
                             for code, spec in applied.items()}
 
