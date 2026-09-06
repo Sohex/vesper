@@ -37,12 +37,13 @@ it and `build_groundwater.py` reads it from `config/planet.yaml`.
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse.csgraph import connected_components as _components
-from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import spsolve, splu
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 # Imported for its side effect: `_paths` is what puts `lib/` on the path, so
@@ -812,6 +813,72 @@ def geom_divergence(n, src, dst, face_flux):
 # The complementarity solve
 # ---------------------------------------------------------------------------
 
+def resident_gb() -> float:
+    """This process's resident set, GB, read from /proc. Zero where there is none.
+
+    `docs/src/reference/large-data.md` asks for resident memory beside every
+    progress line, and gives the reason: it is what turns "it is still going"
+    into "it will not finish", and those two have different answers. The solve
+    factorises a matrix whose fill is the thing most likely to exhaust the host,
+    so the number belongs on the pass line rather than in a postmortem.
+    """
+    try:
+        with open("/proc/self/status", encoding="ascii") as fh:
+            for line in fh:
+                if line.startswith("VmRSS:"):
+                    return float(line.split()[1]) / (1 << 20)
+    except OSError:
+        pass
+    return 0.0
+
+
+class _Phases:
+    """Wall time per named phase of the outer loop, and the pass it belongs to.
+
+    A solve of this size has three plausible costs -- the scatter-adds over
+    thirty million faces, the sparse factorisation, and the connectivity passes
+    -- and which of them dominates decides what is worth changing. Measuring
+    them separately is the difference between the row this instrumentation was
+    added for and a guess: the file's own recorded reasoning was sized at
+    400,000 unknowns on a smaller build, and a cost that grows superlinearly in
+    the unknown count does not stay where it was measured.
+
+    The clock is `perf_counter`, so this measures WALL time and is therefore
+    only as meaningful as the load it was taken under. Record the load.
+    """
+
+    __slots__ = ("t", "_open", "_t0")
+
+    def __init__(self):
+        self.t = {}
+        self._open = None
+        self._t0 = 0.0
+
+    def __call__(self, name):
+        self.stop()
+        self._open = name
+        self._t0 = time.perf_counter()
+        return self
+
+    def stop(self):
+        if self._open is not None:
+            self.t[self._open] = self.t.get(self._open, 0.0) + (
+                time.perf_counter() - self._t0)
+            self._open = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.stop()
+        return False
+
+    def report(self) -> dict:
+        self.stop()
+        return {k: round(v, 3) for k, v in
+                sorted(self.t.items(), key=lambda kv: -kv[1])}
+
+
 def et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive):
     """Groundwater ET as a rate, exponential in depth below the surface.
 
@@ -892,6 +959,9 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     number, and their recharge returns as seepage, which is what the
     surface-only balance already does with it.
     """
+    phases = _Phases()
+    _t_start = time.perf_counter()
+    phases("setup")
     n = export.n_regions
     src, dst = geom.src, geom.dst
     gfac = geom.geom
@@ -1053,7 +1123,21 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     infeasible = -1
     bar = RESIDUAL_TOLERANCE
 
+    # THE MATRIX FINGERPRINT, per pass, and it is the measurement world-wfge
+    # asks for rather than a diagnostic. The one lever the call-site comment
+    # below names -- `splu` re-solves at a fraction of the cost of factorising
+    # -- is reachable only on a pass whose matrix REPEATS, so how often that
+    # happens is the whole question and it must be counted rather than assumed.
+    # Two levels, because they have different remedies: the PATTERN repeats when
+    # the free set is unchanged, and the VALUES repeat when the numbers in it
+    # are unchanged too. A confined run's off-diagonals are fixed, so under the
+    # confined form the second differs from the first only through the ET
+    # diagonal.
+    prev_free_key = None
+    prev_value_key = None
+    pattern_repeats = value_repeats = 0
     for outer in range(max_outer):
+        phases("active_set")
         # A cell with no conducting face has no LATERAL equation: nothing can
         # carry its recharge away sideways, so without a sink it stands at the
         # surface and seeps.
@@ -1087,9 +1171,11 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # a contraction wherever the head step is smaller than the saturated
         # column. A confined run reassembles nothing and is bit-identical.
         if unconfined:
-            t_cell, trans = assemble(head)
-            rowsum = row_sums(trans)
+            with phases("assemble"):
+                t_cell, trans = assemble(head)
+                rowsum = row_sums(trans)
 
+        phases("release")
         # RELEASE before solving. A pinned cell whose neighbours already draw
         # more water out of it than its recharge supplies cannot stand at the
         # surface. An anchor is never released; see below.
@@ -1115,6 +1201,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         anchor_failed |= release & anchor
         anchor &= ~release
 
+        phases("anchor")
         unknown = free & ~is_boundary
         m = int(unknown.sum())
         if m == 0:
@@ -1197,6 +1284,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                           f"pinning {pick.size:,} cells")
                 continue
 
+        phases("assembly")
         rows = np.concatenate([idx[src[both]], idx[dst[both]],
                                idx[src[both]], idx[dst[both]]])
         cols = np.concatenate([idx[dst[both]], idx[src[both]],
@@ -1225,6 +1313,15 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
             np.add.at(rhs, idx[u_side], trans[edge_one] * head[p_side])
 
         A = sp.coo_matrix((vals, (rows, cols)), shape=(m, m)).tocsr()
+        # Cheap, exact, and order-independent: the free set IS the pattern under
+        # a fixed face list, and the assembled values are the matrix. Hashing
+        # the bytes costs one pass over arrays the assembly above just built.
+        free_key = hash(np.flatnonzero(unknown).tobytes())
+        value_key = hash((free_key, A.data.tobytes()))
+        pattern_repeats += int(free_key == prev_free_key)
+        value_repeats += int(value_key == prev_value_key)
+        repeated = value_key == prev_value_key
+        prev_free_key, prev_value_key = free_key, value_key
         if not np.all(A.diagonal() > 0):
             raise SystemExit(
                 f"{int((A.diagonal() <= 0).sum())} free cells are isolated; "
@@ -1286,8 +1383,9 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # SuperLU's working set. That arm needs `splu` with `SymmetricMode`
         # rather than this call, and it is the one lever WORLD-V3UR's memory
         # blocker has not been tried against.
-        x = spsolve(A.tocsc(), rhs, use_umfpack=False,
-                    permc_spec="MMD_AT_PLUS_A")
+        with phases("factor_solve"):
+            x = spsolve(A.tocsc(), rhs, use_umfpack=False,
+                        permc_spec="MMD_AT_PLUS_A")
         if not np.all(np.isfinite(x)):
             raise SystemExit(
                 f"the direct solve returned {int((~np.isfinite(x)).sum()):,} "
@@ -1309,9 +1407,11 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # head has stopped moving the thickness that produced it. A confined run
         # reassembles nothing and the residual keeps its old meaning exactly.
         if unconfined:
-            t_cell, trans = assemble(head)
-            rowsum = row_sums(trans)
+            with phases("assemble"):
+                t_cell, trans = assemble(head)
+                rowsum = row_sums(trans)
 
+        phases("residual")
         flux = trans * (head[dst] - head[src])
         et_m3_s = (et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive)
                    * area_m2) if et_max_m_s is not None else 0.0
@@ -1347,10 +1447,19 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         flips = int(over.sum()) + int(release.sum())
         trace.append([outer, m, flips, residual, infeasible, leak_frac])
         if verbose:
+            # FLUSHED, and that is not decoration. A solve of this size has been
+            # killed under contention with its stdout block-buffered to a file,
+            # which lost every pass line and left a zero-byte log: there was not
+            # even a trace to say how far it got. `docs/src/reference/large-data.md`
+            # asks for progress, elapsed and resident memory per unit of work,
+            # and a solve whose progress is knowable only if it exits normally
+            # cannot be diagnosed when it does not.
             print(f"  pass {outer:3d}  free {m:>9,}  released "
                   f"{int(release.sum()):>7,}  pinned {int(over.sum()):>7,}"
                   f"  residual {residual:10.3e}  leak {leak_frac:10.3e}"
-                  f"  ({infeasible:,} cells)")
+                  f"  ({infeasible:,} cells)  {time.perf_counter() - _t_start:6.1f}s"
+                  f"  {resident_gb():5.2f} GB"
+                  f"{'  matrix repeated' if repeated else ''}", flush=True)
         if (residual < bar and flips <= FLIP_TOLERANCE * m
                 and leak_frac < bar):
             result.update(outer_iterations=outer + 1, converged=True,
@@ -1379,7 +1488,23 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                       f"balance {bal[i]:.6e}  anchor {bool(anchor[i])}  "
                       f"failed_anchor {bool(anchor_failed[i])}  "
                       f"rowsum {rowsum[i]:.3e}  depth {surface_m[i]-head[i]:.2f} m")
+    phases.stop()
     result["residual_trace"] = trace
+    # ON THE ARTIFACT, not in a log line, because the row this was added for
+    # asks for the share of passes that reuse a factorisation to be STATED
+    # rather than assumed, and a number that lives only in a terminal cannot be
+    # cited later. `passes` is the count of passes that assembled a matrix, so
+    # the shares below are against the number of chances there were.
+    result["phase_seconds"] = phases.report()
+    result["matrix_repeat"] = {
+        "passes_assembled": int(len(trace)),
+        "pattern_repeats": int(pattern_repeats),
+        "value_repeats": int(value_repeats),
+    }
+    if verbose:
+        print(f"  phases: {result['phase_seconds']}")
+        print(f"  matrix repeated on {value_repeats} of {len(trace)} passes "
+              f"(pattern on {pattern_repeats})", flush=True)
     # CHECKED AT THE END AND NOT PER PASS. An early pass can hold a head far
     # from the answer, so a floor computed there says nothing about the solve;
     # what matters is whether the CONVERGED configuration can be certified.
