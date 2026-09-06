@@ -520,9 +520,6 @@ c     dtatm = tv/ndta
 c variable timestep option not recommended
       do k=1,kmax
          dt(k) = tv  
-c initialize
-         dzu(1,k) = 0
-         dzu(2,k) = 0
       enddo
       if (debug_init) print*,'dimensional ocean timestep',tv*tsc/sodaylen
 

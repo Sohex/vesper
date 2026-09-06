@@ -51,12 +51,11 @@ c    1 ,npi(isles+1)
 
 crma      real dt(maxk),dphi,dphi2,ds,ds2,dz(maxk),u(3,0:maxi,0:maxj,maxk)
 crma     1 ,ts(maxl,0:maxi+1,0:maxj+1,0:maxk+1),s(0:maxj),c(0:maxj)
-crma     2 ,dzu(2,maxk)
 crma      real dt(maxk),dphi,ds(maxj),dsv(1:maxj-1),rds2(1:maxj),dz(maxk)
       real dt(maxk),phi0,dphi,ds(maxj),dsv(1:maxj-1),rds2(2:maxj-1),
      1 dz(maxk),u(3,0:maxi,0:maxj,maxk),
      2 ts(maxl,0:maxi+1,0:maxj+1,0:maxk+1),s(0:maxj),c(0:maxj),
-     2 dzu(2,maxk),tau(2,maxi,maxj),drag(2,maxi+1,maxj),
+     2 tau(2,maxi,maxj),drag(2,maxi+1,maxj),
      3 dztau(2,maxi,maxj),diff(2),ec(5)
      4 ,cn,ratm(mpxi*mpxj,mpxi+1),ub(2,0:maxi+1,0:maxj)
      5 ,rho(0:maxi+1,0:maxj+1,0:maxk)
@@ -73,8 +72,7 @@ crma      real dt(maxk),dphi,ds(maxj),dsv(1:maxj-1),rds2(1:maxj),dz(maxk)
       real psi(0:maxi,0:maxj)
 crma      common /ocn_vars/dt,dphi,dphi2,ds,ds2,dz,u
       common /ocn_vars/dt,dphi,ds,dsv,rds2,dz,u,phi0
-c    1 ,ts,t,s,c,dzu
-     1 ,ts,s,c,dzu
+     1 ,ts,s,c
      2 ,tau,drag,dztau
      3 ,diff,ec
      4 ,cn,ratm,ub
