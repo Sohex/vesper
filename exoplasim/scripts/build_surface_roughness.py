@@ -998,37 +998,43 @@ def main() -> None:
         return reduce_ce(k_oro, z_ref)[0]
 
     # THE MIXTURE IS CHECKED AGAINST THE REDUCTION IT GENERALISES. Give every
-    # cover inside the rootable ground the same roughness and the four-part
-    # expectation must equal a single-cover reduction over one array carrying
-    # that roughness on rootable regions and the mesh's own value elsewhere.
-    # That is an identity with a right answer -- the weights are a partition and
-    # the law is the same law -- and it fails if the populations, the weights or
-    # the combination ever stop being each other's complement. It is one extra
-    # reduction on a step that costs minutes.
+    # cover inside the rootable ground one roughness and the split expectation
+    # must equal a single-cover reduction over one array carrying that roughness
+    # on rootable regions and the mesh's own value elsewhere. The law is the
+    # same law and the populations are a partition of the cell's land, so this
+    # has a right answer rather than a plausible one, and it fails if the
+    # populations, the areas or the combination ever stop being each other's
+    # complement.
+    #
+    # THE WEIGHTS HERE ARE THE MESH'S OWN AREA FRACTIONS, not BIO-11's, which is
+    # what makes the tolerance meaningful: the two agree only to the 2e-6 the
+    # partition check above allows, so a control weighted by the artifact could
+    # not be held to anything tighter than that bar and would be measuring the
+    # bar rather than the reduction.
     if cover_weights is not None:
-        control_z0 = 0.1
+        control_z0, control_height = 0.1, 10.0
+        control_law = lambda v: neutral_ce(v, control_height)
         control_surface = np.where(sel_root, control_z0, z0_surface)
-        flat = [(weight, None if surface is None else control_z0)
-                for weight, surface in cover_weights]
+        root_frac, _ = cell_fraction(cells, n, area, sel_root, sel)
+        non_frac, _ = cell_fraction(cells, n, area, sel_non, sel)
         mixed = np.zeros(n)
-        for weight, surface in flat:
-            population = sel_non if surface is None else sel_root
-            values = (region_z0_from(control_surface, 0.0) if surface is None
-                      else region_z0_from(np.full(z0_surface.shape, surface), 0.0))
+        for share, population, values in (
+                (root_frac, sel_root,
+                 region_z0_from(np.full(z0_surface.shape, control_z0), 0.0)),
+                (non_frac, sel_non, region_z0_from(control_surface, 0.0))):
             part, _, part_covered = cell_expectation(
-                cells, n, area, lambda v: neutral_ce(v, 10.0), values, population)
-            mixed += weight * np.where(part_covered, part, 0.0)
+                cells, n, area, control_law, values, population)
+            mixed += share * np.where(part_covered, part, 0.0)
         direct, _, direct_covered = cell_expectation(
-            cells, n, area, lambda v: neutral_ce(v, 10.0),
-            region_z0_from(control_surface, 0.0), sel)
+            cells, n, area, control_law, region_z0_from(control_surface, 0.0), sel)
         worst = float(np.max(np.abs(
             mixed[direct_covered] / direct[direct_covered] - 1.0)))
         if worst > 1e-9:
             raise SystemExit(
                 f"the cover mixture does not reproduce the single-cover "
                 f"reduction on a uniform cover: worst relative residual "
-                f"{worst:.3e}. The four populations are not a partition of the "
-                "cell's land, or the weights are not their areas. Nothing was "
+                f"{worst:.3e}. The populations are not a partition of the "
+                "cell's land, or the shares are not their areas. Nothing was "
                 "written.")
 
     # The mesh spacing, per cell: the scale over which the cover varies, which
