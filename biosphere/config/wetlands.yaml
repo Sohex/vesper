@@ -232,7 +232,8 @@ extent:
     closure brings the second support back with it, and WORLD-D9U4's three
     routes are then the choice again, to be made before any share is read.
 
-  # WHAT A DOWNSTREAM LEDGER DOES WITH A BRACKETED CLASS, stated before any
+  # WHAT A DOWNSTREAM LEDGER DOES WITH A CLASS WHOSE SHARE IS A CONVENTION
+  # BRACKET, stated before any
   # share is written, which is the constraint WORLD-4FR6 puts on both of its
   # routes. The saturated-area closure's `f_grad` is a CONVENTION bracket rather
   # than a spread around a central value: at one end of it the closure's ranking
