@@ -224,7 +224,10 @@ does not overwrite are the ones the runs carry. Every cell in
 `exoplasim/analysis/stability_probe.json` names its executable and sha, its
 build profile, the sha256 of its namelist and of each surface `.sra` in its bed,
 and a `declared` block carrying gamma, `nhdiff`, `ndel` and the four
-timescales.*
+timescales. The three runs the beds came from have no rows in
+`exoplasim/runs/INDEX.json` and no payloads (`archive/runs/RECORDLESS.json`), so
+what identifies each bed now is the hashes the probe artifact recorded and not
+the run it was cut from; the builds those runs were on are not recoverable.*
 
 Every grid before this one is replaced rather than corrected. Four independent
 things were wrong with how they were taken -- the damping reached one model
@@ -390,6 +393,15 @@ the damping reached every level.*
 | --- | --- | ---: |
 | `run_900548ae632e` | element one only | **47** |
 | `run_3e1e116f99ee` | `10*` every level | **68** |
+
+`run_900548ae632e` survives as `archive/runs/run_900548ae632e/RECONSTRUCTED.json`,
+which carries the verdict, the 46 orbits and the failure with the artifact behind
+each. `run_3e1e116f99ee` has no record and no payload
+(`archive/runs/RECORDLESS.json`); `exoplasim/analysis/filter_dt_pair.json` names
+its directory `run_3e1e116f99ee_crashed`, carries its namelist -- `MPSTEP 45.0`,
+`NDEL 10*4`, `TDISSZ 10*1.1143` -- and measures it over orbits 30 to 65, so the
+configuration and the fact that it passed 65 orbits are re-derivable. The 68
+itself is not in any artifact.
 
 Correcting the damping bought twenty-one orbits and did not remove the failure.
 So the per-level defect was real and expensive, and it was not the whole cause:

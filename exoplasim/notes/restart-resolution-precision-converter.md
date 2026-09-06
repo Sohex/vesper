@@ -534,6 +534,14 @@ seeded from the same conversion of `run_2b20e3324bb0`'s restart onto a template
 cut from `run_8102b89a08ac`. All three ran on executable `eae6b0e89357`, so the
 comparison is paired on everything but those records.
 
+All four of those runs have no row in `exoplasim/runs/INDEX.json` and no payload
+(`archive/runs/RECORDLESS.json`). No artifact carries either arm's records, so
+the 0.213 above is a number this note is the sole copy of, and the shared
+executable that makes the pairing a pairing is not checkable against anything.
+The claim the decisions below rest on does not depend on those arms: it is the
+coastline count in the next paragraph, and that is re-derived from a run the
+ledger names.
+
 **THE COASTLINE CELLS ARE WHAT MATTERS, and they are not the derived records.**
 On the same conversion, 124 target land cells and 132 target ocean cells found
 no source of their own class: the cells a moved coastline creates. They used to

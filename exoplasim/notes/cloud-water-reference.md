@@ -485,6 +485,15 @@ separations of four kelvin.
 Both separations plateau by about orbit 15 and oscillate after it, the 0.5x arm
 around +4.2 and the 2.0x arm around -4.75.
 
+None of the three runs has a row in `exoplasim/runs/INDEX.json` or a payload any
+more (`archive/runs/RECORDLESS.json`). The separations survive in
+`exoplasim/analysis/arms/world_s8rv_arms.json`, which carries each arm's whole
+orbit-by-orbit trajectory, its final `tas`, its paired scatter and the control's
+own orbit count, so every number in the table above is re-derivable from it. The
+build and executable sha each arm ran on are not in that artifact and are not
+recoverable, so the three arms cannot be attributed to a source state and this
+result cannot be paired with a controlled arm taken later.
+
 **The three falsifying conditions, and all three hold.**
 
 - **The 1.0x arm does not differ from a run that declares nothing.** A run with
@@ -492,7 +501,11 @@ around +4.2 and the 2.0x arm around -4.75.
   stages `CLWREF = 0.00021` from `rainmod_default("clwref")` and writes a
   `MOST_REST.00000` bit-identical to the control's, sha `77c3a916`. This is the
   check that could have failed and it is the route's property, not a
-  coincidence.
+  coincidence. It is also the one row here that nothing can check: that run has
+  no record and no payload, no artifact carries the restart or its hash, and this
+  note is the sole copy of the sha. What replaces it is one arm at T21 with the
+  key deleted from its config, one orbit, compared against a control's
+  `MOST_REST.00000` by hash.
 - **Neither arm moves the simulated global mean by less than 1 K.** Both move
   more than four.
 - **The 2.0x arm cools and the 0.5x arm warms.** The sign this note assigned

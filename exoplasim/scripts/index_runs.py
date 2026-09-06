@@ -95,6 +95,8 @@ RUN_ID = re.compile(r"run_[0-9a-f]{12}")
 NOT_RUNS = {
     "run_1a2b3c4d5e6f",   # exoplasim/scripts/derive_design_flux.py, an example
     "run_aaaaaaaaaaaa",   # scripts/smoke_test.py, a fixture
+    "run_000000000001",   # scripts/smoke_test.py, the ledger check's fixture
+    "run_000000000002",   # scripts/smoke_test.py, the upsert check's fixture
 }
 
 
