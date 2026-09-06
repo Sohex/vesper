@@ -45,11 +45,19 @@ The two paints, region by region:
 ## The three findings
 
 **The disagreement is the strandline, and nothing else.** The symmetric
-difference between the two paints is 0.0685% of land area, which is 0.032 of the
-annual lake area, and every square kilometre of it lies INSIDE the depression
-footprint. Zero regions wet in some bin lie outside the footprint, and zero
-regions wet in every bin do. So the two solves disagree about where a basin's
-shoreline sits within its own depression and about nothing else. That is what
+difference between the annual paint and the assigned open-water class is 0.0684%
+of land area, which is 0.032 of the annual lake area, and every square kilometre
+of it lies INSIDE the depression footprint. Zero regions wet in some bin lie
+outside the footprint, and zero regions wet in every bin do. So the two solves
+disagree about where a basin's shoreline sits within its own depression and about
+nothing else.
+
+That figure is taken against the open-water class AS ASSIGNED rather than
+against the always-wet set alone, which is what `build_wetness.py` reports, and
+the two differ by the three regions of the last section: the rule there puts a
+region with no cycle into open water on the annual paint, so both sides then
+agree about it and it leaves the difference. Against the always-wet set alone the
+figure is 0.0685%. That is what
 licenses taking the cut from either one; it is not what chooses between them.
 
 **The choice is forced by exclusivity, not by the sizes.** Taking open water
