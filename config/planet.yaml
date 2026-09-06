@@ -1028,21 +1028,27 @@ model:
   cold_start_profile:
     # This model's own converged global-mean surface temperature at the declared
     # `orbit.baseline_flux_earth`, taken from the fitted asymptote of
-    # run_432e5e46adef, which is on the configured build and in the live run
-    # index. `check_consistency.py` re-reads that asymptote and refuses a run
-    # that has left the index or moved off the configured build, which is what
-    # the previous declaration had done: it named a T42 run on `precarve-craton`
-    # that survives only as archived identity, and it stood 9.20 K above what
-    # this model settles at.
+    # run_5994d1f9624e -- T21 on the configured build, terrain-only surface,
+    # equilibrated over its production window of orbits 77 to 122, asymptote
+    # 279.9339 +/- 0.0397. `check_consistency.py` re-reads that asymptote and
+    # refuses a run that has left the index or moved off the configured build.
+    # Both previous declarations had done exactly that: a T42 run on
+    # `precarve-craton` surviving only as archived identity and standing 9.20 K
+    # above what this model settles at, then run_432e5e46adef on
+    # `canonical-10m-base`.
     #
-    # `lib/sensitivity.py`'s cold endpoint reads 279.6805 K on the SAME RUN and
-    # neither is stale. That bracket is read over orbits 37-69, the tail of the
-    # run's low-I/O block, because its warm endpoint has no clean-I/O orbits at
-    # all and a difference has to be taken on one instrument; this is the run's
-    # own production verdict, over the twelve clean orbits after the join. The
-    # two instruments disagree by about 0.17 K.
+    # THE COLD START IS DECLARED ON THE BOOTSTRAP STAGE, deliberately: a cold
+    # start begins on terrain-only fields, so the run it is taken from is the
+    # one that ran on them. The baseline run on this build settles 1.22 K
+    # warmer, which is the surface fields and not the flux.
+    #
+    # `lib/sensitivity.py`'s slope bracket is NOT on this run and is not
+    # current: both its endpoints are on `canonical-10m-base`, and closing it
+    # needs a warm arm at flux ratio 1.000 on the configured build. The two
+    # declarations have separate currency rules and one does not wait on the
+    # other.
     # `docs/src/practice/failure-modes.md` class 36.
-    surface_temperature_k: 279.83
+    surface_temperature_k: 279.93
   # DERIVED from `cold_start_profile` above. The semi-implicit scheme's
   # reference temperature, isothermal on every level, and the thing the
   # reference geopotential `Phi0_k = sum_j g(j,k) t0` is built out of -- so the
@@ -1065,7 +1071,7 @@ model:
   # balance resolves. What declaring it buys is that the sink no longer rests
   # on a number nobody chose, and that it MOVES when the cold start does.
   # world-bmf.
-  semi_implicit_reference_temperature_k: 241.41
+  semi_implicit_reference_temperature_k: 241.50
   # DECLARED, 2026-08-24, and in ROTATIONS. Rayleigh drag on the top model
   # levels, `TFRC`, one entry per level from the top down and zero for no drag.
   # ExoPlaSim applies 20 and 100 to the top two unconditionally at NLEV 10 --

@@ -1442,7 +1442,7 @@ def check_land_column_thermal_constants(rep: "Report") -> None:
 # names its bracket runs in code: a run id inside a YAML comment is reachable by
 # a reader and by nothing else, and what makes this a check is that something
 # opens the run index.
-COLD_START_RUN = "run_432e5e46adef"
+COLD_START_RUN = "run_5994d1f9624e"
 
 
 def check_cold_start_currency(rep: "Report", config: dict) -> None:
