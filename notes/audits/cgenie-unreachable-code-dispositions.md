@@ -74,9 +74,19 @@ drop both of the atmosphere flags that matter here.
 
 **Deleting it closes no route.** The live old-style-config to XML converter is a
 different file, `genie-main/translate_config.py`, wired into `genie.job` at line
-33 as `TRANSLATE_CONFIG` and reached by `genie.job -O`. It is also Python 2 and
-also does not run on this host, so neither converter is a route today; that is a
-property of the host's interpreter and not of the deleted file.
+33 as `TRANSLATE_CONFIG` and reached by `genie.job -O`.
+
+It is also Python 2 and also does not run on this host, and the consequence
+reaches further than the deleted file, so it is stated here rather than left to
+be rediscovered. `runmuffin.sh:395` runs `./genie_example.job -O -f <config>`,
+so the shipped route from any of the 635 flat `.config` base configurations to a
+run goes through `translate_config.py` and is unavailable here for want of a
+Python 2 interpreter. **Nothing in this project wants that route.**
+`analysis/cgenie_cost.py` composes the XML directly, `<param name="world">`
+included, so an arbitrary shipped topography and an arbitrary grid are both
+reachable without a converter, and `analysis/cgenie_profile.py` and
+`analysis/cgenie_omp.py` build on it. The converters are a legacy input format's
+on-ramp, not the model's.
 
 `config2xml.sh` goes with it because it is the only caller, and because the file
 list it reads, `genie-main/configs/files`, is not in the tree either.
