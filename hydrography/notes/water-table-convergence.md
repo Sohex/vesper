@@ -450,12 +450,39 @@ diagonal does not, so there is nothing for a factorisation to be reused on.
 
 ### Where the cost was: the free set is not one problem
 
-GW-17's river and lake cells carry a fixed head, so they are a boundary and not
-an unknown, and a face touching one contributes to a diagonal and a right-hand
-side rather than to an off-diagonal. The channel network therefore CUTS the free
-set: what the solver is handed is one block per interfluve plus one per island,
-and the blocks exchange water only through the rivers between them, which are a
-Dirichlet condition on both sides. Assembling the union and factorising it whole
+What the solver was handed is not one problem and never was. Two things cut it,
+and only one of them is a modelling choice.
+
+**The coastlines, which is most of it.** A face conducts only where both its
+ends are in the conductive network, so the ocean separates the landmasses
+absolutely: the free set is at least one block per continent and one per island,
+plus whatever the cells with no assigned permeability isolate. On
+`canonical-10m-carve2` that alone is 7,564 blocks over 4,268,074 conductive land
+regions, and the largest is 641,611 cells -- 15.0 per cent of the conductive
+land. This world has no dominant continent, and that fact is worth more to the
+solve than anything the model does.
+
+**GW-17's fixed heads, which add fragments and not much else.** A river or lake
+cell carries an imposed head, so it is a boundary and not an unknown and a face
+touching one contributes to a diagonal and a right-hand side rather than an
+off-diagonal. Removing them nearly doubles the block count and barely touches
+the largest block:
+
+| what is removed from the free set | free | blocks | largest | share |
+| --- | ---: | ---: | ---: | ---: |
+| nothing: conductive land | 4,268,074 | 7,564 | 641,611 | 15.0% |
+| lakes | 4,187,420 | 8,882 | 631,270 | 15.1% |
+| rivers | 3,986,875 | 11,848 | 616,298 | 15.5% |
+| both, GW-17 as configured | 3,914,015 | 13,094 | 606,808 | 15.5% |
+
+That is what a channel network does to a planar graph and it should not be
+surprising: a drainage tree runs from the interior to a coast, and a path from
+the boundary to an interior point does not separate a disc. The rivers strand
+five and a half thousand small fragments and move the largest block by five per
+cent.
+
+**So the partition is worth having for the coastlines and it would be worth
+having with the baselevels off.** Assembling the union and factorising it whole
 pays a superlinear cost on the sum of the blocks that a direct method never has
 to pay, and it makes the peak the whole rather than one block. How superlinear
 decides how much that is worth, and the exponent is measured below rather than

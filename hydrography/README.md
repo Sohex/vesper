@@ -417,11 +417,15 @@ carries over from Earth unchanged; hydraulic conductivity is `k rho g / mu` and
 is this world's. The config tabulates permeability and never conductivity, and
 the solver takes gravity from `config/planet.yaml`.
 
-**The free set is solved BLOCK BY BLOCK, and it is not one problem.** GW-17's
-river and lake cells are a fixed head, so they are a boundary rather than an
-unknown and a face touching one carries no off-diagonal: the channel network
-cuts the free set into one block per interfluve plus one per island, and the
-blocks exchange water only through the rivers between them. A direct
+**The free set is solved BLOCK BY BLOCK, and it is not one problem.** A face
+conducts only where both ends are in the conductive network, so the ocean
+separates the landmasses absolutely and the free set is at least one block per
+continent and one per island; GW-17's river and lake cells are a fixed head and
+so a boundary rather than an unknown, which strands further fragments between
+the channels. On the active build the coastlines alone give 7,564 blocks with
+the largest holding 15.0 per cent of the conductive land, and the baselevels take
+that to 13,094 blocks and 15.5 per cent -- many more fragments, five per cent off
+the largest. A direct
 factorisation's work and fill are superlinear in the unknowns, so `K` blocks of
 `n/K` cells cost `n^1.5 / sqrt(K)` and the peak is one block rather than the
 whole. It is exact rather than an approximation to the coupled solve -- there

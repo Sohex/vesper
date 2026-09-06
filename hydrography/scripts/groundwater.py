@@ -1301,12 +1301,22 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                 continue
 
         # THE FREE SET IS NOT ONE PROBLEM, AND SOLVING IT AS ONE IS THE COST.
-        # GW-17 put every river and lake cell at a fixed head, which makes them
-        # BOUNDARY rather than unknown, so a face touching one carries no
-        # off-diagonal and the channel network CUTS the free set. What is left
-        # is one block per interfluve, plus one per island, and the blocks do
-        # not exchange water directly -- they exchange it through the rivers
-        # between them, which are a Dirichlet condition on both sides.
+        # A face conducts only where both its ends are in the conductive
+        # network, so the OCEAN separates the landmasses absolutely: the free
+        # set is at least one block per continent and one per island, plus
+        # whatever the cells with no assigned permeability isolate. On
+        # canonical-10m-carve2 that alone is 7,564 blocks and the largest holds
+        # 15.0 per cent of the conductive land, because this world has no
+        # dominant continent.
+        #
+        # GW-17's imposed heads add to it and do not dominate it. A river or
+        # lake cell is a boundary rather than an unknown, so a face touching one
+        # carries no off-diagonal; removing them takes the count from 7,564 to
+        # 13,094 and the largest block from 641,611 cells to 606,808. That is
+        # what a drainage network does to a planar graph and it should not be
+        # surprising -- a tree running from the interior to a coast does not
+        # separate a disc -- so what the rivers buy is five and a half thousand
+        # small fragments and five per cent off the largest block.
         #
         # A direct factorisation's work and fill are SUPERLINEAR in the
         # unknowns, so a partition is not bookkeeping: the sum over the blocks
