@@ -2329,6 +2329,7 @@ checks:
     script: exoplasim/scripts/conversion_time_stability.py
     writes:
       - exoplasim/analysis/conversion_time_stability.json
+      - exoplasim/analysis/conversion_time_stability_sweep.json
   # Does anything uninitialised reach a stored value, at the optimisation level
   # this project ships? The trapping form of that question does not arm at -O2
   # -- world-5rs measured the positive control -- and `-finit-real=zero` was

@@ -1,0 +1,137 @@
+{
+  "what": "the one-step amplification of the model's linearised adiabatic step with NCONVTIME on, and the coarsest timestep at which it does not grow",
+  "provenance": {
+    "generated_utc": "2026-09-06T05:20:37.905196+00:00",
+    "config": "config/planet.yaml",
+    "config_sha256": "dc2b9280928be925a10ddd8b022773f8ebf90a2aa464d26582669abf4b471e06",
+    "model_source_sha256": "7fc55b34e9ec407e10c12ab159f36287e5d564c16ca82628ea870639a4995c5b",
+    "commit": "dcb74e176ebf8b7ff556dd88016eb20df21cf8b3",
+    "numpy": "2.5.2",
+    "discard_steps": 1000,
+    "measured_steps": 3000,
+    "neutral_tolerance": 1e-10
+  },
+  "rows": [
+    {
+      "rung": "T21",
+      "timestep_minutes": 45.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.2801925,
+      "worst_total_wavenumber": 17,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 30.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.22375846,
+      "worst_total_wavenumber": 19,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 20.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.15728965,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 18.7,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.14530632,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 15.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.10468796,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 12.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.06349768,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 10.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.03125546,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 8.5,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.00429644,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 8.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.0,
+      "worst_total_wavenumber": 6,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 6.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.0,
+      "worst_total_wavenumber": 1,
+      "growth_per_step_nconvtime_off": 1.0
+    }
+  ],
+  "note": "guard_over_boundary is how much coarser a step the model's explicit gravity-wave limit admits than the scheme is stable at. A null boundary means the modification grows at every step down to 0.05 min, which is what PNU = 0 gives: the Robert-Asselin filter is the only thing damping the leapfrog computational mode the term feeds. gravity_wave_limit_from_structure_matrix_minutes is the same limit taken on the model's own fastest external mode rather than on a single-level estimate of it, and the two agreeing is what says the guard was aimed at the wrong mode rather than mis-derived. world-bt3b."
+}

@@ -70,6 +70,12 @@ import lapse  # noqa: E402  from lib/
 import rungs  # noqa: E402  the one rung-to-dimension mapping
 
 OUT = ANALYSIS / "conversion_time_stability.json"
+# The sweep writes BESIDE the ladder table, never over it: one is every rung
+# at its route step and the other is one rung at many steps, and a path shared
+# between them is one --sweep away from deleting the ladder. The RUNG IS A
+# FIELD AND NOT IN THE NAME, because a resolution literal in an artifact path
+# is a rung baked into a filename; smoke_test refuses one.
+OUT_SWEEP = ANALYSIS / "conversion_time_stability_sweep.json"
 
 # The model's own reference day for the write interval and the timestep count,
 # `plasim.f90`'s `day_24hr`. Not the planet's rotation.
@@ -354,8 +360,17 @@ def main() -> int:
     parser.add_argument("--against", type=Path, default=None,
                         help="a run's plasim_diag; compare the amplification "
                              "the model printed with the one computed here")
-    parser.add_argument("--output", type=Path, default=OUT)
+    parser.add_argument("--sweep", default=None,
+                        help="comma-separated timesteps in minutes; with "
+                             "--rung, record the growth at each of them so a "
+                             "note can cite the artifact instead of restating "
+                             "the numbers")
+    parser.add_argument("--output", type=Path, default=None,
+                        help="default is the ladder table, or the sweep table "
+                             "beside it when --sweep is given")
     args = parser.parse_args()
+    if args.output is None:
+        args.output = OUT_SWEEP if args.sweep else OUT
 
     cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     pnu = args.pnu if args.pnu is not None else float(
@@ -386,7 +401,10 @@ def main() -> int:
               "wrong, and the guard's refusals rest on the model's")
         return 0 if agree else 1
 
-    if args.rung:
+    if args.rung and args.sweep:
+        wanted = [(args.rung.upper(), float(x))
+                  for x in args.sweep.replace(",", " ").split()]
+    elif args.rung:
         wanted = [(args.rung.upper(), args.dt)]
     else:
         wanted = [(r, dt) for r, dt in rungs.ESCALATION_ROUTE]

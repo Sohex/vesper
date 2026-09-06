@@ -1,11 +1,11 @@
 {
   "what": "the one-step amplification of the model's linearised adiabatic step with NCONVTIME on, and the coarsest timestep at which it does not grow",
   "provenance": {
-    "generated_utc": "2026-09-06T05:11:46.847486+00:00",
+    "generated_utc": "2026-09-06T05:20:54.863118+00:00",
     "config": "config/planet.yaml",
-    "config_sha256": "8175c1d7fec42adc87dc395e420018d459fbfcafc441b20453a39e0cabd99480",
+    "config_sha256": "dc2b9280928be925a10ddd8b022773f8ebf90a2aa464d26582669abf4b471e06",
     "model_source_sha256": "7fc55b34e9ec407e10c12ab159f36287e5d564c16ca82628ea870639a4995c5b",
-    "commit": "66a5c9e393b3b6fbc0c29115c0884f10fa309ae0",
+    "commit": "dcb74e176ebf8b7ff556dd88016eb20df21cf8b3",
     "numpy": "2.5.2",
     "discard_steps": 1000,
     "measured_steps": 3000,
