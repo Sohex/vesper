@@ -124,13 +124,22 @@ decile. That gap is `d ln beta / d ln tau`: the backscatter fraction is itself
 tabulated against optical depth and the closed form holds it fixed. The tabled
 path is the one quoted, because it is the one the model runs.
 
-**Three things this measurement does not include, and their signs.** It stops at
-the SHORTWAVE, so the longwave cloud response -- opposite in sign and smaller,
-since `radmod`'s longwave cloud absorption is grey in liquid water path -- is
-absent. It uses monthly-mean zenith cosines in a function that is not linear in
-them. And it takes no account of what the atmosphere above the cloud absorbs. The
-first is the only one that could move the answer toward the threshold, and it
-would have to remove three quarters of the term to reach it.
+**The monthly-mean zenith cosine is worth 0.5 per cent, measured rather than
+assumed.** The reflectance is not linear in the zenith cosine, so an answer
+computed on a time-mean one could be a statement about the averaging. The
+snapshot climatology carries instantaneous cosines and the same pipeline step
+writes both files, so the comparison is like for like on everything but the
+support: 4.288 against 4.268 W/m2 on the liquid water profile and 4.650 against
+4.639 on the uniform one, both without the surface underneath, which a snapshot
+file has no two-band albedo for. That limitation is closed.
+
+**Two things this measurement does not include, and their signs.** It stops at
+the SHORTWAVE, so the longwave cloud response is absent -- opposite in sign and
+smaller, since `radmod`'s longwave cloud absorption is grey in liquid water path
+with no effective radius at all. And it takes no account of what the atmosphere
+above the cloud absorbs, which is one-signed against the answer. The first is
+the only one that could move the answer toward the threshold, and it would have
+to remove three quarters of the term to reach it.
 
 **What it deliberately does not do is compute a droplet number.** The factor of
 two is a unit of the derivative and not a prediction. Whether this world's

@@ -161,7 +161,7 @@ def reconstruct(ds: xr.Dataset, cfg: dict) -> dict:
 
     ps = ds["ps"].values * 100.0            # hPa -> Pa
     ta = ds["ta"].values                    # (t, lev, lat, lon)
-    hur = ds["hur"].values / 100.0
+    hur = (ds["hur"].values / 100.0) if "hur" in ds else None
     prw = ds["prw"].values                  # kg/m2
     clt = ds["clt"].values
     czen = np.clip(ds["czen"].values, 0.0, 1.0)
@@ -185,11 +185,14 @@ def reconstruct(ds: xr.Dataset, cfg: dict) -> dict:
 
     # The stratiform-only reconstruction, kept ONLY as the refused control that
     # established why the identity below is used instead.
-    rcrit = rcrit_profile(sigma, nlat)
-    strat = np.minimum(1.0, np.maximum(
-        0.0, (hur - rcrit[None, :, None, None])
-        / (1.0 - rcrit[None, :, None, None])) ** 2)
-    strat_total = 1.0 - np.prod(1.0 - strat, axis=1)
+    if hur is None:
+        strat_total = np.full_like(clt, np.nan)
+    else:
+        rcrit = rcrit_profile(sigma, nlat)
+        strat = np.minimum(1.0, np.maximum(
+            0.0, (hur - rcrit[None, :, None, None])
+            / (1.0 - rcrit[None, :, None, None])) ** 2)
+        strat_total = 1.0 - np.prod(1.0 - strat, axis=1)
 
     return dict(sigma=sigma, dsigma=dsigma, ps=ps, dql=dql,
                 strat_total=strat_total, clt=clt, czen=czen, ga=ga, nlev=nlev)
@@ -233,7 +236,11 @@ def main() -> None:
     s = stephens()
     r = reconstruct(ds, cfg)
 
-    # The refused control, reported as the reason the identity is used.
+    # The refused control, reported as the reason the identity is used. A
+    # snapshot file carries no relative humidity, so there is nothing to refuse
+    # and the control reports itself unavailable rather than a zero.
+    if "hur" not in ds:
+        r["strat_total"] = np.full_like(r["clt"], np.nan)
     ok = r["clt"] > 0.01
     ratio = np.where(ok, r["strat_total"] / np.maximum(r["clt"], 1e-6), np.nan)
     check = dict(
@@ -253,8 +260,15 @@ def main() -> None:
 
     band1 = stellar.band1_fraction()
     cas = float(cfg["model"].get("cloud_absorption_scale", 1.0))
-    alb1 = ds["alb1"].values
-    alb2 = ds["alb2"].values
+    # The surface arm needs the two-band surface albedo. A SNAPSHOT
+    # climatology does not carry it, and the snapshot is the arm that prices
+    # the monthly-mean zenith cosine in a function that is not linear in it, so
+    # its absence is handled rather than fatal: that arm runs without the
+    # surface underneath and is compared against the regular file's own
+    # no-surface answer, which is the like-for-like comparison.
+    have_surface = "alb1" in ds and "alb2" in ds
+    alb1 = ds["alb1"].values if have_surface else None
+    alb2 = ds["alb2"].values if have_surface else None
 
     # The area weight through the one door. `cos(lat)` is the metric factor of
     # an equally spaced band and a Gaussian row is not one, so the axis is
@@ -304,7 +318,7 @@ def main() -> None:
     alpha, _ = sensitivity.planetary_albedo()
     results = []
     for shape_name, shp in shapes.items():
-      for with_surface in (False, True):
+      for with_surface in ((False, True) if have_surface else (False,)):
         cc = 1.0 - (1.0 - r["clt"][:, None]) ** shp
         # The identity: the random-overlap total of cc is clt for any shape.
         overlap_err = float(np.nanmax(np.abs(
@@ -353,6 +367,57 @@ def main() -> None:
                     for x in results if x["droplet_number_factor"] == 2.0]
     crossing = sorted(2.0 ** (1.5 / abs(v)) for v in per_doubling if v)
 
+    # THE ZENITH SUPPORT, priced rather than assumed. The regular climatology's
+    # `czen` is a time-mean cosine and the reflectance is not linear in it, so
+    # the answer could be a statement about the averaging. The snapshot
+    # climatology carries instantaneous zenith cosines and the same pipeline
+    # step writes both, so the comparison is like for like on everything except
+    # the support. It is run without the surface underneath because a snapshot
+    # file carries no two-band surface albedo.
+    zenith_support = None
+    snap = Path(str(clim).replace("_regular_", "_snapshot_"))
+    if "_regular_" in str(clim) and snap.is_file():
+        sds = xr.open_dataset(snap)
+        sr = reconstruct(sds, cfg)
+        slwp = np.minimum(1000.0, 1000.0 * sr["dql"] * sr["ps"][:, None]
+                          / sr["ga"] * sr["dsigma"][None, :, None, None])
+        smu = np.broadcast_to(sr["czen"][:, None], slwp.shape)
+        slit = sr["czen"] > 1e-6
+        sw = gridding.gaussian_area_weights(sds["lat"].values, sds.sizes["lon"])
+        sw = sw / sw.sum()
+        stot = slwp.sum(axis=1, keepdims=True)
+        rows = []
+        for name, shp in (("liquid water profile",
+                           np.where(stot > 0, slwp / np.maximum(stot, 1e-30),
+                                    1.0 / sr["nlev"])),
+                          ("uniform over levels",
+                           np.full_like(slwp, 1.0 / sr["nlev"]))):
+            scc = 1.0 - (1.0 - sr["clt"][:, None]) ** shp
+
+            def col(factor):
+                f = factor ** (1.0 / 3.0)
+                zwl = np.log10(np.maximum(ZWFIT, np.maximum(0.0, slwp)))
+                ramp = np.minimum(1.0, np.maximum(0.0, slwp) / ZWFIT)
+                t1 = f * ZTAUA1 * zwl ** ZTAUP1 * ramp
+                t2 = f * ZTAUA2 * zwl ** ZTAUP2 * ramp
+                r1, r2, _, _ = cloud_reflectance(s, t1, t2, smu, cas)
+                rb = band1 * r1 + (1.0 - band1) * r2
+                return 1.0 - np.prod(1.0 - scc * rb, axis=1)
+
+            d_alb = col(2.0) - col(1.0)
+            num = (np.where(slit, d_alb * sr["czen"], 0.0)).mean(axis=0)
+            den = (np.where(slit, sr["czen"], 0.0)).mean(axis=0)
+            d_toa = float((sw * num).sum() / max((sw * den).sum(), 1e-12))
+            d_k = sensitivity.planetary_albedo_to_kelvin(d_toa, alpha)
+            rows.append(dict(vertical_shape=name,
+                             global_mean_shortwave_forcing_w_m2=float(
+                                 -d_k / sensitivity.kelvin_per_w_m2(alpha))))
+        zenith_support = dict(
+            snapshot=str(snap), no_surface_underneath=True, results=rows,
+            note="instantaneous zenith cosines against the regular file's "
+                 "time-mean ones, at the same droplet-number doubling and "
+                 "without the surface, which is the like-for-like comparison")
+
     report = dict(
         measured_on="2026-09-05",
         climatology=str(clim),
@@ -361,6 +426,7 @@ def main() -> None:
         band_1_flux_fraction=band1,
         cloud_absorption_scale=cas,
         reconstruction_check=check,
+        zenith_support_check=zenith_support,
         results=results,
         closed_form_cross_check=dict(
             note="band-1 layer reflectance, tabled difference against Twomey "

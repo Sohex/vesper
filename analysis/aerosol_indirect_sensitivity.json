@@ -12,6 +12,21 @@
     "cells_compared": 24575,
     "why_refused": "mkclouds adds a convective branch keyed on icclev, which is not an output; the stratiform half alone is not the model's cloud"
   },
+  "zenith_support_check": {
+    "snapshot": "/home/cfutro/docs/world/.claude/worktrees/fan2-climprice/exoplasim/analysis/climatology/baseline_snapshot_climatology.nc",
+    "no_surface_underneath": true,
+    "results": [
+      {
+        "vertical_shape": "liquid water profile",
+        "global_mean_shortwave_forcing_w_m2": 4.287843132651908
+      },
+      {
+        "vertical_shape": "uniform over levels",
+        "global_mean_shortwave_forcing_w_m2": 4.649650652150172
+      }
+    ],
+    "note": "instantaneous zenith cosines against the regular file's time-mean ones, at the same droplet-number doubling and without the surface, which is the like-for-like comparison"
+  },
   "results": [
     {
       "vertical_shape": "liquid water profile",
