@@ -457,8 +457,9 @@ set: what the solver is handed is one block per interfluve plus one per island,
 and the blocks exchange water only through the rivers between them, which are a
 Dirichlet condition on both sides. Assembling the union and factorising it whole
 pays a superlinear cost on the sum of the blocks that a direct method never has
-to pay. `K` blocks of `n/K` cells cost `n^1.5 / sqrt(K)`, and the peak memory is
-one block rather than the whole.
+to pay, and it makes the peak the whole rather than one block. How superlinear
+decides how much that is worth, and the exponent is measured below rather than
+taken from the textbook.
 
 **Measured on `canonical-10m-carve2`, 2026-09-05**, over its 4,328,732 land
 regions, 4,268,074 of them conductive under the `exclude` policy, with 363,761
