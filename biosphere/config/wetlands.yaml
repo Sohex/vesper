@@ -151,6 +151,15 @@ extent:
     nothing is written -- and it re-measures the two lake paints against each
     other on every run. Fractions throughout: no threshold on a cell mean, and
     no absolute compound-topographic-index cut.
+    AGAINST BIO-11'S ROOTABLE SURFACE the identity is
+    `rootable == 1 - nonrootable_water - nonrootable_barren` with this
+    partition's playa inside that barren, and the two sides currently cut the
+    lake differently: BIO-11 takes its non-rootable water from the ANNUAL
+    equilibrium paint and this partition takes open water from the always-wet
+    set of the cycle, so they differ by the seasonal strandline in both
+    directions. Which cut BIO-11 should carry is WORLD-CO4Y's decision, and the
+    identity is stated in `hydrography/config/wetness.yaml` rather than asserted
+    by either producer, because a consumer of both is what can check it.
   # One source per class, each from the closed set in
   # `biosphere/scripts/wetland_gate.py:EXTENT_SOURCES`, which is where each
   # source's artifact, field and licence are stated. The set is closed because

@@ -228,9 +228,25 @@ closure:
   #     saturated_mineral + dry_mineral_remaining == dry_mineral
   # which is the rule that keeps it OUT of the resolved classes rather than
   # beside them; the withdrawn closure never reached it.
-  # and, once BIO-11 exists,
-  #     rootable == 1 - open_water - barren, with barren from pedology's
-  #     surface classes, and this artifact's `playa` inside that barren.
+  #
+  # AGAINST BIO-11'S ROOTABLE SURFACE, which exists:
+  #     rootable == 1 - f_nonrootable_water - f_nonrootable_barren, and this
+  #     artifact's `playa` inside that barren.
+  # THE TWO SIDES CUT THE LAKE DIFFERENTLY AND THAT IS A DECISION SOMEONE OWNS,
+  # not a tolerance. `build_rootable_fraction.py` takes its non-rootable water
+  # from `surface_water.nc:lake`, the ANNUAL equilibrium paint, and this file
+  # takes `open_water` from the always-wet set of the periodic cycle. The two
+  # differ by the seasonal strandline in both directions: land under the annual
+  # lake that is dry in some bin, which is this file's `seasonal_inundation`,
+  # and land wet in every bin that the annual paint misses.
+  # `notes/audits/wetness-partition-cut.md` measures both.
+  # A strandline that is dry for part of the cycle can carry roots, so which
+  # cut BIO-11 should carry is WORLD-CO4Y's decision rather than a rounding
+  # difference, and
+  # this artifact does not READ the rootable file: the identity is stated here
+  # and the crossing is not built, because making the wetness classification
+  # depend on BIO-11 would put a climatology in its ancestry to check an
+  # identity that a consumer of both can check for itself.
   partition_tolerance: 1.0e-9
   # THE PLAYA RULE AGAINST A QUANTITY THE CATALOGUE ALREADY KNOWS. The rule
   # selects the land a basin would flood at its spill, and `basins.nc` carries
@@ -240,4 +256,4 @@ closure:
   # instead of the depression floor would miss it by a factor of several, which
   # is the mistake this class invites.
   footprint_tolerance: 1.0e-9
-  rootable_surface: bio-11               # not built; the identity is stated, not asserted
+  rootable_surface: bio-11               # built; the identity is stated here and asserted by a consumer of both, not by this artifact
