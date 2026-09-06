@@ -5049,6 +5049,106 @@ def _unresolved_numerics(text: str, where: str) -> list[str]:
     return bad
 
 
+def _restated_config_keys(text: str, keys: set[str]) -> list[str]:
+    """The `key: value` lines in `text`'s fenced blocks that name a config key."""
+    said = []
+    inside = False
+    for number, line in enumerate(text.splitlines(), start=1):
+        if line.startswith("```"):
+            inside = not inside
+            continue
+        if not inside:
+            continue
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        name, sep, value = stripped.partition(":")
+        if not sep or not name.replace("_", "").isalnum():
+            continue
+        if name in keys and value.strip():
+            said.append(f"line {number} restates `{name}`: {value.strip()!r}")
+    return said
+
+
+def check_config_rationale_states_no_values() -> list[str]:
+    """`config-rationale.md` argues about the settings and does not restate them.
+
+    The file is keyed by setting, one section per key, and it once opened each
+    section with a fenced `key: value` block copied out of
+    `config/planet.yaml`. Forty-one of them. A copy is a derived quantity
+    written down with nothing re-deriving it, so it drifts, and this one drifts
+    exactly where a reader looks: the heading names the key, so someone
+    grepping for what a key is set to lands on the document rather than on the
+    file that owns it. Ten of the forty-one had gone wrong by the time they
+    were measured, and one of the ten -- a climatology documented as null that
+    was not -- had deferred three arms of other work on the strength of it.
+
+    A DECLARATION-SHAPED COPY IS THE FORM THAT DOES THE DAMAGE, which is what
+    makes this checkable. Prose that names a magnitude reads as an argument and
+    a fenced `key: value` reads as the state; the second is the one a grep
+    returns and the one a reader believes without checking. Two of the ten were
+    fenced for keys `config/planet.yaml` does not declare at all, and a fence
+    made those read as settings rather than as absences.
+
+    A right answer available in advance: no fenced line in the document may be
+    a `key: value` whose key is a key of `config/planet.yaml`. The population is
+    one tracked document against one tracked declaration, both read statically.
+    What the check deliberately does NOT do is judge prose. A number earns a
+    place in a section as a decision, a threshold, an identity, or a magnitude
+    the argument would fail without, and no static pass can tell those from a
+    restatement -- so this refuses the form that is always wrong and leaves the
+    judgement where it belongs.
+    """
+    import yaml
+
+    bad = []
+    document = ROOT / "docs" / "src" / "reference" / "config-rationale.md"
+    declaration = ROOT / "config" / "planet.yaml"
+    if not document.exists() or not declaration.exists():
+        return [f"{document.name} and {declaration.name} are both expected to exist"]
+
+    keys: set[str] = set()
+
+    def collect(node) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                keys.add(str(key))
+                collect(value)
+        elif isinstance(node, list):
+            for value in node:
+                collect(value)
+
+    collect(yaml.safe_load(declaration.read_text(encoding="utf-8")))
+    for said in _restated_config_keys(document.read_text(encoding="utf-8"), keys):
+        bad.append(f"docs/src/reference/config-rationale.md {said}; the file "
+                   f"carries arguments and config/planet.yaml carries values")
+
+    # AND THE CHECK ITSELF CAN FAIL. The control is half of it: a fenced block
+    # that is not a restatement, and a `key: value` outside a fence, both have
+    # to survive, or the check would push the document toward carrying no
+    # examples at all.
+    for label, text, expected in (
+            ("a restated scalar", "## `x`\n\n```\nresolution: T42\n```\n",
+             "restates `resolution`"),
+            ("a restated scalar under a nested key",
+             "```\n  timestep_minutes: 45.0\n```\n", "restates `timestep_minutes`")):
+        said = _restated_config_keys(text, {"resolution", "timestep_minutes"})
+        if not any(expected in s for s in said):
+            bad.append(f"the fixture {label!r} was not caught: expected a "
+                       f"problem saying {expected!r}, got {said!r}")
+    for label, text in (
+            ("a key with no value, which names rather than states",
+             "```\nresolution:\n```\n"),
+            ("a fenced key that is not a config key", "```\nNCONVTIME: 1\n```\n"),
+            ("a key named in prose outside any fence", "resolution: T42\n"),
+            ("a fenced shell line", "```\npython scripts/smoke_test.py\n```\n")):
+        said = _restated_config_keys(text, {"resolution", "timestep_minutes"})
+        if said:
+            bad.append(f"the control {label!r} was reported, and it is the "
+                       f"form this check must leave alone: {said!r}")
+    return bad
+
+
 def check_declared_numerics_resolve_to_numbers() -> list[str]:
     """Every declared numeric resolves to a number rather than to a string.
 
@@ -6654,6 +6754,8 @@ def main() -> None:
                lambda: check_declared_brackets_contain_their_values()),
               ("every declared numeric resolves to a number",
                lambda: check_declared_numerics_resolve_to_numbers()),
+              ("config-rationale.md restates no config value",
+               lambda: check_config_rationale_states_no_values()),
               ("the aerosol steering wind is weighted by layer mass",
                lambda: check_steering_weight_is_layer_mass()),
               ("the deposition carrier partitions itself",

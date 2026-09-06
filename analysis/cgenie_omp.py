@@ -65,8 +65,11 @@ sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
 
 import cgenie_cost as cc  # noqa: E402
 
-# A worktree's ignored build products are SYMLINKS into the shared checkout, so
-# building in place would write there. Everything happens in an exported copy.
+# Every arm is built in an exported copy outside the repository. What the arms
+# compile is the reason: one poisons uninitialised locals and the reference arm
+# is built at a NAMED REVISION, which a working tree holding one revision cannot
+# be. make recompiles by timestamp, so either arm's objects left in
+# vendor/cgenie would be what the next build there links against.
 WORK_ROOT = Path(os.environ.get("CGENIE_Z3", Path.home() / "cgenie_z3"))
 CGENIE = WORK_ROOT / "vendor" / "cgenie"
 OUT_ROOT = Path(os.environ.get("CGENIE_OMP_OUT", Path.home() / "cgenie_omp_out"))
@@ -88,8 +91,14 @@ def export_tree(rev: str | None = None) -> None:
     what gets built. With one it takes that revision, which is how the arm a
     change is measured against is built from the tree as it stood before it.
 
-    Building in place is not an option: a worktree's ignored build products are
-    symlinks into the shared checkout, so `make` there writes through them."""
+    Building in place is not an option, and what this driver compiles is the
+    reason. One arm poisons uninitialised locals, and the arm a change is
+    measured against is built AT A NAMED REVISION, which a working tree holding
+    one revision has nowhere in place to be built at all. `make` decides what to
+    recompile from timestamps, so either arm's objects left in `vendor/cgenie`
+    are what the next build there silently links against. The export gives each
+    arm a tree it is the only writer of, and the work root is emptied first so
+    no arm inherits the one before it."""
     if WORK_ROOT.exists():
         shutil.rmtree(WORK_ROOT)
     WORK_ROOT.mkdir(parents=True)

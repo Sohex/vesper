@@ -58,6 +58,23 @@ weights carry the three contract identities. Before OCN-11 supplies wet volume
 and topology, the GOLDSTEIN side is deliberately a candidate comparison
 support rather than an accepted ocean support.
 
+## Wiring a cgenie component means declaring its calibration state first
+
+cGENIE carries machinery whose PURPOSE is to rescale modelled fields until they
+match Earth observations, and every part of it is compiled into the executable
+whether or not the recipe runs it. So before any cgenie component is wired to
+anything here, the decision states which calibration switches are off, which
+factors are at their identity, and which reference files are absent -- rather
+than the answer being discovered from a result.
+
+The declarations made so far are in `notes/audits/tuned-values.md` section 19,
+which also carries what they found. Two of them are the reason this is a rule
+and not a formality: `genie-rokgem`'s four 2-D weathering factors ship OFF their
+identity behind a single logical, and `genie-embm`'s Atlantic-Pacific freshwater
+adjustment ships NONZERO and is armed by `flag_ebatmos`, which reads as a choice
+of atmosphere. The adopted path is EMBM-free and reaches neither, which is why
+both are preconditions rather than defects in the world's numbers.
+
 Generated data are namespaced under `data/<source_build>/`. Ocean runs are UUID
 named under `runs/`; `runs/INDEX.json` is their identity record. No script in
 this component silently selects another component's latest artifact.
