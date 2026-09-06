@@ -700,7 +700,23 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "ocean.horizontal_diffusivity_m2_s",
         "model.barren_rock_classes", "model.co2_sw_weight",
         "model.energy_diagnostics", "model.energy_diagnostics_3d",
-        "model.geography_land_threshold", "model.h2o_sw_level",
+        # `model.geography_land_threshold` is NOT listed here, and it is the
+        # one entry these sets lost to a change in what the generator reads.
+        # WORLD-QGB6 moved this builder off a climatology and onto surface code
+        # 0172, and the mask is built from the threshold, so the value is
+        # load-bearing on what is staged even though the key is never pulled out
+        # of `config["model"]` here: with `--lakes` the blend is written only
+        # where the mask owns land, so a threshold change moves code 0229's
+        # bytes; without it the threshold still decides the unmatched-land
+        # refusal and the `land_cells` and `land_mean_capacity_m` the record
+        # carries. It does NOT move code 2290, whose split is a property of the
+        # soil column and takes `land` only into its report.
+        # THE INPUT-HASH CHAIN DOES NOT COVER IT, which is why the key comes out
+        # of the set rather than resting on `inputs`: the mask's hash moves only
+        # once `build_boundary_conditions.py` has re-run, so between the config
+        # edit and that rerun the 0229 record would report itself current on a
+        # mask cut at the old threshold.
+        "model.h2o_sw_level",
         "model.h2o_sw_level_bracket",
         "model.h2o_sw_weight", "model.land_albedo_source",
         # `model.layers` is NOT listed here, and it is the one entry in these
