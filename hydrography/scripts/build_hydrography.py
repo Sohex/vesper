@@ -31,6 +31,7 @@ from _paths import ANALYSIS, CONFIG, DATA
 from builds import build_root, grid_export
 import drainage as dr
 import gridding
+import nc_geometry
 import rungs
 from orogen import Export, LAND, OCEAN
 from write_door import refuse_a_write_through_a_symlink
@@ -294,6 +295,13 @@ def main() -> None:
         v.long_name = "depression-filled surface elevation"
         v.units = "km"
         v[:] = drn.filled_km
+        # LAST in the block. THE SUPPORT IS THE MESH AND NOT A GRID: the
+        # regions are unequal in area, so nothing derived from this file by
+        # a reduction over the region axis is an area quantity unless it
+        # carries the export's region areas. The declaration says so and
+        # names where they live. lib/nc_geometry.py.
+        nc_geometry.declare_region_mesh(
+            ds, n_regions=ex.n_regions, terrain_hash=ex.terrain_hash)
 
     # -- basins.nc ----------------------------------------------------------
     with Dataset(out / "basins.nc", "w") as ds:
@@ -352,6 +360,19 @@ def main() -> None:
         ids = ds.createVariable("basin_id", str, ("basin",))
         for i, b in enumerate(ex.basins):
             ids[i] = b.id
+        # LAST in the block. Basins live ON the mesh -- a basin is a set of its
+        # regions -- so the support declared is the mesh, and the basin axis is
+        # an index into the catalogue rather than anything with a measure.
+        nc_geometry.declare_region_mesh(
+            ds, n_regions=ex.n_regions, terrain_hash=ex.terrain_hash,
+            region_dim="basin",
+            measure=("The basin axis is an index into the catalogue and has no "
+                     "measure of its own. A basin's land catchment is "
+                     "catchment_km2 and its flooded extent at spill is "
+                     "area_at_spill_km2, both in this file; the mesh regions "
+                     "those were integrated over are the export's, unequal in "
+                     "area, and a bare mean over basins is a mean over "
+                     "catalogue entries."))
 
     # -- coupling matrices --------------------------------------------------
     couplings = {}
@@ -389,6 +410,13 @@ def main() -> None:
                 v = ds.createVariable(nm, ty, ("pair",), zlib=True)
                 v.units = un
                 v[:] = dat
+            # LAST in the block. The cell axis this matrix indexes into is the
+            # GRID's, so the grid is declared on its own dimension names, and
+            # the convention it comes out as is the export's centres -- which is
+            # the whole content of the note above, now stated where a reader
+            # that is not a person can act on it.
+            nc_geometry.declare_grid(ds, lat_dim="cell_lat", lon_dim="cell_lon",
+                                     what=f"the {g} coupling matrix")
         print(f"  coupled to {g}: {c['basin'].size:,} basin-cell pairs")
 
     # -- report -------------------------------------------------------------

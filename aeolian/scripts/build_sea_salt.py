@@ -69,6 +69,7 @@ import climatology  # noqa: E402  from lib/, via _paths
 from build_dust import advect_to_steady_state, flag_anomalous_bins, settling_velocity
 from build_dust import steering_wind, weibull_shape_from_samples
 from gridding import gaussian_area_weights
+import nc_geometry  # noqa: E402
 from paths import best_available_climatology, rel, snapshot_beside
 
 sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
@@ -616,11 +617,8 @@ def main() -> None:
     with Dataset(args.output_nc, "w") as out:
         out.createDimension("lat", lat.size)
         out.createDimension("lon", lon.size)
-        for name, data, units in (
-                ("lat", lat, "deg"), ("lon", lon, "deg")):
-            v = out.createVariable(name, "f8", (name,))
-            v.units = units
-            v[:] = data
+        for name, data in (("lat", lat), ("lon", lon)):
+            out.createVariable(name, "f8", (name,))[:] = data
         for name, data, units, long_name in (
                 ("burden", burden, "kg m-2", "sea salt column burden, dry mass"),
                 ("aod", aod, "1", "sea salt optical depth, band combined"),
@@ -635,6 +633,10 @@ def main() -> None:
         out.generated = payload["generated"]
         out.climatology = payload["climatology"]
         out.climatology_stage = payload["climatology_stage"]
+        # LAST in the block: the coordinate system, the CF axis names, the cell
+        # boundaries and the quadrature weight, plus the longitude convention by
+        # name. lib/nc_geometry.py.
+        nc_geometry.declare_grid(out, what="the sea salt field")
     print(f"\nwrote {rel(args.output)} and {rel(args.output_nc)}")
 
     # -- the nutrient carrier, a SEPARATE file holding mass and only mass -----

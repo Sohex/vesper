@@ -26,6 +26,7 @@ from _paths import ANALYSIS  # noqa: F401  (puts lib/ on the path)
 from write_door import refuse_a_write_through_a_symlink
 import climatology
 import gridding
+import nc_geometry
 
 
 EARTH_YEAR_DAYS = 365.2425
@@ -436,6 +437,11 @@ def main() -> None:
         nc.biome_mapping = json.dumps({i + 1: name for i, name in enumerate(biome_names)})
         nc.precipitation_normalization = "Koppen thresholds use rates annualized to 365.2425 days"
         nc.temperature_boundary = "0 degC coldest-period boundary between C and D"
+        # LAST in the block: the coordinate system this planet's radius comes
+        # from, the CF axis names, the cell boundaries, the quadrature weight an
+        # unweighted ncwa would otherwise silently substitute for, and the
+        # longitude convention by name. lib/nc_geometry.py.
+        nc_geometry.declare_grid(nc, what="the surface classification")
 
     weights = leggauss(len(lat))[1][::-1, None] * np.ones_like(land)
     global_mean = lambda field: float(np.sum(field * weights) / np.sum(weights))

@@ -47,6 +47,7 @@ from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 import builds  # noqa: E402
 import climatology  # noqa: E402
 import gridding  # noqa: E402
+import nc_geometry  # noqa: E402
 
 # Set by main(), from lib/paths.py:best_available_climatology or
 # --climatology. There is no module-level default on purpose; see main().
@@ -866,6 +867,13 @@ def main():
             v = ds.createVariable(name, "f8", ("time_bin", "basin"), zlib=True)
             v.units, v.long_name = units, note
             v[:] = data
+        # LAST in the block. THE SUPPORT IS THE MESH AND NOT A GRID: the
+        # regions are unequal in area, so nothing derived from this file by
+        # a reduction over the region axis is an area quantity unless it
+        # carries the export's region areas. The declaration says so and
+        # names where they live. lib/nc_geometry.py.
+        nc_geometry.declare_region_mesh(
+            ds, n_regions=n, terrain_hash=export.terrain_hash)
 
     with Dataset(_CLIM_FILE) as ds:
         land_mask = cv.annual_mean(ds, "lsm") > 0.5

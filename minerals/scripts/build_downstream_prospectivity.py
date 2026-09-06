@@ -111,6 +111,7 @@ from climatology import annual_mean, bin_weights
 from gridding import climatology_cells
 from orogen import LAND, Export
 from orbit import orbital_year_days
+import nc_geometry
 from paths import climatology_path, rel
 from prospectivity_scale import host_ceiling, host_weight, normalise
 from provenance import require_build
@@ -594,6 +595,13 @@ def main() -> None:
                              "to erodibility, albedo or any climate path. "
                              "Carries a CLIMATE in its identity as well as a "
                              "terrain, so it is regenerated when either moves.")
+        # LAST in the block. THE SUPPORT IS THE MESH AND NOT A GRID: the
+        # regions are unequal in area, so nothing derived from this file by
+        # a reduction over the region axis is an area quantity unless it
+        # carries the export's region areas. The declaration says so and
+        # names where they live. lib/nc_geometry.py.
+        nc_geometry.declare_region_mesh(
+            ds, n_regions=int(land.size), terrain_hash=mesh.terrain_hash)
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),

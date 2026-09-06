@@ -89,6 +89,7 @@ from netCDF4 import Dataset
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, PROJECT_ROOT  # noqa: E402
+import nc_geometry  # noqa: E402
 from paths import rel  # noqa: E402
 
 # THE WINDS AND NOTHING ELSE. This used to open with code 139, which was
@@ -245,6 +246,11 @@ def open_output(path: Path, n_time: int, lat, lon) -> None:
         ds.note = ("Bottom model level only, extracted in chunks because pyburn "
                    "holds the whole decoded record set in memory. See "
                    "aeolian/scripts/extract_high_cadence_wind.py.")
+        # LAST in the block, and here rather than after the chunks are filled:
+        # the declaration is about the grid, which is fixed when the file is
+        # sized, and a chunked filler must not have to reopen the file to make
+        # it readable. lib/nc_geometry.py.
+        nc_geometry.declare_grid(ds, what="the high-cadence wind extract")
 
 
 def main() -> None:

@@ -62,6 +62,7 @@ from netCDF4 import Dataset
 
 from _paths import PROJECT_ROOT  # noqa: F401  -- puts lib/ on sys.path
 from gridding import gaussian_grid, gaussian_latitudes  # noqa: E402
+import nc_geometry  # noqa: E402
 
 EARTH_YEAR_S = 365.25 * 86400.0
 
@@ -184,8 +185,8 @@ def write_deposition(nc_path: Path, json_path: Path, *, lat, lon,
         out.createDimension("lat", len(lat))
         out.createDimension("lon", len(lon))
         out.createDimension("bin", dry_per_bin.shape[0])
-        v = out.createVariable("lat", "f8", ("lat",)); v.units = "deg"; v[:] = lat
-        v = out.createVariable("lon", "f8", ("lon",)); v.units = "deg"; v[:] = lon
+        out.createVariable("lat", "f8", ("lat",))[:] = lat
+        out.createVariable("lon", "f8", ("lon",))[:] = lon
         v = out.createVariable("bin_dry_diameter_lo_um", "f8", ("bin",))
         v.units = "um"
         v[:] = [b[0] for b in bins_um]
@@ -225,6 +226,9 @@ def write_deposition(nc_path: Path, json_path: Path, *, lat, lon,
             out.generated = payload["generated"]
         if "climatology" in payload:
             out.climatology = payload["climatology"]
+        # LAST, so every field above is bound to the coordinate system and the
+        # area measure this writes. lib/nc_geometry.py.
+        nc_geometry.declare_grid(out, what="the deposition carrier")
     return summary
 
 

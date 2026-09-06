@@ -76,6 +76,7 @@ from netCDF4 import Dataset
 from _paths import ANALYSIS, CONFIG, DATA          # noqa: F401  puts lib/ on the path
 import builds
 import gridding
+import nc_geometry
 from gridding import cell_fraction, cell_moments, cell_sum, transfer_ledger
 from orogen import Export, LAND
 
@@ -296,6 +297,11 @@ def main() -> int:
                 v.units = "m"
                 v.long_name = ("NOT an access-area proxy; see the caveat "
                                "attribute")
+        # LAST in the block, and the file had no lat or lon variable before it.
+        # The axis is constructed on the export's centres, the convention
+        # gridding.region_cells binned these cells on.
+        nc_geometry.declare_grid(ds, convention=nc_geometry.EXPORT_CENTRES,
+                                 what="the groundwater access field")
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),

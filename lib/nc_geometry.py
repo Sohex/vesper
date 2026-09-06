@@ -389,7 +389,8 @@ def declare_grid(ds, *, nlat: int | None = None, nlon: int | None = None,
 
 def declare_region_mesh(ds, *, n_regions: int, terrain_hash: str,
                         region_dim: str = "region", config: dict | None = None,
-                        area_variable: str = "cell_area") -> str:
+                        area_variable: str = "cell_area",
+                        measure: str | None = None) -> str:
     """Declare a product on the Orogen mesh: what its axis is and what it is not.
 
     A mesh product's `region` axis is not a grid and its regions are not equal
@@ -399,6 +400,10 @@ def declare_region_mesh(ds, *, n_regions: int, terrain_hash: str,
     in every derived product is a derived quantity written down somewhere,
     frozen the moment the terrain moves. So the file names where they are and
     the reader fetches them from the build the file already stamps.
+
+    `measure` overrides the sentence that says where the axis's measure lives,
+    for a file whose axis is not the mesh's own -- a basin catalogue indexes the
+    mesh but a basin's area is its catchment, which the file itself carries.
 
     Returns the geometry digest, for the caller's provenance record.
     """
@@ -429,7 +434,7 @@ def declare_region_mesh(ds, *, n_regions: int, terrain_hash: str,
     ds.setncattr("vesper_region_count", int(n_regions))
     ds.setncattr("vesper_geometry_sha256", digest)
     ds.setncattr("vesper_planet_radius_m", radius)
-    ds.setncattr("vesper_region_measure", (
+    ds.setncattr("vesper_region_measure", measure or (
         f"NOT IN THIS FILE. Region areas are the export's {area_variable}, on "
         f"the mesh of terrain_hash {terrain_hash}. The regions are UNEQUAL in "
         f"area, so a reduction over the {region_dim} axis without them -- "

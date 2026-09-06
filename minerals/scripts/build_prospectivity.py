@@ -71,6 +71,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, DATA, PROJECT_ROOT, PROSPECTIVITY
+import nc_geometry  # noqa: E402
 from paths import rel  # noqa: E402
 from provenance import build_stamp  # noqa: E402
 from prospectivity_scale import host_ceiling, host_weight, normalise
@@ -289,6 +290,13 @@ def main() -> None:
         data.setncattr("note", "Tectonic and magmatic ore prospectivity. Read "
                                "only downstream of climate; never an input to "
                                "erodibility, albedo or any climate path.")
+        # LAST in the block. THE SUPPORT IS THE MESH AND NOT A GRID: the
+        # regions are unequal in area, so nothing derived from this file by
+        # a reduction over the region axis is an area quantity unless it
+        # carries the export's region areas. The declaration says so and
+        # names where they live. lib/nc_geometry.py.
+        nc_geometry.declare_region_mesh(
+            data, n_regions=int(land.size), terrain_hash=mesh.terrain_hash)
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),

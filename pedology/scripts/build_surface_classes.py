@@ -109,6 +109,7 @@ import climatology as climatology_lib  # noqa: E402  from lib/, via _paths
 import builds
 from gridding import climatology_cells
 from orogen import INLAND_WATER, LAND, Export
+import nc_geometry
 from paths import rel
 from provenance import require_build, staged_surface_field
 
@@ -683,6 +684,13 @@ def main() -> None:
                              "Computed from a PRE-CARVE climatology and lake "
                              "solution; regenerate after the next terrain "
                              "iteration.")
+        # LAST in the block. THE SUPPORT IS THE MESH AND NOT A GRID: the
+        # regions are unequal in area, so nothing derived from this file by
+        # a reduction over the region axis is an area quantity unless it
+        # carries the export's region areas. The declaration says so and
+        # names where they live. lib/nc_geometry.py.
+        nc_geometry.declare_region_mesh(
+            ds, n_regions=int(substrate.size), terrain_hash=export.terrain_hash)
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),

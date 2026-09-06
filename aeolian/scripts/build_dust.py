@@ -92,6 +92,7 @@ from gridding import (gaussian_area_weights, gaussian_grid,
                       region_cells, require_gaussian_rows)
 from lapse import sigma_levels
 from orogen import LAND, Export
+import nc_geometry  # noqa: E402
 from paths import best_available_climatology, rel, require_clean_io, snapshot_beside
 from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 from provenance import require_build
@@ -1138,8 +1139,7 @@ def main() -> None:
         ds.climatology_stage = clim_stage
         ds.variant = args.variant
         for name, data in (("lat", lat), ("lon", lon)):
-            v = ds.createVariable(name, "f8", (name,))
-            v[:] = np.asarray(data)
+            ds.createVariable(name, "f8", (name,))[:] = np.asarray(data)
         v = ds.createVariable("erodible_fraction", "f8", ("lat", "lon"), zlib=True)
         v.units, v.long_name = "1", "fraction of the cell that is bare erodible soil"
         v[:] = np.asarray(erodible)
@@ -1155,6 +1155,8 @@ def main() -> None:
                                       zlib=True)
                 v.units, v.long_name = units, f"{note}, {shelter} end"
                 v[:] = np.asarray(data)
+        # LAST in the block. lib/nc_geometry.py.
+        nc_geometry.declare_grid(ds, what="the dust field")
 
     print(f"variant            {args.variant}")
     print(f"erodible land      "
