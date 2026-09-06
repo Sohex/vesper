@@ -1433,8 +1433,8 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # that conclusion does not travel: on canonical-10m-carve2 the free set
         # opens at millions of cells rather than hundreds of thousands, and one
         # confined solve ran past forty minutes at about 16 GB and was killed
-        # without writing a water table. The solve IS the cost there, and what
-        # the partition below is for.
+        # without writing a water table. The solve IS the cost there, which is
+        # what the partition above is for.
         #
         # THE 27x REUSE LEVER, MEASURED RATHER THAN PROPOSED, AND IT IS A LOSS.
         # The lever named here was to hold the evapotranspiration diagonal fixed
