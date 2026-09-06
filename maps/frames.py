@@ -19,15 +19,28 @@ honest -- a new frame appears exactly where the world changed.
 `INDEX.json` IS tracked; the frames are not. Same rule as `exoplasim/runs/`:
 the payload is regenerable while the inputs survive, and the index is the only
 record of what a UUID was once they do not.
+
+**The row is written before the picture is, and every write of it is locked.**
+The index is a read-modify-write over one file, and a render is minutes long,
+so an unlocked `load()` at the start and `save()` at the end drops whatever
+another process recorded in between: its row goes and its directory stays, a
+UUID of pixels nothing can name. Two processes reaching a new fingerprint at
+once would also allocate two ids for one picture. `register()` closes both by
+taking the id under the lock BEFORE anything is drawn -- the same rule that
+made `exoplasim/runs/INDEX.json` a ledger -- and `record()` merges this frame's
+row back in under the lock rather than writing the whole index from memory.
 """
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -155,6 +168,65 @@ def open_frame(index: dict, block: dict, config: dict | None = None) -> dict:
     return entry
 
 
+@contextmanager
+def locked(config: dict | None = None):
+    """Exclusive access to this build's frame index, for one read-modify-write.
+
+    On a lock file beside the index rather than on the index itself, so the
+    atomic replace `save()` does cannot drop the lock a waiter is holding.
+    `maps/.gitignore` already excludes everything in a build's data directory
+    but the index, so the lock file is untracked without a rule of its own.
+    """
+    path = index_path(config)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path.with_name(path.name + ".lock"), "w", encoding="utf-8") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        yield
+
+
+def register(block: dict, config: dict | None = None) -> dict:
+    """The row for this state of the world, IN THE INDEX before anything is drawn.
+
+    A frame id is a UUID and the index is the only record of what one was, so
+    the id and its row are taken together, under the lock, at the moment the
+    frame comes into existence. Rendering first and recording afterwards leaves
+    a window in which the directory exists and nothing names it, and makes two
+    processes at one fingerprint allocate two ids for one picture.
+    """
+    with locked(config):
+        index = load(config)
+        entry = open_frame(index, block, config)
+        save(index, config)
+    return entry
+
+
+def record(entry: dict, config: dict | None = None) -> Path:
+    """Merge this frame's row back into the index on disk, under the lock.
+
+    Re-read rather than written from the caller's copy of the whole index: the
+    copy is as old as the render, and writing it back would delete every row
+    another process added meanwhile. Outputs and steps are unioned for the same
+    reason within one frame -- two renders can extend one frame with different
+    projections, and neither is the whole of it.
+    """
+    with locked(config):
+        index = load(config)
+        rows = index.setdefault("frames", [])
+        for i, row in enumerate(rows):
+            if row.get("frame_id") == entry["frame_id"]:
+                merged = {**row, **entry}
+                merged["outputs"] = {**row.get("outputs", {}),
+                                     **entry.get("outputs", {})}
+                merged["steps"] = list(dict.fromkeys(
+                    list(row.get("steps", [])) + list(entry.get("steps", []))))
+                rows[i] = merged
+                break
+        else:
+            rows.append(entry)
+        index["build"] = entry.get("inputs", {}).get("source_build")
+        return save(index, config)
+
+
 def frame_dir(entry: dict, config: dict | None = None) -> Path:
     return data_dir(config) / entry["frame_id"]
 
@@ -221,3 +293,52 @@ def check_step(step: str) -> None:
 def git_commit() -> str:
     return subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
                           capture_output=True, text=True).stdout.strip()
+
+
+def _self_test() -> list[str]:
+    """The three identity questions, on a throwaway index. Called by the gate.
+
+    Class 17: each has a right answer rather than a value to differ from. A
+    render is minutes long and interleaves with another process's, so the
+    fixture interleaves them -- both register, then both record -- which is
+    exactly the order an unlocked read-modify-write loses a row in.
+    """
+    import tempfile
+
+    bad = []
+    here = index_path
+    tmp = Path(tempfile.mkdtemp(prefix="frames_self_test_"))
+    globals()["index_path"] = lambda config=None: tmp / "INDEX.json"
+    try:
+        one = {"source_build": "b", "final_elevation_hash": "aa",
+               "climatology_sha256": "1"}
+        two = dict(one, climatology_sha256="2")
+        a, b = register(one), register(two)
+        a["outputs"] = {"vesper_x.png": {"width": 1}}
+        note_step(a, "step-a")
+        record(a)
+        b["outputs"] = {"vesper_y.png": {"width": 2}}
+        record(b)
+
+        rows = load()["frames"]
+        if len(rows) != 2:
+            bad.append(f"two frames registered and the index holds {len(rows)}: "
+                       "one render's row was overwritten by another's, and its "
+                       "directory is a UUID nothing can name")
+        if register(one)["frame_id"] != a["frame_id"]:
+            bad.append("one fingerprint was given two frame ids, so one "
+                       "picture is two rows and one of the directories is a "
+                       "duplicate nothing distinguishes")
+        stale = dict(a, outputs={"vesper_z.png": {"width": 3}}, steps=["step-c"])
+        record(stale)
+        got = [r for r in load()["frames"] if r["frame_id"] == a["frame_id"]][0]
+        if sorted(got["outputs"]) != ["vesper_x.png", "vesper_z.png"]:
+            bad.append(f"a second render of one frame replaced its outputs "
+                       f"instead of extending them: {sorted(got['outputs'])}")
+        if got.get("steps") != ["step-a", "step-c"]:
+            bad.append(f"the steps a frame stands after do not accumulate: "
+                       f"{got.get('steps')}")
+    finally:
+        globals()["index_path"] = here
+        shutil.rmtree(tmp, ignore_errors=True)
+    return bad

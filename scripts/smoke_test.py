@@ -3899,6 +3899,23 @@ def check_run_index_is_a_ledger() -> list[str]:
     return bad
 
 
+def check_map_frame_index_keeps_every_row() -> list[str]:
+    """`maps/frames.py:_self_test`: two renders at once keep two rows.
+
+    The same UUID-plus-tracked-index pattern as `exoplasim/runs/`, and the same
+    thing at stake: the index is the only record of what a frame id was, so a
+    row lost to a read-modify-write leaves a directory of pixels nothing can
+    name. The fixture is in `maps/frames.py` because it is that module's
+    contract; this is the gate that runs it.
+    """
+    sys.path.insert(0, str(ROOT / "maps"))
+    try:
+        import frames
+    except ImportError as exc:
+        return [f"maps/frames.py does not import: {exc}"]
+    return frames._self_test()
+
+
 def check_commissioning_evidence_is_re_read() -> list[str]:
     """Every commissioning row is re-read from the run record it was copied from.
 
@@ -6562,6 +6579,8 @@ def main() -> None:
                lambda: check_fit_tail_fraction_is_stated_once()),
               ("a rescan cannot remove a run from the index",
                lambda: check_run_index_is_a_ledger()),
+              ("two renders at once keep two map frame rows",
+               lambda: check_map_frame_index_keeps_every_row()),
               ("every filename references/INDEX.md asserts is on disk",
                lambda: check_reference_index_files_exist()),
               ("no linked file's target has moved under this worktree",
