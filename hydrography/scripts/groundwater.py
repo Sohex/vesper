@@ -1492,7 +1492,11 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                     shape=(b1 - b0, b1 - b0))
                 key = (hash(unknown_ids[order[b0:b1]].tobytes()),
                        hash(sub.data.tobytes()))
-                lu = factors.get(key)
+                # POPPED, not read: a block that survives MOVES from the old
+                # table to the new one instead of being held in both, so the
+                # transient while the pass rebuilds its factors is the blocks
+                # that CHANGED and not the whole free set twice over.
+                lu = factors.pop(key, None)
                 if lu is None:
                     lu = splu(sub, permc_spec="MMD_AT_PLUS_A")
                     n_factorised += 1
