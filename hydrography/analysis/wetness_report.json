@@ -4,57 +4,82 @@
     "WET-2",
     "LSHY-6"
   ],
-  "source_build": "precarve-craton-10m",
+  "source_build": "canonical-10m-carve2",
   "grid": "exoplasim-T21",
   "regions": 10000005,
-  "land_regions": 4328736,
-  "depression_footprint_land_fraction": 0.21033562467279726,
-  "endorheic_catchment_land_fraction": 0.8102907447451213,
+  "land_regions": 4328732,
+  "depression_footprint_land_fraction": 0.10913081083521546,
+  "endorheic_catchment_land_fraction": 0.4531177116381395,
   "footprint_against_catalogue_area_at_spill_relative": 0.0,
   "classes_resolved": {
     "open_water": {
-      "regions": 603824,
-      "land_area_fraction": 0.1419118453528296
+      "regions": 87850,
+      "land_area_fraction": 0.020674468012333504
+    },
+    "seasonal_inundation": {
+      "regions": 6925,
+      "land_area_fraction": 0.0015757994514380366
     },
     "playa": {
-      "regions": 290820,
-      "land_area_fraction": 0.06842377931996765
+      "regions": 369205,
+      "land_area_fraction": 0.08688054337144392
     },
     "dry_mineral": {
-      "regions": 3434092,
-      "land_area_fraction": 0.7896643753272027
+      "regions": 3864752,
+      "land_area_fraction": 0.8908691891647843
     }
   },
   "classes_absent": {
-    "saturated_mineral": "the closure is unlicensed until its declared score passes, and the score needs a water table this build does not have. Measured here: f_sat is not licensed: the declared score in hydrography/config/topographic_index.yaml",
-    "seasonal_inundation": "nothing in this component carries a season. The lake solve is an annual equilibrium, the groundwater solve is a steady state, and `hydrography/config/land_water_ledger.yaml` gives every term reaching these stores an annual `interval_floor`. A seasonal inundated area needs a store that empties and refills inside the year, which is the climate column's or the land model's and not this component's.",
-    "peat": "persistence over a seasonal cycle is what distinguishes peat-forming land from saturated mineral soil, and the previous entry says why no such cycle exists here. Peat is also a STOCK with an accumulation behind it; `docs/src/reference/no-time-axis.md` is what that has to answer to.",
+    "saturated_mineral": "the saturated-area closure it would come from is WITHDRAWN in `hydrography/config/topographic_index.yaml`. The score declared there before any fraction was computed was the only thing that could license it; it was run on both Earth sets and missed, and the gain the terrain half carries over the cell-mean depth alone is smaller than the scatter its own support puts on it, so no narrower criterion can license it either. This class is absent permanently rather than pending, and reviving it is a new closure with a new criterion. GW-26. Read here from hydrography/config/topographic_index.yaml closure.status: withdrawn on 2026-08-25, the_declared_score_missed_and_no_narrower_support_can_resolve_the_gain.",
+    "groundwater_fed": "two candidate sources, and they fail for different reasons, so a reader deciding whether to wait or to build needs both. GW-26's saturated-area closure is withdrawn PERMANENTLY and reviving it needs a different INSTRUMENT rather than a narrower criterion. World-n9sd measured the instrument: resampling the cells, the gain the terrain half carries over the cell-mean depth alone is at or below its own scatter on all eight arms of both Earth observation sets, so point bore depths at cell scale are blind to the effect and no cut of `sink_fraction` makes them see it. What would license a revival is an AREAL observation -- a measured saturation or inundation extent -- not more bores. PLHY-5's `groundwater_access` needs no closure at all: it evaluates the access criterion on the native regions where the depth lives and crosses an AREA, which is exactly this tile. What it needs is `water_table.nc`, and no build in `source/` has one -- `hydrography/data/<build>/` carries none on either. The cost is the `groundwater` step and then `groundwater_access`, both `cost: minutes` in `config/pipeline.yaml`, with `groundwater` needing `surface_water` and a climatology first.",
+    "peat": "persistence of SATURATION over a cycle is what distinguishes peat-forming land from saturated mineral soil, and neither term is available here: the saturated class above has no source at any support, and the cycle this component does carry is a cycle of INUNDATION by a solved lake rather than of a water table standing at the surface. Peat is also a STOCK with an accumulation behind it; `docs/src/reference/no-time-axis.md` is what that has to answer to.",
     "river_water": "`surface_water.nc` carries a discharge and no channel width, so a river AREA cannot be formed from it. Discharge is a rank and a mask, not an area, and turning one into the other needs a hydraulic geometry this project does not hold."
   },
+  "two_lake_paints": {
+    "annual_lake_regions": 90058,
+    "cycle_always_wet_regions": 87847,
+    "cycle_some_bins_wet_regions": 6925,
+    "cycle_undecided_regions": 2367974,
+    "undecided_and_annual_lake_regions": 3,
+    "annual_lake_not_always_wet_regions": 2566,
+    "always_wet_not_annual_lake_regions": 358,
+    "disagreement_inside_footprint_regions": 2924,
+    "disagreement_outside_footprint_regions": 0,
+    "open_water_land_area_fraction": 0.020674468012333504,
+    "annual_lake_land_area_fraction": 0.021189064204796756,
+    "disagreement_land_area_fraction": 0.0006842998830241658,
+    "disagreement_share_of_annual_lake": 0.03229495537935341,
+    "disagreement_outside_footprint_land_area_fraction": 0.0
+  },
   "f_sat_license": {
-    "consumers_licensed": false,
-    "observation_sets_required": [
-      "australia_depth_consistent",
-      "us_unconfined"
-    ],
-    "per_set": {
-      "aus/all/15.19km": false,
-      "us/unconfined/15.19km": true
-    },
-    "reason": "the declared score in hydrography/config/topographic_index.yaml"
+    "closure_status": "withdrawn",
+    "withdrawn": true,
+    "withdrawn_on": "2026-08-25",
+    "withdrawn_because": "the_declared_score_missed_and_no_narrower_support_can_resolve_the_gain",
+    "reason": "hydrography/config/topographic_index.yaml closure.status",
+    "score": {
+      "observation_sets_required": [
+        "australia_depth_consistent",
+        "us_unconfined"
+      ],
+      "per_set": {
+        "aus/all/15.19km": false,
+        "us/unconfined/15.19km": true
+      }
+    }
   },
   "reduction": {
     "class_share": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA",
     "class_area_km2": "gridding.cell_sum, EXTENSIVE, the area itself",
     "land_area_km2": "gridding.cell_sum, EXTENSIVE",
     "population": "surface_class == LAND",
-    "share_against_area_worst_relative": 1.0772371244355433e-16,
+    "share_against_area_worst_relative": 1.059964153470914e-16,
     "ledger": {
-      "regions_offered": 4328736,
+      "regions_offered": 4328732,
       "cells": 2048,
       "cells_with_no_population": 409,
-      "area_offered": 318136980.5317639,
-      "area_landed": 318136980.5317639,
+      "area_offered": 318136714.761382,
+      "area_landed": 318136714.761382,
       "closure_residual_relative": 0.0
     }
   },
@@ -64,20 +89,25 @@
   "class_share_percentiles": {
     "open_water": {
       "5": 0.0,
-      "50": 0.06385962124910723,
-      "95": 0.38672256347041933
+      "50": 0.0,
+      "95": 0.08587487007733699
+    },
+    "seasonal_inundation": {
+      "5": 0.0,
+      "50": 0.0,
+      "95": 0.0037739296417709668
     },
     "playa": {
       "5": 0.0,
-      "50": 0.0,
-      "95": 0.20649853248668476
+      "50": 0.003570118705237088,
+      "95": 0.3836821159953633
     },
     "dry_mineral": {
-      "5": 0.5927555624508483,
-      "50": 0.8667430885229502,
+      "5": 0.5677961054628559,
+      "50": 0.980100016498807,
       "95": 1.0
     }
   },
   "partition_tolerance": 1e-09,
-  "created": "2026-08-25T09:52:08.740703+00:00"
+  "created": "2026-09-06T06:30:56.618619+00:00"
 }

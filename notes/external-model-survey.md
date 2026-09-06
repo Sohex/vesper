@@ -354,12 +354,23 @@ option.
 
 The three parts are not equally viable as a floor, and this is the substance:
 
-- **Extent is genuinely supplied.** Wetland fraction is the TOPMODEL saturated
-  fraction wherever the surface is snow free, and potential peatland is the
-  fraction wet for at least three months of the year. That is a geographic
-  quantity computed from terrain and column water, and section 3a's index is its
-  input. It forfeits nothing WET-2 needs except the mutual exclusivity WET-2
-  asks for, which is a bookkeeping requirement rather than a physical one.
+- **Extent is NOT supplied, and this is the part with no floor at all.**
+  PALADYN's wetland fraction is the TOPMODEL saturated fraction wherever the
+  simulated surface is snow free, and its potential peatland is the fraction wet
+  for at least three months of a simulated year. This project publishes no
+  saturated fraction at any support: the saturated-area closure that would have
+  produced one is withdrawn in
+  `hydrography/config/topographic_index.yaml` on the verdict of a score declared
+  before any fraction was computed, and
+  `hydrography/notes/subgrid-water-table.md` section 7 measures why no narrower
+  criterion can license one. So the floor and the target rest on the same
+  missing quantity, and the reduced extent is a SMALLER PARTITION rather than a
+  coarser version of WET-2's: four classes resolved from the periodic lake cycle
+  and the depression catalogue, and the saturated non-inundated mineral class
+  absent. What that costs in claims is
+  `biosphere/notes/reduced-wetland-form.md` section 2. Section 3a's index
+  survives the withdrawal and is still worth having; what does not survive is
+  the closure that would have turned it into an area.
 - **Peat stock is supplied, at a cost that is nameable.** Acrotelm and catotelm
   confined to the top soil layer, transfer at a critical acrotelm carbon of
   5 kgC/m2 after Wania et al. (2009), catotelm shifted to lower layers as

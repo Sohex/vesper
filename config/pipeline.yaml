@@ -909,7 +909,19 @@ steps:
       independently makes the pair a check the artifact refuses on: the same
       population reduced two ways has to agree, and a population mismatch is
       what that catches.
-      THREE OF THE AUDIT'S FIVE CLASSES HAVE NO SOURCE HERE and are declared
+      THE CUT IS TAKEN FROM THE PERIODIC LAKE CYCLE AND NOT FROM THE ANNUAL
+      EQUILIBRIUM. `surface_water` solves the lake balance both ways and the
+      annual area sits between the cycle's trough and its peak, so the two
+      paints disagree in the strandline: a region under the lake in every time
+      bin is open water, one under it in some bins is seasonal inundation, and
+      one inside the depression footprint that neither takes is playa. Taking
+      open water from the annual paint and seasonal inundation from the cycle
+      counts the strandline twice. A basin whose year did not close has no
+      cycle, so for its regions the annual paint is the only statement that
+      exists and it decides, and the count taken that way is reported rather
+      than absorbed. WORLD-T8I5, and `notes/audits/wetness-partition-cut.md`
+      carries the measurement that chose it; the step re-measures it every run.
+      THREE OF THE AUDIT'S CLASSES HAVE NO SOURCE HERE and are declared
       absent with the reason rather than estimated. The saturated non-inundated
       mineral class is unresolved on this mesh -- `hydrography/notes/subgrid-
       water-table.md` section 5 -- and would have arrived as a climate-grid area
@@ -919,13 +931,13 @@ steps:
       partition the cell on one support. This step refuses to run if that
       status ever says otherwise, because a class formed by the first plausible
       reading of a revived bracketed closure is worse than an absent one.
-      Seasonal
-      inundation and peat need a season, and nothing in this component carries
-      one: the lake solve is an annual equilibrium, the groundwater solve is a
-      steady state, and every term reaching those stores in
-      `hydrography/config/land_water_ledger.yaml` has an annual interval floor.
+      Peat needs persistence of SATURATION over a cycle, and the cycle this
+      component carries is one of inundation by a solved lake rather than of a
+      water table standing at the surface.
       River water needs a channel width the project does not hold, so a
-      discharge stays a rank and a mask rather than becoming an area.
+      discharge stays a rank and a mask rather than becoming an area. The
+      seasonal class that IS formed is the closed-basin third of the quantity
+      and no more, so a consumer reads it as a lower bound.
 
   - id: groundwater
     script: hydrography/scripts/build_groundwater.py

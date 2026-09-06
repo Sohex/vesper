@@ -43,8 +43,8 @@ beside them is the double count, and it is one of the fixtures.
 
 ## What is written, and at which scale each thing lives
 
-  per REGION      the class label, one per region, from the solved lake
-                  surface, the drainage network's basin membership and the
+  per REGION      the class label, one per region, from the periodic lake
+                  cycle, the drainage network's basin membership and the
                   depression catalogue's spill levels. Terrain and the lake
                   solve only: no latitude, no threshold on a cell mean.
   per GRID CELL   the AREA share of each class over the cell's land, which is
@@ -66,16 +66,17 @@ saturated-area closure is WITHDRAWN in `config/topographic_index.yaml`: the
 score that was the only thing able to license it was run and missed, and no
 narrower support can resolve the gain it would have had to show. So that class
 is absent permanently rather than pending, and this script forms no saturated
-share from any input. Peat needs a season and nothing in this component carries
-one: the groundwater solve is a steady state and every term reaching those
-stores in `config/land_water_ledger.yaml` has an annual interval floor. The
-CLOSED-BASIN third of seasonal inundation is the one that has moved:
-`surface_water.py` solves the lake balance as a periodic steady state through
-the climatology's own time bins and now paints that cycle onto regions, so
-`surface_water.nc` carries `lake_cycle_fraction`, `lake_cycle_bins_wet` and
-`lake_cycle_decided` per region. What remains before this script can form the
-class is the partition against `open_water` and `playa`, which the two of them
-have to be measured against and no artifact exists to measure. A wetness
+share from any input. Peat needs persistence of SATURATION over a cycle, and
+the cycle this component carries is one of INUNDATION by a solved lake: the
+groundwater solve is a steady state and every term reaching those stores in
+`config/land_water_ledger.yaml` has an annual interval floor. The
+CLOSED-BASIN third of seasonal inundation IS formed, and the partition is cut
+against the periodic cycle rather than the annual equilibrium:
+`surface_water.py` solves the lake balance through the climatology's own time
+bins and paints that cycle onto regions, so a region wet in every bin is
+permanent open water, one wet in some bins is seasonally inundated, and one
+never wet inside the depression footprint is playa. The other two thirds of
+that quantity are not this component's and are not pending here. A wetness
 fraction that is a guess is indistinguishable in the file from one that is a
 measurement, so an unavailable class is absent and says why rather than being
 estimated.
@@ -108,7 +109,7 @@ SCORE_PATH = ANALYSIS / "topographic_index_score.json"
 # rule that overlaps another is an error rather than something the order
 # quietly resolves. The residual is last and is the only class allowed to be
 # defined as what is left.
-RESOLVED = ("open_water", "playa", "dry_mineral")
+RESOLVED = ("open_water", "seasonal_inundation", "playa", "dry_mineral")
 
 
 def assign_exclusive(masks: dict, population, residual: str | None = None):
@@ -167,24 +168,51 @@ def assign_exclusive(masks: dict, population, residual: str | None = None):
     return labels, names, counts
 
 
-def classify_regions(export: Export, lake, terminal, filled_km, spill_km):
+def classify_regions(export: Export, lake, terminal, filled_km, spill_km,
+                     cycle_bins_wet, cycle_decided, n_bins):
     """The resolved classes, from the artifacts that already decided them.
 
-    `open_water` is `surface_water.py`'s solved equilibrium lake surface,
-    painted by area up each basin's own hypsometry. It is the only per-region
-    open-water statement in the project and it is a result rather than a level
-    threshold.
+    THE CUT IS TAKEN FROM THE PERIODIC CYCLE, NOT FROM THE ANNUAL EQUILIBRIUM,
+    and WORLD-T8I5 is the row that measured the two against each other before
+    choosing. `surface_water.py` solves the lake balance twice: once as an
+    annual equilibrium, which paints `lake`, and once as a periodic steady state
+    through the climatology's own time bins, which paints `lake_cycle_bins_wet`.
+    The annual area sits between the cycle's trough and its peak, so the two
+    paints cut the same ground differently and the strandline is where they
+    disagree. Taking the cut from the cycle is what makes `seasonal_inundation`
+    a class rather than a remainder against a different solve, which is the
+    double count `assign_exclusive` exists to refuse. The measurement that
+    licenses it, including how much area the two paints disagree over and where
+    that area sits, is `notes/audits/wetness-partition-cut.md`, and this script
+    re-measures it on every run and writes it into the report.
+
+    `open_water` is a region under the periodic lake in EVERY time bin: the
+    always-wet set, which is the permanent lake surface the cycle expresses.
+
+    `seasonal_inundation` is a region under the lake in some bins and not all.
+    IT IS THE CLOSED-BASIN THIRD OF THE SEASONAL QUANTITY AND NOTHING ELSE.
+    `hydrography/notes/land-water-ledger.md` splits seasonally inundated land in
+    three; a floodplain's inundated area needs a height-above-nearest-drainage
+    distribution and a routing model, and a seasonally saturated SOIL is a water
+    content rather than an area. Merging either into this class would put three
+    quantities under one name.
 
     `playa` is land inside a closed depression -- its depression-filled surface
-    at or below the basin's spill -- that the solved lake does not cover: the
-    exposed floor and strandline of a basin that does not fill, which is what
-    `pedology/scripts/build_surface_classes.py` already means by the word. A
-    basin that DOES fill to its spill contributes none, and that falls out of
-    the rule rather than needing a second one, because its lake covers the
-    depression by definition. Note that this is the depression FOOTPRINT and
-    not the endorheic catchment: the catchment is the fifth of the land that
-    drains inward, and calling that playa would overstate the class by more
-    than an order of magnitude.
+    at or below the basin's spill -- that neither of the two wet classes takes:
+    the floor and strandline that stay exposed through the whole cycle, which is
+    what `pedology/scripts/build_surface_classes.py` already means by the word.
+    A basin that fills to its spill in every bin contributes none, which falls
+    out of the rule rather than needing a second one. Note that this is the
+    depression FOOTPRINT and not the endorheic catchment: the catchment is the
+    part of the land that drains inward, and calling that playa would overstate
+    the class by more than an order of magnitude.
+
+    A BASIN WHOSE YEAR DID NOT CLOSE HAS NO CYCLE, so its regions carry a
+    `bins_wet` of zero that is ambiguous between dry all year and never solved.
+    For those regions the annual equilibrium paint is the only statement that
+    exists, and it decides: an undecided region the annual solve calls lake is
+    `open_water`. The count is written into the report rather than absorbed,
+    because it is the one place two solves meet in one partition.
 
     LAND COMES FROM `surface_class`, never from `land_mask`. CLAUDE.md rule 1:
     the two disagree over dry closed-basin floor below sea level, which is
@@ -194,16 +222,37 @@ def classify_regions(export: Export, lake, terminal, filled_km, spill_km):
     lake = np.asarray(lake, dtype=bool) & land
     terminal = np.asarray(terminal, dtype=np.int64)
     filled_km = np.asarray(filled_km, dtype=np.float64)
+    bins_wet = np.asarray(cycle_bins_wet, dtype=np.int64)
+    decided = np.asarray(cycle_decided, dtype=bool)
+    n_bins = int(n_bins)
 
     in_basin = land & (terminal >= 0)
     spill = np.zeros(land.shape, dtype=np.float64)
     spill[in_basin] = np.asarray(spill_km, dtype=np.float64)[terminal[in_basin]]
-    playa = in_basin & ~lake & (filled_km <= spill)
+    footprint = in_basin & (filled_km <= spill)
 
-    masks = {"open_water": lake, "playa": playa,
-             "dry_mineral": np.zeros(land.shape, dtype=bool)}
+    undecided_lake = land & ~decided & lake
+    open_water = (land & decided & (bins_wet >= n_bins)) | undecided_lake
+    seasonal = land & decided & (bins_wet > 0) & (bins_wet < n_bins)
+    playa = footprint & ~open_water & ~seasonal
+
+    masks = {"open_water": open_water, "seasonal_inundation": seasonal,
+             "playa": playa, "dry_mineral": np.zeros(land.shape, dtype=bool)}
     labels, names, counts = assign_exclusive(masks, land, residual="dry_mineral")
-    return land, labels, names, counts, (in_basin, in_basin & (filled_km <= spill))
+    paints = {
+        "annual_lake_regions": int(lake.sum()),
+        "cycle_always_wet_regions": int((land & decided & (bins_wet >= n_bins)).sum()),
+        "cycle_some_bins_wet_regions": int(seasonal.sum()),
+        "cycle_undecided_regions": int((land & ~decided).sum()),
+        "undecided_and_annual_lake_regions": int(undecided_lake.sum()),
+        "annual_lake_not_always_wet_regions": int((lake & ~open_water).sum()),
+        "always_wet_not_annual_lake_regions": int((open_water & ~lake).sum()),
+        "disagreement_inside_footprint_regions":
+            int(((lake ^ open_water) & footprint).sum()),
+        "disagreement_outside_footprint_regions":
+            int(((lake ^ open_water) & ~footprint).sum()),
+    }
+    return land, labels, names, counts, (in_basin, footprint), paints, lake
 
 
 def check_footprint(area_km2, footprint, area_at_spill_km2, tol: float) -> float:
@@ -340,9 +389,14 @@ def closure_state() -> dict:
     """
     ti = yaml.safe_load(TI_CFG.read_text(encoding="utf-8"))["closure"]
     status = str(ti.get("status", "active"))
+    # `withdrawn_on` is a YAML 1.1 DATE, which json refuses. Rendered here
+    # rather than at the point of writing: the report and the netCDF attribute
+    # both read this dict, and a value that is a date in one and a string in the
+    # other is the same defect twice.
+    withdrawn_on = ti.get("withdrawn_on")
     out = {"closure_status": status,
            "withdrawn": status == "withdrawn",
-           "withdrawn_on": ti.get("withdrawn_on"),
+           "withdrawn_on": None if withdrawn_on is None else str(withdrawn_on),
            "withdrawn_because": ti.get("withdrawn_because"),
            "reason": "hydrography/config/topographic_index.yaml closure.status"}
     if SCORE_PATH.exists():
@@ -444,6 +498,9 @@ def main() -> int:
 
     with Dataset(data / "surface_water.nc") as ds:
         lake = np.asarray(ds["lake"][:]).astype(bool)
+        cycle_bins_wet = np.asarray(ds["lake_cycle_bins_wet"][:], dtype=np.int64)
+        cycle_decided = np.asarray(ds["lake_cycle_decided"][:]).astype(bool)
+        n_bins = ds.dimensions["time_bin"].size
     with Dataset(data / "regions.nc") as ds:
         terminal = np.asarray(ds["terminal"][:], dtype=np.int64)
         filled_km = np.asarray(ds["filled_km"][:], dtype=np.float64)
@@ -452,8 +509,9 @@ def main() -> int:
 
     print(f"mesh {export.n_regions:,} regions from {export.root.name}, "
           f"crossing onto {grid_name}")
-    land, labels, names, counts, (in_basin, footprint) = classify_regions(
-        export, lake, terminal, filled_km, spill_km)
+    land, labels, names, counts, (in_basin, footprint), paints, annual_lake = (
+        classify_regions(export, lake, terminal, filled_km, spill_km,
+                         cycle_bins_wet, cycle_decided, n_bins))
     area_km2 = export.cell_area.astype(np.float64)
     with Dataset(data / "basins.nc") as ds:
         area_at_spill = np.asarray(ds["area_at_spill_km2"][:], dtype=np.float64)
@@ -468,8 +526,40 @@ def main() -> int:
           f"different quantity; the class is the floor, not the catchment")
     for i, n in enumerate(names):
         a = float(area_km2[labels == i].sum())
-        print(f"  {n:14s} {counts[n]:>10,} regions   "
+        print(f"  {n:19s} {counts[n]:>10,} regions   "
               f"{a / area_km2[land].sum():6.2%} of land area")
+
+    # THE TWO PAINTS, RE-MEASURED ON EVERY RUN RATHER THAN CITED. WORLD-T8I5
+    # chose the cycle cut on this measurement, and a measurement that only ever
+    # ran once is a number the artifact would carry without checking. The
+    # quantity that licenses the choice is where the disagreement SITS: the
+    # annual equilibrium area lies between the cycle's trough and its peak, so
+    # the two paints may differ only in the strandline, and strandline is
+    # inside the depression footprint by construction. Area outside it is the
+    # two solves disagreeing about something else.
+    open_water = labels == names.index("open_water")
+    disagreement = (annual_lake ^ open_water) & land
+    paints["open_water_land_area_fraction"] = float(
+        area_km2[open_water].sum() / land_area)
+    paints["annual_lake_land_area_fraction"] = float(
+        area_km2[annual_lake].sum() / land_area)
+    paints["disagreement_land_area_fraction"] = float(
+        area_km2[disagreement].sum() / land_area)
+    paints["disagreement_share_of_annual_lake"] = float(
+        area_km2[disagreement].sum()
+        / max(float(area_km2[annual_lake].sum()), 1e-30))
+    paints["disagreement_outside_footprint_land_area_fraction"] = float(
+        area_km2[disagreement & ~footprint].sum() / land_area)
+    print(f"  the two lake paints disagree over "
+          f"{paints['disagreement_land_area_fraction']:.4%} of land, "
+          f"{paints['disagreement_share_of_annual_lake']:.3f} of the annual "
+          f"lake area, of which "
+          f"{paints['disagreement_outside_footprint_land_area_fraction']:.4%} "
+          f"of land lies outside the depression footprint")
+    if paints["undecided_and_annual_lake_regions"]:
+        print(f"  {paints['undecided_and_annual_lake_regions']:,} regions whose "
+              "basin did not close its year are open water on the annual paint "
+              "alone")
 
     cell, nlat, nlon = gridding.region_cells(export, grid_dir)
     ncell = nlat * nlon
@@ -603,6 +693,7 @@ def main() -> int:
                                             / area_km2[land].sum())}
             for i, n in enumerate(names)},
         "classes_absent": unresolved,
+        "two_lake_paints": paints,
         "f_sat_license": lic,
         "reduction": {
             "class_share": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA",
@@ -727,6 +818,51 @@ def _selftest() -> int:
         lambda: check_partition(added, covered, 1e-12, "fixture"))
     check("an unresolved grid share added beside the resolved classes is refused",
           caught, msg)
+
+    # 5. THE CUT IS TAKEN FROM THE CYCLE, and this is the fixture that says so
+    #    with a case that can fail. A region the ANNUAL paint calls lake, whose
+    #    basin's cycle leaves it dry in some bins, must be seasonal_inundation
+    #    and not open_water; a region wet in every bin must be open_water; and a
+    #    region whose basin never closed its year has no cycle, so the annual
+    #    paint is the only statement about it and it decides. Getting any of the
+    #    three wrong returns an ordinary-looking partition, which is why each is
+    #    asserted by name rather than by the totals agreeing.
+    class _FakeExport:
+        def __init__(self, surface_class):
+            self.surface_class = surface_class
+
+    n5 = 6
+    sc = np.full(n5, LAND, dtype=np.int8)
+    fake = _FakeExport(sc)
+    #  region: 0 always wet, 1 wet in some bins, 2 dry floor, 3 upland,
+    #          4 undecided and painted lake by the annual solve,
+    #          5 undecided and not painted
+    terminal5 = np.array([0, 0, 0, -1, 1, 1], dtype=np.int64)
+    filled5 = np.array([1.0, 1.0, 1.0, 9.0, 1.0, 1.0])
+    spill5 = np.array([2.0, 2.0])
+    lake5 = np.array([1, 1, 0, 0, 1, 0], dtype=bool)
+    bins5 = np.array([12, 5, 0, 0, 0, 0], dtype=np.int64)
+    dec5 = np.array([1, 1, 1, 0, 0, 0], dtype=bool)
+    _land, lab5, nm5, cnt5, (_ib, fp5), paints5, _al = classify_regions(
+        fake, lake5, terminal5, filled5, spill5, bins5, dec5, 12)
+    got = {nm5[int(lab5[i])] for i in range(n5)}
+    check("the cycle decides open water and the annual paint does not",
+          nm5[int(lab5[1])] == "seasonal_inundation"
+          and nm5[int(lab5[0])] == "open_water",
+          f"region 0 is {nm5[int(lab5[0])]!r}, region 1 is "
+          f"{nm5[int(lab5[1])]!r} while the annual paint calls both lake")
+    check("a region whose basin never closed its year takes the annual paint",
+          nm5[int(lab5[4])] == "open_water"
+          and paints5["undecided_and_annual_lake_regions"] == 1,
+          f"region 4 is {nm5[int(lab5[4])]!r} and the report counts "
+          f"{paints5['undecided_and_annual_lake_regions']}")
+    check("a seasonally inundated region inside the footprint is not playa",
+          nm5[int(lab5[2])] == "playa" and "playa" not in
+          {nm5[int(lab5[0])], nm5[int(lab5[1])]},
+          f"labels {[nm5[int(x)] for x in lab5]}")
+    check("land outside every depression is the residual",
+          nm5[int(lab5[3])] == "dry_mineral" and sum(cnt5.values()) == n5,
+          f"region 3 is {nm5[int(lab5[3])]!r}, counts {cnt5}")
 
     # 6. THE NEGATIVE CONTROL. One cell, 97% dry upland and 3% lake. The share
     #    must be the lake's area, which a majority label returns as zero.

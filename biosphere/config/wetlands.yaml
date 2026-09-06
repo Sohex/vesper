@@ -116,22 +116,61 @@ hydrology:
 
 # WET-2. The classification is a PARTITION of a cell's land, so every class in
 # it needs a source and a class with none is land the partition cannot account
-# for. Two of the five have a published source, one is the model's own output,
-# one is the residual, and the saturated non-inundated mineral class has NO
-# source at any support: the saturated-area closure that would have supplied a
-# saturated fraction is withdrawn in `hydrography/config/topographic_index.yaml`
-# on its declared score's verdict, and `hydrography/scripts/build_wetness.py`
-# forms no saturated class. What reopens it is a score whose SUPPORT can
-# resolve a gain of a few thousandths of an AUC, never a narrower criterion;
-# `hydrography/notes/subgrid-water-table.md` section 7 has the route. The
-# alternative is a reduced form declared under WET-12 with what dropping the
-# class costs in claims; the gate refuses a class dropped without one.
+# for. Four of the five are resolved on the native mesh by
+# `hydrography/scripts/build_wetness.py`; the saturated non-inundated mineral
+# class has NO source at any support, because the saturated-area closure that
+# would have supplied a saturated fraction is withdrawn in
+# `hydrography/config/topographic_index.yaml` on its declared score's verdict.
+# What reopens it is a score whose SUPPORT can resolve a gain of a few
+# thousandths of an AUC, never a narrower criterion;
+# `hydrography/notes/subgrid-water-table.md` section 7 has the route and
+# `docs/src/reference/external-data.md` has the observations that route would
+# need. The alternative, and what this declaration TAKES, is the reduced form
+# WET-12 declares in `biosphere/notes/reduced-wetland-form.md`, together with
+# what dropping the class costs in claims; the gate refuses a class dropped
+# without both the reason and the row that licensed it.
 extent:
   # The mutually exclusive classification: persistent peat-forming land,
   # saturated non-inundated mineral soil, seasonal inundation, open
   # lake/river/playa water, dry mineral soil. Fractions, not thresholds, and
   # closing against BIO-11's rootable surface without double counting. WET-2.
-  classification: undeclared
+  classification: >-
+    one label per mesh region and, per climate-grid cell, the AREA share of each
+    class over the cell's land, from `lib/gridding.py`'s CATEGORICAL reduction
+    and never a majority label. The partition is cut against the PERIODIC lake
+    cycle rather than the annual equilibrium: a region under the solved lake in
+    every time bin is open water, one under it in some bins is seasonal
+    inundation, one inside a closed depression's footprint that neither takes is
+    playa, and the rest is dry mineral soil. Peat-forming land is the simulated
+    peatland stand's own state. The saturated non-inundated mineral class is
+    ABSENT under WET-12's reduced form, so the land it would have taken stays in
+    the residual and a dry mineral share is an upper bound by exactly that area.
+    `hydrography/scripts/build_wetness.py` enforces exclusivity rather than
+    assuming it -- a region two classes claim is refused, land no class claims is
+    refused unless a residual is named, and the shares must partition the cell or
+    nothing is written -- and it re-measures the two lake paints against each
+    other on every run. Fractions throughout: no threshold on a cell mean, and
+    no absolute compound-topographic-index cut.
+    THE TWO CLASS LISTS DO NOT LINE UP AND THE RESIDUAL IS WHERE THAT SHOWS.
+    Hydrography resolves four classes and this partition names five. Its PLAYA,
+    the exposed floor of a closed depression that does not fill, has no name
+    here and joins `dry_mineral`, because it is land that is neither wetland nor
+    open water and that is the only true thing this partition can say about it.
+    `dry_mineral` is therefore a statement about WETNESS and not about
+    substrate: what separates a playa floor from rootable upland inside it is
+    pedology's surface classes and BIO-11's barren fraction, and a consumer that
+    reads this class as rootable upland has read the wrong partition. Open water
+    is lakes: there is no river area and no playa lake distinct from the solved
+    lake surface.
+    AGAINST BIO-11'S ROOTABLE SURFACE the identity is
+    `rootable == 1 - nonrootable_water - nonrootable_barren` with this
+    partition's playa inside that barren, and the two sides currently cut the
+    lake differently: BIO-11 takes its non-rootable water from the ANNUAL
+    equilibrium paint and this partition takes open water from the always-wet
+    set of the cycle, so they differ by the seasonal strandline in both
+    directions. Which cut BIO-11 should carry is WORLD-CO4Y's decision, and the
+    identity is stated in `hydrography/config/wetness.yaml` rather than asserted
+    by either producer, because a consumer of both is what can check it.
   # One source per class, each from the closed set in
   # `biosphere/scripts/wetland_gate.py:EXTENT_SOURCES`, which is where each
   # source's artifact, field and licence are stated. The set is closed because
@@ -140,11 +179,34 @@ extent:
   # `hydrography/data`. A class with no source is declared absent as a mapping
   # carrying `absent_because` and `licensed_by`, never left blank. WET-2.
   class_sources:
-    peat_forming: undeclared
-    saturated_mineral: undeclared
-    seasonal_inundation: undeclared
-    open_water: undeclared
-    dry_mineral: undeclared
+    peat_forming: lpj_guess:peatland_stand
+    # THE ONE CLASS THIS DECLARATION DROPS, and it is dropped with a reason and
+    # a licence rather than left blank. WET-12's reduced form and the ledger of
+    # what taking it costs are `biosphere/notes/reduced-wetland-form.md`.
+    saturated_mineral:
+      absent_because: >-
+        no saturated fraction is published at any support. The saturated-area
+        closure that would have supplied one is withdrawn in
+        `hydrography/config/topographic_index.yaml` on the verdict of a score
+        that config declared before any fraction was computed, and
+        `hydrography/notes/subgrid-water-table.md` section 7 measures why no
+        narrower criterion can license one: on every arm of both Earth bore sets
+        the gain the terrain half carries over the cell-mean depth is at or
+        below the scatter its own support puts on it, and a narrower criterion
+        has less support rather than more. PALADYN, the published design that is
+        the floor for the other two parts of this component, keys its wetland
+        extent on the same TOPMODEL saturated fraction, so there is no reduced
+        form of this class to fall back to either.
+      licensed_by: >-
+        WET-12 and WORLD-4FR6. `biosphere/notes/reduced-wetland-form.md` section
+        2 is the reduced extent and its cost ledger: dropping this class costs
+        the claim that this world's simulated land carries any wetland that is
+        not standing water, makes the modelled wetland extent a LOWER bound and
+        the dry mineral share an UPPER bound by the same area, and leaves the
+        `extent_high_end` arm unreachable by widening any number.
+    seasonal_inundation: wetness:class_shares
+    open_water: wetness:class_shares
+    dry_mineral: wetness:class_shares
   # The support any REVIVED saturated-area closure would have to live at, and
   # the same reading as `hydrography/config/wetness.yaml`'s
   # `refusals.saturated_fraction_support`. It is a standing refusal rather than
@@ -160,12 +222,40 @@ extent:
   # names three routes -- a stated downscaling rule, a parameterised sub-region
   # hypsometry declared as a parameterisation rather than a measurement, or a
   # consumer that changes quantity -- and the choice is a decision. WORLD-D9U4.
-  downscaling_rule: undeclared
+  downscaling_rule: >-
+    NOT REACHED under WET-12's reduced form, and kept rather than deleted. Every
+    class this declaration names is resolved on the native mesh and crosses
+    UPWARD to the climate grid as an area share, so no fraction travels from a
+    coarser support to a finer one and there is nothing to downscale. The one
+    class that could only ever have arrived at the climate grid is the saturated
+    non-inundated mineral class, and it is absent. A revived saturated-area
+    closure brings the second support back with it, and WORLD-D9U4's three
+    routes are then the choice again, to be made before any share is read.
+
+  # WHAT A DOWNSTREAM LEDGER DOES WITH A CLASS WHOSE SHARE IS A CONVENTION
+  # BRACKET, stated before any
+  # share is written, which is the constraint WORLD-4FR6 puts on both of its
+  # routes. The saturated-area closure's `f_grad` is a CONVENTION bracket rather
+  # than a spread around a central value: at one end of it the closure's ranking
+  # is the depth's ranking exactly, so that arm carries no terrain information
+  # at all and a consumer taking it alone is reporting the depth under another
+  # name. The gate refuses a rule that admits a single arm.
+  convention_arm_rule: >-
+    a class whose share is a convention bracket propagates through every
+    downstream ledger as BOTH arms or as neither, never as one. A ledger that
+    can carry only one number does not carry the class.
   # What selects the wetland process regime. Latitude may locate a cell for
   # geometry and diagnostics and may not select physics; the vendored fork's
   # PEATLAND_WETLAND_LATITUDE_LIMIT of 40.0 does exactly that, and does it on
   # signed latitude, so a cell at 60 S takes the low-latitude path. WET-2.
-  regime_selector: undeclared
+  regime_selector: >-
+    the wetness class the region carries and the persistence of its wetting over
+    the climatology's own time bins, which is what
+    `hydrography/scripts/build_wetness.py` resolves and what
+    `surface_water.nc`'s per-region wet-bin count measures. A simulated cell's
+    position on the globe locates it and does not select its hydrology,
+    decomposition or methane model. The vendored fork's own selector is a
+    defect the gate reports separately and this declaration does not close.
   # Whether extent may be keyed on an absolute compound-topographic-index
   # threshold. It may not: `a` carries a length, the distribution shifts with
   # the mesh by about ln 2 between this project's own two builds, and an
@@ -360,16 +450,28 @@ acceptance:
         hydrology.water_ledger refuses on
     awetland_area.out:
       emitted: false
-      waits_on: WET-2
-      why: there is no mutually exclusive wetness classification to aggregate
+      waits_on: WET-1
+      why: >-
+        the classification exists and the fork has no way to be given it.
+        `extent.class_sources` names four resolved classes and
+        `hydrography/scripts/build_wetness.py` publishes their per-cell area
+        shares, but `run_lpj_guess.py` writes no per-class stand fraction into
+        the instruction file and the module has one PEATLAND stand type, so
+        there is nothing inside the simulated cell for this table to aggregate.
+        WET-1 owns the source contract that would reject a missing or
+        fallback-equal fraction rather than run on one
     awetland_area_native.out:
       emitted: false
-      waits_on: WET-2
+      waits_on: WET-1
       why: >-
-        no saturated fraction is published at any support, so there is no
-        native-mesh area for this table to aggregate. WORLD-D9U4 settled the
-        support; the closure that would have supplied the fraction was
-        withdrawn after it
+        the native-mesh classification exists -- `wetness_<grid>.nc` carries one
+        class per mesh region -- and the simulated stand does not run there. A
+        native-mesh table out of this model is a pass-through of the forcing,
+        and the fork holds no mapping from a simulated cell back to the mesh
+        regions inside it. WET-1 owns that half of the source contract. The
+        table is retained rather than dropped because the whole reason for
+        keeping it beside the aggregated one is that a reduction is where a
+        minority surface disappears
     apeat_stock.out:
       emitted: false
       waits_on: WET-4

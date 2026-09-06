@@ -824,20 +824,39 @@ population reduced two ways has to agree, and a share taken over the land
 against an area summed over everything is a population mismatch that both
 numbers would otherwise survive.
 
-**Three of the five classes the audit asks for have no source here, and are
-declared absent with the reason rather than estimated.** A wetness fraction that
-is a guess is indistinguishable in the file from one that is a measurement.
+**Which solve decides open water: the PERIODIC CYCLE.** `surface_water.py`
+solves the lake balance twice, as an annual equilibrium and as a periodic steady
+state through the climatology's own time bins, and the annual area sits between
+the cycle's trough and its peak. So the two paints cut the same ground
+differently and they disagree in the strandline. The partition is cut against
+the cycle: a region under the lake in every bin is open water, one under it in
+some bins is seasonal inundation, and one inside the depression footprint that
+neither takes is playa. Taking open water from the annual paint and seasonal
+inundation from the cycle would count the strandline twice, which is what
+`assign_exclusive` exists to refuse. A basin whose year did not close has no
+cycle at all, so for its regions the annual paint is the only statement that
+exists and it decides; the count taken that way is written into the report
+rather than absorbed. `notes/subgrid-water-table.md` and
+`notes/audits/wetness-partition-cut.md` carry the measurement that chose the
+cut, and the script re-measures it on every run.
+
+**Three of the classes the audit asks for have no source here, and are declared
+absent with the reason rather than estimated.** A wetness fraction that is a
+guess is indistinguishable in the file from one that is a measurement.
 Saturated non-inundated mineral soil is unresolved on this mesh --
 `notes/subgrid-water-table.md` section 5 -- and would have arrived as a
 climate-grid area share taken OUT of the mineral class, which is what would have
 made exclusivity a constraint at two supports. The closure it needed is
 withdrawn, section 7, so that class is absent permanently rather than pending
-and the resolved classes partition the cell on one support. Seasonal inundation and peat need a season, and nothing
-in this component carries one: the lake solve is an annual equilibrium, the
-groundwater solve is a steady state, and every term reaching those stores in
-`config/land_water_ledger.yaml` has an annual interval floor. River water needs
-a channel width the project does not hold, so a discharge stays a rank and a
-mask rather than becoming an area.
+and the resolved classes partition the cell on one support. Peat needs
+persistence of SATURATION over a cycle, and the cycle this component carries is
+one of inundation by a solved lake rather than of a water table standing at the
+surface. River water needs a channel width the project does not hold, so a
+discharge stays a rank and a mask rather than becoming an area. Seasonal
+inundation is formed and is the CLOSED-BASIN THIRD of that quantity and no more:
+a floodplain's inundated area needs a height-above-nearest-drainage distribution
+and a routing model, and a seasonally saturated soil is a water content rather
+than an area, so a consumer reads the class as a lower bound.
 
 **What it refuses, by name and in code.** No latitude or other geographic
 selector may pick a class, because the vendored decomposition already switches

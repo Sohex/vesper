@@ -201,6 +201,118 @@ Both are small enough to fetch directly and neither needs the batching rules in
 `derpycode/muffingen` on GitHub, is MATLAB, and generates a cGENIE configuration
 from a bathymetry; whether it runs under Octave is unverified.
 
+## Areal saturated and inundated land fraction: the route, and why nothing has been fetched
+
+Checked 2026-09-05, for WORLD-4FR6. `hydrography/notes/subgrid-water-table.md`
+section 7 withdrew the saturated-area closure because the instrument could not
+resolve the gain: two continents of point bore depths reach a cell-scale score
+through 34 and 37 grid cells, and on every arm the gain sits at or below the
+scatter those cells put on it. The route back is stated there as SUPPORT rather
+than as instrument -- enough grid cells carrying observations -- and an AREAL
+saturation or inundation observation in place of point depths is one way to get
+there. This section is the routes into that class of data.
+
+**NOTHING HERE HAS BEEN FETCHED, AND THAT IS THE POINT.** WORLD-4FR6 requires
+the criterion and the disposition of a miss to be declared BEFORE the
+observations are in hand, which is what made the last withdrawal a clean outcome
+rather than an argument. Downloading any of these before that declaration would
+spend the one thing that makes the next score licensable. Read the papers, which
+are in `references/pdf/`, declare the criterion, then fetch.
+
+**The AWS Registry of Open Data does not carry this class of data.** Swept
+2026-09-05 over all 1199 dataset records and the rendered index: no occurrence of
+GLWD, WAD2M, GIEMS, SWAMPS, wetland fraction, inundated area fraction or
+saturated fraction. What is there is open-water extent with the wrong footprint
+or the wrong record -- OPERA Dynamic Surface Water Extent, which needs an
+Earthdata Login and starts in 2023; Digital Earth Africa and Digital Earth
+Pacific water observations, which are one continent each; RAPID NRT flood maps,
+which are CONUS and noncommercial-licensed -- plus the Global Drought and Flood
+Catalogue, which lists anonymously and is VIC land-surface-model OUTPUT rather
+than an observation. The standing rule is discharged; do not re-sweep.
+
+**GIEMS-MethaneCentric v1.1 is the closest match to the quantity.** Zenodo
+record `16530038`, concept DOI `10.5281/zenodo.13919644`, CC-BY-4.0,
+`GIEMS-MC_compressed_v1.1.nc` at 223 MB. Monthly, 0.25 degree, 1992 to 2020,
+which is of order 10^5 land cells against the withdrawn score's 34 and 37. It is
+the only product in this class that carries INUNDATED AND SATURATED wetlands as
+a layer distinct from a static permanent-open-water layer, so a comparison can
+be made against saturated LAND with lakes and rivers taken out rather than
+conflated. Its saturated component is inferred from wetland class and peatland
+compositing rather than retrieved, so it is a related quantity and not the same
+one, and a criterion has to say what it is scoring before it is scored.
+`bernard_2025_the-giems-methanecentric-database-a-dynamic-and-comprehensive-global-p.pdf`.
+
+**WAD2M is the widely cited monthly wetland-fraction product.** Zenodo record
+`5553187`, DOI `10.5281/zenodo.5553187`, CC-BY-4.0,
+`WAD2M_wetlands_2000-2020_025deg_Ver2.0.nc.zip` at 274 MB, with a 0.5 degree
+sibling at 76 MB. Monthly, 2000 to 2020. It is SWAMPS microwave inundation with
+permanent open water, coastal wetlands and rice paddies removed. A microwave
+inundation retrieval sees standing water and is blind under a closed canopy, so
+saturated-but-not-flooded ground contributes nothing and the product runs LOW
+against a water-table-at-surface fraction, worst in forested cells.
+`zhang_2021_development-of-the-global-dataset-of-wetland-area-and-dynamics-for-met.pdf`.
+
+**ZENODO 403s THIS HOST.** Every Zenodo endpoint returns "Access to this
+resource has been restricted due to unusual traffic from your network",
+including the record API and the file-content URLs, on records that are open
+access and need no account. It is IP reputation and not authentication:
+`doi.org` resolves the same DOIs normally before hitting the wall. A browser on
+this network, a later retry, or a different egress all get past it. Do not
+conclude a Zenodo dataset is unavailable from a `curl` 403.
+
+**Tootchi et al. (2019) composite wetlands is the definitional match and is
+fully anonymous.** PANGAEA `10.1594/PANGAEA.892657`, CC-BY-3.0, unrestricted;
+`https://hs.pangaea.de/Maps/TootchifatidehiA-etal_2018/TIFF.zip` at 293 MB
+answers a bare anonymous request. Static, 15 arcsec, three maps: regularly
+flooded wetlands, and two composites that add groundwater-derived wetlands. Its
+own definition is areas of persistent near-saturated soil from regular flooding
+OR SHALLOW GROUNDWATER, which is the union a saturated fraction is about, and it
+deliberately captures the tropical wetlands a microwave retrieval cannot see.
+THE CAVEAT IS FATAL TO USING IT ALONE: its groundwater half is itself modelled,
+so scoring against it is a model-against-model comparison and says nothing about
+this project's agreement with an observation. It is a second target reported as
+such, never ground truth.
+`tootchi_2019_multi-source-global-wetland-maps-combining-surface-water-imagery-and-g.pdf`.
+
+**GLWD v2 is a static maximum-extent inventory, anonymous on figshare.** DOI
+`10.6084/m9.figshare.28519994.v1`, CC-BY-4.0;
+`GLWD_v2_0_area_by_class_pct_tif.zip` at 1.6 GB gives percent of each 15 arcsec
+cell in each of 33 waterbody and wetland classes, so it aggregates to a genuine
+per-cell areal fraction. Compiled from national surveys and maps rather than
+retrieved, with no time axis, so it can score a predicted long-term MAXIMUM and
+cannot score a monthly one. Probe figshare with a ranged GET and not a HEAD: the
+signed S3 URL 403s a HEAD and returns 206 to a GET.
+`lehner_2025_mapping-the-world-s-inland-surface-waters-an-upgrade-to-the-global-lak.pdf`.
+
+**JRC Global Surface Water is anonymous and is the wrong quantity, with one
+use.** `https://storage.googleapis.com/global-surface-water/downloads2021/...`
+serves 10 by 10 degree COG tiles at about 17 MB each with no key; the portal is
+`global-surface-water.appspot.com/download`. Pekel et al. (2016),
+`10.1038/nature20584`. It maps OPEN WATER from optical imagery, so it excludes
+saturated-but-not-flooded ground entirely and cannot be a scoring target. What it
+is good for is subtracting permanent open water so a comparison is against
+saturated land rather than against lakes.
+
+**Two routes that are not worth taking.** SWAMPS v3.2 is at the Alaska Satellite
+Facility rather than NSIDC and redirects to NASA Earthdata Login, and its page
+says the Wetlands MEaSUREs series is currently unavailable; WAD2M is the same
+retrieval with the corrections applied and needs no account. GIEMS-2 itself has
+no repository DOI and its LERMA landing page now redirects to a generic
+departmental page, so access is an email to the author; GIEMS-MethaneCentric is
+derived from it and is the quantity actually wanted.
+
+**Soil moisture is not this quantity, and one product's units invite the
+mistake.** ESA CCI Soil Moisture is anonymously downloadable from the CEDA
+archive with no registration, at 0.25 degree daily from 1978 -- CEDA does not
+impose the registration wall the ESA CCI portal does. It reports a water CONTENT
+in a few centimetres of soil, averaged over the footprint, so a uniformly damp
+cell and a cell half saturated and half bone dry return the same number and
+nothing in the retrieval answers what fraction of the cell has the water table
+at the surface. Its ACTIVE product is in PERCENT OF SATURATION, which is a
+degree of saturation of the soil column and NOT an areal saturated fraction.
+SMAP L3 is the same class of quantity and additionally sits behind Earthdata
+Login.
+
 ## The GW-3 Earth calibration: four inputs, all live
 
 Checked 2026-08-20. The water table solver has passed only identities,
