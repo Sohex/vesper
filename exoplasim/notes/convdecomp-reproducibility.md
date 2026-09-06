@@ -228,6 +228,56 @@ minutes grows, it grows slowly, and a 200-step bed cannot see it.** The model
 now measures its own amplification at startup and refuses, so a caller does not
 have to know this.
 
+## The boundary, measured against a criterion fixed before the arms ran
+
+T21 l10 p8, warm from `run_0d41aa82c287`'s restart `58a3d2b977af8c8f`, dry
+adiabatic, `nenergy = 1`, the fixer off, `ndiag = 200`, 4000 steps, one arm per
+(timestep, `nconvtime`). Termination is read from `Abort_Message` and from the
+exit status separately, never from the exit status alone.
+
+The criterion, fixed against the derivation before any arm ran: the three arms
+at 15, 12 and 10 minutes with the term on must all terminate abnormally within
+4000 steps and the arms at 8 and 6 must not, and the step each dies at must
+scale with the predicted growth rate.
+
+    dt    term   outcome                        last diagnostic print
+    15    on     SIGFPE                         step  200
+    12    on     SIGFPE                         step  400
+    10    on     SIGFPE                         step 1000
+     8    on     completed 4000 steps           step 4000
+     6    on     completed 4000 steps           step 4000
+    15    off    completed 4000 steps           step 4000
+    10    off    completed 4000 steps           step 4000
+
+**Twelve minutes is not a stable timestep; it is a slow one.** It dies inside
+600 steps, three times the length of the bed that reported it as completing.
+Ten minutes dies inside 1200. The two arms with the term off run to 4000 steps
+at 15 and at 10, so the failure is the term and not the timestep, and the
+boundary sits between 8 and 10 minutes -- where the derivation puts it, at 8.27.
+
+**The three deaths are one exponential.** The prints are 200 steps apart, so
+each arm's death is bracketed, and the predicted growth rates turn those
+brackets into the amplification each arm reached: 4.4e8 to 2e17 at 15 minutes,
+5.0e10 to 1.1e16 at 12, and 2.3e13 to 1.1e16 at 10. The three intervals overlap
+in 2.3e13 to 1.1e16, so a single amplification -- the range from the initial
+perturbation to the overflow the declared `-ffpe-trap` refuses -- accounts for
+all three deaths at the predicted rates. That is the second half of the
+criterion, and it is what says the rate is right and not only its sign.
+
+No arm wrote an `Abort_Message`. `stability_check` tests the divergence,
+vorticity and temperature at ONE gridpoint of the top level, and the mode that
+kills these arms is at the truncation, so the trap reaches overflow first. An
+arm that had died the other way would have exited 0.
+
+**These arms were run on `most_plasim_t21_l10_p8.x` `55a375dbe2cf470f`, which
+predates the guard, and a current binary will not reproduce them.** The guard
+now measures its own amplification at startup and stops before integrating a
+configuration that grows, so the three arms above the boundary are refused
+rather than run -- which is the repair working. `conversion_time_arms.py`
+records that as a third outcome, neither a completion nor a death, and it is
+what a re-take of any comparison at this rung now has to work within: the
+boundary can still be approached from below.
+
 ## The bed of the section above cannot be rebuilt
 
 Attempting the longer arms found it. `run_14906cb7b914`'s restart was written

@@ -2332,6 +2332,27 @@ checks:
     writes:
       - exoplasim/analysis/conversion_time_stability.json
       - exoplasim/analysis/conversion_time_stability_sweep.json
+  # The same boundary against the FULL model rather than its linearisation:
+  # arms either side of it, run long enough for the predicted growth to reach
+  # the range the declared -ffpe-trap=overflow refuses. It reads termination
+  # from Abort_Message and from the exit status separately, never from the
+  # status alone -- stability_check writes that file and executes a bare
+  # Fortran stop, which exits 0 -- and it records a THIRD outcome, the guard's
+  # own refusal, which on the exit status is also indistinguishable from a
+  # completed run.
+  #
+  # It requires control arms at the same steps with the term off: an arm that
+  # dies says the configuration died, not that the term killed it. And it
+  # confirms a RATE rather than a sign, by turning each death's bracket into
+  # the amplification the arm reached and reporting the interval every arm is
+  # consistent with; one exponential accounting for all of them is the claim.
+  #
+  # Needs the host lock: it runs the model. It writes no run into
+  # exoplasim/runs/ and registers nothing, because these are beds. world-bt3b.
+  - id: conversion_time_arms
+    script: exoplasim/scripts/conversion_time_arms.py
+    writes:
+      - exoplasim/analysis/conversion_time_arms.json
   # Does anything uninitialised reach a stored value, at the optimisation level
   # this project ships? The trapping form of that question does not arm at -O2
   # -- world-5rs measured the positive control -- and `-finit-real=zero` was
