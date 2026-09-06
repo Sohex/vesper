@@ -1390,14 +1390,43 @@ conserve, computed and dropped on a driven path because there is no atmosphere t
 hand it back to -- a diagnostic the forcing contract may read and never a
 correction.
 
-What is still undeclared is every OTHER component. Beside rokgem,
-`references/INDEX.md`'s entry on Holden et al. (2016) records three more in the
-same family's ocean coupling: `scf`, which that paper states is "a TUNED ensemble
-parameter, not a regridding artifact and not derivable from a stress-product
-ratio"; an Atlantic-Pacific moisture flux adjustment set against Talley (2008)
-basin budgets; and energy flux corrections diagnosed against observed present-day
-sea-ice thickness. Each needs the same declaration before it is wired to
-anything.
+#### The declaration for genie-embm's basin adjustment, measured 2026-09-05
+
+`references/INDEX.md`'s entry on Holden et al. (2016) names an Atlantic-Pacific
+moisture flux adjustment set against Talley (2008) basin budgets. It is in this
+tree, it is ARMED BY DEFAULT, and its arming switch is a module-selection flag
+rather than anything named for calibration.
+
+`initialise_embm.F:1283-1510` builds a per-cell precipitation-minus-evaporation
+adjustment field `pmeadj` from three freshwater fluxes in Sv, scaled uniformly by
+`scl_fwf` at `:1279-1281`. `definition.xml` ships `extra1a = -0.03`,
+`extra1b = 0.17`, `extra1c = 0.18` and `scl_fwf = 1.00`, and describes each as an
+"Atlantic to Pacific freshwater flux adjustment" over a named latitude band with
+its own warning to "exercise caution for other grids", the bands being indices on
+the 36x36 grid. So the term is Earth's basin geometry and Earth's basin budget,
+nonzero out of the box, applied to a modelled hydrological cycle.
+
+**It is armed by `flag_ebatmos`, and disarmed only at runtime.**
+`notes/audits/cgenie-embm-free-path-and-threading.md` establishes that with that
+flag false, `embm` does not execute and the surface flux comes from
+`surflux_goldstein_seaice` instead, which carries no EMBM dependency. But
+`MODULE_NAMES` in `genie-main/makefile` is fixed, so `genie-embm` is compiled and
+linked whatever the recipe says. The adjustment is therefore compiled into every
+executable this project builds and is held off by a flag that reads as a choice
+of atmosphere rather than as a calibration switch. That is section 18's shape
+exactly, in the component with the largest single Earth term in it.
+
+The third item in the Holden entry, energy flux corrections diagnosed against
+observed present-day sea-ice thickness, was searched for in `genie-embm`,
+`genie-goldstein` and `genie-goldsteinseaice` and NOT LOCATED in this tree. The
+only thing named "flux correction" on the driven path is the residual the surface
+solve fails to conserve, which
+`notes/audits/cgenie-embm-free-path-and-threading.md` section 1f already declares
+as a diagnostic and never a correction. If the Holden term exists here it is
+under a name this search did not reach, and the declaration for it is still owed.
+
+Every other component is still undeclared, and each needs the same statement
+before it is wired to anything.
 
 ---
 
@@ -1500,7 +1529,7 @@ filed.
 | 16. `ntoc`, `frac_maxtomin` | `world-xfif`. The GLOBFIRM burn-probability floor left this class rather than being repaired in it: it is implicit-Earth, `world-v5j1` deleted it, and `biosphere/config/fire.yaml` registers the deletion |
 | 17. `ntransform.yaml`'s six `unsourced` entries | already registered; the gate refuses on them |
 | 18. the dormant knobs | `world-9g8p` recorded the pairing; six of the eight now carry it at the declaration. `world-yuut` is tpofmt's disposition, `world-64bd` asserts NCARBON and NVEG, `world-4j27` is the two LPJ-GUESS declarations |
-| 19. the cgenie tier | `world-u9kg`; rokgem's declaration is measured above and `world-ukc9` is what it found. The Holden et al. (2016) three are still undeclared |
+| 19. the cgenie tier | `world-u9kg`; rokgem's and genie-embm's declarations are measured above, and `world-ukc9` and `world-5ms5` are what they found. The Holden entry's sea-ice energy flux corrections were searched for and not located in this tree |
 
 ## The five papers, and what reading them changed
 
