@@ -227,6 +227,14 @@ That is why the number moved out of `scripts/error_budget.py` and into the repor
 the items are priced against, rather than being redeclared with a check beside
 it. A report that carries no share is refused rather than fallen back on.
 
+**What this does to the arm sizing below.** The predicted separations are
+computed at the smaller share, so on a bootstrap-stage surface the
+`playa_clastic` arms perturb the staged land mean about 9.5% further than the
+table says: 0.25 to 0.33 gives 0.0074599 rather than 0.006811. The predictions
+are therefore conservative and `world-3ooi` does not need re-sizing, but the arm
+has to state which staging it is run on, because the two shares are different
+numbers and the arm's own perturbation is whichever one it is built at.
+
 **The instrument is the quadrature sum of the two fitted asymptote half-widths,
 and across every pair on disk it runs 0.028 to 0.067 K**, with PHYS-15's own
 16-orbit-span pair at 0.046 K. That range does not track the fit span, which
