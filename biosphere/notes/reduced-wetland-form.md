@@ -225,6 +225,17 @@ no dead-tiller venting and no pressure- or wind-driven bubble release, so the
 `transport_partition` arm has nothing to partition and the three pathway tables
 carry no quantity this form produces.
 
+**AND IT CHANGES WHAT AN ACCEPTED RUN MAY RETAIN.** `mch4_diffusion.out`,
+`mch4_plant.out` and `mch4_ebullition.out` are the three tables the vendored
+fork can already emit, and under this form each of them would carry a permanent
+zero, because the form contains no transport for them to report. A table
+reporting a permanent zero is worse than an absent one: it cannot be told apart
+from a measured zero, and this project has already removed one on that ground.
+So taking the methane part means removing those three from
+`acceptance.retained_outputs` for as long as it is taken, rather than emitting
+them beside a non-zero total. Taking the part while retaining them is the
+silent gap this document exists to prevent.
+
 **Dropping the dry-soil sink and the aquatic sources costs the claim that the
 ledger is complete.** The reduced form emits a source over anaerobic surfaces
 and nothing over the rest, so the modelled net surface exchange is a gross
