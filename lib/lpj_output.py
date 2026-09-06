@@ -66,7 +66,7 @@ class ReducedTable:
 
 def read_policy(path: Path = POLICY_PATH) -> dict:
     policy = yaml.safe_load(path.read_text())
-    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/5":
+    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/6":
         raise EquilibriumWindowError("unsupported equilibrium-window contract")
     cycles = policy.get("complete_forcing_cycles")
     if not isinstance(cycles, int) or cycles < 3:
@@ -902,6 +902,17 @@ def _cell_fraction_null(cube: np.ndarray, years: list[int], window_years: int,
     1/(N+1), which is what makes the retained record length, not a chosen number, set
     the rate at which the contract wrongly refuses.
 
+    THE RATE A RUN PAYS IS THE FAMILY RATE AND IT IS DERIVED HERE RATHER THAN
+    DECLARED. This half refuses a run when ANY assessed quantity exceeds, over
+    every table and not only this one, so what a settled run pays is the union of
+    those events. The union bound `Q/(N+1)` holds whatever the dependence between
+    the quantities and is the number reported; the independent value
+    `1-(1-1/(N+1))^Q` is reported beside it because the two bracket the truth from
+    the conservative side and their gap says how much the correlation between the
+    assessed quantities is worth. Both move with the record and with the assessed
+    set, which is why neither is written into the contract: a family rate written
+    down beside a list that gains a row is a number that stops being true.
+
     `biosphere/notes/equilibrium-trend-null.md` carries the measurement.
     """
     ncycle = policy["complete_forcing_cycles"]
@@ -934,12 +945,29 @@ def _cell_fraction_null(cube: np.ndarray, years: list[int], window_years: int,
     fractions = np.stack([_cell_fraction(window, policy, tolerances)
                           for window in windows])
     limits = fractions.max(axis=0)
+    per_field = 1.0 / (nwindow + 1)
+    family = len(policy.get("assessed", {}).get("quantities") or ())
     return limits, {
         "statistic": policy["trend"]["cell_fraction"]["null_statistic"],
         "windows": int(nwindow),
         "first_year": int(block_years[0]), "last_year": int(block_years[-1]),
-        "false_refusal_rate": 1.0 / (nwindow + 1),
+        "false_refusal_rate": per_field,
         "per_field_false_refusal_rate": rate,
+        # What a SETTLED run pays through this half, over every assessed quantity
+        # and not only this table's. Derived from the record and the assessed set,
+        # never declared.
+        "family_size": family,
+        "family_false_refusal_bound": min(1.0, family * per_field),
+        "family_false_refusal_if_independent": 1.0 - (1.0 - per_field) ** family,
+        "family_note": (
+            "the union bound holds whatever the dependence between the assessed "
+            "quantities; the independent value is smaller and the two bracket "
+            "the truth from the conservative side. A refusal through this half "
+            "has to be read against them"),
+        # The record that would bring the union bound to the declared per-field
+        # ceiling, so a refusal says what would buy a cheaper instrument.
+        "cycles_for_family_rate_at_the_declared_ceiling": (
+            int(np.ceil(family / rate)) * window_years if rate > 0 else None),
     }
 
 

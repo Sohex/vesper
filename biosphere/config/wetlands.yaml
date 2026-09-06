@@ -269,12 +269,19 @@ acceptance:
   # Retained together, or the run is not interpretable. The gate's --check-run
   # rejects a run directory missing any of these output tables.
   #
-  # Four have a quantity behind them in the fork today -- the water table and
-  # the three transport pathways -- and their table parameters are named for
-  # these files. The other eleven wait on a MODEL, not on an output routine, and
-  # the contract's section 6 names which one each waits on. A table emitted
+  # A table is in one of two classes and `retained_output_status` below says
+  # which, per table: it has a quantity behind it in the fork today and
+  # `commonoutput.cpp` declares its parameter, or it waits on a MODEL rather
+  # than on an output routine and section 6 names which one. A table emitted
   # before its quantity exists reports a zero that cannot be told apart from a
   # measured one.
+  #
+  # NEITHER CLASS IS COUNTED HERE. The count is a property of the list and of
+  # the fork, both of which move, so `wetland_gate.py` re-derives the split on
+  # every run against `commonoutput.cpp` itself -- `retained_output_split` on
+  # the report, and a line on stdout -- and refuses per table by name. A number
+  # written down beside a list that is appended to is a number that stops being
+  # true without anything objecting.
   retained_outputs:
     - mwtp.out                 # daily-to-monthly water table
     - mwetland_exchange.out    # routed and groundwater exchange
