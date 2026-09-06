@@ -432,3 +432,138 @@ below before any cost is quoted.
 
 **Rule 7.** Nothing is commissioned, so nothing is charged for invalidation. The
 cost of adopting SEMI is what building it costs plus what the next cycle runs.
+
+## 9. What the model already has, read 2026-09-05, and it is not a mass balance
+
+The alternative section 8 says has never been named is `landmod`'s own snow. It
+was read, and it does not do the job. What exists is a one-layer bucket snow
+store with an energy-balance melt term; what a mass balance needs beyond that is
+absent in five separate places.
+
+**The melt term is the good half and it is the right shape.** `tands` at
+`landmod.f90:1763-1781` clamps the surface temperature at the melting point and
+takes the melt flux as the residual of the surface energy balance against that
+clamp, with the atmospheric forcing `zhfla = dshfl + dlhfl + dflux(:,NLEP)`.
+That is structurally SEMI's `smb_ebal` idea, and it is why the positive-degree-day
+refusal in section 5 was never about this model.
+
+**What is absent.**
+
+- **Cold content, because there is no snow temperature.** `dsnowt` is declared,
+  carried in the restart, and set in four places -- `landmod.f90:686`, `:1704`,
+  `:1837`, `:2366`. Nothing anywhere READS its value into a flux or a temperature.
+  The model's snow is isothermal with the surface skin, and the source says so at
+  `:1834`. A write-only prognostic in the restart is its own defect and is filed
+  separately; what it costs HERE is that there is no physical basis for the next
+  item.
+- **Refreezing, entirely.** Melt goes into `dwater`, the soil-water forcing, and
+  from there to the bucket and to runoff. `landphase` freezes and thaws SOIL
+  water against the soil temperature; nothing returns water to the pack.
+  SEMI's `smb_temp.f90` charges the cold content before the latent heat of
+  fusion and splits the result into snow and superimposed ice.
+- **Rain on snow.** `dprl` and `dprc` go straight to `dwater` and never reach the
+  pack.
+- **Ice melt as a term distinct from snow melt**, and therefore an ablation zone.
+  There is only `dsmelt`.
+- **Any accumulator at all.** Nothing in `outmod.f90`, in `pyburn.py`'s code
+  table or in `exoplasim/scripts/` computes accumulation minus ablation, an
+  annual net balance, or an equilibrium line. The nearest thing is `asndch`,
+  which accumulates the per-step change in `dsnowz` without normalisation, and
+  it is a difference of the store rather than a balance.
+
+**And one term is wrong rather than missing.** When `dsnowz > 0` the WHOLE cell's
+`devap` is charged to the snowpack, and `fluxmod.f90:913-921` gives it the LIQUID
+latent heat wherever the skin is above freezing. SEMI's `update_tskin` diagnoses
+a snow-specific sublimation over ice saturation instead.
+
+**The clamp does not bite here and it is worth recording why.** `dsmax` routes
+snow above its ceiling into `dwater` and reports it as `dsmelt`, so under a
+positive `dsmax` the melt diagnostic carries numerical discard. Every arm in
+`exoplasim/analysis/arms/` sets `max_snow_depth_m: -1.0`, so this model
+accumulates without a ceiling and `glaciermod` converts persistent deep snow to
+glacier on a threshold. That threshold -- `dsnowz` above `glacelim` for
+`glacpersist` orbits -- is a persistence rule and not a balance either.
+
+**So the answer to section 8's question is that SEMI is not duplicating anything.**
+The overlap is one term of eight, and it is the term the model already gets right.
+
+## 10. The price, and the half of it that does not wait for the fine grid
+
+**The port is larger than section 6 says.** The seven modules that section names
+are 2,049 lines, not about 1,900: `semi.f90` 292, `smb_surface_par.f90` 446,
+`smb_ebal.f90` 431, `smb_temp.f90` 446, `snow.f90` 91, `smb_grid.f90` 81, and
+`downscaling.f90` 262, the last carrying module `downscaling_mod` under a
+different file name. Two things section 6 does not count come with them:
+`smb_params.f90` at 370 lines, which six of the seven `use` and which pulls
+`ncio`, `nml` and `timer` unless it is rewritten against this model's own
+namelist machinery; and `tridiag.f90` at 133 lines, which `smb_temp` needs and
+which this model has no exposed equivalent of, since `mktsoil` hand-rolls its own
+soil solve. **Call it about 2,550 lines touched, of which roughly 1,700 is
+physics this model does not have.** `precision`, `control` and `timer` are
+substitutions rather than ports, and `constants` must be re-pointed rather than
+copied because this model already owns its saturation functions.
+
+**AND THE PORT SPLITS CLEANLY IN TWO, WHICH THE ORDERING ARGUMENT DID NOT
+ANTICIPATE.** CLIM-53's argument, which put this row after PHYS-13, is that a
+mass balance fed cell-mean orography answers the wrong question. That argument
+binds the DOWNSCALED half and not the column half.
+
+- **The column half is `smb_temp.f90`, `snow.f90`, `smb_grid.f90`, `tridiag.f90`
+  and the annual accumulators: under 800 lines.** It supplies cold content,
+  refreezing, rain on snow, ice melt as its own term, and the annual balance
+  accumulators. Every one of those is a defect in the model's own column, on the
+  grid it already runs, and none of them needs a fine grid, a band-resolved
+  surface shortwave, or a snow albedo rewrite. It does not depend on PHYS-13 and
+  it does not depend on WORLD-QK4I.
+- **The downscaled half is `downscaling.f90`, `smb_ebal`'s diurnal branch and
+  `smb_surface_par.f90`: about 1,750 lines.** This is the half CLIM-53's
+  ordering argument is about, and it is the half that needs the fine grid, the
+  four band-resolved downward shortwave fields in both sky limits, and the
+  fine-grid slopes that `orog_anisotropy` and `orog_angle` are not.
+
+**The sub-diurnal correction belongs to the second half and is worth naming**,
+because it is the largest thing in SEMI that this model structurally cannot
+reproduce. `smb_ebal.f90:154-244` reconstructs the diurnal skin-temperature
+amplitude from `swnet` and `swnet_min` -- the daily minimum net surface
+shortwave -- adds a synoptic standard deviation, computes analytically the
+fraction of the day above freezing, and takes the melt residual at the mean
+temperature over that fraction alone, then charges the extra melt back against
+the ground heat flux as overnight refreezing. It exists to let a cell whose
+DAILY MEAN skin temperature is below freezing still melt. This model's land step
+already runs sub-hourly, so on the coarse grid it resolves what that correction
+reconstructs; the correction earns its place only when SEMI is driven from
+downscaled daily or monthly forcing on a fine grid, which is the intended use.
+
+**The run cost is not the price.** SEMI is a per-column tridiagonal solve over a
+fixed layer count plus closed-form surface algebra, and the criterion fixed in
+section 8 was that one evaluation over the grid must cost less than one orbit of
+the climate model at the configured rung. A tridiagonal solve of ten to twenty
+layers over a few thousand columns is milliseconds against 13.45 seconds an
+orbit at T21, so the column half clears that criterion by orders of magnitude and
+the question does not need measuring. The downscaled half's cost is set by the
+size of a fine grid that does not exist, and cannot be quoted until PHYS-13
+declares one.
+
+**And section 7's limit is unchanged and binds both halves.** What either half
+may honestly deliver is the annual balance field and the surface at which it
+integrates to zero. An ice thickness needs a duration and there is none.
+
+## 11. The verdict
+
+**SEMI IS ESTABLISHED as the surface mass balance candidate.** It survives the
+test that refused the positive-degree-day scheme, its inputs are each either
+available now or held by a named row, and nothing in this model already computes
+what it computes -- the overlap is one term of eight and it is the term this
+model already gets right.
+
+**The column half is BUYABLE NOW and is not blocked.** Under 800 lines, no fine
+grid, no band-resolved surface shortwave, no albedo rewrite, and it closes five
+absent terms in a column this model runs today. CLIM-53's ordering argument does
+not reach it.
+
+**The downscaled half stays ordered behind PHYS-13**, on that argument unchanged,
+and its price cannot be quoted until a fine grid is declared.
+
+**Rule 7.** Nothing is commissioned, so neither half is charged for output it
+would invalidate. The price of each is what building it costs plus what the next
+cycle runs.
