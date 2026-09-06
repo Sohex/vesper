@@ -1128,8 +1128,8 @@ def model_label_cells(lat_label, lon_label, nlat: int, nlon: int,
     return rows, cols
 
 
-def label_row_weights(lat_label, nlat: int,
-                      what: str = "a labelled point") -> np.ndarray:
+def label_row_weights(lat_label, nlat: int, what: str = "a labelled point",
+                      tolerance_rows: float = 0.05) -> np.ndarray:
     """Row area weight for each POINT of a per-cell product keyed by latitude.
 
     For an artifact whose rows are addressed by the latitude they carry rather
@@ -1146,14 +1146,26 @@ def label_row_weights(lat_label, nlat: int,
     how a table written on a different rung from the one asked for here is
     caught instead of being weighted by whichever rows its latitudes happen to
     fall in.
+
+    THE BAR IS IN ROWS AND NOT IN DEGREES, because these products print their
+    coordinates to a couple of decimals: an LPJ-GUESS table on the T21 rows is
+    up to 0.005 degrees off the nodes it was written from, which is a thousandth
+    of a row and would fail any absolute bar tight enough to be worth having.
+    A table on another rung's rows misses by a real fraction of a row, so the
+    ratio is the quantity that separates the two.
     """
     nodes = gaussian_latitudes(int(nlat))
+    gaps = np.abs(np.diff(nodes))
+    spacing = np.empty(nodes.size)
+    spacing[0], spacing[-1] = gaps[0], gaps[-1]
+    spacing[1:-1] = np.minimum(gaps[:-1], gaps[1:])
     labels = np.asarray(lat_label, dtype=np.float64)
     rows = row(labels, nodes)
-    off = float(np.abs(labels - nodes[rows]).max()) if labels.size else 0.0
-    if off > 1e-3:
+    off = (float((np.abs(labels - nodes[rows]) / spacing[rows]).max())
+           if labels.size else 0.0)
+    if off > tolerance_rows:
         raise SystemExit(
-            f"{what}: a latitude is {off:.4g} degrees from the nearest row of "
+            f"{what}: a latitude is {off:.4g} of a row from the nearest row of "
             f"the {int(nlat)}-row Gaussian grid. It is not on this grid, and "
             "the weight it would be given belongs to a row it does not sit in.")
     return gaussian_grid(int(nlat)).dsin[rows]
@@ -1565,7 +1577,7 @@ def _selftest() -> int:
     uniform = 90.0 - (np.arange(64) + 0.5) * (180.0 / 64)
     for bad in (lambda: gaussian_row_weights(uniform, what="the control"),
                 lambda: gaussian_area_weights(uniform, 128, what="the control"),
-                lambda: label_row_weights(gaussian_latitudes(32) + 0.5, 32,
+                lambda: label_row_weights(gaussian_latitudes(48), 32,
                                           what="the control")):
         try:
             bad()
