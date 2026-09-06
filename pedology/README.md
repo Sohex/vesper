@@ -61,11 +61,15 @@ soil map carries the capacity as its `cec` column, in cmol(+) per kg of fine
 earth, and `soil_report.json` carries the base saturation, the exchangeable
 pool per element and the bound those imply.
 
-**Three quantities, kept apart, because they fail in different ways.**
+**Four quantities, kept apart, because they fail in different ways.**
 CAPACITY is a surface: clay and organic matter present it, additively and with
-no intercept, since a soil with neither has none. BASE SATURATION is who is on
-that surface, and pH decides the whole of it. The POOL is capacity times
-saturation times the element's share, over the root zone
+no intercept, since a soil with neither has none, and each coefficient is itself
+linear in pH because a large part of the charge on both surfaces is variable
+rather than permanent. BASE SATURATION is who is on that surface. POLYVALENT
+SATURATION is the share of it a bridging cation holds, which is what the
+biosphere's mineral-reactivity contract asks for; the soil map carries it as its
+`polyvalent` column and it is a lower bound rather than an estimate. The POOL is
+capacity times base saturation times the element's share, over the root zone
 `biosphere/config/abiotic_nutrients.yaml` declares, which is read rather than
 restated so both sides count the same column.
 
@@ -88,15 +92,20 @@ field it bounds makes the screen permissive rather than conservative.
 regression slopes, and what licenses carrying them anywhere is that they
 reproduce a different continent's measured split between organic and mineral
 surfaces. `exchange_properties` evaluates that on every call and refuses a pair
-that lands outside it. The emitted field is separately refused for leaving the
-capacity envelope those measurements span.
+that lands outside it, and a second check refuses a pair that does not reproduce
+the split its own source reports for the same composition and pH. The emitted
+field is separately refused for leaving the capacity envelope those measurements
+span.
 
-**What it is blind to, and it is this component's own pH field.** The capacity
-relation is one fit over soils spanning pH 3.5 to 7.9 that does not resolve pH,
-so the emitted capacity does not move when the pH block moves a cell. pH
-reaches the pool through base saturation instead, which is where it decides
-whether a site holds a nutrient or aluminium. world-n4i0 owns the pH-resolved
-relation that would close it.
+**Where the level is a bracket rather than a number.** A clay coefficient is a
+statement about clay MINERALOGY, and this component emits a clay fraction and no
+mineralogy. Across nine soil orders and 37,921 pedons the measured contribution
+of clay to capacity moves by a factor of seven, so the level is DECLARED WITH A
+BRACKET and `build_soil.py` re-evaluates the ANUT-8 bound at its ends and at the
+one clay mineralogy endmember a read source supplies. Read the sweep, not the
+single number, for what that bound is worth. The pH SLOPES are not swept with it:
+variable charge is a chemical mechanism and is the part of the relation that
+carries to another planet.
 
 `pedogenesis.yaml` carries every source, what each does and does not license,
 and which parts are an exposure rather than a number.
@@ -906,15 +915,17 @@ LPJ-GUESS-CNP. SDEC-2/SDEC-4 retain the downstream sorption and occlusion
 topology.
 
 ## Known gaps
-- **None of the four mineral-reactivity proxies can be derived here, and the
+- **Two of the four mineral-reactivity proxies cannot be derived here, and the
   reasons differ.** The vegetation model's mineral-aware arm for organic matter
   protection and phosphorus sorption asks this component for an Fe-Al oxide
   content, an allophane concentration, an aggregate capacity and a polyvalent
-  cation saturation. `notes/mineral-reactivity-supply.md` is the verdict on each
-  with its evidence: what the near miss actually needs, which quantities are
-  measured but indexed on a substrate age this project does not carry, and the
-  second gate on the consuming model's side that would still be shut with all
-  four in hand.
+  cation saturation. The last two are derived and emitted, as the soil map's
+  `allophane` and `polyvalent` columns. The Fe-Al oxide content needs a
+  total-to-extractable step no held source supplies for a mixture of parent
+  materials, and nothing in this pipeline resolves soil structure at all.
+  `notes/mineral-reactivity-supply.md` is the verdict on each with its evidence,
+  including the second gate on the consuming model's side that would still be
+  shut with all four in hand.
 - **The derived surface classes carry the three gaps argued above** -- the
   static lake proxy under diatomite, the unsourced loess threshold, and the
   exhaustible pavement supply the rule cannot see.

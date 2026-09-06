@@ -8,11 +8,15 @@ equation sets is active.
 
 The active arm is texture-only: linear functions of clay, or clay plus silt,
 inherited from CENTURY through `modules/somdynam.cpp`. The alternative is
-mineral-aware, and it refuses, because the Fe-Al oxide, allophane, aggregate and
-cation proxies it needs are not produced by anything in this pipeline. What
-pedology DOES produce -- an andic areal fraction and an andic phosphate-fixation
-share -- now crosses the interface into `Soiltype` and is read by no equation,
-which is the state this gate exists to keep honest.
+mineral-aware, and it refuses, because the Fe-Al oxide and aggregate proxies it
+needs are not produced by anything in this pipeline. The allophane and
+polyvalent-cation proxies ARE produced, and the arm still refuses on the other
+two -- and would still refuse with all four, because no read source supplies a
+transfer from any proxy to a protection coefficient. What pedology produces --
+an andic areal fraction, an andic phosphate-fixation share, a cation exchange
+capacity, an allophane content and a polyvalent cation saturation -- crosses the
+interface and is read by no equation, which is the state this gate exists to
+keep honest.
 
 It can fail:
 
@@ -236,8 +240,13 @@ def check(declaration: dict, source_text: str, model_texts: dict[str, str],
                                f"sand/clay/silt {map_worst[0]:.3f}/{map_worst[1]:.3f}/"
                                f"{map_worst[2]:.3f}, so the transfer runs backwards on this "
                                f"world and not only in principle")})
-        lo_allowed, hi_allowed = carried["range"]
+        # Per column, falling back to the declared default. The carried columns
+        # are not one kind of quantity: two are fractions and the exchange pair
+        # are capacities in cmol(+)/kg, so one range for all five would either
+        # admit a fraction above 1 or refuse a capacity for being one.
+        per_column = carried.get("column_range") or {}
         for column in carried["soil_map_columns"]:
+            lo_allowed, hi_allowed = per_column.get(column, carried["range"])
             if column not in index:
                 findings.append({"kind": "column", "what": column,
                                  "detail": "the soil map does not carry this column"})

@@ -12,21 +12,22 @@ in this pipeline produces them. This is the pedology-side verdict on each:
 whether this component can derive it from the World Orogen export and the
 ExoPlaSim climatology it already reads, and if not, what would settle it.
 
-Three of the four cannot be derived here and stay declared absences. The fourth
-can, since this component began emitting a cation exchange complex, and it is
-wiring rather than evidence that keeps it undeclared. THE ARM STAYS REFUSED
-EITHER WAY, and the last section of this document is why: the proxies are the
-first of two gates and the second is on the consuming model's side. Each section
-below is the evidence for one of them, because "nothing produces it" and "the
-measurement exists and indexes on an axis this project does not have" are
-different states and only the second says what to go and get.
+Two of the four cannot be derived here and stay declared absences. The other two
+are derived and emitted, as of 2026-09-05: the soil map carries an `allophane`
+column and a `polyvalent` column and both are declared in the contract's
+`carried_state`. THE ARM STAYS REFUSED EITHER WAY, and the last section of this
+document is why: the proxies are the first of two gates and the second is on the
+consuming model's side. Each section below is the evidence for one of them,
+because "nothing produces it" and "the measurement exists and indexes on an axis
+this project does not have" are different states and only the second says what
+to go and get.
 
-| proxy | unit | verdict | the axis that stops it |
+| proxy | unit | verdict | the axis that stops it, or the source that settled it |
 | --- | --- | --- | --- |
 | Fe-Al oxide content | kg/kg of fine earth | not derivable | the total-to-extractable step, and the one held source that measures it is single-lithology and age-indexed |
-| allophane content | kg/kg of fine earth | not derivable | the content inside andic material against the axis that controls it, which is leaching regime and not development; the two sources that index it there cannot be reached |
+| allophane content | kg/kg of fine earth | DERIVED and emitted | Parfitt, Russell and Orbell (1983) index whole-soil allophane on rainfall and on a water balance, which is the controlling axis; the content is declared only well past the leaching threshold, because in the transition window that paper's own near-duplicate sites differ by an order of magnitude |
 | aggregate capacity | dimensionless | not derivable | nothing in the pipeline resolves soil structure, and no held source transfers from what it does emit |
-| polyvalent cation saturation | cmol(+)/kg | DERIVABLE, not wired | nothing; the emitted `cec` column and the pH-indexed cation share supply both halves. world-rzyz |
+| polyvalent cation saturation | cmol(+)/kg | DERIVED and emitted | the emitted `cec` column and Solly et al. (2020)'s pH-indexed cation share supply both halves; a lower bound, because only one polyvalent cation is resolved at each end of the pH range |
 
 ## 1. Iron and aluminium oxide content
 
@@ -66,59 +67,69 @@ column does not already say.
 
 ## 2. Allophane content
 
-The near miss, and what it misses turns out not to be the number that was
-looked for. `build_soil.py`'s `andisol_properties` emits `andic`, the AREAL
-fraction of a gridcell whose volcanic glass has weathered to allophane. Turning
-that into a concentration in the fine earth needs two conversions. The first is
-arithmetic and this component already has its parts: an areal share becomes a
-mass share through the bulk densities, and the andic bulk density is declared
-and is already blended into the soil map's own density column. The second is the
-allophane concentration WITHIN andic material.
+DERIVED AND EMITTED as of 2026-09-05, on the axis that controls it, and the
+source is the one that was sought and not reached when this section last said it
+could not be. `build_soil.py`'s `andisol_properties` emits `andic`, the AREAL
+fraction of a gridcell whose volcanic glass has weathered to allophane, and the
+`allophane` column is that times the allophane content WITHIN andic material.
 
-THE AXIS THIS WAS ASKED FOR IS THE SUBORDINATE ONE, and a read source says so.
-Parfitt (2009) reviews the controls on allophane formation in tephra and
-Andisols and states that "the effect of time is subordinate to these factors",
-the factors being the activity of silicic acid in the soil solution, the
-availability of Al species, the opportunity for co-precipitation, leaching
-regime, soil organic matter and pH. A distribution of allophane content against
-a DEVELOPMENT measure would therefore be a distribution against the weakest of
-the controls, and a transfer function built on it would carry the residual
-variance of all the others.
+THE AXIS IS LEACHING AND NOT DEVELOPMENT. Parfitt (2009) reviews the controls on
+allophane formation in tephra and Andisols and states that "the effect of time is
+subordinate to these factors", the factors being the activity of silicic acid in
+the soil solution, the availability of Al species, the opportunity for
+co-precipitation, leaching regime, soil organic matter and pH. A distribution of
+allophane content against a DEVELOPMENT measure is therefore a distribution
+against the weakest of the controls, and a transfer built on it would carry the
+residual variance of all the others. That is why `pedogenesis.yaml`'s `andisol`
+block gates andic development on a precipitation threshold, and what was missing
+was the CONTENT above the threshold rather than the threshold.
 
-The axis that does control it is leaching regime, and this pipeline has one.
-Parfitt reports the New Zealand aeolian case in exactly the form the andisol
-model already runs on: halloysite and no allophane where the rainfall is 1000
-mm, only allophane where it is 1600 mm, the switch turning on soil-solution
-silicon crossing about 10 mg/l. `pedogenesis.yaml`'s `andisol` block already
-gates andic development on a precipitation threshold for that reason, so the
-control is represented; what is absent is the CONTENT above the threshold, not
-the threshold.
+THE SOURCE. Parfitt, Russell and Orbell (1983), `10.1016/0016-7061(83)90029-0`
+-- the paper Dahlgren (2004)'s 1500 mm boundary is taken from at second hand.
+Four soils on one rhyolitic ash stratigraphy in the North Island, sited where
+the rainfall isohyets cross the tephra isopachs at right angles so that the
+stratigraphy is held constant and rainfall is the designed variant. Whole-soil
+allophane is measured by acid-oxalate dissolution with the Al held in humus
+complexes subtracted by pyrophosphate, so what the tables report is a
+concentration in the soil and not in the clay fraction, which removes the clay
+conversion this section used to require. Table VIII carries a water balance
+beside the rainfall: 400, 550 and 1600 mm of winter leaching and 5, 6 and 10
+months of leaching a year at 1200, 1400 and 2600 mm of mean annual rainfall.
 
-A distribution-shaped statement of the content does exist and Parfitt (2009)
-carries two. Icelandic field soils span 2 to 22 per cent allophane at 11 to 42
-per cent C (Sigfusson et al. 2008), and Atlantic volcanic island mineral
-horizons hold under 6 per cent. Both are ranges over real soil populations
-rather than the named national maxima of Parfitt (1990) Table 3, so the factor
-of several that substituting maxima would have put into a protection
-coefficient is no longer the state of the evidence. What neither supplies is the
-content INDEXED on anything: they are unconditional ranges, so a cell cannot be
-placed inside one from what this component emits.
+WHAT IS DECLARED, measured on 2026-09-05 from that paper's Table III. The value
+is 0.22 kg of allophane per kg of fine earth within fully andic material, the
+mean over the seven sampled layers of the Mairoa Hydric Dystrandept from 0 to
+104 cm: 5, 15, 26, 26, 25, 25 and 35 per cent. Mairoa is the one site in the
+sequence unambiguously past the threshold the andisol block gates on -- 2600 mm,
+1600 mm of winter leaching, ten months of the year, and no summer deficit in a
+normal year -- so it is the site whose regime matches the ground the factor is
+applied to. Its 5 per cent topsoil is not an outlier to be trimmed: pyrophosphate
+recovers 2.5 of its 3.4 per cent oxalate Al as Al-humus complexes, which is the
+soil organic matter control Parfitt (2009) names, operating in a profile.
 
-So the proxy stays undeclared, and the reason has changed. It is no longer that
-only extremes are held. It is that the two sources that would index content on
-the controlling axis were sought and could not be reached from this host:
-Parfitt, Russell and Orbell (1983), `10.1016/0016-7061(83)90029-0`, which
-reports allophane along a weathering sequence, and Singleton et al. (1989),
-`10.1071/SR9890067`, which reports allophane and halloysite content against
-soil-solution silicon. Both return 403 from the publisher, from Google Scholar
-and from Sci-Hub. `references/INDEX.md` carries both rows as sought and not
-reached.
+THE BRACKET IS WIDE BECAUSE THE POPULATIONS DISAGREE, and it is swept rather
+than narrowed: 0.02 to 0.35. Its high end is that profile's deepest sampled ash.
+Its low end is Parfitt (2009)'s Icelandic field soils, 2 to 22 per cent allophane
+at 11 to 42 per cent C (Sigfusson et al. 2008), a basaltic parent under a carbon
+load this world's andic ground need not carry; the same review puts Atlantic
+volcanic island mineral horizons under 6 per cent. Choosing among them would be
+choosing a parent material for this world's arcs that nothing here supports.
 
-WHAT WOULD SETTLE IT, restated on the right axis: allophane content over
-allophanic soils against a leaching measure -- rainfall, a water balance, or
-soil-solution silicon activity -- rather than against a development measure or a
-review's extremes. Even then the arm stays refused, for the reason the last
-section of this document gives.
+WHAT THE SOURCE REFUSES TO LICENSE, and both of the papers that were sought make
+the same refusal from different sides. Between roughly 1200 and 1600 mm the
+content is not placeable at all. Kereone at 1200 mm of rainfall holds 0.5 to 2
+per cent allophane and Tirau at 1270 mm holds 1 to 17 per cent on the same
+parent material and the same stratigraphy, and Parfitt et al. read that as "only
+a slight change in leaching regime or temperature is sufficient to alter the
+composition of these soils". Singleton et al. (1989), `10.1071/SR9890067`, close
+it from the other side: three soils 200 m apart at one site, one rainfall of
+1201 mm and one vitric rhyolitic alluvium, where drainage class alone takes a
+profile from allophane-dominant to no allophane at all with the switch at about
+10 g/m3 of silicon in soil solution. So the scatter inside the transition window
+is the size of the whole quantity, and the emitted factor is a statement about
+ground the threshold has already placed well past it. The `allophanic` logistic
+in `andisol_properties` carries cells through that window with a partial andic
+fraction, and the content factor is not a claim about any of them individually.
 
 ## 3. Aggregate capacity
 
@@ -133,66 +144,75 @@ settle it is a parameterisation keyed on quantities this component emits.
 
 ## 4. Polyvalent cation saturation
 
-The arm asks for it in cmol(+)/kg, which is an exchange capacity, so it needs
-both a capacity and the share of it held by calcium, iron and aluminium. Both
-halves now exist, and this section is the one of the four whose verdict has
-moved.
+DERIVED AND EMITTED as of 2026-09-05. The arm asks for it in cmol(+)/kg, which is
+an exchange capacity, so it needs both a capacity and the share of it held by
+calcium, iron and aluminium. Both halves exist and the `polyvalent` column is
+their product.
 
-The capacity is emitted. `pedogenesis.yaml`'s `exchange` block and
-`build_soil.py:exchange_properties` derive cation exchange capacity additively
-from the clay and organic-matter fractions the soil map already carries, on the
-two slopes of Sahrawat (1983), and the soil map's `cec` column is the result.
-That block carries what the relation does and does not license; the short form
-is that its SHAPE is checked against a second continent and holds, and its LEVEL
-rests on one region's fit at R2 0.60 with n = 40 and is an open exposure that
-world-n4i0 owns.
+THE CAPACITY IS EMITTED, AND ITS LEVEL NO LONGER RESTS ON ONE REGION.
+`pedogenesis.yaml`'s `exchange` block and `build_soil.py:exchange_properties`
+derive cation exchange capacity additively from the clay and organic-matter
+fractions the soil map carries, on coefficients that are themselves linear in the
+soil map's pH: Helling, Chesters and Corey (1964),
+`10.2136/sssaj1964.03615995002800040020x`, measured both contributions at six
+buffered pH values over 60 Wisconsin soils with no component removed, at R2 0.86
+to 0.92, and both are linear in pH within the standard errors of all six points.
+The LEVEL of that pair is a statement about clay mineralogy, and it is bracketed
+across nine soil orders and 37,921 pedons by Manrique, Jones and Dyke (1991),
+`10.2136/sssaj1991.03615995005500030026x`, whose clay contribution runs 8.4
+cmol(+)/kg of clay for Oxisols to 63 for Vertisols and which concludes that
+without a parameter stratifying clay mineralogy, clay content accounts for little
+of the variation in CEC. `build_soil.py` sweeps that bracket and reports what the
+ANUT-8 bound is worth at each end. The exposure world-n4i0 recorded is closed by
+the bracket and not by a better point value: there is no point value, because the
+quantity is a mineralogy this component does not resolve.
 
-The share is measurable and is measured against a variable this component
-emits. Solly et al. (2020) partitioned effective CEC by cation over 1204 Swiss
-forest profiles within nine pH classes: at pH at or above 5.5, exchangeable
-calcium carries 59 to 83 per cent of it, and below pH 5 exchangeable aluminium
-carries 21 to 44 per cent. Calcium and aluminium are both polyvalent, so
-polyvalent saturation is high at both ends of that range and the quantity is
-recoverable from the pH field for a reason rather than by interpolation. Iron
-contributes under 1 per cent, which is why the arm's third cation does not need
-its own field.
+THE SHARE IS MEASURED AGAINST A VARIABLE THIS COMPONENT EMITS. Solly et al.
+(2020) partitioned effective CEC by cation over 1204 Swiss forest profiles within
+nine pH classes: at pH at or above 5.5, exchangeable calcium carries 59 to 83 per
+cent of it, and below pH 5 exchangeable aluminium carries 21 to 44 per cent.
+Calcium and aluminium are both polyvalent, so polyvalent saturation is
+substantial at both ends of that range and the quantity is recoverable from the
+pH field for a reason rather than by interpolation. Iron contributes under 1 per
+cent, which is why the arm's third cation does not need its own field.
 
-Chadwick et al. (2003) remains the direct measurement of the quantity and
-remains unusable as a FIELD, for the three reasons this document gave before:
-its effective CEC is non-monotonic in the leaching index, so a cell's value is
-not recoverable from a one-sided argument about how wet it is; it is one parent
+IT IS A LOWER BOUND AND IS DECLARED AS ONE. Only one polyvalent cation is
+resolved at each end of the pH range and magnesium sits inside the paper's "other
+cations" group at both ends, so the emitted share is the resolved cation's alone
+and the true polyvalent share is at least that. The direction is DOWN, which is
+the opposite of the `cation_share_upper` block beside it and is deliberate: the
+consumer would read this as a PROTECTION proxy, and understating protection is
+the conservative direction for that, where understating a circulating nutrient
+pool is not.
+
+Chadwick et al. (2003) remains the direct measurement of the quantity and remains
+unusable as a FIELD, for the three reasons this document gave before: its
+effective CEC is non-monotonic in the leaching index, so a cell's value is not
+recoverable from a one-sided argument about how wet it is; it is one parent
 material and one substrate age band, and the paper states the age dependence in
 this very quantity; and it states that the decline is irreversible under natural
-conditions, so the state is a function of the climate PATH and a pipeline with
-no time axis has no path to evaluate it on. What it IS used for is a check:
-its Table 7 pairs pH with base saturation horizon by horizon and puts the
-transition where Solly's calcium share puts it, on a different continent and a
-different parent material. Two sources agreeing on where a threshold sits is
-what licenses the ramp `exchange.base_saturation` declares.
-
-So this proxy is derivable and the earlier verdict that no held source supplied
-a cation exchange pedotransfer from texture and organic carbon no longer holds.
-What remains is wiring: the proxy is declared in
-`biosphere/config/mineral_reactivity.yaml` and the emitted capacity is not yet
-connected to it. That is world-rzyz, and closing it does not open the arm --
-the last section of this document says why.
+conditions, so the state is a function of the climate PATH and a pipeline with no
+time axis has no path to evaluate it on. What it IS used for is a check: its
+Table 7 pairs pH with base saturation horizon by horizon and puts the transition
+where Solly's calcium share puts it, on a different continent and a different
+parent material. Two sources agreeing on where a threshold sits is what licenses
+the ramp `exchange.base_saturation` declares, and the polyvalent ramp uses the
+same two bounds for the same reason.
 
 ## What this means for the arm, and what it does not mean
 
-All four stay undeclared, so `mineral_reactivity_gate.py` keeps refusing the
-mineral-aware arm and `active_arm` stays `texture_only`. Three of them are
-undeclared because nothing here can derive them; the fourth because it is not
-yet wired, which world-rzyz owns. What crosses the interface is unchanged: the
-soil map's `andic` and `pfixation` columns, declared in the contract's
-`carried_state` and read by no equation. The `cec` column the exchange complex
-adds is not in `carried_state` either, and adding it is world-rzyz's job rather
-than a consequence of emitting it.
+Two of the four stay undeclared, so `mineral_reactivity_gate.py` keeps refusing
+the mineral-aware arm and `active_arm` stays `texture_only`. What crosses the
+interface is now five columns rather than two: `andic` and `pfixation` as before,
+plus `cec`, `allophane` and `polyvalent`, all five declared in the contract's
+`carried_state` and read by no equation.
 
-One thing a later reader should not have to rediscover, and it is what stops
-world-rzyz being read as progress toward the arm. Closing all four of these
-would still not let the arm be written. Cotrufo et al. (2013) and Lehmann
-and Kleber (2015) place mineral association, aggregation and accessibility at
-the centre of stable soil organic matter formation and name the associating
-surfaces, and neither supplies a parameterised transfer from any of the four to
-a protection coefficient. The proxies are the first of two gates, not the only
-one, and the second gate is on the consuming model's side.
+One thing a later reader should not have to rediscover, and it is what stops the
+two newly derived proxies being read as progress toward the arm. Closing all four
+of these would still not let the arm be written. Cotrufo et al. (2013) and
+Lehmann and Kleber (2015) place mineral association, aggregation and
+accessibility at the centre of stable soil organic matter formation and name the
+associating surfaces, and neither supplies a parameterised transfer from any of
+the four to a protection coefficient. The proxies are the first of two gates, not
+the only one, and the second gate is on the consuming model's side. Two of four
+declared moves nothing on that second gate.

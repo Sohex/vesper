@@ -98,7 +98,7 @@ which the soil code table's 0.90 does not reach. `run_peatland` is written as 0
 whenever the wetland gate has not granted activation, so nothing runs this path
 today.
 
-## The mineral-aware arm refuses, and names four things
+## The mineral-aware arm refuses, and names four things, two of which now exist
 
 Cotrufo et al. (2013) and Lehmann and Kleber (2015), both read, put microbial
 products, mineral association, aggregation and accessibility at the centre of
@@ -112,28 +112,42 @@ there.
   surface that sorbs phosphorus and stabilises carbon. Nothing produces it: the
   pedology model derives lithology fractions and a weathering intensity, and
   neither is an oxide content.
-- **Allophane content.** This is the near miss. `build_soil.py`'s
-  `andisol_properties` computes `andic`, the fraction of a gridcell whose
-  volcanic glass has weathered to allophane under sufficient leaching. That is an
-  AREAL fraction of andic material, not a concentration of allophane in the fine
-  earth, and substituting one for the other needs a conversion nothing in this
-  project supplies. Registering it as a partial producer rather than as the
-  input is the whole point of the distinction.
+- **Allophane content.** DECLARED. `build_soil.py`'s `andisol_properties`
+  computes `andic`, the AREAL fraction of a gridcell whose volcanic glass has
+  weathered to allophane, and the soil map's `allophane` column is that times the
+  allophane content within andic material. That conversion is Parfitt, Russell
+  and Orbell (1983) on the leaching axis Parfitt (2009) names as controlling it,
+  read at the one site in their sequence unambiguously past the threshold the
+  andisol model gates on, and declared with the bracket every read population of
+  allophanic soil spans. `pedology/notes/mineral-reactivity-supply.md` section 2
+  carries the evidence and the refusal that goes with it: inside the leaching
+  transition window the content is not placeable at all.
 - **Aggregate capacity.** Occlusion inside aggregates is physical protection,
   separate from mineral association, and nothing in the pipeline resolves soil
   structure.
-- **Polyvalent cation saturation.** The soil map carries pH, from which base
-  status can be argued but not derived. The non-N/P adequacy screen already
-  refuses the trace set for want of a release table, and this is the same gap.
+- **Polyvalent cation saturation.** DECLARED, as the soil map's `polyvalent`
+  column: the emitted cation exchange capacity times the share of it a
+  polyvalent cation holds, indexed on the pH this pipeline emits from Solly et
+  al. (2020)'s per-pH-class cation partition. A LOWER BOUND rather than an
+  estimate, because only one polyvalent cation is resolved at each end of that
+  range. `pedology/notes/mineral-reactivity-supply.md` section 4.
 
-Each carries the `undeclared` sentinel and there is no default for any of them.
-`--strict` refuses while any is undeclared.
+Two of the four still carry the `undeclared` sentinel and there is no default
+for any of them. `--strict` refuses while any is undeclared, and would still
+refuse nothing into existence if all four were declared: neither source above
+supplies a parameterised transfer from a proxy to a protection coefficient, so
+the proxies are the first of two gates and the second is on this model's side.
 
 ## What crosses the interface today
 
-`build_soil.py` writes `andic` and `pfixation` as the last two columns of the
-soil map. `SoilInput::load_mineral_soils` now matches both by name, `get_mineral`
-carries them into its `SoilProperties`, and both `get_soil` paths copy them onto
+`build_soil.py` writes five columns the contract declares: `andic` and
+`pfixation`, and `cec`, `allophane` and `polyvalent` after them. The last three
+are carried in the artifact and read into nothing at all, which is what the
+contract's `carried_state` records and what the gate checks the ranges of, per
+column, because a capacity in cmol(+)/kg and a fraction do not share a range.
+`SoilInput::load_mineral_soils` matches `andic` and `pfixation` by name and
+skips every column it does not know, `get_mineral` carries the two into its
+`SoilProperties`, and both `get_soil` paths copy them onto
 `Soiltype::andic_frac` and `Soiltype::p_fixation_frac`. An input path that has no
 andic state -- every soil-code path, since an LPJ soil code is a texture class --
 leaves `UNSET_SOIL_FRAC` rather than a zero, because "no andic material here" and
@@ -163,3 +177,12 @@ prediction this component is scored against is registered in
   stabilization*, `10.1111/gcb.12113`.
 - Lehmann and Kleber (2015), *The contentious nature of soil organic matter*,
   `10.1038/nature16069`.
+- Helling, Chesters and Corey (1964), *Contribution of Organic Matter and Clay
+  to Soil Cation-Exchange Capacity as Affected by the pH of the Saturating
+  Solution*, `10.2136/sssaj1964.03615995002800040020x`, and Manrique, Jones and
+  Dyke (1991), *Predicting Cation-Exchange Capacity from Soil Physical and
+  Chemical Properties*, `10.2136/sssaj1991.03615995005500030026x`, under the
+  emitted capacity the polyvalent proxy is a share of.
+- Parfitt, Russell and Orbell (1983), *Weathering sequence of soils from
+  volcanic ash involving allophane and halloysite, New Zealand*,
+  `10.1016/0016-7061(83)90029-0`, under the allophane proxy.
