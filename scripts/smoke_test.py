@@ -4260,17 +4260,40 @@ DECLARED_BRACKETS = (
     ("level", "regolith.regolith_depth_bracket_m", PEDOGENESIS,
      None, ("regolith", "regolith_depth_bracket_m"),
      "pedology/scripts/build_soil.py"),
-    # The exchange complex's two coefficients. ANTI-CORRELATED and swept
-    # jointly: the bracket is Solly et al. (2020)'s measured organic share
-    # inverted at Sahrawat's reference composition, so the low end of one goes
-    # with the high end of the other and taking one end of each independently
-    # is a composition neither source supports.
+    # The exchange complex's two coefficients, each at the declared reference
+    # pH. The bracket is Manrique, Jones and Dyke (1991)'s across-soil-order
+    # range over 37,921 pedons, which is a statement about clay mineralogy and
+    # about organic-matter chemistry rather than about one composition, so the
+    # two are swept INDEPENDENTLY. `build_soil.py` sweeps the clay end.
     ("value", "exchange.clay_cec_cmol_kg", PEDOGENESIS,
      ("exchange", "clay_cec_cmol_kg"),
      ("exchange", "clay_cec_bracket_cmol_kg"), None),
     ("value", "exchange.organic_matter_cec_cmol_kg", PEDOGENESIS,
      ("exchange", "organic_matter_cec_cmol_kg"),
      ("exchange", "organic_matter_cec_bracket_cmol_kg"), None),
+    # The intercept the no-intercept form neglects, and its range over the six
+    # saturating pH values the source measures at. Its SIGN is what the ANUT-8
+    # bound's one-signed direction rests on.
+    ("value", "exchange.neglected_intercept_cmol_kg", PEDOGENESIS,
+     ("exchange", "neglected_intercept_cmol_kg"),
+     ("exchange", "neglected_intercept_bracket_cmol_kg"), None),
+    # The two ends of the polyvalent-cation share, each declared at the low end
+    # of what Solly et al. (2020) measured because the emitted saturation is a
+    # LOWER BOUND: only one polyvalent cation is resolved at each end of the pH
+    # range and magnesium is unresolved at both.
+    ("value", "exchange.polyvalent_saturation.acid_share", PEDOGENESIS,
+     ("exchange", "polyvalent_saturation", "acid_share"),
+     ("exchange", "polyvalent_saturation", "acid_share_bracket"), None),
+    ("value", "exchange.polyvalent_saturation.base_share", PEDOGENESIS,
+     ("exchange", "polyvalent_saturation", "base_share"),
+     ("exchange", "polyvalent_saturation", "base_share_bracket"), None),
+    # The allophane content within andic material. Parfitt, Russell and Orbell
+    # (1983) at the one site in their leaching sequence unambiguously past the
+    # threshold the andisol block gates on; the bracket spans every read
+    # population of allophanic soil above that threshold.
+    ("value", "andisol.allophane_in_andic_kg_kg", PEDOGENESIS,
+     ("andisol", "allophane_in_andic_kg_kg"),
+     ("andisol", "allophane_in_andic_bracket_kg_kg"), None),
     # Not a bracket on any key in the file: it is the band the organic share
     # the two coefficients IMPLY has to land in, which is the one independent
     # check on a pair that came out of a single region's fit. `build_soil.py`

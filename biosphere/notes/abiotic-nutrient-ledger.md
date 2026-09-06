@@ -406,8 +406,10 @@ justified implementation task and not a consequence of this screen.
   climatology, which is a minutes-scale read.
 - **The exchangeable-cation bracket.** Closed: pedology emits the field and the
   multiplier is a bound read off it, refused when it falls below what the soil
-  implies. What remains is the LEVEL of the capacity relation, which rests on
-  one region's fit and moves this number by more than its declared bracket
-  does. world-n4i0.
+  implies. The LEVEL of the capacity relation no longer rests on one region's
+  fit: it is bracketed across nine soil orders and 37,921 pedons, and
+  `build_soil.py` re-evaluates this multiplier at the bracket's ends. It still
+  moves this number by more than the declared bracket beside it does, so read
+  the sweep in `soil_report.json`'s `level_probe` rather than the single value.
 - **Everything the ledger holds open.** Twenty-one undeclared terms, each named
   above with its owner. The ledger closes when they are declared, and not before.

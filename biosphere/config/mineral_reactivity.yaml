@@ -140,9 +140,14 @@ texture_only:
         8: [0.28, 0.12]
         9: [0.10, 0.80]
 
-# The mineral-aware arm. Every proxy below carries the `undeclared` sentinel and
-# names what would have to produce it. There is no default for any of them, and
-# the gate refuses the arm while any is undeclared.
+# The mineral-aware arm. Each proxy below either names the artifact column that
+# produces it or carries the `undeclared` sentinel and names what would have to.
+# There is no default for any of them, and the gate refuses the arm while any is
+# undeclared. TWO OF THE FOUR ARE NOW DECLARED and the arm still refuses, which
+# is the state to expect: the proxies are the first of two gates and the second
+# is on this model's side, since neither source under `citation` supplies a
+# parameterised transfer from any proxy to a protection coefficient.
+# `pedology/notes/mineral-reactivity-supply.md` is the per-proxy argument.
 mineral_aware:
   citation: >
     Cotrufo et al. (2013) 10.1111/gcb.12113 and Lehmann and Kleber (2015)
@@ -163,14 +168,24 @@ mineral_aware:
         The pedology model derives lithology fractions and a weathering intensity
         but no oxide content, so this cannot be computed from what exists.
     allophane_content:
-      declared: undeclared
+      declared: the soil map's `allophane` column
       unit: kg/kg of the fine earth fraction
-      produced_by: partially, as build_soil.py andisol_properties `andic`
+      produced_by: pedology/scripts/build_soil.py andisol_properties
       why: >
-        `andic` is the fraction of a gridcell whose volcanic glass has weathered
-        to allophane under sufficient leaching. It is an areal fraction of andic
-        material, not an allophane concentration, so it cannot be substituted for
-        one without a conversion nothing in this project supplies.
+        `andic` is the AREAL fraction of a gridcell whose volcanic glass has
+        weathered to allophane under sufficient leaching, and turning it into a
+        concentration in the fine earth needs the allophane content WITHIN andic
+        material. Parfitt, Russell and Orbell (1983)
+        10.1016/0016-7061(83)90029-0 supply that on the axis Parfitt (2009)
+        10.1180/claymin.2009.044.1.135 names as controlling it, which is
+        leaching regime and not development: four soils on one rhyolitic ash
+        stratigraphy with rainfall the designed variant, whole-soil allophane by
+        acid-oxalate dissolution corrected for Al-humus complexes, and a water
+        balance beside the rainfall. `pedology/config/pedogenesis.yaml`'s
+        `andisol` block carries the value, the bracket over every read
+        population, and what the source refuses to license: in the transition
+        window itself the content is not placeable, because that paper's own
+        near-duplicate sites differ by an order of magnitude in it.
     aggregate_capacity:
       declared: undeclared
       unit: dimensionless
@@ -179,25 +194,50 @@ mineral_aware:
         Occlusion inside aggregates is a physical protection mechanism separate
         from mineral association. Nothing in the pipeline resolves soil structure.
     polyvalent_cation_saturation:
-      declared: undeclared
+      declared: the soil map's `polyvalent` column
       unit: cmol(+)/kg
-      produced_by: nothing
+      produced_by: pedology/scripts/build_soil.py exchange_properties
       why: >
-        Ca, Fe and Al bridging is the cation half of the association mechanism.
-        The soil map carries pH, from which base status can be argued but not
-        derived, and the non-N/P adequacy screen already refuses the trace set
-        for want of a release table.
+        Ca, Fe and Al bridging is the cation half of the association mechanism,
+        and it is a CAPACITY times the SHARE of that capacity a polyvalent
+        cation holds. Both halves exist. The capacity is the soil map's `cec`
+        column, derived from clay and organic matter on the pH-resolved
+        coefficients of Helling, Chesters and Corey (1964)
+        10.2136/sssaj1964.03615995002800040020x with the level bracketed across
+        soil orders by Manrique, Jones and Dyke (1991)
+        10.2136/sssaj1991.03615995005500030026x. The share is measured against
+        pH, which this pipeline emits: Solly et al. (2020)
+        10.3389/ffgc.2020.00098 put exchangeable calcium on 59 to 83 per cent of
+        effective CEC at pH at or above 5.5 and exchangeable aluminium on 21 to
+        44 per cent below pH 5, both polyvalent, with iron under 1 per cent. A
+        LOWER BOUND rather than an estimate: only one polyvalent cation is
+        resolved at each end of that range and magnesium is unresolved at both,
+        so the emitted share is the resolved cation's alone.
 
-# What the pedology artifact DOES carry across the interface today, and what it
-# is allowed to be used for. Both are read into Soiltype::andic_frac and
-# Soiltype::p_fixation_frac and neither is read by any equation while the arm
-# above refuses. The gate checks the columns are present, in range, and that no
-# equation reads them.
+# What the pedology artifact DOES carry across the interface, and what it is
+# allowed to be used for. `andic` and `pfixation` are read into
+# Soiltype::andic_frac and Soiltype::p_fixation_frac; `cec`, `allophane` and
+# `polyvalent` are carried in the artifact and read into nothing. None of the
+# five is read by any equation while the arm above refuses. The gate checks the
+# columns are present, in range, and that no equation reads them.
+#
+# THE RANGES ARE PER COLUMN because the five are not one kind of quantity.
+# `range` is the default for a column with no entry of its own, and it is the
+# unit interval the two fractions live in; `column_range` carries the rest.
+# The exchange columns are capacities in cmol(+)/kg and their ceiling is the
+# measured envelope `pedology/config/pedogenesis.yaml` refuses the emitted field
+# for leaving -- Solly et al. (2020) Table 1's topsoil effective CEC maximum.
 carried_state:
-  soil_map_columns: [andic, pfixation]
-  # Their range in the artifact, and the range they are declared to have.
-  # `andic` and `pfixation` are both fractions, so both are in [0,1].
+  soil_map_columns: [andic, pfixation, cec, allophane, polyvalent]
+  # The default range, and the one the two fractions carry.
   range: [0.0, 1.0]
+  column_range:
+    cec: [0.0, 104.64]
+    polyvalent: [0.0, 104.64]
+    # A mass fraction of the fine earth, bounded above by the andic content
+    # factor itself: `allophane` is that factor times an areal fraction in
+    # [0,1], so no cell can exceed the factor.
+    allophane: [0.0, 1.0]
   read_into: [Soiltype::andic_frac, Soiltype::p_fixation_frac]
   # No line of the model may read these while `active_arm` is texture_only.
   # The gate greps the model source and fails on one that does.

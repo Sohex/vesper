@@ -547,6 +547,66 @@ andisol:
   allophane_precipitation_mm: 1500.0
   allophane_transition_mm: 300.0
 
+  # THE ALLOPHANE CONTENT OF ANDIC MATERIAL, kg of allophane per kg of fine
+  # earth. `andic` above is an AREAL fraction of a gridcell, and the
+  # mineral-reactivity contract asks for a CONCENTRATION, so this is the
+  # conversion between them: allophane content = this times the andic fraction.
+  #
+  # THE AXIS IS LEACHING AND NOT DEVELOPMENT, and a read source says so. Parfitt
+  # (2009), `10.1180/claymin.2009.044.1.135`, reviews the controls on allophane
+  # formation and states that "the effect of time is subordinate to these
+  # factors", the factors being silicic-acid activity in the soil solution, Al
+  # availability, the opportunity for co-precipitation, leaching regime, soil
+  # organic matter and pH. A content indexed on a development measure is a
+  # content indexed on the weakest control.
+  #
+  # SOURCE, ON THE CONTROLLING AXIS. Parfitt, Russell and Orbell (1983),
+  # *Weathering sequence of soils from volcanic ash involving allophane and
+  # halloysite, New Zealand*, Geoderma 29(1), 41-57,
+  # `10.1016/0016-7061(83)90029-0` -- the paper the 1500 mm threshold above is
+  # already taken from at second hand through Dahlgren. Four soils on one
+  # rhyolitic ash stratigraphy, sited where the isohyets cross the tephra
+  # isopachs at right angles so that rainfall is the designed variant and the
+  # parent material is not, with whole-soil allophane measured by acid-oxalate
+  # dissolution corrected for Al in humus complexes by pyrophosphate. Its Table
+  # VIII carries a water balance as well as the rainfall: winter leaching of
+  # 400, 550 and 1600 mm and 5, 6 and 10 months of leaching a year at 1200, 1400
+  # and 2600 mm of mean annual rainfall.
+  #
+  # THE VALUE is the mean over the seven sampled layers of that paper's Table
+  # III, the Mairoa Hydric Dystrandept: 5, 15, 26, 26, 25, 25 and 35 per cent
+  # allophane from 0 to 104 cm. Mairoa is the one site in the sequence
+  # unambiguously above the leaching threshold this block gates on -- 2600 mm,
+  # 1600 mm of winter leaching, ten months of the year, and no normal summer
+  # deficit -- so it is the site whose regime matches the ground this factor is
+  # applied to. The 5 per cent is its humic topsoil, where pyrophosphate
+  # recovers most of the oxalate Al as Al-humus complexes rather than allophane,
+  # which is the soil organic matter control Parfitt (2009) names.
+  #
+  # THE BRACKET IS THE RANGE OVER EVERY READ POPULATION OF ALLOPHANIC SOIL ABOVE
+  # THE THRESHOLD, and it is wide because they disagree. Its high end is that
+  # profile's deepest sampled ash. Its low end is Parfitt (2009)'s Icelandic
+  # field soils, 2 to 22 per cent allophane at 11 to 42 per cent C (Sigfusson et
+  # al. 2008), which are a basaltic parent under a carbon load this world's
+  # andic ground need not carry. Parfitt (2009) also puts Atlantic volcanic
+  # island mineral horizons under 6 per cent. Sweep it; do not narrow it by
+  # choosing a population.
+  #
+  # WHAT THIS DOES NOT LICENSE, and the source is explicit about it. Between
+  # roughly 1200 and 1600 mm the content is not placeable at all: Kereone at
+  # 1200 mm holds 0.5 to 2 per cent and Tirau at 1270 mm holds 1 to 17 per cent
+  # on the same parent, and the paper's own reading is that "only a slight
+  # change in leaching regime or temperature is sufficient to alter the
+  # composition of these soils". Singleton et al. (1989), `10.1071/SR9890067`,
+  # close the same point from the other side: at one site and one rainfall, 1201
+  # mm, drainage class alone takes a profile from allophane-dominant to no
+  # allophane at all, with the switch at about 10 g/m3 of silicon in soil
+  # solution. So this factor is a statement about ground the `allophane_`
+  # threshold above has already placed WELL past the transition, and the
+  # transition zone's scatter is larger than the whole of the quantity.
+  allophane_in_andic_kg_kg: 0.22
+  allophane_in_andic_bracket_kg_kg: [0.02, 0.35]
+
   # Development: vitric -> andic. Andic horizons need Alox + 1/2Feox >= 2%,
   # which is a weathering-progress requirement rather than a compositional one.
   # Half-saturation at W = 1 is not arbitrary: W is normalised so that 1 is
@@ -1187,111 +1247,172 @@ organic:
 # matter present, and it is what holds this world's circulating potassium,
 # calcium and magnesium outside the plants.
 #
-# THE FORM IS ADDITIVE AND CARRIES NO INTERCEPT. Exchange sites sit on clay-size
-# mineral surfaces and on organic matter, so a soil with neither carries no
-# capacity, and the only extrapolable form is
+# THE FORM IS ADDITIVE, CARRIES NO INTERCEPT, AND IS RESOLVED IN pH. Exchange
+# sites sit on clay-size mineral surfaces and on organic matter, so a soil with
+# neither carries no capacity; and a large part of the charge on both is
+# variable rather than permanent, so the capacity a given clay and organic
+# fraction present depends on the pH of the solution saturating them. The
+# extrapolable form is therefore
 #
-#     CEC = clay_cec * clay_fraction + organic_matter_cec * organic_fraction
+#     CEC = clay_cec(pH) * clay_fraction + organic_matter_cec(pH) * organic_fraction
 #
-# in cmol(+) per kg of fine earth, with both fractions by mass.
+# in cmol(+) per kg of fine earth, with both fractions by mass, and each
+# coefficient linear in pH about a reference pH.
 #
-# SOURCE OF THE TWO COEFFICIENTS, and the reading applied to it. Sahrawat (1983),
-# *An analysis of the contribution of organic matter and clay to cation exchange
-# capacity of some Philippine soils*, Comm. Soil Sci. Plant Anal. 14(9), 803-809,
-# `10.1080/00103628309367409`, regressed CEC on organic matter and clay over 40
-# surface soils and reports CEC = 7.98 + 3.00*OM% + 0.38*clay%, R2 = 0.60. The
-# two SLOPES are what is taken: 0.38 meq/100 g per per cent clay is 38 cmol(+)
-# per kg of clay, and 3.00 per per cent organic matter is 300 cmol(+) per kg of
-# organic matter.
+# SOURCE OF THE TWO COEFFICIENTS AND OF THEIR pH RESPONSE. Helling, Chesters and
+# Corey (1964), *Contribution of Organic Matter and Clay to Soil Cation-Exchange
+# Capacity as Affected by the pH of the Saturating Solution*, SSSAJ 28(4),
+# 517-520, `10.2136/sssaj1964.03615995002800040020x`, measured CEC on 60
+# Wisconsin surface soils at six buffered pH values from 2.5 to 8.0 by barium
+# saturation with no component removed, and regressed it on clay and organic
+# carbon separately at each pH. The clay contribution runs 38, 46, 54, 56, 60
+# and 64 cmol(+)/kg of clay across those six; the organic contribution 36, 73,
+# 127, 131, 163 and 213 cmol(+)/kg of organic matter. R2 runs 0.86 to 0.92 and
+# the paper's own linear fits over pH pass within the standard errors of all six
+# points, at 4.4 cmol(+)/kg per pH unit for clay and 30 for organic matter, with
+# the organic line reaching zero capacity at pH 1.2.
 #
-# THE INTERCEPT IS DROPPED, AND THAT IS A READING RATHER THAN THE PAPER'S OWN
-# STATEMENT. 7.98 meq/100 g at zero clay and zero organic matter is a capacity
-# with no surface to sit on, so it is a regional artifact of a fit over soils
-# none of which approach either endmember. Dropping it is one-signed: at
-# Sahrawat's own mean composition the no-intercept form returns 24.2 against a
-# measured mean of 32.2, so the emitted field UNDERSTATES capacity by of order
-# 8 cmol(+)/kg wherever the fit's regime applies. `build_soil.py` reports that
-# offset beside the field rather than folding it in, and the ANUT-8 bound adds
-# it back so the bound stays one-signed in the safe direction.
+# The values below are those two lines evaluated at `reference_ph`: the clay
+# line through the six-point mean, and the organic line through its stated zero.
+# Reading the lines rather than the tabulated points is what the paper's own
+# Fig. 3 does, and it is why the pair is stated to a tenth.
 #
-# WHAT THE COEFFICIENTS ARE CHECKED AGAINST, on a test that could have failed.
-# Solly et al. (2020), *A critical evaluation of the relationship between the
-# effective cation exchange capacity and soil organic carbon content in Swiss
-# forest soils*, Front. For. Glob. Change 3, 98, `10.3389/ffgc.2020.00098`,
-# measured effective CEC on 1204 forest profiles spanning pH 2.8 to 8.1, clay
-# 0.8 to 75.6 per cent and organic carbon 0 to 377 g/kg, and partitioned it by
-# partial regression into an organic-matter share and a clay share within each
-# of nine pH classes. Organic matter carries 35 to 50 per cent of topsoil CEC.
-# Sahrawat's two slopes at his own mean composition put the organic share at
-# 37.9 per cent, INSIDE that band, on a different continent by a different
-# method. A slope pair that landed outside would have said the additive form
-# does not transfer.
+# WHY THIS SOURCE AND NOT A FIXED-pH REGRESSION. pH is a field this component
+# emits, and it moves across this world by more than three units between the
+# calcite and gibbsite buffers of the `ph` block above. Every other CEC
+# regression reachable here is a single fit at one saturating pH, and a
+# capacity field built on one would not respond to that block however far it
+# moved a cell, while Solly et al. (2020)'s own model finds pH the single
+# largest term in subsoil CEC variance. Variable charge on clay edges and on
+# organic carboxyl and phenolic groups is a chemical mechanism rather than a
+# regional property, so it is the part of this relation that carries to another
+# planet.
 #
-# THE BRACKET IS THAT SAME MEASUREMENT, INVERTED. Holding the total at
-# Sahrawat's reference composition and letting the organic share span Solly's
-# measured 35 to 50 per cent rotates the pair between the two ends below. THEY
-# ARE ANTI-CORRELATED AND ARE SWEPT JOINTLY, low clay with high organic matter,
-# in the same way the water block's endmembers are: taking one end of each
-# independently is a composition neither source supports.
+# THE INTERCEPT IS DROPPED AND THE SOURCE SAYS THAT COSTS ALMOST NOTHING.
+# Helling's own regression intercepts across the six pH values run -1.57 to
+# -0.45 cmol(+)/kg against field means of 5.8 to 14.8, so the additive
+# no-intercept form is what a pH-resolved fit over 60 soils gives rather than a
+# reading applied to one. The sign matters for the ANUT-8 bound: dropping a
+# NEGATIVE intercept makes the emitted capacity an OVERSTATEMENT of the fit it
+# comes from, which is the direction that bound needs, so there is nothing to
+# add back and `build_soil.py` adds nothing.
 #
-# WHAT IS NOT BRACKETED, AND IS AN EXPOSURE RATHER THAN A NUMBER. The LEVEL of
-# the pair rests on one region's fit at R2 0.60 with n = 40. The two sources
-# that would close it are a pH-resolved separation of the clay and
-# organic-matter contributions (Helling, Chesters and Corey 1964,
-# `10.2136/sssaj1964.03615995002800040020x`) and a compilation across soil
-# orders (Manrique, Jones and Dyke 1991,
-# `10.2136/sssaj1991.03615995005500030026x`); neither is reachable from this
-# host and neither is read here, so neither is cited as a source. Under this
-# project's vocabulary the LEVEL is an open exposure, and world-n4i0 owns it.
+# THE LEVEL IS BRACKETED ACROSS SOIL ORDERS, WHICH IS WHAT NO SINGLE-REGION FIT
+# CAN DO. Manrique, Jones and Dyke (1991), *Predicting Cation-Exchange Capacity
+# from Soil Physical and Chemical Properties*, SSSAJ 55(3), 787-794,
+# `10.2136/sssaj1991.03615995005500030026x`, regressed CEC on clay and organic
+# carbon over 37,921 pedons from the USDA-SCS Soil Survey Laboratory database,
+# within each of nine soil orders. Clay's contribution runs 8.4 cmol(+)/kg of
+# clay for Oxisols and 16 for Ultisols up to 63 for Vertisols; the paper reads
+# the low Ultisol value as a kaolinitic exchange matrix and states outright that
+# without a parameter that stratifies clay MINERALOGY, clay content accounts for
+# little of the variation in CEC. Organic carbon's contribution runs 220
+# cmol(+)/kg of OC over most orders, 266 for Mollisols, Oxisols and Ultisols,
+# and 345 to 402 for Inceptisols and Spodosols, which at this file's own
+# van Bemmelen conversion is 128 to 233 cmol(+)/kg of organic matter.
 #
-# WHAT THE FIELD IS BLIND TO, and it is this component's own pH field. Sahrawat
-# reports one fit over soils spanning pH 3.5 to 7.9 and does not resolve pH, so
-# the emitted capacity does not respond to the pH block above however far that
-# block moves a cell. Solly's own model finds pH the single largest term in
-# subsoil CEC variance, so the blindness is real and not a rounding. What pH
-# DOES reach, below, is base saturation, and that is where it matters for the
-# circulating pool: capacity that aluminium occupies holds no nutrient.
+# THAT SPREAD IS THE DIAGNOSIS. The clay coefficient is not tuned -- it is a
+# measured regression slope, not the residual of a fit to a desired outcome --
+# and it is not opaque, since the derivation is in a held and read paper. It is
+# IMPLICIT-EARTH: it states the exchange capacity of the clay MINERALOGY of one
+# planet's soils, and Manrique shows that statement moving by a factor of seven
+# across Earth's own soil orders. This component emits a clay FRACTION and no
+# mineralogy, so no value of it can be right everywhere; the bracket is what
+# gets swept and `build_soil.py` re-evaluates the ANUT-8 bound at its ends.
+#
+# AND THE DECLARED LEVEL SITS HIGH IN THAT BRACKET, which a reader should know
+# before quoting the emitted field. Helling's soils are Wisconsin Gray-Brown
+# Podzolic and Brunizem series whose clay the paper describes as predominantly
+# of the 2:1 lattice type, which is a high-capacity mineralogy, and the level
+# that follows sits near the top of Manrique's across-order range and above
+# Sahrawat's mixed tropical one. IT IS NOT THEREFORE REPLACED BY A LOWER
+# NUMBER: the level and the pH slopes have to come from ONE fit, or the line is
+# a composite no source measured, and Helling's is the only fit anywhere in this
+# project's reach that separates the two surfaces AS A FUNCTION OF pH. So the
+# level is one source's line, the bracket is where a different mineralogy would
+# put it, and the sweep is what carries the difference to a reader.
+#
+# WHAT THE PAIR IS CHECKED AGAINST, on a test that could have failed. Solly et
+# al. (2020), *A critical evaluation of the relationship between the effective
+# cation exchange capacity and soil organic carbon content in Swiss forest
+# soils*, Front. For. Glob. Change 3, 98, `10.3389/ffgc.2020.00098`, measured
+# effective CEC on 1204 forest profiles spanning pH 2.8 to 8.1, clay 0.8 to 75.6
+# per cent and organic carbon 0 to 377 g/kg, and partitioned it by partial
+# regression within each of nine pH classes. Organic matter carries 35 to 50 per
+# cent of topsoil CEC. The pair below, at Helling's own mean composition and at
+# `reference_ph`, puts the organic share at 41.6 per cent -- inside that band,
+# on a different continent by a different method, and within a point and a half
+# of the 40 per cent Helling reports for the same composition and pH. A pair
+# edited to land outside says the additive form no longer transfers.
+#
+# THE THIRD REGRESSION, KEPT AS A DISTANCE RATHER THAN A SOURCE. Sahrawat
+# (1983), `10.1080/00103628309367409`, regressed CEC on organic matter and clay
+# over 40 Philippine surface soils at R2 0.60 and is what this block's level
+# rested on before: 38 cmol(+)/kg of clay and 300 of organic matter, with a
+# +7.98 intercept dropped as a regional artifact. Its clay slope sits inside
+# Manrique's across-order bracket; its organic slope sits ABOVE every per-order
+# value in a 37,921-pedon compilation and above the whole of Helling's pH range.
+# That distance is the size of the exposure world-n4i0 recorded, measured rather
+# than asserted, and it is why the level no longer rests there.
 exchange:
-  clay_cec_cmol_kg: 38.0
-  organic_matter_cec_cmol_kg: 300.0
-  # Swept jointly, ends paired: [low, high] of the clay coefficient goes with
-  # [high, low] of the organic one.
-  clay_cec_bracket_cmol_kg: [30.6, 39.8]
-  organic_matter_cec_bracket_cmol_kg: [277.0, 396.0]
-  # The dropped intercept, in the paper's own units, carried so the one-signed
-  # understatement it causes is a number a reader can see.
-  sahrawat_intercept_cmol_kg: 7.98
+  # The pH the two coefficients below are stated at. All three regressions this
+  # block reads are anchored here: Helling tabulates pH 7.0 directly, and
+  # Manrique and Sahrawat both measure CEC by ammonium acetate at pH 7.
+  reference_ph: 7.0
+  clay_cec_cmol_kg: 60.3
+  organic_matter_cec_cmol_kg: 174.0
+  # Variable charge, cmol(+)/kg per unit of pH. Helling's own two linear fits
+  # over the six saturating pH values, stated in the paper's Results.
+  clay_cec_per_ph_cmol_kg: 4.4
+  organic_matter_cec_per_ph_cmol_kg: 30.0
+  # The LEVEL bracket, swept. Manrique's across-order range, in this file's
+  # units: clay directly, organic carbon divided by
+  # `organic.carbon_fraction_of_organic_matter`. The two are per-order
+  # coefficients of two different surfaces and are NOT anti-correlated, so they
+  # are swept independently rather than in paired ends.
+  clay_cec_bracket_cmol_kg: [8.4, 63.0]
+  organic_matter_cec_bracket_cmol_kg: [128.0, 233.0]
+  # The intercept the no-intercept form drops, at `reference_ph`, and its range
+  # over Helling's six pH values. NEGATIVE, so the emitted capacity overstates
+  # the fit rather than understating it, and `build_soil.py` adds back only a
+  # positive intercept. Carried so the sign is a number a reader can see.
+  neglected_intercept_cmol_kg: -1.05
+  neglected_intercept_bracket_cmol_kg: [-1.57, -0.45]
   # The measured envelope the emitted field is checked against. Solly et al.
   # (2020) Table 1, topsoil effective CEC 20.4 to 1046.4 mmol(+)/kg, in
   # cmol(+)/kg. A land distribution outside it is not a wider world, it is a
   # relation applied outside every soil it was ever measured on.
   measured_envelope_cmol_kg: [2.04, 104.64]
 
-  # THE LEVEL EXPOSURE, PROBED RATHER THAN ASSERTED. The clay coefficient's
-  # LEVEL is the one large uncertainty no source here brackets, and it is a
-  # mineralogy question: this component emits a clay FRACTION and not a clay
-  # MINERALOGY. Dahlgren et al. (2004), `10.1016/S0065-2113(03)82003-5`, give
-  # the one endmember any read source here supplies, halloysite at 2 to 10
-  # cmol(+)/kg of clay with values above 20 reported, against Sahrawat's
-  # mixed-mineralogy 38. `build_soil.py` re-evaluates the ANUT-8 bound at each
-  # of these and reports it, so a reader can see how much of that bound is the
-  # level rather than the world. They are a PROBE and not a bracket: neither is
-  # a claim about this world's clay mineralogy, and the organic-share check
-  # above is deliberately not applied to them.
-  clay_cec_level_probe_cmol_kg: [2.0, 10.0]
+  # WHERE THE LEVEL IS SWEPT. `build_soil.py` re-evaluates the ANUT-8 bound at
+  # each clay coefficient here and reports it, so a reader can see how much of
+  # that bound is the level rather than the world. The two outer entries are the
+  # ends of `clay_cec_bracket_cmol_kg` above; the two inner ones are the one
+  # clay MINERALOGY endmember a read source here supplies, halloysite at 2 to 10
+  # cmol(+)/kg of clay from Dahlgren et al. (2004),
+  # `10.1016/S0065-2113(03)82003-5`, which is the mineral this world's
+  # sub-threshold volcanic terrain weathers to and which no soil order in
+  # Manrique's compilation is named for.
+  clay_cec_level_probe_cmol_kg: [2.0, 8.4, 10.0, 63.0]
 
-  # THE CROSS-CHECK, RUN AT EVERY CALL RATHER THAN ASSERTED IN PROSE. Sahrawat's
-  # reference composition is his Table 1 mean, clay 39.6 per cent and organic
-  # matter 3.06 per cent; the two coefficients above evaluated there must put
-  # the organic share of capacity inside the 35 to 50 per cent Solly et al.
-  # (2020) measured by partial regression over Swiss forest topsoils. The pair
-  # currently lands at 37.9 per cent. A pair edited to land outside says the
-  # additive form no longer transfers between the two datasets, which is the
-  # finding and not a reason to widen the band.
+  # THE CROSS-CHECK, RUN AT EVERY CALL RATHER THAN ASSERTED IN PROSE. The
+  # reference composition is Helling's own: Table 1's mean clay of 13.3 per cent
+  # and mean organic carbon of 1.90 per cent, the latter at this file's van
+  # Bemmelen conversion. The coefficients above evaluated there, at
+  # `reference_ph`, must put the organic share of capacity inside the 35 to 50
+  # per cent Solly et al. (2020) measured by partial regression over Swiss
+  # forest topsoils. The pair currently lands at 41.6 per cent, against the 40
+  # per cent Helling reports for that composition and pH. A pair edited to land
+  # outside says the additive form no longer transfers between the two datasets,
+  # which is the finding and not a reason to widen the band.
   organic_share_check:
-    reference_clay_fraction: 0.396
-    reference_organic_matter_fraction: 0.0306
+    reference_clay_fraction: 0.133
+    reference_organic_matter_fraction: 0.0328
     solly_topsoil_organic_share_bracket: [0.35, 0.50]
+    # What Helling reports for the same composition and pH, as a second thing
+    # the pair has to reproduce and not only a band to sit inside.
+    helling_reported_organic_share: 0.40
+    helling_reported_organic_share_tolerance: 0.05
 
   # BASE SATURATION AS A FUNCTION OF pH. The fraction of exchange sites holding
   # base cations rather than aluminium and protons, which is the fraction that
@@ -1356,6 +1477,46 @@ exchange:
   anion_exchange:
     andic_aec_cmol_kg: 3.0
     sulfate_share_upper: 1.0
+
+  # POLYVALENT CATION SATURATION, cmol(+)/kg, and it is the one proxy the
+  # mineral-reactivity contract asks for that this component can supply. Calcium
+  # and aluminium bridging between organic matter and mineral surfaces is the
+  # cation half of the association mechanism Cotrufo et al. (2013) and Lehmann
+  # and Kleber (2015) name, and the quantity is a CAPACITY times the SHARE of it
+  # a polyvalent cation occupies. The capacity is emitted above. The share is
+  # measured against pH, which this component also emits.
+  #
+  # SOURCE. Solly et al. (2020), `10.3389/ffgc.2020.00098`, partitioned
+  # effective CEC by cation over 1204 Swiss forest profiles within nine pH
+  # classes. At pH at or above 5.5, exchangeable calcium carries 59 to 83 per
+  # cent of it. Below pH 5, exchangeable aluminium carries 21 to 44 per cent.
+  # Iron carries under 1 per cent everywhere, which is why the third cation the
+  # contract names needs no field of its own.
+  #
+  # DECLARED AS A LOWER BOUND, AND THE DIRECTION IS THE OPPOSITE OF THE ANUT-8
+  # BLOCK ABOVE. Calcium, magnesium and aluminium are all polyvalent, and at
+  # each end of the pH range Solly resolves only ONE of them: calcium above 5.5,
+  # aluminium below 5. Magnesium sits inside the paper's "other cations" group
+  # at both ends. So the resolved cation's share is a floor on the polyvalent
+  # share and not an estimate of it. The consumer would read this as a
+  # PROTECTION proxy, and understating protection is the conservative direction
+  # for that, which is why the low end of each measured range is what is
+  # declared and the high end is the bracket.
+  #
+  # A RAMP AND NOT A STEP, on the same two pH bounds and for the same reason as
+  # `base_saturation` above: both sources resolve the transition rather than
+  # bracketing it. The ramp runs from `acid_share` at or below `ph_low` to
+  # `base_share` at or above `ph_high`, linear between.
+  polyvalent_saturation:
+    ph_low: 5.0
+    ph_high: 5.5
+    acid_share: 0.21
+    acid_share_bracket: [0.21, 0.44]
+    base_share: 0.59
+    base_share_bracket: [0.59, 0.83]
+    # Solly's own ceiling on the iron term, carried so the contract's third
+    # cation is answered by a number rather than by silence.
+    iron_share_upper: 0.01
 
   # THE PLANT HALF OF THE ANUT-8 MULTIPLIER, kept here beside the soil half so
   # the two are read from one place.

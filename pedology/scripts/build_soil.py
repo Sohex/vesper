@@ -267,8 +267,19 @@ def andisol_properties(fractions: dict[str, np.ndarray], intensity: np.ndarray,
     # circulation, over and above whatever a normal soil would do.
     fixation = (cfg["phosphate_retention_andic"] * andic
                 + cfg["phosphate_retention_vitric"] * vitric)
+    # ALLOPHANE CONTENT of the fine earth, which is what the mineral-reactivity
+    # contract asks for and what `andic` on its own is not: `andic` is an areal
+    # fraction of the cell, and this turns it into a concentration by the
+    # allophane content WITHIN andic material. That factor is Parfitt, Russell
+    # and Orbell (1983) on the leaching axis Parfitt (2009) says controls it,
+    # read at the one site in their sequence unambiguously past the threshold
+    # `allophanic` above gates on; `pedogenesis.yaml` carries the argument and
+    # the bracket. Vitric material carries none: it is glass that has not
+    # weathered to allophane yet, which is what `development` splits it off for.
+    allophane = cfg["allophane_in_andic_kg_kg"] * andic
     return {"andic": andic, "vitric": vitric, "halloysitic": halloysitic,
-            "resupplied": resupply, "andic_p_fixation": fixation}
+            "resupplied": resupply, "andic_p_fixation": fixation,
+            "allophane": allophane}
 
 
 def regolith_depth(intensity: np.ndarray, relief_m: np.ndarray,
@@ -624,29 +635,59 @@ SULFATE_MOLAR_MASS_G = 32.06
 SULFATE_CHARGE = 2
 
 
+def _cec_coefficients(ph: np.ndarray, cfg: dict,
+                      clay_level: float | None = None,
+                      organic_level: float | None = None
+                      ) -> tuple[np.ndarray, np.ndarray]:
+    """The clay and organic-matter capacity coefficients at each cell's pH.
+
+    Helling, Chesters and Corey (1964) measured both as linear in the pH of the
+    saturating solution over pH 2.5 to 8.0, at 4.4 and 30 cmol(+)/kg per pH
+    unit. `pedogenesis.yaml` declares each line by its value at a reference pH
+    and its slope. `clay_level` and `organic_level` override the declared level
+    without touching the slope, which is what the level sweep uses: the level is
+    a mineralogy statement and is bracketed, the slope is variable charge and is
+    not.
+    """
+    ref_ph = float(cfg["reference_ph"])
+    a_clay = float(cfg["clay_cec_cmol_kg"] if clay_level is None else clay_level)
+    a_organic = float(cfg["organic_matter_cec_cmol_kg"]
+                      if organic_level is None else organic_level)
+    offset = ph - ref_ph
+    clay_coefficient = np.maximum(
+        a_clay + float(cfg["clay_cec_per_ph_cmol_kg"]) * offset, 0.0)
+    organic_coefficient = np.maximum(
+        a_organic + float(cfg["organic_matter_cec_per_ph_cmol_kg"]) * offset, 0.0)
+    return clay_coefficient, organic_coefficient
+
+
 def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
                         ph: np.ndarray, bulk_density: np.ndarray,
                         andic: np.ndarray, root_zone_depth_m: float, cfg: dict
                         ) -> dict[str, np.ndarray]:
     """Cation exchange capacity, base saturation, and the exchangeable pool.
 
-    THREE QUANTITIES, KEPT APART, because they fail in different ways. Capacity
-    is a surface: clay and organic matter present it and pH does not change it
-    in the source this rests on. Base saturation is who is sitting on that
-    surface, and pH is the whole of what decides it. The pool is capacity times
-    saturation times the element's share, over the root zone the ledger on the
-    other side of this interface declares.
+    FOUR QUANTITIES, KEPT APART, because they fail in different ways. Capacity
+    is a surface: clay and organic matter present it, and a large part of the
+    charge on both is variable, so pH sets how much of that surface is charged
+    at all. Base saturation is which cations are sitting on it. Polyvalent
+    saturation is the share of it held by a bridging cation, which is what the
+    mineral-reactivity contract on the other side of the biosphere interface
+    asks for. The pool is capacity times base saturation times the element's
+    share, over the root zone the ledger on that interface declares.
 
     Returns fields on the model grid, and the pools in g of element per m2.
     """
     a_clay = float(cfg["clay_cec_cmol_kg"])
     a_organic = float(cfg["organic_matter_cec_cmol_kg"])
 
-    # THE CROSS-CHECK. The two coefficients come from one region's fit; what
-    # says the additive form transfers is that they reproduce a DIFFERENT
-    # continent's measured split between organic and mineral surfaces. Run here
-    # rather than asserted in the config's prose, so editing either coefficient
-    # is what tests it.
+    # THE CROSS-CHECK, and it is now two checks rather than one. What says the
+    # additive form transfers is that the pair reproduces a DIFFERENT
+    # continent's measured split between organic and mineral surfaces; what says
+    # the pH-resolved lines were read off their source correctly is that they
+    # also reproduce the share that source itself reports for the same
+    # composition and pH. Run here rather than asserted in the config's prose,
+    # so editing either coefficient is what tests it.
     chk = cfg["organic_share_check"]
     ref_clay = float(chk["reference_clay_fraction"])
     ref_organic = float(chk["reference_organic_matter_fraction"])
@@ -657,7 +698,7 @@ def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
     if not share_low <= organic_share <= share_high:
         raise SystemExit(
             f"pedogenesis.yaml exchange puts organic matter at "
-            f"{organic_share:.3f} of cation exchange capacity at Sahrawat's "
+            f"{organic_share:.3f} of cation exchange capacity at Helling's "
             f"own reference composition, outside the [{share_low}, "
             f"{share_high}] Solly et al. (2020) "
             "measured over 1204 Swiss forest profiles. The two coefficients "
@@ -665,8 +706,24 @@ def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
             "them to another world is that they reproduce a second region's "
             "measured split. A pair outside that band has lost the only "
             "independent check on it.")
+    reported = float(chk["helling_reported_organic_share"])
+    tolerance = float(chk["helling_reported_organic_share_tolerance"])
+    if abs(organic_share - reported) > tolerance:
+        raise SystemExit(
+            f"pedogenesis.yaml exchange puts organic matter at "
+            f"{organic_share:.3f} of capacity at Helling's own mean "
+            f"composition and reference pH, against the {reported} that paper "
+            f"reports for the same composition and pH. The pair is that "
+            "paper's two lines evaluated at one pH, so a disagreement wider "
+            "than the declared tolerance means the lines were read off wrong "
+            "rather than that the world is different.")
 
-    cec = a_clay * clay + a_organic * organic_fraction
+    # THE CAPACITY, RESOLVED IN pH. Both coefficients are linear about
+    # `reference_ph` on the slopes the source measures, and neither may go
+    # negative: the organic line reaches zero capacity at pH 1.2 in its own
+    # source and there is no charge below that, not a reversed one.
+    clay_coefficient, organic_coefficient = _cec_coefficients(ph, cfg)
+    cec = clay_coefficient * clay + organic_coefficient * organic_fraction
 
     sat = cfg["base_saturation"]
     ph_low, ph_high = float(sat["ph_low"]), float(sat["ph_high"])
@@ -703,8 +760,31 @@ def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
                   + aec * 0.01 * float(anion["sulfate_share_upper"]) * soil_kg_m2
                   / SULFATE_CHARGE * SULFATE_MOLAR_MASS_G)
 
+    # POLYVALENT CATION SATURATION, the mineral-reactivity contract's one
+    # derivable proxy. Capacity times the share of it a bridging cation holds,
+    # on the same two pH bounds as base saturation and for the same reason: the
+    # two sources resolve the transition rather than bracketing it. A LOWER
+    # BOUND, because only one polyvalent cation is resolved at each end of the
+    # pH range and magnesium is unresolved at both.
+    pv = cfg["polyvalent_saturation"]
+    pv_low, pv_high = float(pv["ph_low"]), float(pv["ph_high"])
+    if not pv_high > pv_low:
+        raise SystemExit(
+            f"pedogenesis.yaml exchange.polyvalent_saturation has ph_high "
+            f"{pv_high} at or below ph_low {pv_low}. The ramp runs upward from "
+            "the aluminium-dominated end to the calcium-dominated one.")
+    pv_ramp = np.clip((ph - pv_low) / (pv_high - pv_low), 0.0, 1.0)
+    acid_share = float(pv["acid_share"])
+    base_share = float(pv["base_share"])
+    polyvalent_share = acid_share + (base_share - acid_share) * pv_ramp
+    polyvalent = cec * polyvalent_share
+
     return {"cec_cmol_kg": cec, "base_saturation": base_saturation,
             "anion_exchange_cmol_kg": aec,
+            "clay_coefficient_cmol_kg": clay_coefficient,
+            "organic_coefficient_cmol_kg": organic_coefficient,
+            "polyvalent_share": polyvalent_share,
+            "polyvalent_cmol_kg": polyvalent,
             "exchangeable_pool_g_m2": pools, "soil_kg_m2": soil_kg_m2}
 
 
@@ -1129,8 +1209,14 @@ def main() -> None:
         # skips by name. They are here because the C-N-P fork needs them: andic
         # material fixes phosphorus rather than supplying it, and no other
         # column in this file carries that.
+        # `cec`, `allophane` and `polyvalent` are the exchange complex and the
+        # two mineral-reactivity proxies this component can derive. All three
+        # are declared in `biosphere/config/mineral_reactivity.yaml`'s
+        # `carried_state`, cross the interface, and are read by no equation
+        # while the mineral-aware arm refuses.
         handle.write("Lon Lat sand clay silt orgc ph bulkdensity cn soilc "
-                     "depth awc bedrockfrac andic pfixation cec\n")
+                     "depth awc bedrockfrac andic pfixation cec allophane "
+                     "polyvalent\n")
         for j, i in rows:
             handle.write(
                 f"{lon_signed[i]:.{COORD_DECIMALS}f} {lat[j]:.{COORD_DECIMALS}f} "
@@ -1143,7 +1229,9 @@ def main() -> None:
                 f"{bedrock_fraction[j, i]:.4f} "
                 f"{andisol['andic'][j, i]:.4f} "
                 f"{andisol['andic_p_fixation'][j, i]:.4f} "
-                f"{exchange['cec_cmol_kg'][j, i]:.3f}\n")
+                f"{exchange['cec_cmol_kg'][j, i]:.3f} "
+                f"{andisol['allophane'][j, i]:.5f} "
+                f"{exchange['polyvalent_cmol_kg'][j, i]:.3f}\n")
 
     weights = gaussian_area_weights(lat, len(lon), what=str(climatology))
     lw = weights[land]
@@ -1211,6 +1299,24 @@ def main() -> None:
                 "construction; that is not a claim those soils retain no P."),
             "allophane_precipitation_mm": pedo["andisol"][
                 "allophane_precipitation_mm"],
+            "land_mean_allophane_kg_kg": mean(andisol["allophane"]),
+            "max_allophane_kg_kg": float(andisol["allophane"][land].max()),
+            "allophane_in_andic_kg_kg": pedo["andisol"][
+                "allophane_in_andic_kg_kg"],
+            "allophane_in_andic_bracket_kg_kg": pedo["andisol"][
+                "allophane_in_andic_bracket_kg_kg"],
+            "allophane_note": (
+                "Allophane as a mass fraction of the fine earth, which is the "
+                "quantity the mineral-reactivity contract asks for and which "
+                "the areal andic fraction is not. Parfitt, Russell and Orbell "
+                "(1983) 10.1016/0016-7061(83)90029-0 on the leaching axis "
+                "Parfitt (2009) 10.1180/claymin.2009.044.1.135 names as "
+                "controlling; the bracket spans every read population of "
+                "allophanic soil above the threshold and is wide because they "
+                "disagree. The factor is a statement about ground already well "
+                "past the transition: in the transition window itself the "
+                "source's own near-duplicate sites differ by an order of "
+                "magnitude in this quantity."),
         },
         "weathering_bracket": {
             "note": ("Weathering intensity under each moisture driver, land "
@@ -1320,7 +1426,12 @@ def main() -> None:
     # the largest root-to-shoot ratio in the compilation.
     exch_cfg = pedo["exchange"]
     cec = exchange["cec_cmol_kg"]
-    intercept = float(exch_cfg["sahrawat_intercept_cmol_kg"])
+    # The intercept the no-intercept form neglects. NEGATIVE in the source the
+    # coefficients come from, so the emitted capacity already OVERSTATES that
+    # fit and there is nothing to add back for a bound that has to be one-signed
+    # upward. Only a positive intercept would be, and taking the positive part
+    # here is what keeps the sign argument in the code rather than in prose.
+    intercept = max(0.0, float(exch_cfg["neglected_intercept_cmol_kg"]))
 
     def land_stats(field: np.ndarray) -> dict:
         v = field[land]
@@ -1383,15 +1494,20 @@ def main() -> None:
                                    + pool_p99 / q_above),
         }
 
-    # THE LEVEL PROBE. The clay coefficient's level is the one large exposure no
-    # source brackets, so the bound is re-evaluated at the endmember a second
-    # read source gives and reported beside it. If the verdict flips between
-    # them the bound is a statement about the coefficient rather than about this
-    # world, and a reader has to be able to see that without rerunning anything.
+    # THE LEVEL SWEEP. The clay coefficient's LEVEL is a mineralogy statement
+    # this component cannot make, so it is bracketed rather than asserted and
+    # the bound is re-evaluated at the bracket's ends and at the one clay
+    # mineralogy endmember a read source supplies. The pH SLOPE is not swept
+    # with it: that is variable charge and is the part of the relation that
+    # carries. If the verdict flips across the sweep the bound is a statement
+    # about the coefficient rather than about this world, and a reader has to be
+    # able to see that without rerunning anything.
     level_probe = {}
     for probe in exch_cfg["clay_cec_level_probe_cmol_kg"]:
-        probe_cec = (float(probe) * texture["clay"]
-                     + exch_cfg["organic_matter_cec_cmol_kg"] * organic_fraction)
+        probe_clay_coeff, probe_organic_coeff = _cec_coefficients(
+            ph, exch_cfg, clay_level=float(probe))
+        probe_cec = (probe_clay_coeff * texture["clay"]
+                     + probe_organic_coeff * organic_fraction)
         worst = 0.0
         per_element = {}
         for element in ("K", "Ca", "Mg"):
@@ -1426,30 +1542,45 @@ def main() -> None:
                  "1-to-5 bracket for want of any exchange field in this "
                  "pipeline. The multiplier below is what this world's own "
                  "soil implies, one-signed upward at every step."),
-        "form": ("CEC = clay_cec * clay + organic_matter_cec * organic, "
-                 "cmol(+)/kg of fine earth, no intercept. Sulfur does not read "
-                 "it: sulfate is an anion, so its pool is the andic anion "
+        "form": ("CEC = clay_cec(pH) * clay + organic_matter_cec(pH) * organic, "
+                 "cmol(+)/kg of fine earth, no intercept, each coefficient "
+                 "linear in pH about the declared reference pH. Sulfur does not "
+                 "read it: sulfate is an anion, so its pool is the andic anion "
                  "exchange capacity instead"),
-        "sources": ("Sahrawat (1983) 10.1080/00103628309367409 for the two "
-                    "slopes; Solly et al. (2020) 10.3389/ffgc.2020.00098 for "
-                    "the organic-share check, the measured envelope and the "
-                    "calcium share; Chadwick et al. (2003) "
+        "sources": ("Helling, Chesters and Corey (1964) "
+                    "10.2136/sssaj1964.03615995002800040020x for the two "
+                    "coefficients and their pH response; Manrique, Jones and "
+                    "Dyke (1991) 10.2136/sssaj1991.03615995005500030026x for "
+                    "the across-soil-order bracket on the level; Solly et al. "
+                    "(2020) 10.3389/ffgc.2020.00098 for the organic-share "
+                    "check, the measured envelope, the calcium share and the "
+                    "polyvalent share; Chadwick et al. (2003) "
                     "10.1016/j.chemgeo.2002.09.001 and Solly for base "
                     "saturation against pH; Vitousek and Sanford (1986) "
                     "10.1146/annurev.es.17.110186.001033 Table 7 for the root "
                     "term; Dahlgren, Saigusa and Ugolini (2004) "
                     "10.1016/S0065-2113(03)82003-5 for the andic anion "
-                    "exchange ceiling, which is sulfate's only retention term. "
-                    "pedology/config/pedogenesis.yaml carries what each does "
-                    "and does not license."),
+                    "exchange ceiling, which is sulfate's only retention term, "
+                    "and for the halloysite clay-mineralogy endmember in the "
+                    "level sweep. pedology/config/pedogenesis.yaml carries what "
+                    "each does and does not license."),
         "cec_cmol_kg": land_stats(cec),
-        "dropped_intercept_cmol_kg": intercept,
-        "cec_is_blind_to_ph": (
-            "the emitted capacity does not respond to this component's pH "
-            "field, because the source is one fit over soils spanning pH 3.5 "
-            "to 7.9 and does not resolve pH. pH reaches the pool through base "
-            "saturation instead, where two read sources do resolve it. "
-            "world-n4i0 owns the pH-resolved relation that would close it"),
+        "clay_coefficient_cmol_kg": land_stats(
+            exchange["clay_coefficient_cmol_kg"]),
+        "organic_coefficient_cmol_kg": land_stats(
+            exchange["organic_coefficient_cmol_kg"]),
+        "neglected_intercept_cmol_kg": float(
+            exch_cfg["neglected_intercept_cmol_kg"]),
+        "intercept_added_back_cmol_kg": intercept,
+        "polyvalent_share": land_stats(exchange["polyvalent_share"]),
+        "polyvalent_cmol_kg": land_stats(exchange["polyvalent_cmol_kg"]),
+        "polyvalent_is_a_lower_bound": (
+            "Solly et al. (2020) resolve exchangeable calcium above pH 5.5 and "
+            "exchangeable aluminium below pH 5, both polyvalent, and leave "
+            "magnesium inside an unresolved group at both ends. So the emitted "
+            "share is the resolved cation's alone and is a floor on the "
+            "polyvalent share rather than an estimate of it. Direction: down, "
+            "which is the conservative direction for a protection proxy"),
         "base_saturation": land_stats(exchange["base_saturation"]),
         "anion_exchange_cmol_kg": land_stats(exchange["anion_exchange_cmol_kg"]),
         "root_zone_depth_m": float(nutrients_decl["root_zone_depth_m"]),
@@ -1474,9 +1605,10 @@ def main() -> None:
             "largest at a closed-canopy site of the kind the above-ground "
             "maximum came from) and the field's tail (land maximum against "
             "p99). The spread ACROSS elements is a different statement and is "
-            "what by_element carries. Neither end spans the LEVEL exposure on "
-            "the capacity coefficients, which is larger than both and which "
-            "level_probe reports and world-n4i0 owns."),
+            "what by_element carries. Neither end spans the LEVEL of the "
+            "capacity coefficients, which is a clay MINERALOGY statement this "
+            "component cannot make, is larger than both, and is bracketed "
+            "across soil orders and swept in level_probe instead."),
         "declared_multiplier": float(anut["belowground_and_exchangeable_multiplier"]),
     }
 
@@ -1601,7 +1733,19 @@ def main() -> None:
           f"mean, {ex['cec_cmol_kg']['max']:.1f} max "
           f"(envelope {exch_cfg['measured_envelope_cmol_kg'][0]} to "
           f"{exch_cfg['measured_envelope_cmol_kg'][1]})")
+    print(f"                    coefficients {ex['clay_coefficient_cmol_kg']['mean']:.1f} "
+          f"clay, {ex['organic_coefficient_cmol_kg']['mean']:.0f} organic, "
+          f"land means at this world's own pH")
     print(f"base saturation     {ex['base_saturation']['mean']:.3f} land mean")
+    print(f"polyvalent cations  {ex['polyvalent_cmol_kg']['mean']:.1f} "
+          f"cmol(+)/kg land mean, lower bound; share "
+          f"{ex['polyvalent_share']['mean']:.2f}")
+    allo = report["andisols"]
+    print(f"allophane           {allo['land_mean_allophane_kg_kg']:.5f} kg/kg "
+          f"land mean, {allo['max_allophane_kg_kg']:.4f} max "
+          f"(bracket {allo['allophane_in_andic_bracket_kg_kg'][0]} to "
+          f"{allo['allophane_in_andic_bracket_kg_kg'][1]} within andic "
+          f"material)")
     print(f"anion exchange      {ex['anion_exchange_cmol_kg']['max']:.3f} "
           f"cmol(+)/kg max, andic only; sulfate's only retention term")
     print(f"ANUT-8 multiplier   {ex['multiplier_bound']:.2f} upper bound, set by "

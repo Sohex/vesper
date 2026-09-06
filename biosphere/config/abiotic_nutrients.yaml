@@ -674,10 +674,10 @@ adequacy:
   # A BOUND READ OFF A FIELD, AND NO LONGER A GUESS BETWEEN 1 AND 5. Pedology
   # emits an exchange complex: `pedology/config/pedogenesis.yaml`'s `exchange`
   # block derives cation exchange capacity additively from the clay and
-  # organic-matter fractions of the soil map, base saturation from its pH, and
-  # the exchangeable pool per element over THIS declaration's own
-  # `root_zone_depth_m`, which `build_soil.py` reads from here so both sides
-  # count the same column. The soil map's `cec` column is the capacity and
+  # organic-matter fractions of the soil map on coefficients that are themselves
+  # functions of its pH, base saturation from that same pH, and the exchangeable
+  # pool per element over THIS declaration's own `root_zone_depth_m`, which
+  # `build_soil.py` reads from here so both sides count the same column. The soil map's `cec` column is the capacity and
   # `pedology/analysis/soil_report.json`'s `exchange_complex` block is the
   # arithmetic.
   #
@@ -707,42 +707,47 @@ adequacy:
   # element.
   #
   # DIRECTION: UP, at every step, matching the rest of this block. The land
-  # MAXIMUM of the emitted pool rather than its mean; the intercept
-  # `pedogenesis.yaml` drops from the capacity relation added back, because
-  # dropping it understates capacity; the largest cation share each source
-  # permits; and the largest root-to-shoot nutrient ratio in Vitousek and
-  # Sanford (1986) Table 7.
+  # MAXIMUM of the emitted pool rather than its mean; the largest cation share
+  # each source permits; and the largest root-to-shoot nutrient ratio in
+  # Vitousek and Sanford (1986) Table 7. NOTHING IS ADDED BACK FOR THE DROPPED
+  # INTERCEPT, and that is the direction argument rather than a gap in it: the
+  # capacity relation's source carries a NEGATIVE intercept, so the
+  # no-intercept form already overstates the fit it comes from.
   #
   # THE BRACKET SPANS TWO THINGS AND NOT THE THIRD, AND THE THIRD IS LARGER.
   # Its ends are the root term's composition -- the largest ratio anywhere in
   # Table 7, which is a 5.5 T/ha heath scrub, against the largest at a
   # closed-canopy site of the kind the above-ground maximum came from -- and
   # the field's tail, its land maximum against its 99th percentile. It does NOT
-  # span the LEVEL of the capacity coefficients, which rest on one region's fit
-  # and are an open exposure world-n4i0 owns. That exposure moves this number
-  # by more than this bracket does, and a reader should not take the bracket
-  # for the uncertainty.
+  # span the LEVEL of the capacity coefficients, which is a statement about clay
+  # MINERALOGY that this pipeline cannot make and that `pedogenesis.yaml`
+  # brackets across nine soil orders instead. That level moves this number by
+  # more than this bracket does, and a reader should not take the bracket for
+  # the uncertainty.
   #
-  # THE VERDICT DOES NOT REST ON THAT EXPOSURE, WHICH IS WHY IT IS REPORTED
-  # RATHER THAN WAITED ON. Evaluate the bound at the most kaolinitic clay any
-  # read source supports -- Dahlgren et al. (2004) put halloysite at 2 to 10
-  # cmol(+)/kg against Sahrawat's mixed-mineralogy 38 -- and every cation still
-  # lands above 5. The root term alone does: Vitousek and Sanford Table 7's
-  # largest magnesium root-to-shoot ratio is 5.43, so 1 + roots is already
-  # outside the old bracket with no exchange complex in the arithmetic at all.
-  # The 1-to-5 bracket did not bound even the PLANT half of what it multiplied.
+  # THE VERDICT DOES NOT REST ON THAT LEVEL, WHICH IS WHY IT IS SWEPT AND
+  # REPORTED RATHER THAN WAITED ON. `build_soil.py` re-evaluates this bound at
+  # the ends of Manrique, Jones and Dyke (1991)'s across-order range, 8.4
+  # cmol(+)/kg of clay for Oxisols to 63 for Vertisols, and at the one clay
+  # MINERALOGY endmember a read source supplies, halloysite at 2 to 10 from
+  # Dahlgren et al. (2004). Across all four the bound stays above 12 and every
+  # cation stays above 5. The root term alone does: Vitousek and Sanford Table
+  # 7's largest magnesium root-to-shoot ratio is 5.43, so 1 + roots is already
+  # outside the old 1-to-5 bracket with no exchange complex in the arithmetic at
+  # all. That bracket did not bound even the PLANT half of what it multiplied.
   #
   # AND IT IS RE-DERIVED RATHER THAN FROZEN. `build_soil.py` refuses when this
   # key, or any entry in the map beside it, falls below what the emitted field
-  # implies. Soil carbon grows the organic term through loop A, so the check
-  # fires on the iteration that outgrows the declaration instead of quietly
-  # making the screen permissive again.
-  belowground_and_exchangeable_multiplier: 54.09
-  belowground_and_exchangeable_bracket: [47.44, 54.09]
+  # implies. Soil carbon grows the organic term through loop A, and re-sourcing
+  # the capacity relation moved every entry here, so the check fires on the
+  # iteration that outgrows the declaration instead of quietly making the screen
+  # permissive again.
+  belowground_and_exchangeable_multiplier: 66.53
+  belowground_and_exchangeable_bracket: [61.38, 66.53]
   belowground_and_exchangeable_by_element:
-    K: 31.15
-    Ca: 26.37
-    Mg: 54.09
+    K: 38.17
+    Ca: 32.01
+    Mg: 66.53
     S: 5.67
 
   # Elements the screen can reach, and the ones it refuses on and why. A refusal
