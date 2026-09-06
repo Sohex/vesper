@@ -425,10 +425,11 @@ so a boundary rather than an unknown, which strands further fragments between
 the channels. On the active build the coastlines alone give 7,564 blocks with
 the largest holding 15.0 per cent of the conductive land, and the baselevels take
 that to 13,094 blocks and 15.5 per cent -- many more fragments, five per cent off
-the largest. A direct
-factorisation's work and fill are superlinear in the unknowns, so `K` blocks of
-`n/K` cells cost `n^1.5 / sqrt(K)` and the peak is one block rather than the
-whole. It is exact rather than an approximation to the coupled solve -- there
+the largest. A direct factorisation's work and fill are superlinear in the
+unknowns, so the sum over the blocks is less than the union and the peak is one
+block rather than the whole; how much less is measured in
+`notes/water-table-convergence.md` and is about half the time and an eighth of
+the peak fill, not the factor the textbook `n^1.5` would give. It is exact rather than an approximation to the coupled solve -- there
 are no entries between blocks, so there is no fill between them and the
 elimination inside a block is the sequence it would have been inside the whole
 matrix. `groundwater.py --factorisation-test` asserts that bitwise on
