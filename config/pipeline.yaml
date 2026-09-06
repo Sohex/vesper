@@ -2413,6 +2413,18 @@ one_offs:
   # a guard that refused every path would pass the positives alone and would
   # stop every generator in the main checkout.
   - lib/write_door.py
+  # A library, and `--selftest` is the only thing to run in it. It writes the
+  # geometry declaration every NetCDF product carries -- the coordinate system
+  # this planet's radius comes from, the CF axis names, the cell boundaries and
+  # the Gaussian quadrature weight -- and reads one back with every claim in it
+  # checked. Here rather than under `checks` because the fixtures are synthetic
+  # products in a temporary directory and nothing in the graph reads them.
+  # Sixteen cases: a round trip that must reproduce the grid it was written
+  # from, a closure against config/planet.yaml's sphere, and six refusals,
+  # including the one that carries the weight -- an axis half a column from the
+  # convention it declares, which is the export's centres offered as the
+  # model's labels and agrees with every other number in the file.
+  - lib/nc_geometry.py
   - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/shtns_variant_sweep.py
   - exoplasim/scripts/build_pyfft.py
