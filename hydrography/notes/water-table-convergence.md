@@ -487,6 +487,15 @@ fill and moves the answer by 2e-14 to 6e-14 relative, which is what says the
 equality is a property of this substitution and not of any two ways of solving
 the same system.
 
+**End to end against the code it replaces**, which is the bar the change is
+actually held to. The partitioned solver was run against the monolithic
+`spsolve` version on the uniqueness case at three sizes, 48x48, 96x96 and
+128x128, each carrying the sink, the imposed baselevels, an enclosed block and a
+pinned wet patch: the same pass count, an **identical converged active set**, and
+a **bit-identical head field**, `max|dh| = 0.000e+00` on all three. That is the
+whole of what a restructuring of this solve has to show, and it is not inferred
+from the algebra arm above but measured on the solver.
+
 `splu(A).solve(b)` replaces `spsolve(A, b)` for the same reason and at the same
 bar: at one column ordering the two drive the same factorisation and the same
 back-substitution, so they agree to the last bit, and the same check asserts it.
