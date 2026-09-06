@@ -488,13 +488,10 @@ to pay, and it makes the peak the whole rather than one block. How superlinear
 decides how much that is worth, and the exponent is measured below rather than
 taken from the textbook.
 
-**Measured on `canonical-10m-carve2`, 2026-09-05**, over its 4,328,732 land
-regions, 4,268,074 of them conductive under the `exclude` policy, with 363,761
-river and lake cells at fixed head. The free set the solve opens on is 3,914,015
-cells and it is **13,094 blocks**. The largest holds 606,808 cells, which is
-15.5 per cent of it; fifty-one blocks of a thousand cells or more hold 96.3 per
-cent between them and the remaining thirteen thousand are small enough that what
-they cost is the per-block call and not the factorisation.
+Of the 13,094, fifty-one blocks of a thousand cells or more hold 96.3 per cent
+of the free set between them; the remaining thirteen thousand are small enough
+that what they cost is the per-block call rather than the factorisation, which
+is 82 microseconds each and about a second per pass over all of them.
 
 The count is a LOWER bound on the partition, because the solve also drops the
 cells that reach neither recharge nor the sea and any that the sink seeds at the
@@ -512,7 +509,7 @@ on the two other ten-million-region builds that carry a `surface_water.nc`:
 Thirteen to seventeen thousand blocks on every one of them, with the largest
 holding a seventh of the free set and fifty or so blocks holding all but four
 per cent. A carve iteration moves the count and does not move the shape, which
-is what says the partition is the channel network's doing and not an accident of
+is what says the partition belongs to the world's coastlines rather than to any
 one terrain.
 
 **What that is worth, and the exponent is measured rather than assumed.** The
