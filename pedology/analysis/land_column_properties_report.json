@@ -1,10 +1,10 @@
 {
-  "generated": "2026-08-30T16:39:54+00:00",
+  "generated": "2026-09-06T04:20:03+00:00",
   "declaration": "pedology/config/land_column_properties.yaml",
-  "declaration_sha256": "818866786040088c6a375c9e84cf4d40cf09c610cebf93d91357c788b6456621",
+  "declaration_sha256": "53523327a000ddc6a9b5dc4ae565b42433a7c1f9e9bbf99c0a3e0abfd9bb83d5",
   "version": 2,
   "soil_map": "pedology/data/canonical-10m-carve2/soilmap_T21.txt",
-  "soil_map_sha256": "7886309a8aae382edc8d007b1c37dfbe893743d700af4b065ce6af149ae4cb00",
+  "soil_map_sha256": "e5b3ee66535f7d83128a5c99387f88d019d8a355fd7dcf6568704da854ab7b19",
   "units": {
     "depth": "m",
     "volumetric_water": "m3_per_m3",
@@ -382,7 +382,7 @@
   },
   "uncertainty_cases": {
     "source": "cosby1984 Table 4, the S.D. rows: the within-texture-class residual spread of the same parameters whose means are the adopted central case",
-    "reference": "references/pdf/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf",
+    "reference": "references/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf",
     "deviate": 1.0,
     "corners": 8,
     "applied": "coherently across all layers and all properties in one case",

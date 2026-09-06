@@ -91,17 +91,21 @@ def column_base_m() -> float:
     return float(decl["geometry"]["column_base_m"])
 
 
-def lithology_fractions(config: dict) -> tuple[dict[str, np.ndarray], Export, Path]:
+def lithology_fractions(config: dict,
+                        grid_dir: Path) -> tuple[dict[str, np.ndarray], Export]:
     """Area share of each rock class within every cell's land, from the mesh.
 
     Fractions rather than the dominant class, because texture is continuous and
     a cell that is half granite and half basalt really does carry a mixture.
     That is the opposite of the soil-code case, where averaging categories would
     have been meaningless.
+
+    THE GRID IS PASSED IN rather than resolved from `model.resolution` here.
+    The rung is `main`'s `--grid` and is one decision; resolving it a second
+    time in a helper is how a script ends up integrating onto one grid and
+    naming its output for another. The mesh is per build and carries no rung.
     """
     mesh = Export(builds.mesh_export(config))
-    resolution = str(config["model"]["resolution"]).upper()
-    grid_dir = builds.grid_export(config, resolution)
     rock = mesh.substrate_class
     classes = {c["id"]: c["code"] for c in mesh.manifest["lithology"]["rockClasses"]}
 
@@ -110,7 +114,7 @@ def lithology_fractions(config: dict) -> tuple[dict[str, np.ndarray], Export, Pa
         selected = rock == rock_id
         if selected.any():
             fractions[code] = land_fraction_of_class(mesh, grid_dir, selected)
-    return fractions, mesh, grid_dir
+    return fractions, mesh
 
 
 def subgrid_slope(mesh: Export, grid_dir: Path, baseline_km: float) -> np.ndarray:
@@ -744,12 +748,18 @@ def read_soil_carbon(path: Path, lon: np.ndarray, lat: np.ndarray,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--grid", type=Path, default=None,
+                        help="the export whose grid this soil is cut on: "
+                             "source/<build>/exoplasim-<rung>. THE GRID IS THE "
+                             "RUNG, so the soil map's name, the rootable "
+                             "fraction and the climatology declaration all "
+                             "follow it. Defaults to the configured build's "
+                             "configured rung")
     parser.add_argument("--climatology", type=Path, default=None,
-                        help="the climatology config already names for --state, "
-                             "restated. This is a CROSS-CHECK and not an "
-                             "override: a file that is not the declared one is "
-                             "refused. THE RUNG IS CONFIG'S, here and in the "
-                             "grid export; see WORLD-CCX6.")
+                        help="the climatology config declares for --state AT "
+                             "THIS GRID'S RUNG, restated. This is a "
+                             "CROSS-CHECK and not an override: a file that is "
+                             "not the declared one is refused")
     parser.add_argument("--soil-carbon", type=Path, default=None,
                         help="LPJ-GUESS cpool.out from the previous iteration. "
                              "Omit for iteration 0, which has no biosphere.")
@@ -783,12 +793,61 @@ def main() -> None:
     if args.iteration > 0 and args.soil_carbon is None:
         raise SystemExit("positive iterations require --soil-carbon from an accepted run")
 
+    # THE GRID IS THE RUNG, and it is TOLD rather than read out of config. Every
+    # rung-dependent thing below follows from this one argument: the grid export
+    # the lithology is integrated onto, the soil map's name, BIO-11's rootable
+    # fraction, and the climatology declaration this soil is weathered under.
+    # They used to follow `model.resolution` in two places that had to be moved
+    # together with the climatology keys, so building at a second rung meant a
+    # configuration change `continue_exoplasim.py` refuses to resume across --
+    # which blocked every run in flight. WORLD-CCX6.
+    #
+    # WHAT A --grid DOES NOT DO IS LOOSEN THE CLIMATE EDGE. This script reads a
+    # climatology for temperature, precipitation, runoff, evaporation and
+    # elevation -- content, not a grid -- so a soil at a rung needs a CLIMATE at
+    # that rung and waits for one. It is not built on a climatology remapped
+    # from another rung: remapped precipitation and evaporation balance on a
+    # mask no run integrated, and runoff is their difference. WORLD-512R decided
+    # it; exoplasim/notes/route-step-criteria.md carries the argument.
+    from gridding import grid_geometry
+    import rungs
+    grid_dir = (args.grid or builds.grid_export(config)).resolve()
+    build_root = builds.build_root(config).resolve()
+    if grid_dir.parent != build_root:
+        # Rule 5: pointing one component at another's output is deliberate,
+        # never defaulted. The soil map is written under the CONFIGURED build's
+        # directory, so a grid from another build would put one terrain's rows
+        # in another terrain's file with nothing able to see it.
+        raise SystemExit(
+            f"{rel(grid_dir)} is not an export of the configured build "
+            f"{config.get('source_build')!r}, whose exports are under "
+            f"{rel(build_root)}. The soil map is namespaced by build, so this "
+            "would write one terrain's soil into another's directory. Move "
+            "source_build, or name an export of the build config declares.")
+    resolution = builds.resolution_of(grid_dir)
+    grid_lat, grid_lon, _grid_manifest = grid_geometry(grid_dir)
+    nlat, nlon = int(grid_lat.size), int(grid_lon.size)
+    ladder_nlat, ladder_nlon, _ = rungs.geometry(resolution)
+    if (nlat, nlon) != (ladder_nlat, ladder_nlon):
+        raise SystemExit(
+            f"{rel(grid_dir)} is named {resolution} and ships a {nlat}x{nlon} "
+            f"grid, which is not the ladder's {ladder_nlat}x{ladder_nlon} for "
+            "that rung. The export and its name disagree; nothing here can say "
+            "which is right.")
+    # The rung substituted into the config every per-rung resolver is asked
+    # with, rather than each filename spelled a second time. `rungs.model_grid`
+    # inside those resolvers then refuses a rung and a shape that are not one
+    # fact. Same idiom as build_surface_soil_water.py.
+    grid_config = dict(config, model=dict(
+        config["model"], resolution=resolution,
+        latitudes=nlat, longitudes=nlon))
+
     # BIO-19: the mode chooses the climate, rather than filesystem timing doing
     # it through a best-available fallback. Rebuilding iteration 0 after a
     # baseline exists must still reproduce the bootstrap soil; iterations that
     # close loop B must use the named baseline.
     clim_stage = args.state
-    expected_climatology = climatology_path_for_state(args.state)
+    expected_climatology = climatology_path_for_state(args.state, rung=resolution)
     climatology = args.climatology or expected_climatology
     climatology = climatology.resolve()
     if not climatology.is_file():
@@ -812,23 +871,21 @@ def main() -> None:
             # so a caller can assert which climate a soil was weathered under;
             # BIO-19's mode pinning is what refuses any other file, so that
             # rebuilding iteration 0 after a baseline exists still reproduces
-            # the bootstrap soil. AND THE RUNG TRAVELS WITH THE DECLARATION:
-            # `bootstrap_climatology` and `baseline_climatology` carry no rung
-            # in their names, and the grid export this script reads comes from
-            # `model.resolution`, so a soil at another rung needs BOTH config
-            # keys moved together and not this flag. WORLD-CCX6 is that carrier
-            # fix; exoplasim/notes/route-step-criteria.md carries why the soil
-            # waits for a climate at its rung instead of being remapped onto it.
-            configured = str(config["model"]["resolution"]).upper()
+            # the bootstrap soil. THE DECLARATION IS PER RUNG, so the file this
+            # is compared against is the one declared for --grid's rung, and
+            # sha equality is the test at every rung a declaration exists at:
+            # where a climate is declared, the declared file IS the answer.
             raise SystemExit(
                 f"--climatology is a cross-check, not an override: iteration "
                 f"{args.iteration} is weathered under the {clim_stage} "
-                f"climatology config/planet.yaml declares, which is "
-                f"{rel(expected_climatology)}, and {rel(climatology)} is not "
-                f"it.\nThat declaration carries no rung, and this script takes "
-                f"its grid export from model.resolution, so this soil is "
-                f"{configured}'s whatever is passed here. To build at another "
-                "rung both keys move together; see WORLD-CCX6.")
+                f"climatology config/planet.yaml declares at {resolution}, "
+                f"which is {rel(expected_climatology)}, and "
+                f"{rel(climatology)} is not it.\nTo weather this soil under "
+                f"another climate, declare that climate: the {clim_stage} "
+                f"climatology at {resolution} is a config key, not a flag. To "
+                "build at another rung, pass --grid "
+                "source/<build>/exoplasim-<rung> and declare that rung's "
+                "climatology beside this one.")
 
     with nc.Dataset(climatology) as data:
         lat = np.asarray(data["lat"][:], dtype=float)
@@ -865,7 +922,7 @@ def main() -> None:
         bin_min = np.asarray(data["mint"][:], dtype=float) - KELVIN
         bin_max = np.asarray(data["maxt"][:], dtype=float) - KELVIN
 
-    fractions, mesh, grid_dir = lithology_fractions(config)
+    fractions, mesh = lithology_fractions(config, grid_dir)
 
     # THE SOIL MAP'S POPULATION IS GROUND, NOT OWNERSHIP. `lsm` is the
     # climatology's copy of ExoPlaSim's binary 0.5 coastline rounding, and a
@@ -889,8 +946,11 @@ def main() -> None:
     owned_land = land
     land = land_fraction > 0.0
 
+    # BIO-11's rootable fraction is per build AND per rung, and the rung asked
+    # for is the GRID's. `read_rootable` resolves it from a config, so it is
+    # handed the one with this grid's rung substituted.
     rootable, rootable_provenance = read_rootable(
-        config, lat, lon, args.rootable, land=land)
+        grid_config, lat, lon, args.rootable, land=land)
 
     # Local relief, as the spread of surface height across each cell's neighbours.
     # A stand-in for slope that needs no extra field and no mesh gradient.
@@ -1109,11 +1169,11 @@ def main() -> None:
     # raising.
     # Per build. Soil texture derives from lithology, so a soil map belongs to
     # the terrain it was computed from, and LPJ-GUESS eats this file directly.
+    # Per build AND per rung. The rung in the name is the GRID's, so a soil cut
+    # at a second rung cannot land on the file a consumer at the first rung
+    # reads; `builds.soilmap` is asked with the grid's rung substituted.
     if args.output is None:
-        import sys as _sys
-        _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
-        import builds as _b
-        default_out = _b.soilmap(config)
+        default_out = builds.soilmap(grid_config)
         default_out.parent.mkdir(parents=True, exist_ok=True)
     else:
         default_out = args.output
@@ -1162,6 +1222,16 @@ def main() -> None:
         # distinguishable from a later one by reading it. lib/paths.py.
         "climatology_stage": clim_stage,
         "climatology_sha256": hashlib.sha256(climatology.read_bytes()).hexdigest(),
+        # WHICH RUNG this soil is, which is a second axis of its identity and
+        # not a stage. The grid export, the climatology, BIO-11's rootable
+        # fraction and the soil map's own name are all at this rung, and the
+        # climatology is the one config DECLARES for it -- never one remapped
+        # from another rung, whose precipitation and evaporation balance on a
+        # mask no run integrated. WORLD-CCX6, WORLD-512R.
+        "resolution": resolution,
+        "grid": rel(grid_dir),
+        "latitudes": nlat,
+        "longitudes": nlon,
         "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
         "pedogenesis_sha256": hashlib.sha256(PEDOGENESIS.read_bytes()).hexdigest(),
         "source_build": config.get("source_build"),
