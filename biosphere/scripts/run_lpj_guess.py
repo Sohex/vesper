@@ -936,8 +936,15 @@ def main() -> None:
         "continuation": continuation,
         "saved_state": ({
             "dir": str(Path(state["save_path"])),
-            "covers_year": state["save_year"] - 1,
-            "covers_day": "year boundary",
+            # The same arithmetic `framework/framework.cpp` performs on the same
+            # two numbers, derived rather than assumed: -1 is the year-boundary
+            # sentinel and any other value is a day within `save_year`. Writing
+            # "year boundary" unconditionally would be a fourth copy of a rule
+            # that has already been wrong once (world-glu7).
+            "covers_year": (state["save_year"] - 1 if state["save_day"] < 0
+                            else state["save_year"]),
+            "covers_day": ("year boundary" if state["save_day"] < 0
+                           else state["save_day"]),
             "sha256": {p.name: sha256(p)
                        for p in sorted(Path(state["save_path"]).iterdir())
                        if p.is_file()},

@@ -76,6 +76,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import struct
 import subprocess
@@ -191,6 +192,13 @@ def slice_driver(driver: Path, wanted: list[tuple[float, float]],
         for index in chosen:
             at = offset + index * cell_bytes
             handle.write(raw[at:at + cell_bytes])
+    # THE BUILD IDENTITY TRAVELS WITH THE SLICE. A subset of a build's driver is
+    # that build's forcing over fewer cells, and `provenance.require_build`
+    # refuses an unstamped driver outright where the pairing matters. Copying
+    # the sidecar is what makes a sliced bed usable by run_lpj_guess.py at all.
+    sidecar = driver.with_name(driver.stem + "_provenance.json")
+    if sidecar.is_file():
+        shutil.copyfile(sidecar, out.with_name(out.stem + "_provenance.json"))
     return taken
 
 
@@ -470,6 +478,152 @@ def compare(whole: Path, resumed: Path, first_year: int,
     return failures
 
 
+RUN_ID = re.compile(r"^(lpj_[0-9a-f]{32})$")
+
+
+def reduced_pfts(source: Path, target: Path, spinup: int) -> None:
+    """A copy of the PFT file with the derived spin-up replaced by a short one.
+
+    The runner reads `nyear_spinup` out of the PFT file it imports, and the
+    generated one declares the DERIVED floor: thousands of simulated years, and
+    the whole grid behind them. That is the right number for a run that buys a
+    record and the wrong one for a check on the runner's PLUMBING, which is what
+    this mode tests -- state directory creation, the continuation block in the
+    manifest, the refusals, and whether a continuation's rows are the rows the
+    uninterrupted run has. None of that is a function of the spin-up length.
+
+    The floor stays where it is; this writes a copy into the bed. The copy is a
+    bed, not a run: nothing it produces is a result about this world.
+    """
+    text = source.read_text(encoding="utf-8")
+    replaced, count = re.subn(r"(?m)^nyear_spinup\s+\d+",
+                             f"nyear_spinup {spinup}", text)
+    if count != 1:
+        raise SystemExit(
+            f"{rel(source)} declares nyear_spinup {count} times and this needs "
+            "exactly one to replace")
+    target.write_text(replaced, encoding="utf-8")
+
+
+def invoke_runner(bed: Path, driver: Path, pfts: Path, ranks: int,
+                  npatch: int, nyear: int, extra: list[str],
+                  expect_failure: bool = False) -> tuple[str | None, str]:
+    """One `run_lpj_guess.py` invocation, and the run id it made."""
+    command = [sys.executable,
+               str(PROJECT_ROOT / "biosphere" / "scripts" / "run_lpj_guess.py"),
+               "--nyear", str(nyear), "--npatch", str(npatch),
+               "--ranks", str(ranks), "--driver", str(driver),
+               "--pfts", str(pfts)] + extra
+    result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True,
+                            text=True)
+    output = result.stdout + result.stderr
+    (bed / "runner.log").write_text(
+        (bed / "runner.log").read_text() if (bed / "runner.log").is_file() else "")
+    with (bed / "runner.log").open("a") as handle:
+        handle.write(f"$ {' '.join(command)}\n{output}\n")
+    if expect_failure:
+        return (None if result.returncode else "UNEXPECTED SUCCESS"), output
+    if result.returncode:
+        return None, output
+    for line in output.splitlines():
+        match = RUN_ID.match(line.strip())
+        if match:
+            return match.group(1), output
+    return None, output
+
+
+def runner_check(bed_root: Path, driver: Path, pfts_source: Path, ranks: int,
+                 nyear: int, spinup: int, tables: tuple[str, ...]) -> list[str]:
+    """Does the PRODUCTION runner continue a run, against a running model?
+
+    THE PART OF WORLD-GQYP THAT WAS NEVER MEASURED. `--save-state` and
+    `--continue-from` are wired through `run_lpj_guess.py`, the instruction file
+    it derives, the run manifest and five refusals, and `--self-test` holds the
+    ARITHMETIC against `framework/framework.cpp`. None of the PLUMBING had ever
+    been exercised against a running model: whether the state directory is
+    created where the manifest says it is, whether a continuation's manifest
+    names its parent, whether the recorded state hashes match the files on disk
+    at the moment of the continuation, and whether the continued record is the
+    record the uninterrupted run has.
+
+    Three runs, all on the same bed: a PARENT that saves, a CONTINUATION from
+    it, and an uninterrupted CONTROL twice as long. The continuation's years
+    have to be the control's years, exactly, row for row. Then a fourth run that
+    has to be REFUSED: a continuation at a patch count the parent never ran is
+    a different experiment resumed from someone else's state.
+    """
+    bed_root.mkdir(parents=True, exist_ok=True)
+    pfts = bed_root / "runner_pfts.ins"
+    reduced_pfts(pfts_source, pfts, spinup)
+
+    failures: list[str] = []
+    parent, output = invoke_runner(bed_root, driver, pfts, ranks, 1, nyear,
+                                   ["--save-state", "--label",
+                                    "runner_check_parent"])
+    if parent is None:
+        return [f"the parent run failed:\n{output[-2000:]}"]
+    parent_dir = RUNS / parent
+    manifest = json.loads((parent_dir / "run_manifest.json").read_text())
+    saved = manifest.get("saved_state")
+    if not saved:
+        failures.append(
+            f"{parent} was asked for --save-state and its manifest records no "
+            "saved_state block")
+    elif not (Path(saved["dir"]) / "meta.bin").is_file():
+        failures.append(
+            f"{parent}'s manifest names {saved['dir']} as its state directory "
+            "and there is no state file in it")
+    elif saved["covers_year"] != spinup + nyear - 1:
+        failures.append(
+            f"{parent}'s manifest says its state covers year "
+            f"{saved['covers_year']}; a run of {nyear} retained years behind a "
+            f"{spinup}-year spin-up ends at {spinup + nyear - 1}")
+
+    child, output = invoke_runner(bed_root, driver, pfts, ranks, 1, nyear,
+                                  ["--continue-from", parent, "--label",
+                                   "runner_check_child"])
+    if child is None:
+        return failures + [f"the continuation failed:\n{output[-2000:]}"]
+    child_manifest = json.loads((RUNS / child / "run_manifest.json").read_text())
+    continuation = child_manifest.get("continuation")
+    if not continuation:
+        failures.append(f"{child} continues {parent} and its manifest records "
+                        "no continuation block, so the chain has no provenance")
+    elif continuation.get("parent") != parent:
+        failures.append(
+            f"{child}'s manifest names {continuation.get('parent')} as its "
+            f"parent and it continued {parent}")
+
+    control, output = invoke_runner(bed_root, driver, pfts, ranks, 1,
+                                    2 * nyear, ["--label",
+                                               "runner_check_control"])
+    if control is None:
+        return failures + [f"the uninterrupted control failed:\n{output[-2000:]}"]
+
+    # The years the continuation is responsible for, in the control's own
+    # numbering: it resumes where the parent stopped and adds its own record.
+    first_year = spinup + nyear
+    failures += compare(RUNS / control, RUNS / child, first_year, tables)
+
+    # THE REFUSAL. A continuation at a patch count the parent never ran resumes
+    # a different experiment from someone else's state, and the guard exists to
+    # stop it. A guard that has never refused anything is not known to refuse.
+    refused, output = invoke_runner(bed_root, driver, pfts, ranks, 3, nyear,
+                                    ["--continue-from", parent, "--label",
+                                     "runner_check_refusal"],
+                                    expect_failure=True)
+    if refused is not None:
+        failures.append(
+            "a continuation at npatch 3 from an npatch 1 parent was NOT "
+            "refused")
+    elif "npatch" not in output:
+        failures.append(
+            "the continuation at npatch 3 was refused and the refusal does not "
+            f"name npatch, so it may have been refused for another reason:\n"
+            f"{output[-1000:]}")
+    return failures
+
+
 def resume_and_save_instants(state: dict, year_length: int) -> dict:
     """The two instants `framework/framework.cpp` computes from a state block.
 
@@ -669,6 +823,14 @@ def main() -> None:
                              "the CENTURY accelerator window empty, so this "
                              "fixture does not exercise the accelerator's own "
                              "restart state.")
+    parser.add_argument("--runner", action="store_true",
+                        help="instead: exercise the PRODUCTION runner's state "
+                             "plumbing end to end -- a parent that saves, a "
+                             "continuation from it, an uninterrupted control "
+                             "twice as long, and a continuation at a patch "
+                             "count the parent never ran, which has to be "
+                             "refused. Needs --cells: it runs run_lpj_guess.py, "
+                             "which runs the whole driver it is given.")
     parser.add_argument("--cells", type=str, default=None,
                         help="run only these cells, as lon,lat pairs separated "
                              "by ';' -- the coordinates the output tables "
@@ -708,6 +870,13 @@ def main() -> None:
             f"{last_year} and writes output from {args.nyear_spinup}. A "
             "restart at the first output year continues nothing and one after "
             "the last compares nothing.")
+
+    if sum((args.one_day, args.round_trip, args.runner)) > 1:
+        raise SystemExit(
+            "--one-day, --round-trip and --runner are different questions: what "
+            "a simulated day did differently either side of a restart, what the "
+            "write and read of a state file does not carry, and whether the "
+            "production runner continues a run at all. Ask one.")
 
     if args.one_day and args.round_trip:
         raise SystemExit(
@@ -812,8 +981,51 @@ def main() -> None:
     year_length = model_year_days(yaml.safe_load(CONFIG.read_text()))
     split_day = (args.state_day if args.state_day is not None
                  else year_length // 2)
-    mode = ("round-trip" if args.round_trip
+    mode = ("runner" if args.runner
+            else "round-trip" if args.round_trip
             else "one-day" if args.one_day else "annual")
+
+    if mode == "runner":
+        if cells is None:
+            raise SystemExit(
+                "--runner needs --cells. It invokes run_lpj_guess.py, which "
+                "simulates every cell in the driver it is handed, and the "
+                "runner's plumbing is not a function of how many cells ran.")
+        # args.driver is the SLICE by now; args.pfts is still the source the
+        # bed's reduced copy is made from.
+        failures = runner_check(bed_root, Path(args.driver).resolve(),
+                                Path(args.pfts).resolve(),
+                                args.ranks, args.nyear, args.nyear_spinup,
+                                run_lpj_guess.OUTPUTS)
+        report = {
+            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "generator": "biosphere/scripts/verify_lpj_restart_continuity.py",
+            "mode": mode, "nyear": args.nyear,
+            "nyear_spinup": args.nyear_spinup,
+            "state_year": None, "state_day": None,
+            "ranks": args.ranks, "npatch": 1,
+            "wetlands_active": active,
+            "tables_compared": list(run_lpj_guess.OUTPUTS),
+            "binary_sha256": run_lpj_guess.sha256(GUESS_BINARY),
+            "cells": [[lon, lat] for lon, lat in taken],
+            "continuous": not failures,
+            "failures": failures,
+        }
+        out = GENERATED / "lpj_runner_continuation.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=2) + "\n")
+        print(f"production runner end to end: a parent of {args.nyear} retained "
+              f"years behind a {args.nyear_spinup}-year spin-up, a continuation "
+              f"of {args.nyear} more, and a {2 * args.nyear}-year control")
+        for failure in failures:
+            print(f"  {failure}")
+        print(f"\nwrote {rel(out)}")
+        if failures:
+            print("\nThe production runner does not continue a run. "
+                  "--continue-from must not be used to buy a record.")
+            sys.exit(1)
+        return
+
 
     if mode == "annual":
         run_bed(build_bed(whole, paths_for(whole),
