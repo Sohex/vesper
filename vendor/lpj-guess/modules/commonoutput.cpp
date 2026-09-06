@@ -43,6 +43,23 @@ CommonOutput::CommonOutput() {
 	declare_parameter("file_clitter", &file_clitter, 300, "Litter C output file");
 	declare_parameter("file_runoff", &file_runoff, 300, "Runoff output file");
 
+	// THE WATER STORE THE ANNUAL BUDGET CLOSES AGAINST. `soil.cpp:hydrology_lpjf`
+	// balances the column day by day as
+	//     initial water in column + rain_melt
+	//         = final water + evap + aet_total + runoff
+	// and `soilwater.cpp:initial_infiltration` sets rain_melt to precipitation
+	// less interception, less what the snowpack takes and plus what it releases.
+	// So the annual gridcell identity is precipitation against four losses plus
+	// the change in one store: soil water, soil ice and the snowpack. The four
+	// losses all have columns. The store had none, so the water closure could
+	// only difference the losses out of precipitation and call whatever was left
+	// the store, which is not a conservation test -- a wet soil and a leak read
+	// alike. This table is that store, on the same gridcell average as
+	// tot_runoff.out, so water closes stock-against-flux exactly as carbon and
+	// nitrogen do.
+	declare_parameter("file_awater", &file_awater, 300,
+	                  "Annual water stored in the soil column and snowpack");
+
 	declare_parameter("file_firert", &file_firert, 300, "Fire retrun time output file");
 
 	// Nitrogen outputs
@@ -322,6 +339,14 @@ void CommonOutput::define_output_tables() {
 	runoff_columns += ColumnDescriptor("Base",             8, 1);
 	runoff_columns += ColumnDescriptor("Total", closure_width, closure_prec_water);
 
+	// WATER STORE. Written at the closure precision because the residual that
+	// differences its two endpoints is held to a tolerance measured from it.
+	ColumnDescriptors awater_columns;
+	awater_columns += ColumnDescriptor("Soil",  closure_width, closure_prec_water);
+	awater_columns += ColumnDescriptor("Ice",   closure_width, closure_prec_water);
+	awater_columns += ColumnDescriptor("Snow",  closure_width, closure_prec_water);
+	awater_columns += ColumnDescriptor("Total", closure_width, closure_prec_water);
+
 	// SPECIESHEIGHTS
 	ColumnDescriptors speciesheights_columns;
 	speciesheights_columns += ColumnDescriptors(pfts,      8, 2);
@@ -512,6 +537,7 @@ void CommonOutput::define_output_tables() {
 	}
 
 	create_output_table(out_runoff,			file_runoff,         runoff_columns);
+	create_output_table(out_awater,			file_awater,         awater_columns);
 	create_output_table(out_speciesheights, file_speciesheights, speciesheights_columns);
 	create_output_table(out_aiso,           file_aiso,           aiso_columns);
 	create_output_table(out_amon,           file_amon,           amon_columns);
@@ -950,6 +976,9 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 	double drainrunoff_gridcell=0.0;
 	double baserunoff_gridcell=0.0;
 	double runoff_gridcell=0.0;
+	double soilwater_gridcell=0.0;
+	double soilice_gridcell=0.0;
+	double snowpack_gridcell=0.0;
 	double dens_gridcell=0.0;
 	double firert_gridcell=0.0;
 	double burned_area_gridcell=0.0;
@@ -1522,6 +1551,27 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 			baserunoff_gridcell+=patch.abaserunoff*to_gridcell_average;
 			runoff_gridcell += patch.arunoff*to_gridcell_average;
 
+			// THE STORE AT THE END OF THE YEAR, in the same terms the daily
+			// balance in `soil.cpp:hydrology_lpjf` uses: available water is
+			// `wcont` times the layer capacity, ice is its volume fraction
+			// times the layer thickness, and the snowpack is already a
+			// rainfall-equivalent depth. Water held below the wilting point is
+			// deliberately absent, exactly as it is from that balance; it is
+			// constant and cancels in any difference of two endpoints.
+			// `soiltype.awc` itself moves under `iforganicsoilproperties`, so
+			// this reports the water present and not a capacity fraction.
+			double soilwater_patch = 0.0;
+			double soilice_patch = 0.0;
+			for (int ly = 0; ly < NSOILLAYER; ly++) {
+				soilwater_patch += patch.soil.get_layer_soil_water(ly)
+				                 * patch.soil.soiltype.awc[ly];
+				soilice_patch += patch.soil.Frac_ice[ly + patch.soil.IDX]
+				               * patch.soil.Dz[ly + patch.soil.IDX];
+			}
+			soilwater_gridcell += soilwater_patch * to_gridcell_average;
+			soilice_gridcell += soilice_patch * to_gridcell_average;
+			snowpack_gridcell += patch.soil.snowpack * to_gridcell_average;
+
 			// Fire return time
 			if (!patch.has_fires() || patch.fireprob < 0.001) {
 				firert_gridcell+=1000.0 * to_gridcell_average; // Set a limit of 1000 years
@@ -1690,6 +1740,12 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 	outlimit(out,out_simfireanalysis,			gridcell.simfire_region);
 	outlimit(out,out_firert,				firert_gridcell);
 	outlimit(out,out_firert,				burned_area_gridcell);
+	outlimit(out,out_awater,				soilwater_gridcell);
+	outlimit(out,out_awater,				soilice_gridcell);
+	outlimit(out,out_awater,				snowpack_gridcell);
+	outlimit(out,out_awater,				soilwater_gridcell + soilice_gridcell
+	                                        + snowpack_gridcell);
+
 	outlimit(out,out_runoff,				surfrunoff_gridcell);
 	outlimit(out,out_runoff,				drainrunoff_gridcell);
 	outlimit(out,out_runoff,				baserunoff_gridcell);

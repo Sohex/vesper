@@ -88,7 +88,7 @@ SOIL_REPORT = PROJECT_ROOT / "pedology" / "analysis" / "soil_report.json"
 # table at all. notes/audits/closure-stocks-are-incomplete.md.
 OUTPUTS = ("anpp.out", "lai.out", "fpc.out", "cmass.out", "aaet.out",
            "cpool.out", "dens.out", "agpp.out", "nsources.out", "cflux.out",
-           "firert.out", "tot_runoff.out",
+           "firert.out", "tot_runoff.out", "awater.out",
            "maet.out", "mevap.out", "mintercep.out",
            "nmass.out", "nuptake.out", "npool.out",
            "nflux.out", "ngases.out", "soil_npool.out", "soil_nflux.out")

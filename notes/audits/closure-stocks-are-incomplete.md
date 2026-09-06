@@ -218,6 +218,146 @@ which is turnover and not water. 1382 of 1617 gridcells carry a positive mean
 residual and the most negative is -2.24 mm against a maximum of +19.14, so the
 systematic part has one sign, as a column that omits a loss must.
 
+### What the residual is once the survivors-only column is replaced too
+
+`maet.out` in place of `aaet.out` Total closes the turnover term. Measured on
+`lpj_2ffc33a5b8c749c888ca9b3a24611df4`, 1600 spin-up cycles and 30 retained
+over 1617 gridcells, with the four losses read from `maet.out`, `mevap.out`,
+`mintercep.out` and `tot_runoff.out`:
+
+| statistic | value |
+| --- | --- |
+| gridcells failing the ten-cycle window | 81 of 1617 |
+| largest ten-cycle window residual | -68.07 mm against a 17.80 mm limit |
+| population mean per-cycle residual | +0.0070 mm |
+| mean precipitation | 272.58 mm per cycle |
+| mean transpiration, soil evaporation, interception, runoff | 97.52, 36.25, 12.10, 126.71 mm per cycle |
+
+The correlations that identified the missing turnover are gone. Against the
+per-gridcell mean residual: burnt fraction -0.028 where it was +0.66,
+transpiration -0.006 where it was +0.59, leaf area index -0.008 where it was
++0.56. The sign is no longer systematic either: 901 gridcells carry a positive
+mean and 716 a negative one, spanning -2.747 to +4.960 mm per cycle, where a
+column omitting a loss gave 1382 positive against a most-negative -2.24.
+
+### It is a store, and the store cannot grow
+
+Pre-registered on `world-24xd` before the measurement: a storage term
+telescopes to an endpoint difference and cannot grow with the window, and a
+missing flux grows linearly. The residual was taken at every window from one to
+thirty cycles, each ending on the last retained cycle, so window `w` reads
+`S(end) - S(end - w)`.
+
+| statistic | value |
+| --- | --- |
+| median per-gridcell slope of the residual on window length | 0.0017 mm per cycle |
+| 95th percentile of that slope | 0.761 mm per cycle |
+| median coefficient of determination of a linear fit in the window | 0.177 |
+| mean absolute residual, one cycle to thirty | 0.625 mm to 3.249 mm |
+
+A missing flux of rate `F` gives a mean absolute residual of `F * w` and a
+coefficient of determination near one. A bounded store visited at increasing
+separations grows as the square root of the window: over a thirtyfold range
+that predicts a factor of 5.48 and the measurement gives 5.20, against the
+factor of 30 linear growth would give. The earlier defect gave the linear
+form outright, +3417 mm at ten cycles and +330709 at 1252 on the worst
+gridcell, at a steady 264 mm per cycle.
+
+The magnitudes are a store's as well. Every one of the 81 gridcells refused at
+the ten-cycle window sits inside the water its own soil column can hold, at
+0.453 of the available water capacity at worst and 0.112 at the median; the
+capacities come from the land column property contract, per gridcell, through
+the driver. Across all 48,510 gridcell-windows the residual exceeds the
+column's saturation capacity exactly once, at (-5.62, 80.27), 148.79 mm against
+148.0 mm at thirty cycles -- a gridcell at 80 degrees north, where the store
+includes a snowpack that a soil column capacity does not cover.
+
+### So the tolerance was judging a store, and the window decided the verdict
+
+The check subtracted four losses from precipitation and held what was left to
+`max(2.0 mm, 0.005 * window precipitation)`. What was left is the store, and the
+store is a few hundred millimetres that moves between cycles on its own. Under
+a repeating forcing with stochastic patch dynamics that movement is internal
+variability, not disequilibrium, and it does not shrink with spin-up:
+quadrupling the spin-up from 400 cycles to 1600 moved the failing gridcells
+from 306 to 276 on the previous form.
+
+The scaling gives it away without needing any of that. The limit grows in
+proportion to the window and a bounded store grows as its square root, so
+refusals fall off as the window lengthens:
+
+| window, complete forcing cycles | 1 | 5 | 10 | 20 | 30 |
+| --- | --- | --- | --- | --- | --- |
+| gridcells refused | 113 | 110 | 81 | 48 | 22 |
+| mean absolute residual, mm | 0.625 | 1.746 | 2.485 | 3.088 | 3.249 |
+
+A conservation test whose refusal count falls as it is given more record is
+answering a question about the declared window length. `failure-modes.md` class
+34: the instrument was checked against the size of the effect and it is not
+measuring conservation at all.
+
+### The repair: the store is read
+
+`vendor/lpj-guess/modules/commonoutput.cpp` writes `awater.out`. It carries the
+gridcell water store at the end of each simulation year -- available soil
+water as `wcont` times each layer capacity, soil ice as its volume fraction
+times each layer thickness, and the snowpack, which is already a rainfall
+equivalent -- in exactly the terms `soil.cpp:hydrology_lpjf` balances the
+column in, and on the same `to_gridcell_average` as `tot_runoff.out`. Water
+below the wilting point is absent from it for the same reason it is absent
+from that balance: it is constant and cancels in the difference of two
+endpoints.
+
+The water residual is then
+
+    (store at the end of the window - store at the end of the year before it)
+        - (precipitation - transpiration - soil evaporation
+           - interception - runoff)
+
+over the same whole number of forcing cycles, which is zero when the model
+conserves water. Both sides are read, neither is inferred, and the tolerance
+did not move: the floor stays 2.0 mm and the relative limit 0.005.
+
+### What the repaired water closure measures
+
+`lpj_ed9bb44ab2b746b09de4d695651a427d`, the same 1600 spin-up cycles, 30
+retained and 1617 gridcells, with `awater.out` retained and the residual taken
+stock against flux. Every window from one cycle to twenty-nine:
+
+| statistic | value |
+| --- | --- |
+| gridcells failing, at every window from 1 to 29 cycles | 0 of 1617 |
+| largest residual at the ten-cycle window | 0.0276 mm against a 5.88 mm limit |
+| written-precision resolution bound | 0.1806 mm |
+| population mean residual, one cycle | -0.00003 mm |
+| population mean residual, twenty-nine cycles | -0.00224 mm |
+
+The largest residual anywhere is an order of magnitude INSIDE the residual an
+exactly conserving model reports at the written precision of the columns
+differenced, and the mean drifts by -7.7e-5 mm per cycle against the 0.018 mm
+per cycle the thirty-six monthly columns' rounding allows. Carbon and nitrogen
+close on the same run at 3.2e-5 kgC/m2 and 0.00104 kgN/ha against floors of
+0.01 and 2.0, with no gridcell refused.
+
+So the model conserves water and the previous residual was the store, entire.
+
+### The snowpack reaches the model's own ceiling on 17 gridcells
+
+Reading the store made this visible; it is not a closure failure and it is not
+new. `soilwater.cpp:snow` caps the pack at `SNOWPACK_MAX`, 10000 mm of rainfall
+equivalent, by taking `melt = -min(prec, SNOWPACK_MAX - snowpack)`. At the cap
+that term is zero, the day's snowfall goes to `rain_melt` instead, and the soil
+receives it as liquid water: conserving, which is why the closure above passes,
+and unphysical, because the gridcell is below freezing.
+
+Measured: 17 of 1617 gridcells sit at the cap in all 30 retained cycles, and 27
+carry a pack over 1000 mm, spanning 58 degrees south to 80 degrees north. They
+are gridcells whose snow accumulation exceeds its melt every cycle -- permanent
+ice in everything but name -- and LPJ-GUESS has no ice sheet, so the pack
+saturates and the surplus is delivered to the soil column as rain. The pack is
+also what put the one gridcell-window in the previous section outside its soil
+column's saturation capacity.
+
 ## Whether the repaired checks still resolve their own tolerances
 
 Completing a stock or a loss adds every new column's written quantum to the
@@ -231,7 +371,7 @@ asked again of the wider form. Measured from
 | --- | --- | --- | --- | --- |
 | nitrogen | npool.out Total plus four soil_npool.out pools against nflux.out NEE | 0.001445 kgN/ha | 2.0 kgN/ha | 1384 |
 | carbon | cpool.out Total against cflux.out NEE | 4.6e-5 kgC/m2 | 0.01 kgC/m2 | 217 |
-| water | thirty-six monthly loss columns and tot_runoff.out Total | 0.1805 mm | 2.0 mm | 11.1 |
+| water | awater.out Total, thirty-six monthly loss columns and tot_runoff.out Total | 0.1806 mm | 2.0 mm | 11.07 |
 
 All three clear the contract's required tenfold margin. Water is the tight one,
 because its thirty-six columns are written at the three decimals mainline gives
