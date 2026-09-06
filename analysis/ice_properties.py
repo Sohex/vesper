@@ -834,6 +834,23 @@ def main() -> None:
     # to know which limit snow is in.
     rhosnow = declared(LANDMOD, "rhosnow")
     snowdiff = declared(LANDMOD, "snowdiff")
+    tsnowref = declared_parameter(LANDMOD, "TSNOWREF")
+
+    # THE CLOSED FORM AGAINST THE STANDARD, at the temperature the climate
+    # column states its snow at. `lib/snow.py` carries the specific heat of ice
+    # Ih as a quadratic because two compiled models restate it, and the
+    # quadratic is a representation of exactly what is computed here. This is
+    # the same check the glacier literals get below and it fails the same way:
+    # if the closed form and the standard part, one of them has been edited.
+    cp_closed = snow.specific_heat(tsnowref)
+    cp_standard = gibbs(tsnowref, P0)["cp"]
+    if abs(cp_closed - cp_standard) > snow.SPECIFIC_HEAT_MAX_RESIDUAL_J_KG_K:
+        raise SystemExit(
+            f"lib/snow.py's closed form gives {cp_closed:.4f} J/kg/K for the "
+            f"specific heat of ice Ih at {tsnowref} K and IAPWS-06 gives "
+            f"{cp_standard:.4f}; they are the same quantity and the module "
+            f"declares them within "
+            f"{snow.SPECIFIC_HEAT_MAX_RESIDUAL_J_KG_K} J/kg/K")
     densities = sorted({lpj_constant("snowdens_start"), rhosnow,
                         lpj_constant("snowdens_end")}
                        | {400.0})
@@ -873,13 +890,21 @@ def main() -> None:
                    "how far under it the other limit sits.",
         "declared_density_kg_m3": rhosnow,
         "declared_conductivity_w_m_k": snowdiff,
-        # `landini` derives it as `rhosnow * CPSNOW`, so it FOLLOWS the density
-        # and is not independent of it. Emitted here because
-        # `pedology/config/land_column_properties.yaml` restates all four of
-        # these thermal constants and had no producer to be held against.
+        # `landini` derives it as `rhosnow` times the specific heat at
+        # `TSNOWREF`, so it FOLLOWS the density and is not independent of it.
+        # Emitted here because `pedology/config/land_column_properties.yaml`
+        # restates all four of these thermal constants and had no producer to be
+        # held against.
         "declared_heat_capacity_j_m3_k": round(
-            rhosnow * declared_parameter(LANDMOD, "CPSNOW"), 1),
-        "declared_specific_heat_j_kg_k": declared_parameter(LANDMOD, "CPSNOW"),
+            snow.volumetric_heat_capacity(rhosnow, tsnowref), 1),
+        "declared_specific_heat_j_kg_k": round(snow.specific_heat(tsnowref), 4),
+        "declared_specific_heat_source": (
+            "IAPWS-06 for ice Ih at TSNOWREF, through lib/snow.py's closed "
+            "form. It replaced a fixed 2090 J/kg/K that carried no citation "
+            "and was that standard's value at 272.24 K, a degree below the "
+            "melting point, applied at every temperature the modelled snow "
+            "reaches. WORLD-A2LV."),
+        "superseded_specific_heat_j_kg_k": 2090.0,
         "slow_arm_residual_sd_w_m_k": CALONNE_2011_RESIDUAL_SD,
         "per_density": bracket,
         "instrument_versus_effect": "the bracket is wider than the scatter of "

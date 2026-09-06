@@ -2274,13 +2274,18 @@ def check_ladder_restatements() -> list[str]:
 
 
 def check_snow_conductivity_restatements() -> list[str]:
-    """Every restatement of the snow conductivity relation, against `lib/snow.py`.
+    """Every restatement of the snow material relations, against `lib/snow.py`.
 
     The climate column and the ecology column modelled the same snow with two
-    different relations -- Fourteau et al. (2021) Eq. (18) in `landmod` and
-    Sturm et al. (1997) in `soil.cpp` -- and at the declared snow density they
-    differed by close to a factor of two, so one snowfall insulated one model's
-    soil about twice as well as the other's. WORLD-GJOV made it one relation.
+    different conductivity relations -- Fourteau et al. (2021) Eq. (18) in
+    `landmod` and Sturm et al. (1997) in `soil.cpp` -- and at the declared snow
+    density they differed by close to a factor of two, so one snowfall insulated
+    one model's soil about twice as well as the other's. WORLD-GJOV made it one
+    relation. They then carried two SPECIFIC HEATS of the same ice, a fixed 2090
+    against a linear relation in temperature, and WORLD-A2LV replaced both with
+    IAPWS-06's. Both relations are covered here, and so are the two placeholder
+    defaults `landini` overwrites and the temperature the climate column states
+    its snow at.
 
     They cannot be held together by matching NUMBERS: the vegetation model's
     snow density is prognostic across a compaction range and the climate
@@ -2294,6 +2299,60 @@ def check_snow_conductivity_restatements() -> list[str]:
     sys.path.insert(0, str(ROOT / "lib"))
     import snow
     return snow.check_restatements(ROOT)
+
+
+def check_snow_specific_heat_is_the_standard() -> list[str]:
+    """`lib/snow.py`'s closed form against IAPWS-06, across its declared domain.
+
+    THE LOOP THAT MAKES THE DECLARATION A DERIVATION. `lib/snow.py` carries the
+    specific heat of ice Ih as a quadratic, because a Fortran model and a C++
+    model cannot evaluate a Gibbs function in complex arithmetic, and a
+    quadratic sitting on its own is a number with no derivation whatever it was
+    derived from. `analysis/ice_properties.py` is where IAPWS R10-06(2009) is
+    implemented and is checked against every quantity at every state of the
+    release's own Table 6 before it reports anything, so this re-derives the
+    standard here and refuses if the closed form misses it by more than the
+    residual `lib/snow.py` declares.
+
+    IT CAN FAIL THREE WAYS, and each is a real one: a coefficient edited by
+    hand, a domain widened past what the form covers, and a declared residual
+    that no longer bounds the miss. It stays in the per-commit tier because it
+    is arithmetic on a closed-form standard -- no artifact, no process, a
+    thousand evaluations of a Gibbs function.
+    """
+    import importlib.util
+    sys.path.insert(0, str(ROOT / "lib"))
+    import snow
+    spec = importlib.util.spec_from_file_location(
+        "_ice_properties", ROOT / "analysis" / "ice_properties.py")
+    ice = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ice)
+
+    worst, table = ice.verify_against_release()
+    if table:
+        return ["analysis/ice_properties.py does not reproduce IAPWS-06's own "
+                "check table, so it cannot be what lib/snow.py's specific heat "
+                "is held to: " + "; ".join(table)]
+
+    lo, hi = snow.SPECIFIC_HEAT_DOMAIN_K
+    if not lo < hi:
+        return [f"lib/snow.py declares the specific heat domain {lo} to {hi}, "
+                "which is not a span"]
+    problems = []
+    worst_miss, worst_t = 0.0, lo
+    for i in range(1001):
+        t = lo + (hi - lo) * i / 1000.0
+        miss = abs(snow.specific_heat(t) - ice.gibbs(t, ice.P0)["cp"])
+        if miss > worst_miss:
+            worst_miss, worst_t = miss, t
+    if worst_miss > snow.SPECIFIC_HEAT_MAX_RESIDUAL_J_KG_K:
+        problems.append(
+            f"lib/snow.py's closed form for the specific heat of ice Ih misses "
+            f"IAPWS-06 by {worst_miss:.4f} J/kg/K at {worst_t:.2f} K, and the "
+            f"module declares it within "
+            f"{snow.SPECIFIC_HEAT_MAX_RESIDUAL_J_KG_K} J/kg/K over "
+            f"{lo} to {hi} K")
+    return problems
 
 
 def check_fire_divergences_are_declared() -> list[str]:
@@ -6863,6 +6922,8 @@ def main() -> None:
                lambda: check_ladder_timestep_declarations()),
               ("both columns model snow from lib/snow.py's one relation",
                lambda: check_snow_conductivity_restatements()),
+              ("the modelled snow's specific heat is IAPWS-06's, not a number",
+               lambda: check_snow_specific_heat_is_the_standard()),
               ("the fire operators' declared deletion is still deleted",
                lambda: check_fire_divergences_are_declared()),
               ("the configured timestep is one the route runs this rung at",

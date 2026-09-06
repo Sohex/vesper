@@ -189,11 +189,11 @@ mainline_divergences:
         defect in `snowcap` and GRAV-8 repaired it the identical way, by
         deriving it in `landini` from the density it was just given; this is the
         third instance of that one defect and the last of the three. The check
-        that could have failed and did not: at the climate model's declared
-        `rhosnow` of 330 the repaired line here gives 682,111 J/m3/K against
-        that column's `snowcap` of 330 * 2090 = 689,700, 1.1 per cent apart,
-        which is the two columns' specific heats disagreeing and not their
-        construction.
+        that could have failed and did not: the two columns' repaired lines
+        have the same CONSTRUCTION, the pack's own density times the specific
+        heat of the ice in it. What they did not then share was the specific
+        heat itself, and `snow_heat_capacity_relation` below is that residual
+        and its repair.
       worth: >
         Snow reaches this model as a water equivalent and the thickness the
         numerical solve gets is `snowpack / (snowdens / water_density)`, which
@@ -226,6 +226,65 @@ mainline_divergences:
         `RHOICE_F2021`, which is part of Fourteau's fit. The three carry the same
         number and must not be deduplicated into one another.
 
+    - id: snow_heat_capacity_relation
+      owner: world-a2lv
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/soil.cpp
+      function: update_snow_properties
+      mainline_form: line
+      mainline:
+        - "Csnow = (0.185 + 0.689 * (K2degC + dailyairtemp) * 0.01) * J_PER_KJ;"
+      live: "Csnow = 2.89232e-3 * snowtemp_k * snowtemp_k + 5.85840748 * snowtemp_k + 281.225695;"
+      live_under: iftwolayersoil_0
+      execution: none
+      why_no_execution: >
+        The same reason the two entries above carry: no LPJ-GUESS run this
+        project has made has passed acceptance, so there is no run whose
+        simulated soil temperature could carry a comparison arm. The divergence
+        has not been run in either direction.
+      settles: >
+        Which specific heat of ice Ih the modelled snow is made of, in a project
+        that carried two. The release evaluates Fukusako's linear relation in
+        absolute temperature and the climate model's `landmod` declared a fixed
+        2090 J/kg/K; they agree to 1.1 per cent at the melting point and are
+        16.7 per cent apart at -40 degC, and only one of them varies with the
+        simulated temperature at all. THE TWO ARE NOT A DISAGREEMENT TO SPLIT:
+        2090 is Fukusako's line at 276.49 K and IAPWS-06's ice at 272.24 K, both
+        at or above the melting point, so the fixed value was that function
+        evaluated where the modelled snow only sits at the moment it melts.
+        Neither number needed to win. IAPWS R10-06(2009) gives the specific heat
+        of ice Ih exactly, `analysis/ice_properties.py` already implements it
+        against every quantity at every state of the release's own Table 6, and
+        `glaciermod`'s `CPGLAC` already came from it. So the standard replaces
+        both, and `lib/snow.py` declares it in the one closed form two compiled
+        models can restate -- a quadratic over 170 K to the triple point, within
+        0.554 J/kg/K of the standard there. Against that representation error,
+        Fukusako's line is 29.7 J/kg/K low at the melting point and the climate
+        column's fixed value was 68 J/kg/K high at its own declared temperature.
+        Fukusako (1990) itself is not reachable from this project -- Springer
+        returns no PDF and the paper is not held -- which is why what replaces
+        it is a standard this project can evaluate rather than a second
+        secondary source.
+      worth: >
+        The modelled pack's specific heat rises by 0.30 per cent at 180 K and by
+        1.42 per cent at the melting point, so its volumetric heat capacity and
+        its thermal mass rise by the same fraction and its thermal diffusivity
+        `Dsnow = Ksnow / Csnow` falls by it. That is small beside what the two
+        entries above are worth and it is not why this was done: what it settles
+        is that the two columns' snow is one material, which no size of effect
+        establishes. The cross-column difference it removes is the larger
+        number -- 16.7 per cent between the two specific heats at -40 degC --
+        and that difference sat in the modelled pack's thermal mass at the cold
+        end of both columns.
+      also_changed: >
+        Nothing in this function. `Csnow`'s density factor is
+        `snow_heat_capacity_density` above and moved for its own reasons;
+        `Ksnow`, the compaction ramp, the layer count and the numerical solve
+        are untouched. In the climate column the same relation replaced
+        `landmod`'s `CPSNOW` parameter, which is that column's site of the same
+        defect and not a second divergence from this release.
+
 # THE RELATION ITSELF IS NOT DECLARED HERE.
 #
 # `lib/snow.py` is the one statement of it, and both compiled models carry it as
@@ -241,6 +300,17 @@ mainline_divergences:
 # drift in a different place.
 relation:
   declared_in: lib/snow.py
+  specific_heat_citation: >
+    IAPWS R10-06(2009), the revised release on the equation of state 2006 for
+    H2O ice Ih, whose Gibbs function gives the specific heat exactly.
+    `references/pdf/iapws_2009_revised-release-on-the-equation-of-state-2006-for-h2o-ice-ih.pdf`
+    carries it and `references/INDEX.md` records it as read.
+    `analysis/ice_properties.py` implements it and is checked against every
+    quantity at every state of the release's own Table 6; `lib/snow.py` carries
+    the closed form the two compiled models restate, and
+    `scripts/smoke_test.py` holds that form to the standard across its declared
+    domain. There is no bracket on this one: the standard is exact, and what is
+    bracketed is only the representation, at 0.554 J/kg/K.
   citation: >
     Fourteau, Domine, Hagenmuller (2021), Impact of water vapor diffusion and
     latent heat on the effective thermal conductivity of snow, The Cryosphere
@@ -269,8 +339,11 @@ relation:
     forbidden:
       - "3.233 * snowdens_scaled"
       - "0.234 * snowdens_scaled"
+      - "0.689 * (K2degC + dailyairtemp)"
     why: >
-      The superseded relation's own coefficients, which must appear nowhere in
-      the vendored vegetation model outside the record of it. Checked over the
+      The superseded relations' own coefficients -- Sturm's two conductivity
+      arms and Fukusako's specific heat -- which must appear nowhere in the
+      vendored vegetation model outside the record of them. Checked over the
       whole subtree with comments stripped rather than over the one function, so
-      a second snow conductivity growing somewhere else fails here.
+      a second snow conductivity or a second specific heat growing somewhere
+      else fails here.

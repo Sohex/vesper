@@ -542,7 +542,7 @@ thermal:
     therefore above every state the model's store can reach.
   constants:
     glacier_ice_heat_capacity_j_m3_k: 1.719633e+6
-    snow_heat_capacity_j_m3_k: 0.6897e+6
+    snow_heat_capacity_j_m3_k: 667275.1
     glacier_ice_thermal_conductivity_w_m_k: 1.961145
     snow_thermal_conductivity_w_m_k: 0.3170
     source: >

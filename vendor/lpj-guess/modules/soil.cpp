@@ -2960,7 +2960,34 @@ void Soil::update_snow_properties(const int& daynum, const double& dailyairtemp,
 
 	// Note that K/C = D has units mm2/day, as above
 	// Wania values
-	// Csnow from Fukusako, Eq. 2. It's the same as for ice
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: snow_heat_capacity_relation, owner
+	// WORLD-A2LV, registered in biosphere/config/snow_thermal.yaml. Mainline
+	// LPJ-GUESS 4.1.1 and the vendored CNP fork both take the specific heat
+	// from Fukusako's linear relation in absolute temperature:
+	//     Csnow = (0.185 + 0.689 * (K2degC + dailyairtemp) * 0.01) * J_PER_KJ; // J kg-1 K-1
+	// That relation is not reachable from this project -- Springer returns no
+	// PDF for Fukusako (1990) -- so its derivation is OPAQUE where it stands,
+	// and the climate column carried a different specific heat for the same
+	// ice. IAPWS R10-06(2009), the equation of state 2006 for H2O ice Ih, gives
+	// cp exactly and is already implemented and checked against the release's
+	// own Table 6 in analysis/ice_properties.py, so it replaces BOTH numbers
+	// rather than picking between them. Fukusako's line is 0.30 per cent low at
+	// 180 K and 1.42 per cent low at the melting point against the standard.
+	//
+	// THE RELATION IS DECLARED IN lib/snow.py AND THE LINE BELOW IS A CHECKED
+	// RESTATEMENT OF IT, on the same arrangement the conductivity below has:
+	// the quadratic is IAPWS-06's cp represented in closed form over 170 K to
+	// the triple point, within 0.554 J/kg/K of the standard there, and
+	// lib/snow.py's check_restatements() holds this literal and landmod's to
+	// the one declaration.
+	//
+	// THIS COLUMN EVALUATES IT AT ITS OWN SIMULATED TEMPERATURE and the climate
+	// column evaluates it at a declared one, because that column's snowcap is a
+	// single compiled scalar and this one has a daily air temperature in hand.
+	// Sharing the RELATION is what makes the two columns model one material;
+	// sharing a value would have made them one material only on the days this
+	// column's snow happened to sit at the other's declared temperature.
 	//
 	// DECLARED DIVERGENCE FROM MAINLINE: snow_heat_capacity_density, owner
 	// WORLD-2AIJ, registered in biosphere/config/snow_thermal.yaml. Mainline
@@ -2994,7 +3021,8 @@ void Soil::update_snow_properties(const int& daynum, const double& dailyairtemp,
 	// while a bracket on rhosnow moved the pack's thermal mass. snowdiff and
 	// sicecap are the same defect at two more sites, and this is the one it
 	// reached in a second component.
-	Csnow = (0.185 + 0.689 * (K2degC + dailyairtemp) * 0.01) * J_PER_KJ; // J kg-1 K-1
+	const double snowtemp_k = K2degC + dailyairtemp;
+	Csnow = 2.89232e-3 * snowtemp_k * snowtemp_k + 5.85840748 * snowtemp_k + 281.225695; // J kg-1 K-1
 	Csnow *= snowdens; // conversion to volumetric heat capacity (J m-3 K-1)
 
 	// THE SNOW CONDUCTIVITY RELATION IS DECLARED IN lib/snow.py AND THIS IS A

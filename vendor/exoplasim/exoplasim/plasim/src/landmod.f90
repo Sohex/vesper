@@ -416,8 +416,7 @@
 !     thermal mass of a given snowfall does not depend on the density at all.
 !     Held fixed while rhosnow moved, a bracket on the density moved the pack's
 !     thermal mass with it, which is not a thing the density does. landini
-!     derives it below and it is no longer a namelist key; at the declared
-!     rhosnow it is 330 * 2090 and the value is unchanged. GRAV-8.
+!     derives it below and it is no longer a namelist key. GRAV-8.
 !
 !     snowdiff FOLLOWS rhosnow, and the relation has a source. The thermal
 !     conductivity of snow is a steep function of its density, so a namelist
@@ -476,14 +475,39 @@
 !     by matching NUMBERS -- that model's snow density is prognostic across a
 !     compaction range where rhosnow here is one key, so equal values at one
 !     density would be a coincidence at one point of two curves. WORLD-GJOV.
-      real, parameter :: CPSNOW = 2090. ! specific heat of snow (J/kg/K)
+!     THE SPECIFIC HEAT OF THE ICE THIS SNOW IS MADE OF, and it is a function
+!     of temperature rather than a constant. IAPWS R10-06(2009), the equation of
+!     state 2006 for H2O ice Ih, gives it exactly; the quadratic landini
+!     evaluates below is that standard represented in closed form over 170 K to
+!     the triple point, within 0.554 J/kg/K of it there.
+!
+!     THIS RELATION IS DECLARED IN lib/snow.py, like the conductivity above and
+!     for the same reason, and the line in landini is a checked restatement.
+!     The vegetation model's soil.cpp restates it too and evaluates it at its
+!     own simulated daily air temperature.
+!
+!     WHAT IT REPLACED. This was `real, parameter :: CPSNOW = 2090.`, carrying
+!     no citation. 2090 J/kg/K is IAPWS-06's ice at 272.24 K and is Fukusako's
+!     linear relation -- the one soil.cpp ran -- at 276.49 K, which is above the
+!     melting point. So the fixed value was the specific heat this snow has at
+!     the moment it melts, applied at every temperature it reaches: 3.4 per cent
+!     high at TSNOWREF and 15.8 per cent high at 233 K. `icemod`'s CPSN carried
+!     the same number and is already gone. WORLD-A2LV.
+!
+!     TSNOWREF is the temperature this column states BOTH of its snow material
+!     properties at, and it is the row the conductivity above is taken from, so
+!     the snow here is one material at one temperature rather than two. snowcap
+!     is one compiled scalar and making it a per-cell function of the pack's own
+!     temperature would be a change to the snow scheme rather than to this
+!     relation -- the same argument the conductivity's temperature carries.
+      real, parameter :: TSNOWREF = 263. ! declared snow temperature (K)
 !     Fourteau's normalising ice density, part of the FIT and not a free
 !     constant of this model: the polynomial is in rho/rhoice and 917 is the
 !     value its coefficients were regressed against. It is NOT icemod's CRHOI,
 !     which is the density of the modelled SEA ice, and the two must not be
 !     deduplicated into one another.
       real, parameter :: RHOICE_F2021 = 917.
-      real :: snowcap  = 0.6897E6! heat capacity of snow      (J/m**3/K)
+      real :: snowcap  = 667275.1! heat capacity of snow      (J/m**3/K)
       real :: snowdiff = 0.3170  ! heat diffusivity of snow     (W/m/K)
 !
 !     global arrays
@@ -662,6 +686,9 @@
 !     rather than left to implicit typing, and NOT initialised, so it is an
 !     automatic local and every thread computes its own. WORLD-A9S5.
       real :: zsnowvf
+!     The specific heat of the ice the snow is made of, at TSNOWREF. Same
+!     treatment as zsnowvf: declared, uninitialised, one per thread. WORLD-A2LV.
+      real :: zsncp
 !
 !     initialize land surface
 !
@@ -978,8 +1005,12 @@
       call mpbcr(wetsigma2)
       call mpbcr(rhosnow)
 !     Every thread derives its own snow heat capacity from the density it has
-!     just been given, so the two cannot drift apart. GRAV-8.
-      snowcap = rhosnow * CPSNOW
+!     just been given, so the two cannot drift apart. GRAV-8. The specific heat
+!     it multiplies is IAPWS-06's for ice Ih at TSNOWREF, in the closed form
+!     declared in lib/snow.py; the line below is a CHECKED RESTATEMENT of it and
+!     soil.cpp carries the same relation. WORLD-A2LV.
+      zsncp   = 2.89232E-3 * TSNOWREF * TSNOWREF + 5.85840748 * TSNOWREF + 281.225695
+      snowcap = rhosnow * zsncp
 !     And its own conductivity, from the same density. Fourteau et al. (2021)
 !     Eq. (18), the vertical effective thermal conductivity at 263 K, in the
 !     ice volume fraction. WORLD-A9S5; the argument is above the declaration.
