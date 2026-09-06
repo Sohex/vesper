@@ -881,10 +881,12 @@ def main() -> None:
         # question by accident.
         region_wet1[veg_painted] = 1.0
         region_wet2[veg_painted] = 1.0
-        # A repainted cell no longer carries the class's albedo, so it carries
-        # none of the class's sensitivity either. The indicator is zeroed at
-        # every site the albedo is assigned and at no other, which is what makes
-        # it the derivative of what is actually staged.
+        # Canopy is not a rock class, so a cell it covers carries no class's
+        # albedo and none of any class's sensitivity. The indicator is assigned
+        # at every site the albedo is assigned and at no other, which is what
+        # makes it the derivative of what is actually staged; here that
+        # assignment is zero for every class, and at the repaints below it is
+        # the class the cell is painted as.
         for _s in override_sensitivity.values():
             _s[veg_painted] = 0.0
         endmembers["vegetated"] = _land_mean(region_albedo)
