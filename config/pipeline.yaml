@@ -323,10 +323,34 @@ steps:
   - id: surface_roughness
     reads_export: true
     script: exoplasim/scripts/build_surface_roughness.py
-    loop: A
+    loop: [A, C]
     cost: minutes
-    needs: []
+    needs: [lpj_acceptance, rootable_fraction]
     writes: ["exoplasim/inputs/{res_lower}/roughness_{res_lower}_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0173.sra"]
+    gate: >
+      the aerodynamic half of the vegetation feedback, and the `lpj_acceptance`
+      edge is loop C and a BACK edge, exactly as it is on `surface_albedo`. The
+      cover this field describes and the cover code 174 and code 212 describe
+      are ONE cover or they are two worlds: a cell that is optically forest and
+      aerodynamically bare ground reports a surface energy balance belonging to
+      neither. Under `model.land_albedo_source: modelled` this step reads the
+      same run's fpc.out through the same reader, multiplies it by BIO-11's
+      rootable fraction through the same `rootable_cover_shares`, and refuses
+      when the lake and barren inputs it was handed disagree with that partition
+      by more than 2e-6. Under every other mode the cover is the per-mode forest
+      fraction the albedo mode implies and this step needs nothing from the
+      biosphere; one artifact, one row, so the mode is the state of the
+      roughness report rather than a second step.
+
+      The mixture is taken in the EXCHANGE COEFFICIENT and not in the length,
+      one scale below the region reduction that is already taken there. Tree,
+      grass and uncovered rootable ground are fractions with no position on the
+      mesh, and forest and bare ground are two orders apart in z0 while ce is
+      logarithmic in it, so mixing the lengths lets a canopy minority set a
+      mostly-bare cell's exchange. Solved water and dry barren keep the
+      roughness the native mesh gave them, and the orographic term is taken on
+      the cover roughness the mixture produces, so both are retained rather than
+      replaced.
 
   - id: ocean_tier_gate
     script: exoplasim/scripts/ocean_tier_gate.py

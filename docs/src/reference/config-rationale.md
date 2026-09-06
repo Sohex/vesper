@@ -794,6 +794,14 @@ NVEG is 0 in these runs, so landmod.f90:409 takes dz0 = dz0clim directly and
 173 is the field that matters; SIMBA's separate vegetation and orographic
 terms never run.
 
+The cover term reads whatever `land_albedo_source` decides, and that is the
+whole of the coupling between this field and the albedo: under `modelled` both
+read one LPJ-GUESS run's foliar cover through one derivation, and under every
+other mode both take the forest fraction that mode implies. Two sources for one
+land cover is a cell whose optical surface and aerodynamic surface belong to
+different worlds, so the aerodynamic half of the vegetation feedback closes with
+the optical half or not at all.
+
 The land mean is DERIVED and not anchored. The orographic term is the
 turbulent form drag this world's own subgrid slope exerts, through Wood and
 Mason (1993) Eq (33) and Beljaars et al. (2004) Eq (6), with no free
