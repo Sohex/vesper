@@ -18,12 +18,20 @@ from whatever changed.
 | a second run on those rebuilt fields | usually | this is where the loop closes |
 | carve verdict, dust, everything downstream | yes | below the climatology |
 
-**Price an orbit in WALL CLOCK, not in model time.** What a run waits on is the
-model plus postprocessing plus the ocean and ice stream writes, and quoting the
-model half alone understates a run by about a third. Per-segment model-only
-figures are `native_runtime_seconds` in each run's manifest; the wall figure is
-the gap between consecutive `MOST_REST.NNNNN`. The current per-orbit cost, and what the
-pyburn fixes did to it, are measured in
+**Price an orbit in WALL CLOCK, not in model time, and always AT A RUNG.** What
+a run waits on is the model plus postprocessing plus the ocean and ice stream
+writes, and quoting the model half alone understates a run by about a third; a
+per-orbit figure carrying no rung is worth nothing at all, since the rungs are a
+factor of seven apart in `notes/audits/resolution-ladder-wall-clock.md`, which
+is where the per-rung price lives. The wall figure for a run already on disk is
+the gap between consecutive `MOST_REST.NNNNN`, or each segment's own
+`started_utc` to `finished_utc` in the run manifest. Per-segment model-only
+figures are `native_runtime_seconds` in the same manifest, and they are
+CPU-SECONDS OVER THE WHOLE THREAD TEAM rather than wall seconds -- the model
+reports `cpu_time` across the process, which was one MPI rank and is now the
+whole team -- so divide by the thread count before comparing one with a wall
+figure. On T21 at sixteen threads the two differ by about fourteen. The pyburn
+fixes and what they did to the postprocessing share are measured in
 `notes/audits/pyburn-postprocessing-cost.md`. A settling run off a
 near-equilibrium restart plus ten clean orbits is hours, not minutes, and a
 commissioning usually wants two of them. An

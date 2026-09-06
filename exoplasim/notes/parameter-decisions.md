@@ -430,18 +430,42 @@ portable across the change because the Fortran record layout differs.
 
 ## Cores, and the measured cost of an orbit
 
-16 MPI ranks, one per physical core on a Ryzen 9 7950X3D. Not 32: those are SMT
-siblings and MPI ranks on paired threads contend for the same FPU and cache,
+16 workers, one per physical core on a Ryzen 9 7950X3D. Not 32: those are SMT
+siblings and two workers on paired threads contend for the same FPU and cache,
 which does not help a compute-bound spectral model. `NLAT` must divide by the
-rank count, so at T42 the choices are 1, 2, 4, 8, 16, 32 and 64, and 16 leaves
-four latitudes per rank.
+worker count, so at T42 the choices are 1, 2, 4, 8, 16, 32 and 64, and 16 leaves
+four latitudes per rank. The workers were MPI ranks when the measurements below
+were taken and are OpenMP threads now (`threads-instead-of-ranks.md`); the `p`
+in the executable name counts them either way.
 
-At 8 ranks the completed sweep averaged 1.86 to 2.70 minutes per orbit across
-the three flux cases. The first 16-rank run took 1 minute 44 seconds wall
+**A PER-ORBIT COST IS MEANINGLESS WITHOUT ITS RUNG, and the two figures here
+carry theirs because a band read off the wrong rung is a factor of seven.** The
+current per-rung price is `notes/audits/resolution-ladder-wall-clock.md`, which
+prices T21, T42 and T85 at one date on one instrument; read it rather than
+carrying either number below forward.
+
+*Measured 2026-08-12, T42 at 8 MPI ranks, on the three-case stellar sweep
+`t42l10p8_s085`, `t42l10p8_s090` and `t42l10p8_s095` (identity in
+`archive/runs/`). Wall clock per orbit, from each segment's own
+`started_utc`/`finished_utc` over the orbits it covered; load not recorded.*
+1.86 minutes an orbit at f = 0.90, 2.50 at 0.85 and 2.70 at 0.95, so 1.86 to
+2.70 across the sweep. `rank-layout-benchmark.md` cites this band as the only
+8-rank T42 evidence that existed before its own arms.
+
+*Measured 2026-08-15, T42 at 16 MPI ranks, one orbit.* 1 minute 44 seconds wall
 clock for the whole prepare, compile check, staging, one orbit and
-postprocessing, at 1411% CPU, so a 50-orbit spin-up is about two hours.
+postprocessing, at 1411% CPU; load not recorded.
 
-Changing the rank count changes the executable name, so ExoPlaSim rebuilds
+**`native_runtime_seconds` in a run manifest is CPU-seconds, not wall seconds.**
+It is `plasim.f90`'s "Seconds per sim year", which is `cpu_time` over the whole
+process, replaced by getrusage user plus system time when those are available.
+One MPI rank is one process, so on the runs above it reads close to the wall
+clock; a threaded run is one process holding the whole team, so it reads roughly
+the thread count times the wall clock and has to be divided by that count before
+it is compared with anything. On T21 at 16 threads the two differ by about
+fourteen.
+
+Changing the worker count changes the executable name, so ExoPlaSim rebuilds
 automatically; the T42 build takes about 15 seconds.
 
 ## First orbit on the new world

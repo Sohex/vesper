@@ -2998,9 +2998,17 @@ def main() -> int:
     try:
         import sensitivity
         sensitivity.test_window_and_regime_refuse_an_unmatched_pair()
+        # Read off the declaration rather than restated here. The window and
+        # the regime move whenever the bracket is re-bought, and a row that
+        # spelled them out went on reporting the previous pair's.
+        arms = sensitivity.SLOPE_BRACKET_RUNS
+        cold, warm = arms["cold"], arms["warm"]
         rep.add(OK, "the slope's arms are one window and one instrument",
-                "both endpoints are read over orbits 37-69 of their own "
-                "low-I/O block, and swapping either refuses")
+                f"both endpoints are read over orbits {cold['window'][0]}-"
+                f"{cold['window'][1]} of their own {cold['io_regime']} block "
+                f"({warm['window'][0]}-{warm['window'][1]} "
+                f"{warm['io_regime']} on the warm arm), and swapping either "
+                f"refuses")
     except AssertionError as exc:
         rep.add(FAIL, "the slope's arms are one window and one instrument",
                 str(exc))

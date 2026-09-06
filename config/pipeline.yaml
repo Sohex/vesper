@@ -2609,6 +2609,12 @@ one_offs:
   - analysis/cgenie_omp.py
   - hydrography/scripts/fetch_recharge.py
   - exoplasim/scripts/run_albedo_bracket.sh
+  # Buys both arms of `lib/sensitivity.py`'s flux-to-kelvin secant. Outside the
+  # graph for the same reason the albedo bracket is: what it produces is climate
+  # RUNS, which `exoplasim/runs/INDEX.json` is the register of, and the only
+  # tracked thing downstream of it is a declaration a person writes and
+  # `check_consistency.py` re-derives. `--purge` must never reach run payloads.
+  - exoplasim/scripts/run_flux_bracket.sh
   - exoplasim/scripts/finalize_existing_segment.py
   - exoplasim/scripts/continue_exoplasim.py
   - aeolian/scripts/dust_runoff_sensitivity.py

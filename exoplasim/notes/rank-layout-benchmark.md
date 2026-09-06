@@ -157,12 +157,12 @@ under real load, verified on the live processes.
 
 ## Second attempt, 2026-08-19: answered
 
-Re-run on a quiet machine, five orbits an arm. Pass 1 completed and is below;
+Re-run on a quiet machine, T42, five orbits an arm. Pass 1 completed and is below;
 pass 2, the reversal, was killed partway when unrelated builds arrived, so the
 ordering check was not made. It is not needed: four of five arms come in under
 the 5% floor, and the one that does not is contaminated in its last orbit only.
 
-| arm | model s/orbit | median | spread | |
+| arm (T42) | model s/orbit | median | spread | |
 | --- | --- | ---: | ---: | --- |
 | 1. 8 ranks, V-Cache | 93.2, 93.4, 93.8, 93.4 | 93.4 | 0.6% | clean |
 | 2. 8 ranks, frequency | 93.8, 94.3, 94.5, 94.1 | 94.2 | 0.8% | clean |

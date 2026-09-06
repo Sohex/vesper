@@ -16,7 +16,7 @@ interpreter change invalidates them and leaves the sources looking fine.
 That happened. The venv moved to Python 3.14 and left `cpython-312` extensions
 behind; the next run reported it as `ExoPlaSim has crashed or begun producing
 garbage`, because `__init__.py` turns any postprocessing exception into
-`_crash()`. The model had integrated perfectly at 95 s per orbit. It cost two
+`_crash()`. The model had integrated the orbit perfectly. It cost two
 diagnostic runs to find, which is why the rebuild is a registered step with a
 `--check` arm rather than a thing to remember.
 

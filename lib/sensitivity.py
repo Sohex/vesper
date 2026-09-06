@@ -156,6 +156,23 @@ CONVERGENCE_REPORTS = PROJECT_ROOT / "exoplasim" / "analysis" / "convergence"
 # THIS IS NOT the stellar sweep's sensitivity. The 0.85-to-0.95 sweep spans 21
 # W/m2 absorbed and 33 K, which is 330 K per unit flux ratio: 2.1x this, because
 # it crosses the ice transition proper. Do not use one for the other.
+#
+# THE REPLACEMENT PAIR IS BOUGHT AND THIS DECLARATION HAS NOT MOVED ONTO IT.
+# `run_c919391cf715` at f = 0.945 and `run_9d5dbf9bd3d9` at f = 1.000 are on the
+# configured build, matched in geography, executable, window and I/O regime, and
+# they measure 173.8 K per unit flux ratio with three estimators agreeing to
+# 0.73 -- two of which use no fit at all. So the value below is 8 per cent low
+# and every consumer of it is, until the move is made.
+#
+# What holds the move off is world-jejw, not a missing run. `_verify_bracket`
+# requires each arm's report to carry
+# `sufficiently_equilibrated_for_worldbuilding`; the cold arm's does not, and it
+# fails on the fitted asymptote's own standard error rather than on any drift.
+# Neither arm RESOLVES that criterion and both reports say so, so the verdict
+# separating them is the estimator's noise. Moving this declaration onto a pair
+# one arm of which the assessor declines to certify would put that noise under
+# every kelvin the project converts. `notes/audits/flux-slope-bracket.md` has
+# the numbers, the cost and what re-buying the pair would now take.
 SLOPE_K_PER_FLUX_RATIO = 159.7
 SLOPE_SPREAD_K_PER_FLUX_RATIO = (155.3, 160.6)
 
@@ -476,7 +493,7 @@ def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
     except Exception as exc:                       # noqa: BLE001 - reported, not raised
         return [f"the active build could not be resolved: {exc}"]
 
-    problems, points, half_widths, regimes = [], {}, {}, {}
+    problems, points, half_widths, regimes, windows = [], {}, {}, {}, {}
     for role, want in bracket.items():
         run_id = want["run_id"]
         entry = live.get(run_id)
@@ -522,6 +539,7 @@ def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
                     f"the window, so re-take it over the recorded one or "
                     f"re-derive the whole bracket")
             regimes[role] = want.get("io_regime")
+            windows[role] = tuple(want_window)
         metrics = report.get("metrics") or {}
         asymptote = metrics.get("temperature_asymptote_k")
         if asymptote is None:
@@ -570,7 +588,33 @@ def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
             + "); a difference across a change of instrument is not a flux "
               "response, so both arms have to be read on one of them")
 
-    if len(points) == 2:
+    # ONE WINDOW ACROSS BOTH ARMS, and this is a different question from the
+    # per-arm check above. That one asks whether each arm's report still covers
+    # the orbits its own row records; two rows can each be honest about
+    # themselves and record different orbit ranges, and then the secant is a
+    # difference between one arm's late tail and the other's early one. The
+    # asymptote is a property of the window, so a residual drift enters the
+    # slope as though it were a flux response. The arms are built to the same
+    # structure precisely so this can be asserted rather than argued.
+    if len(windows) == 2 and len(set(windows.values())) != 1:
+        problems.append(
+            "the two endpoints are read over different orbit windows ("
+            + ", ".join(f"{role}: {w[0]}-{w[1]}" for role, w
+                        in sorted(windows.items()))
+            + "); the asymptote is a property of the window, so a secant "
+              "across two of them measures the difference between the windows "
+              "as well as the flux")
+
+    if len(points) == 2 and math.isclose(points["cold"][0], points["warm"][0],
+                                         abs_tol=1e-12):
+        # A secant needs two fluxes. Reported rather than divided by, because
+        # the exception this used to raise reached `check_consistency.py` as
+        # "not checked" -- a WARN that reads like an absent artifact, where the
+        # truth is a declaration naming one flux twice.
+        problems.append(
+            f"both endpoints are at flux {points['cold'][0]}, so there is no "
+            f"interval to take a slope across")
+    elif len(points) == 2:
         (fc, tc), (fw, tw) = points["cold"], points["warm"]
         measured = (tw - tc) / (fw - fc)
         if abs(measured - slope) > tolerance:
@@ -638,11 +682,19 @@ def test_window_and_regime_refuse_an_unmatched_pair(
     Named refusals rather than differences, and each is driven by the exact
     substitution that once passed silently:
 
-    THE WINDOW. Point the cold endpoint at the run's own default report. That
-    file describes the SAME RUN and is a perfectly good assessment, which is
-    why the swap went unnoticed -- it just covers the twelve clean-I/O orbits
-    rather than the 37-69 the bracket was measured over, and the asymptote is
-    0.15 K higher there. Nothing but the window guard distinguishes the two.
+    THE WINDOW, PER ARM. Point the cold endpoint at a differently-scoped
+    assessment of the SAME RUN. Such a file is a perfectly good report, which is
+    why the swap went unnoticed once -- it just covers other orbits, and the
+    asymptote differs between them by enough to move this slope by several
+    kelvin per unit flux ratio. Nothing but the window guard distinguishes the
+    two.
+
+    THE WINDOW, ACROSS THE ARMS. Shift one arm's declared window by one orbit.
+    Two rows can each describe their own report correctly and still name
+    different orbit ranges, and the secant is then partly a difference between
+    the windows. This substitution trips the per-arm guard as well, since the
+    shifted row no longer matches its own report; the assertion is on this
+    guard's own wording, which nothing else produces.
 
     THE REGIME. Relabel one arm and leave everything else alone, so the refusal
     can only come from the declared instruments differing.
@@ -659,6 +711,18 @@ def test_window_and_regime_refuse_an_unmatched_pair(
             "different window and the bracket accepted it. The asymptote is a "
             "property of the window, so nothing else in verify() can catch "
             f"this: {problems}")
+
+    shifted = copy.deepcopy(SLOPE_BRACKET_RUNS)
+    start, end = shifted["cold"]["window"]
+    shifted["cold"]["window"] = (start + 1, end)
+    problems = _verify_bracket(shifted, SLOPE_K_PER_FLUX_RATIO,
+                               SLOPE_SPREAD_K_PER_FLUX_RATIO,
+                               SLOPE_TOLERANCE_K_PER_FLUX_RATIO,
+                               SLOPE_GEOGRAPHY, cfg)
+    if not any("different orbit windows" in problem for problem in problems):
+        raise AssertionError(
+            "the two endpoints were declared over different orbit windows and "
+            f"the bracket accepted the pairing: {problems}")
 
     relabelled = copy.deepcopy(SLOPE_BRACKET_RUNS)
     relabelled["cold"]["io_regime"] = "clean_io"

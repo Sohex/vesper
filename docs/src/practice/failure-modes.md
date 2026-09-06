@@ -407,7 +407,7 @@ now records by sha256 the way `biosphere/generated/vesper_provenance.json` (gene
 already did. Recorded as CONS-3. The general form: when a guard
 compares a NAME, ask what the name points at and whether that can move under it.
 
-**What it cost, and what to check.** Forty-five orbits, about two hours, and a
+**What it cost, and what to check.** Forty-five orbits at T42, about two hours, and a
 run whose manifest had to be corrected rather than trusted. When a segment
 finishes, the namelist
 in the run directory is the ground truth for what was integrated; the manifest is

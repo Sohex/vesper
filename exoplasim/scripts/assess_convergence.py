@@ -269,6 +269,19 @@ def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
 # memory time, and it is why this is a bound over reports rather than a property
 # of the process.
 #
+# 0.124 to 0.145, on run_9d5dbf9bd3d9, the WARM arm of the flux-to-kelvin
+# bracket at flux ratio 1.000. It reads 0.144917 K over a 55-orbit clean window
+# and passes all six criteria. Its cold twin, identical in structure and in
+# everything but the flux, reads 0.103598 over the same window indices, so the
+# 40 per cent difference is the flux and nothing else.
+#
+# AND IT IS THE LESS ICY ARM THAT IS NOISIER, which bounds the reading above
+# that sea ice is where this model's interannual variability lives. Across that
+# ALBEDO pair the colder, icier arm was the noisier one; across this FLUX pair
+# the warm arm carries a mean sea-ice fraction of 0.0190 against the cold arm's
+# 0.0753 and is half again as noisy. Whatever sets the scatter, ice cover does
+# not order it on its own. `notes/audits/flux-slope-bracket.md`.
+#
 # THE FINER RUNG IS QUIETER, which is worth recording because it bounds how far
 # this can run. The two T42 arms at the same step and build read 0.074925 and
 # 0.079107 over the same window length, so the ladder's expensive rungs are not
@@ -278,7 +291,7 @@ def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
 # not the most comfortable, per the asymmetry argued above: a nominal below
 # what a run reads under-sizes the window that run is judged in, and a nominal
 # above only buys orbits.
-NOMINAL_ORBIT_SCATTER_K = 0.124
+NOMINAL_ORBIT_SCATTER_K = 0.145
 
 # THE MEMORY TIME STATES NO NUMBER HERE. `lib/run_lengths.py` declares the
 # bracket, with the sweep it came from and the anchor that re-examines it, and
@@ -389,15 +402,15 @@ def io_step_at_join(series, run_dir: Path, first: int, last: int,
 # refuses -- not because the bound is wrong but because it is now unexamined,
 # which is the whole state the audit found and could not distinguish.
 CONVERGENCE_BOUND_ANCHOR = {
-    # THE CANONICAL-10M-CARVE2 BASELINE, 57 clean production orbits at one I/O
-    # regime. It is the noisiest current settled production run. The bootstrap
-    # remains the memory-time anchor in lib/run_lengths.py; the two inputs need
-    # not be observations of the same run because each is independently
-    # bounded over every qualifying report.
-    "run": "run_67323a923013",
+    # THE FLUX BRACKET'S WARM ARM, 55 clean production orbits at one I/O regime.
+    # It is the noisiest current settled production run. The bootstrap remains
+    # the memory-time anchor in lib/run_lengths.py; the two inputs need not be
+    # observations of the same run because each is independently bounded over
+    # every qualifying report.
+    "run": "run_9d5dbf9bd3d9",
     "artifact": "exoplasim/analysis/convergence/"
-                "run_67323a923013_convergence.json",
-    "orbit_scatter_k": 0.11662626566849577,
+                "run_9d5dbf9bd3d9_convergence.json",
+    "orbit_scatter_k": 0.14491617956981903,
 }
 CONVERGENCE_REPORTS = "exoplasim/analysis/convergence"
 
