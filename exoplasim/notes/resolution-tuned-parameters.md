@@ -1345,17 +1345,37 @@ nothing.
 
 ### The first repair route is refuted, and SB81 says why
 
-A pair at 7.5 minutes, below the 9.5-minute limit so both arms are stable
-integrations, from the same restart, with the fixer off. Both stayed physical --
-temperature 189 to 313 K and surface pressure 605 to 1100 hPa in each, against
-190 to 313 and 604 to 1101 in the control -- so this is a comparison and not a
-blow-up:
+A pair at 7.5 minutes, from the same restart, with the fixer off. Both stayed
+physical -- temperature 189 to 313 K and surface pressure 605 to 1100 hPa in
+each, against 190 to 313 and 604 to 1101 in the control:
 
     conversion_time_level off, denergy26 - denergy27     -0.6265
     conversion_time_level on                             +0.5168
 
 The sink does not fall. It changes sign and keeps four fifths of its size,
 against a threshold of one third fixed before the arms ran.
+
+**THE ON ARM WAS ABOVE THE TERM'S STABILITY BOUNDARY.** 7.5 minutes was chosen
+as "below the 9.5-minute limit so both arms are stable integrations", and that
+limit is the explicit gravity-wave one, which world-bt3b establishes is not the
+boundary: the term feeds the leapfrog computational mode, the Robert-Asselin
+filter is the only thing damping it, and at T42 on this configuration the
+boundary is 4.19 minutes. At 7.5 the linearised step grows 1.1024 per step.
+`exoplasim/analysis/conversion_time_stability.json` carries the derivation and
+`exoplasim/scripts/conversion_time_stability.py` regenerates it.
+
+So the ON arm's number is taken on an integration that was growing, and the
+arm's length is not recorded here -- nor is its configuration anywhere in
+`exoplasim/analysis/arms/`, none of which sets `conversion_time_level` or runs
+at 7.5 minutes. The number cannot be re-read and the run cannot be re-run from
+what survives, which is the same standing as the recordless runs
+`archive/runs/RECORDLESS.json` enumerates.
+
+**The refutation does not rest on it.** The section below derives the same
+conclusion from SB81 section 3e, and the sink has since been localised to
+`spectrald`'s damping add by a control one level down, on arms that have
+nothing to do with this term. What the contaminated arm costs is the
+MEASUREMENT, not the finding. world-bt3b.
 
 **And that is what SB81 section 3e predicts.** Its conservation requirement is
 not that the temperature equation be internally consistent; it is that the
