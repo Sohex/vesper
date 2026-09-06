@@ -379,7 +379,10 @@ matching none, and is rule 3 in the form that does not announce itself),
 that are not the same grid, normalisation by field semantics, the coverage
 that travels with the result, and where a coastal flux goes when the two
 masks disagree), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
-Rayleigh coefficient), `spatial_support.py` (the versioned identity and semantics contract every
+Rayleigh coefficient, and the PHOTON CURRENCY: a window's share of a
+spectrum's energy and the mol quanta per joule inside it, with the
+controls -- the two changes of variable, and the Sun through the same
+integral against the figure the other side already knows), `spatial_support.py` (the versioned identity and semantics contract every
 spatial artifact carries: geometry, coordinates, native/effective measure,
 time support, aggregation order and provenance, plus the assessed-conversion
 envelope that binds two such identities to closure tests and loss inventories),

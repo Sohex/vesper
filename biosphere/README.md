@@ -146,6 +146,16 @@ writes the value and its derivation into `generated/vesper.h` and
 `generated/vesper_provenance.json`. See
 `exoplasim/notes/stellar-spectrum-audit.md`.
 
+**The photon conversion.** A photosystem counts quanta and the radiation scheme
+carries joules, so `FRADPAR` is only half of the conversion: `canexch.cpp` turns
+the energy inside the window into a photon supply with `CQ`, which LPJ-GUESS
+ships as the monochromatic 550 nm value for the Sun. `VESPER_CQ` is derived
+beside `FRADPAR` from the same spectrum over the same window, so the pair is one
+currency. `lib/stellar.py` owns both integrals and runs its controls -- the
+monochromatic 550 nm identity, a solar spectrum against the shipped constant,
+and the agreement of the wavelength and frequency routes -- before returning
+either.
+
 **The PFTs.** The shipped plant functional types are Earth's, and their
 bioclimatic limits are Earth calibrations. Keeping them is defensible as an
 Earth-analogue biosphere and should be declared that way rather than presented as

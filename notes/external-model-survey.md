@@ -2346,18 +2346,20 @@ than 4.6e-6 -- about 5.7 percent low, of which roughly 3.1 points is the window
 mismatch and 2.6 the stellar shift. One-signed: more photons per joule than
 assumed, so absorbed photon flux and therefore assimilation are understated.
 
-**BIO-25 owns this.** `biosphere/notes/implicit-earth-assumptions.md` finding 5
-is headed "The PAR correction changes energy but not photons per joule" and
-specifies the fix: generate a spectrum- and window-weighted `VESPER_CQ` beside
-`FRADPAR` and require the combined photon supply to reproduce the registered
-productivity calculation. The plant-physiology audit repeats it. PCAR-11 was
-opened against the same mechanism and withdrawn as redundant.
-
-What was NOT already recorded is the magnitude, and that is folded into BIO-25:
-about 5.7 percent low, decomposing into roughly 3.1 points of window mismatch
-and 2.6 of stellar shift. The window half would exist on Earth's spectrum too,
-which matters because it means the pair has to be recomputed over a COMMON
+**Closed 2026-09-05.** `lib/stellar.py` owns both integrals over one window on
+one file, `build_vesper_header.py` emits `VESPER_CQ` beside `VESPER_FRADPAR`, and
+`canexch.h` reads it. The magnitude held: 5.7 percent, of which 3.9 points is the
+window and 2.6 the star, once both halves are measured on the hi-res file rather
+than on its truncated low-resolution companion. The window half would exist on
+Earth's spectrum too, which is why the pair had to be recomputed over a COMMON
 window rather than merely re-starred.
+
+`FRADPAR` moved with it, from 0.4624 to 0.4913, because it had been integrating
+`k25v.dat`: that file starts at 0.34 um, so the solar reference lost the
+ultraviolet below it and its share of its own truncated total was 6.4 percent
+too high. `lib/stellar.py`'s header names the same truncation reaching the dust
+optics once before. PCAR-11 was opened against the same mechanism and withdrawn
+as redundant.
 
 
 ## 25. The LPJ-GUESS Earth-constant scan, and where its results already live

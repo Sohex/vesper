@@ -222,6 +222,20 @@ def soiln_instruction_text(profile: str) -> str:
 # from the cell rather than the rank (lib/stochastic_seeds.py), so a
 # continuation at a different rank count reads the same state. It is recorded
 # rather than refused.
+# THE CLEVELAND FIXATION SLOPE IS A DECLARED BRACKET, not a value with a
+# central estimate. LPJ-GUESS's own `global.ins` states the range and the
+# midpoint together, and nothing in this project can narrow it: there is no
+# Vesper observation of biological nitrogen fixation to regress against. So the
+# disposition is the one the project allows for an unresolved input -- declare
+# it with a bracket and sweep the bracket -- and the ends are declared HERE, in
+# the one place that writes the value into an instruction file.
+#
+# `score_prediction.py` imports them and refuses to quote a productivity number
+# that does not carry both ends, because a range collapsed at the point of
+# quotation is a range that was never reported.
+NFIX_A_BRACKET = (0.102, 0.367)
+NFIX_A_CENTRAL = 0.234
+
 CONTINUATION_INPUTS = ("driver", "soilmap", "pfts", "binary", "vesper_h",
                        "global_soiln")
 CONTINUATION_PHYSICAL = ("npatch", "root_seed", "nfix_a", "nfix_b",
@@ -548,10 +562,12 @@ def main() -> None:
                         help="replicate patches per gridcell")
     parser.add_argument("--ranks", type=int, default=16,
                         help="MPI ranks. 16 physical cores on this machine.")
-    parser.add_argument("--nfix-a", type=float, default=0.234,
-                        help="Cleveland fixation slope. LPJ-GUESS brackets this "
-                             "0.102 to 0.367 and it is worth 18%% on NPP; sweep it "
-                             "rather than quoting the central value alone.")
+    parser.add_argument("--nfix-a", type=float, default=NFIX_A_CENTRAL,
+                        help=f"Cleveland fixation slope. LPJ-GUESS declares the "
+                             f"bracket {NFIX_A_BRACKET[0]} to {NFIX_A_BRACKET[1]} "
+                             "and this project cannot narrow it, so productivity "
+                             "is quoted over both ends and score_prediction.py "
+                             "refuses a quotation that carries only this default.")
     parser.add_argument("--nfix-b", type=float, default=-0.172)
     parser.add_argument("--driver", type=Path, default=GENERATED / "vesper_driver.bin")
     parser.add_argument("--soilmap", type=Path,

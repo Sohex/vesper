@@ -47,10 +47,10 @@ The prediction assumes the porting decisions in
 | item | value |
 | --- | --- |
 | calendar | 24-hour steps, 181-day year |
-| `FRADPAR` | 0.4624, from the k25v spectrum over a 400-750 nm window |
+| `FRADPAR` | 0.4624, from the k25v spectrum over a 400-750 nm window; see the light-constants amendment |
 | PFT set | Earth's, as an Earth-analogue biosphere |
 | photosystem window | 400-750 nm, K2V-adapted (see the amendment below) |
-| `nfix_a` | 0.234, LPJ-GUESS's central value; range 0.102-0.367 |
+| `nfix_a` | LPJ-GUESS's declared bracket 0.102-0.367, swept; 0.234 is its midpoint and not a value |
 | `gdd5min` | rescaled by 180.655 / 365.2569 = 0.4946 |
 | CO2 | 450 ppm |
 | nitrogen | deposition 0.5 kgN/ha/yr declared; fixation and mineralisation dominate it, see the amendment |
@@ -325,7 +325,73 @@ per orbit. BIO-24 corrects those semantics and BIO-2 must recompute this bracket
 the smoke-run values above remain provenance for the earlier experiment, not a
 valid final nitrogen bracket.
 
+## Amendment: the two light constants are one pair, on one window and one file
+
+Measured 2026-09-05. The registration assumed `FRADPAR` 0.4624 and, implicitly,
+LPJ-GUESS's shipped `CQ` of 4.6e-6 mol/J. Those are the two halves of one
+currency conversion -- `driver.cpp` forms the energy inside the photosystem
+window and `canexch.cpp` turns it into quanta -- and they were on different
+windows and different stars: `FRADPAR` derived for a K2.5V over 400-750 nm,
+`CQ` the monochromatic 550 nm value for the Sun.
+
+Both are now derived by `lib/stellar.py` from the spectrum the climate model
+reads, over the one declared window. `CQ` becomes 4.864e-6 mol/J, 5.7% above the
+shipped constant, of which 3.9 points is the wider window this world declares and
+2.6 points is the star being redder. Two controls stand behind that: the
+monochromatic conversion at 550 nm reproduces the shipped 4.6e-6 to two figures,
+which is where that constant comes from, and a solar spectrum through the same
+integral over Earth's own 400-700 nm window gives 4.567e-6, 0.7% below it.
+
+`FRADPAR` moves to 0.4913 in the same pass, and not because of the star. It was
+integrating `k25v.dat`, the low-resolution companion, which spans only
+0.34-14.01 um; the missing ultraviolet inflated the SOLAR reference's share of
+its own truncated total by 6.4% and deflated every ratio taken against it. On
+the hi-res file the solar 400-700 nm share is 0.3669 and this star's 400-750 nm
+share is 0.3606.
+
+The registered supply line moves with them. Photon supply per joule of surface
+shortwave is `FRADPAR * CQ`, and against the Sun's 2.283e-6 mol/J:
+
+| window | this star, against the Sun |
+| --- | --- |
+| 400-700 nm, Earth's, as registered at 0.814 | 0.867 |
+| 400-750 nm, the declared window | 1.047 |
+
+So the light correction the predictions combined at 0.86 to 0.95 is now at or
+slightly above parity. Predictions 1 to 4 sit about 10% higher in consequence,
+which is well inside every hit band, so no prediction changes. What changes is
+that the executable and this document are now in one currency: the mismatch this
+amendment closes was one-signed, and it understated absorbed photon flux and
+assimilation with it.
+
+## Amendment: productivity is quoted over the nitrogen bracket
+
+`nfix_a` is a DECLARED BRACKET and not a value with a central estimate.
+LPJ-GUESS states 0.102 to 0.367 in `global.ins`; this project has no Vesper
+observation of biological nitrogen fixation to narrow it with, and fixation
+supplies an order more nitrogen than the declared deposition does. So land-mean
+and total NPP are properties of that range, and a single run at the midpoint
+does not measure them however precise it is.
+
+The sweep table above is provenance for the earlier smoke run and not a valid
+response: BIO-24 moved both halves of the Cleveland relation, converting the
+per-orbit AET sum to per Earth year before the regression and dividing the
+intercept by the Earth year rather than the orbit, so the -10.8% and +5.4%
+were fitted against a reading the model no longer makes. The BRACKET ON THE
+INPUT is unaffected -- it is LPJ-GUESS's own and nothing in the time base
+touches it -- and the response to it has to be re-measured rather than carried
+over.
+
+`biosphere/scripts/score_prediction.py` is where that is enforced. It takes the
+two ends as `--nfix-arm` runs, refuses an arm differing from the scored run in
+anything but `nfix_a` or covering a different set of cells, quotes predictions 1
+to 4 as the span across the arms, and scores a line a HIT only when the WHOLE
+span lands in the hit band. Given one arm it reports those four lines as NOT
+QUOTED and does not score them. Predictions 5 to 10 are structural and are
+scored from the central arm, which is what they are registered against.
+
 ## Result
 
 Not yet run. To be filled in with actual values, hit or miss per line, and the
-mechanism behind any miss.
+mechanism behind any miss. Lines 1 to 4 are filled in as spans over the declared
+`nfix_a` bracket; a single-arm number is not a result for them.
