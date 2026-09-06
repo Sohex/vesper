@@ -135,12 +135,22 @@ right by construction.
 **IT DOES NOT ITERATE THE NONLINEARITY AT ALL.** `D` is evaluated once per step
 from the previous step's thickness and one `cgs` solve follows. So the arms above
 are not measuring the same thing MITgcmIS does: Route A converges the nonlinear
-residual to 1e-8 and Route B lags `D` by a whole step and does not ask. That is
-what its 30,000 steps buy. On total linear solves the two are close -- Route A's
-24 passes at twenty times the explicit limit against twenty lagged single solves
-for the same span -- and only one of them has a converged answer at the end.
+residual to 1e-8 and Route B lags `D` by a whole step and never asks. That is
+what its 30,000 steps buy, at a step that is a bare module-level literal
+assigned twice, `dt = 1.0` at line 223 and `dt = 1` at line 226, with no unit
+stated anywhere and no stability check against the diffusivity it just built.
+The unit is a year by inference from `Aglen`, and the inference is the reader's.
 The `cgs` call carries no preconditioner and its failure flag is printed rather
 than acted on.
+
+**Whether that is cheaper per unit of simulated time is not answerable from
+either code**, and it is worth saying so rather than estimating it. A lagged-`D`
+scheme is one solve a step at a step its author chose and did not justify; a
+damped Picard is 18 to 24 solves at a step this note measured against the
+explicit limit. They are close enough that the comparison would turn on the
+lagged scheme's actual stability limit, which is not stated and not tested in
+that tree. What is not in doubt is that only one of the two has a converged
+answer at the end of its step.
 
 **AND EARTH'S GRAVITY IS INSIDE THE FLOW CONSTANT AT THE THIRD POWER.**
 `rhog = 920 * 9.8`, then `Csia = 2*Aglen/(nglen+2) * rhog**nglen` at line 227.
