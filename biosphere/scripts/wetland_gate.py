@@ -119,6 +119,9 @@ PRECONDITIONS = (
     ("extent", "downscaling_rule",
      "how a climate-grid fraction reaches a consumer that wants finer",
      "WORLD-D9U4"),
+    ("extent", "convention_arm_rule",
+     "what a downstream ledger does with a class whose share is a convention "
+     "bracket, stated before any share is written", "WORLD-4FR6"),
     ("extent", "regime_selector",
      "what selects the wetland process regime, which may not be latitude",
      "WET-2"),
@@ -183,7 +186,11 @@ EXTENT_CLASSES = ("peat_forming", "saturated_mineral", "seasonal_inundation",
 EXTENT_SOURCES = {
     "surface_water:lake": (
         "surface_water.nc",
-        "the solved equilibrium lake surface, one label per mesh region"),
+        "the solved ANNUAL equilibrium lake surface, one label per mesh region. "
+        "It is the paint the wetness partition is no longer cut against: the "
+        "annual area sits between the periodic cycle's trough and its peak, so "
+        "taking open water from here and seasonal inundation from the cycle "
+        "counts the strandline twice"),
     "surface_water:lake_cycle_fraction": (
         "surface_water.nc",
         "the per-bin inundated share of a closed basin's regions. It is the "
@@ -200,7 +207,11 @@ EXTENT_SOURCES = {
         "the licensed regime with the unlicensed one has no verdict attached"),
     "wetness:class_shares": (
         "wetness_*.nc",
-        "the resolved wetness class shares over a climate-grid cell's land"),
+        "the resolved wetness class shares over a climate-grid cell's land, "
+        "from the ONE artifact that enforces exclusivity rather than assuming "
+        "it. Which upstream field each class is cut from is stated once, in "
+        "hydrography/config/wetness.yaml, and is not restated here: a second "
+        "copy of a per-class provenance is one that drifts"),
     "lpj_guess:peatland_stand": (
         None,
         "the simulated peatland stand's own state, which is a model output "
@@ -687,6 +698,37 @@ def _extent_refusals(declaration: dict, evidence: dict) -> list[Refusal]:
             "topographic index value; the index shifts with the mesh by about "
             "ln 2 and only its rank statistics transport", "WET-2"))
 
+    # A CONVENTION BRACKET IS TAKEN WHOLE OR NOT AT ALL. `f_grad` is the case
+    # this exists for: at one end of it the saturated-area closure's ranking is
+    # the depth's ranking exactly, to fifteen digits, so that arm contains no
+    # terrain information and a consumer reporting it alone is reporting the
+    # depth under another name. The rule is required BEFORE any share is
+    # written, which is WORLD-4FR6's constraint on both of its routes, and it
+    # binds a revived closure as much as the reduced form.
+    rule = extent.get("convention_arm_rule", UNDECLARED)
+    if _declared(rule):
+        text = str(rule)
+        takes_both = re.search(
+            r"both arms or (?:as )?neither|both arms or none", text,
+            re.IGNORECASE)
+        admits_one = re.search(
+            r"\b(?:one|a single|either) arm\b(?!\s*(?:or|,))", text,
+            re.IGNORECASE)
+        if not takes_both:
+            refusals.append(Refusal(
+                "WET-CONVENTION-ARM-RULE-NOT-BOTH-ARMS",
+                f"extent.convention_arm_rule is {text!r} and does not say "
+                "that a bracketed class propagates as both arms or as neither. "
+                "A convention bracket has no central case behind it, so a "
+                "ledger carrying one arm of one is reporting a number nothing "
+                "stands behind", "WORLD-4FR6"))
+        elif admits_one:
+            refusals.append(Refusal(
+                "WET-CONVENTION-ARM-RULE-ADMITS-ONE-ARM",
+                f"extent.convention_arm_rule is {text!r}, which permits a "
+                "single arm somewhere. Both arms or neither is the whole rule",
+                "WORLD-4FR6"))
+
     selector = extent.get("regime_selector", UNDECLARED)
     if _declared(selector) and re.search(r"latitude|\blat\b", str(selector),
                                          re.IGNORECASE):
@@ -1112,6 +1154,15 @@ def _fixtures(declaration: dict, planet: dict, evidence: dict) -> list[dict]:
         ("the absolute-threshold prohibition relaxed",
          mutate(put("extent", "absolute_index_threshold", "allowed")),
          "WET-EXTENT-ABSOLUTE-INDEX-PERMITTED"),
+        ("a convention-arm rule that does not take both arms",
+         mutate(put("extent", "convention_arm_rule",
+                    "the ledger carries the central value")),
+         "WET-CONVENTION-ARM-RULE-NOT-BOTH-ARMS"),
+        ("a convention-arm rule that lets a ledger take one arm",
+         mutate(put("extent", "convention_arm_rule",
+                    "both arms or neither, unless a ledger can only carry "
+                    "one arm")),
+         "WET-CONVENTION-ARM-RULE-ADMITS-ONE-ARM"),
         ("latitude selecting the wetland process regime",
          mutate(put("extent", "regime_selector", "latitude >= 40")),
          "WET-REGIME-SELECTOR-LATITUDE"),
@@ -1264,6 +1315,11 @@ def _satisfied(declaration: dict) -> dict:
         "open_water": "surface_water:lake",
         "dry_mineral": "residual"}
     candidate["extent"]["regime_selector"] = "saturation and its persistence"
+    # Not a placeholder: the rule has a required SHAPE, so a fixture that filled
+    # it with the same string as every other field would be asserting that the
+    # gate accepts any prose here.
+    candidate["extent"]["convention_arm_rule"] = (
+        "both arms or neither, through every downstream ledger")
     candidate["peat"]["age_bracket"] = [1, 2]
     candidate["peat"]["depth_bracket"] = [0.1, 10.0]
     candidate["atmosphere"]["trace_gas_state_closed"] = True

@@ -681,11 +681,18 @@ the builds under `hydrography/data`; the saturated non-inundated mineral class
 has none, because the saturated-area closure that would have supplied a
 saturated fraction is withdrawn in
 `hydrography/config/topographic_index.yaml`, and the gate reads that file rather
-than carrying a copy of the verdict, so a revival refuses here too. A saturated
-fraction is a grid-cell quantity and the gate refuses any other support for it,
-which is WORLD-D9U4's constraint made enforceable; peat age and depth are
-two-ended brackets and the gate refuses a scalar, because a scalar is a claim to
-a history `no-time-axis.md` says this world does not have.
+than carrying a copy of the verdict, so a revival refuses here too. That class
+is DECLARED ABSENT under WET-12's reduced form rather than left blank, and the
+gate refuses a class dropped without both the reason and the row that licensed
+it; `biosphere/notes/reduced-wetland-form.md` is the reduced form and the ledger
+of what taking it costs in claims. A saturated fraction is a grid-cell quantity
+and the gate refuses any other support for it, which is WORLD-D9U4's constraint
+made enforceable. A class whose share is a convention bracket propagates as both
+arms or as neither, declared before any share is written, because `f_grad`'s
+upper arm carries no terrain information and one arm of it is the depth under
+another name. Peat age and depth are two-ended brackets and the gate refuses a
+scalar, because a scalar is a claim to a history `no-time-axis.md` says this
+world does not have.
 
 ### One abiotic nutrient ledger, and it does not close yet
 

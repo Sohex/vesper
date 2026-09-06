@@ -136,15 +136,23 @@ checks each named artifact against the builds under `hydrography/data`. The set
 is closed because a source named in prose cannot be checked against what
 hydrography publishes.
 
-Four of the five classes have somewhere to come from. Open water is the solved
-equilibrium lake surface; seasonal inundation is the per-bin inundated share of
-a closed basin's regions, which is the closed-basin part of that class and no
-more, because a floodplain's inundated area needs a height-above-nearest-drainage
-CDF and a routing model and a seasonally saturated soil is a water content
-rather than an area; persistent peat-forming land is the simulated peatland
+Four of the five classes have somewhere to come from, and
+`hydrography/scripts/build_wetness.py` resolves them together as one partition
+rather than four masks. The cut is taken from the PERIODIC lake cycle and not
+from the annual equilibrium, because the annual area lies between the cycle's
+trough and its peak and taking open water from one solve and seasonal
+inundation from the other counts the strandline twice; WORLD-T8I5 measured the
+two paints against each other before choosing and
+`notes/audits/wetness-partition-cut.md` carries the measurement. Open water is
+a region under the solved lake in every time bin; seasonal inundation is one
+under it in some bins, which is the closed-basin part of that class and no
+more, because a floodplain's inundated area needs a
+height-above-nearest-drainage CDF and a routing model and a seasonally
+saturated soil is a water content rather than an area; playa is the depression
+floor neither takes; persistent peat-forming land is the simulated peatland
 stand's own state, which is a model output; dry mineral soil is the residual.
-None of those four is a wetland extent on its own, and whether the four
-together are one is WET-2's decision.
+None of those is a wetland extent on its own, and what the four together are is
+a partition with one class missing.
 
 THE SATURATED NON-INUNDATED MINERAL CLASS HAS NO SOURCE AT ANY SUPPORT. It
 needed a saturated fraction, and the saturated-area closure that would have
@@ -172,9 +180,21 @@ route and is where it is stated; this document does not restate its terms.
 The second route is a reduced form declared under WET-12, which states what
 dropping the class costs in claims before anything is built to it; the gate
 refuses a class declared absent without both the reason and the row that
-licensed it. WET-12's own reduced extent is the TOPMODEL saturated fraction
-from GW-26's index, so that route needs restating too: the fraction it names is
-the withdrawn one.
+licensed it. THAT IS THE ROUTE THIS DECLARATION TAKES, and
+`biosphere/notes/reduced-wetland-form.md` is where it is declared with its cost
+ledger. The reduced extent is not a coarser version of the partition; it is a
+smaller partition, because PALADYN, the published design that is the floor for
+the peat and methane parts, keys its own wetland extent on the same TOPMODEL
+saturated fraction. There is no floor under extent to fall back to.
+
+`biosphere/config/wetlands.yaml` therefore declares
+`extent.class_sources.saturated_mineral` absent, with the reason and the row
+that licensed it, and declares `extent.convention_arm_rule` before any share
+is written: a class whose share is a convention bracket propagates through
+every downstream ledger as both arms or as neither. That rule is required by
+both routes rather than by the reduced one, because `f_grad` is a convention
+bracket whose upper arm carries no terrain information at all, and a consumer
+taking one arm of it is reporting the depth under another name.
 
 The support of a saturated fraction is settled and stays enforced beside all of
 that. GW-26 settled that `f_sat_max` is a rank statistic over the terrain
@@ -344,10 +364,14 @@ never supply one.
    `hydrology.water_ledger`: PLHY-4's one daily exchange, which the repairs turn
    from a constant standing in for it into a named absence.
 2. Name a source for each of the five extent classes, and settle the saturated
-   non-inundated mineral class, whose source is withdrawn: either the new areal
-   instrument of section 3 or a reduced form declared under WET-12. Then derive
-   the mutually exclusive surface fractions on the climate-grid support
-   WORLD-D9U4 chose, closing against BIO-11's rootable surface.
+   non-inundated mineral class, whose source is withdrawn. DONE, by the reduced
+   form of section 3: four classes are resolved as one partition and the fifth
+   is declared absent with its reason and its licence. What remains of step 2 is
+   the source contract that would let the simulated stand be GIVEN those
+   fractions and refuse a fallback-equal one, which is WET-1, and the closure
+   against BIO-11's rootable surface, which is stated as an identity in
+   `hydrography/config/wetness.yaml` and cannot be asserted until BIO-11
+   exists.
 3. Place the wetland traits in PCAR-5's registry once it exists, and declare the
    peat age and depth brackets.
 4. Separate production from oxidation and transport, add the dry-soil sink and

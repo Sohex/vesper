@@ -173,6 +173,26 @@ and global fluxes are not adopted as Vesper observations or parameters.
 | `rosentreter_2021_aquatic-methane-emissions-supplement.pdf` | Rosentreter et al. (2021), supplementary information for *Half of global methane emissions come from highly variable aquatic ecosystem sources.* `10.1038/s41561-021-00715-2` | **read** -- holds the ecosystem-specific areas, sample counts, upscaling choices and transport-interface inventory behind the article. Kept separately because paperfetch initially returned this supplement rather than the article |
 | `saunois_2020_global-methane-budget.pdf` | Saunois et al. (2020). *The Global Methane Budget 2000-2017.* Earth Syst. Sci. Data 12, 1561-1623. `10.5194/essd-12-1561-2020` | **read** -- closes sources against atmospheric growth, transport/inversions and sinks, with OH the dominant atmospheric loss. Bottom-up natural wetlands, inland waters and geological sources can exceed top-down constraints, so a Vesper surface source cannot be converted to abundance with one Earth lifetime and must expose budget imbalance and oxidant uncertainty |
 
+## Areal saturated and inundated land fraction: what a revived closure would be scored against (WORLD-4FR6)
+
+Fetched 2026-09-05 and HELD, not read. The saturated-area closure is withdrawn
+because a cell-scale score reached through 34 and 37 grid cells of point bore
+depths cannot resolve the gain it would have had to show;
+`hydrography/notes/subgrid-water-table.md` section 7 states the route back as
+SUPPORT, and an areal observation in place of point depths is one way to get
+there. These four papers document the products that could supply it, and
+`docs/src/reference/external-data.md` carries the access routes. NONE OF THE
+DATA HAS BEEN FETCHED: WORLD-4FR6 requires the criterion and the disposition of
+a miss to be declared before the observations are in hand, so these are read to
+write a criterion and the download comes after it.
+
+| PDF | Citation | Status and what it carries |
+| --- | --- | --- |
+| `bernard_2025_the-giems-methanecentric-database-a-dynamic-and-comprehensive-global-p.pdf` | Bernard et al. (2025). *The GIEMS-MethaneCentric database: a dynamic and comprehensive global product of methane-emitting aquatic areas.* Earth Syst. Sci. Data 17, 2985. `10.5194/essd-17-2985-2025` | **held** -- the closest available match to a per-cell saturated land fraction: monthly, 0.25 degree, 1992-2020, with inundated-and-saturated wetlands carried as a layer separate from a static permanent-open-water layer, so lakes and rivers can be taken out rather than conflated. Its saturated component is inferred from wetland class and peatland compositing rather than retrieved |
+| `zhang_2021_development-of-the-global-dataset-of-wetland-area-and-dynamics-for-met.pdf` | Zhang et al. (2021). *Development of the global dataset of Wetland Area and Dynamics for Methane Modeling (WAD2M).* Earth Syst. Sci. Data 13, 2001-2023. `10.5194/essd-13-2001-2021` | **held** -- monthly wetland area fraction, 0.25 degree, 2000-2020, from SWAMPS microwave inundation with permanent open water, coastal wetlands and rice paddies removed. A microwave inundation retrieval is blind under a closed canopy, so this runs low against a water-table-at-surface fraction and worst in forested cells |
+| `tootchi_2019_multi-source-global-wetland-maps-combining-surface-water-imagery-and-g.pdf` | Tootchi, Jost, Ducharne (2019). *Multi-source global wetland maps combining surface water imagery and groundwater constraints.* Earth Syst. Sci. Data 11, 189-220. `10.5194/essd-11-189-2019` | **held** -- the definitional match: wetlands defined as areas of persistent near-saturated soil from regular flooding OR shallow groundwater, static at 15 arcsec, and it deliberately captures wetlands under canopy that a microwave retrieval cannot see. THE CAVEAT THAT DECIDES ITS USE: its groundwater half is itself modelled, so scoring against it is a model-against-model comparison and is reported as a second target rather than as ground truth |
+| `lehner_2025_mapping-the-world-s-inland-surface-waters-an-upgrade-to-the-global-lak.pdf` | Lehner et al. (2025). *Mapping the world's inland surface waters: an upgrade to the Global Lakes and Wetlands Database (GLWD v2).* Earth Syst. Sci. Data 17, 2277. `10.5194/essd-17-2277-2025` | **held** -- 33 waterbody and wetland classes at 15 arcsec as percent of cell, which aggregates to a genuine per-cell areal fraction. Compiled from national surveys and maps rather than retrieved, and static, so it can score a predicted long-term MAXIMUM extent and cannot score a monthly one |
+
 ## Biosphere: plant physiology and carbon allocation
 
 Fetched and read 2026-08-21 for

@@ -21,13 +21,26 @@ schema_version: 1
 # are required to partition the cell, and `--selftest` runs fixtures built to
 # violate each of those in a named way that the checks must catch.
 #
-# TWO SUPPORTS, AND THAT IS THE COST OF A DECISION ALREADY TAKEN.
+# ONE SUPPORT TODAY, AND TWO IF A CLOSURE IS EVER REVIVED.
 # `hydrography/notes/subgrid-water-table.md` section 5: the resolved classes
 # stay per REGION, and the saturated non-inundated mineral class is not resolved
-# anywhere on this mesh and can only arrive as a climate-grid AREA share. So
-# exclusivity is stated at two supports: the resolved classes partition a cell's
-# land area between them, and the saturated share is taken out of what they
-# leave rather than added beside them.
+# anywhere on this mesh and could only ever arrive as a climate-grid AREA share.
+# That closure is withdrawn, so every class this file forms today is resolved on
+# the mesh and the partition closes at one support. The two-support rule is kept
+# rather than deleted, because a revived closure brings the second support back
+# with it: the saturated share would be taken OUT of what the resolved classes
+# leave and never added beside them.
+#
+# WHICH SOLVE DECIDES OPEN WATER: THE PERIODIC CYCLE.
+# `surface_water.py` solves the lake balance twice, as an annual equilibrium and
+# as a periodic steady state through the climatology's own time bins. The annual
+# area sits between the cycle's trough and its peak, so the two paints cut the
+# same ground differently and the strandline is where they disagree. The cut is
+# taken from the CYCLE, because that is what makes seasonal inundation a class
+# rather than a remainder against a different solve, and because the cycle is
+# the more determined of the two states. WORLD-T8I5 measured the two paints
+# against each other before choosing; `notes/audits/wetness-partition-cut.md`
+# carries the measurement and `build_wetness.py` re-measures it on every run.
 
 # ---------------------------------------------------------------------------
 # The classes
@@ -40,19 +53,43 @@ classes:
   # RESOLVED, per region, and each is a solved result rather than a threshold.
   open_water:
     support: region
-    source: surface_water.nc:lake
-    rule: the solved equilibrium lake surface, painted by area up the basin's
-      own hypsometry. `surface_water.py` decides this and nothing else in the
-      project does.
+    source: surface_water.nc:lake_cycle_bins_wet, surface_water.nc:lake_cycle_decided
+    rule: >-
+      a region under the periodic lake in EVERY time bin of the climatology: the
+      always-wet set, which is the permanent lake surface the cycle expresses.
+      `surface_water.py` decides this and nothing else in the project does. A
+      region whose basin never closed its year has no cycle, so a zero in
+      `lake_cycle_bins_wet` cannot say whether it is dry or unsolved; for those
+      regions the annual equilibrium paint `surface_water.nc:lake` is the only
+      statement that exists and it decides. The count of regions taken that way
+      is written into `wetness_report.json` rather than absorbed, because it is
+      the one place two solves meet in one partition.
+  seasonal_inundation:
+    support: region
+    source: surface_water.nc:lake_cycle_bins_wet, surface_water.nc:lake_cycle_decided
+    rule: >-
+      a region under the periodic lake in SOME time bins and not all. IT IS THE
+      CLOSED-BASIN THIRD OF THE SEASONAL QUANTITY AND NOTHING ELSE.
+      `hydrography/notes/land-water-ledger.md` splits seasonally inundated land
+      in three, and the other two thirds are not this component's and are not
+      pending here: a FLOODPLAIN's inundated area needs a
+      height-above-nearest-drainage distribution and a routing model, neither of
+      which exists in this project, and a seasonally saturated SOIL is a water
+      content rather than an area, which `refusals.area_proxy_from_cell_mean`
+      below refuses to turn into one. Merging any of the three would put three
+      quantities under one name and the merge would be invisible in the file, so
+      a consumer reads this class as a LOWER BOUND on seasonally inundated land.
   playa:
     support: region
     source: regions.nc:filled_km, regions.nc:terminal, basins.nc:spill_km
-    rule: land inside a closed depression -- its filled surface at or below the
-      basin's spill -- that the solved lake does not cover. The exposed floor
-      and strandline of a basin that does not fill, which is what
+    rule: >-
+      land inside a closed depression -- its filled surface at or below the
+      basin's spill -- that neither wet class above takes: the floor and
+      strandline that stay exposed through the whole cycle, which is what
       `pedology/scripts/build_surface_classes.py` already means by playa. A
-      basin that fills to its spill has no exposed floor and contributes none,
-      which falls out of the rule rather than needing a second one.
+      basin that fills to its spill in every bin has no exposed floor and
+      contributes none, which falls out of the rule rather than needing a second
+      one.
   dry_mineral:
     support: region
     source: the remainder of the cell's land
@@ -112,48 +149,16 @@ classes:
       the licensed regime with the unlicensed one is a number with no verdict
       attached, which is what `area_proxy_from_cell_mean` below refuses in the
       other direction.
-  seasonal_inundation:
-    support: region
-    source: >-
-      partial, and the partition matters. `land-water-ledger.md` splits this
-      quantity in three and only one of the three is hydrography's. That one
-      exists: `surface_water.nc` carries each closed basin's lake area in every
-      time bin of the climatology, from the periodic steady state
-      `lake_balance.solve_periodic` solves, with `basin_cycle_closed` saying
-      which basins are a cycle rather than a transient and `basin_has_season`
-      which carry a swing the hypsometric curve can express.
-    unavailable_reason: >-
-      the crossing now exists and the PARTITION does not.
-      `surface_water.py:paint_lake_cycle` paints each bin's lake area onto
-      regions the same way `paint_lakes` paints the annual solve, and
-      `surface_water.nc` carries `lake_cycle_bins_wet`, `lake_cycle_fraction`
-      and `lake_cycle_decided` per region. What is left is which class owns
-      which region once a cycle exists: a region under water in EVERY bin is
-      permanent open water and a region under water in some bins is this
-      class, but `open_water` above is the ANNUAL equilibrium paint and
-      `playa` is what that paint leaves exposed inside the depression, so the
-      three overlap in the strandline and the partition has to be re-cut
-      against the cycle. That is a decision about which solve decides open
-      water, and it needs the two paints measured against each other on a
-      real climatology; `config/planet.yaml` carries
-      `baseline_climatology: null` and neither paint exists on disk. WORLD-T8I5.
-      Until then this class stays absent rather than approximated from the
-      annual lake.
-      The other two thirds of the quantity are not hydrography's and are not
-      pending here. A FLOODPLAIN's inundated area needs a
-      height-above-nearest-drainage CDF and a routing model, neither of which
-      exists in this project, and it should not have an owner yet. A seasonally
-      saturated SOIL is a water content rather than an area, so neither the
-      climate column nor the land model can supply one without a
-      saturated-fraction closure, and this project's is withdrawn. Merging any
-      of the three is the double count this file exists to prevent.
   peat:
     support: region
-    unavailable_reason: persistence over a seasonal cycle is what distinguishes
-      peat-forming land from saturated mineral soil, and the previous entry says
-      why no such cycle exists here. Peat is also a STOCK with an accumulation
-      behind it; `docs/src/reference/no-time-axis.md` is what that has to answer
-      to.
+    unavailable_reason: >-
+      persistence of SATURATION over a cycle is what distinguishes peat-forming
+      land from saturated mineral soil, and neither term is available here: the
+      saturated class above has no source at any support, and the cycle this
+      component does carry is a cycle of INUNDATION by a solved lake rather than
+      of a water table standing at the surface. Peat is also a STOCK with an
+      accumulation behind it; `docs/src/reference/no-time-axis.md` is what that
+      has to answer to.
   river_water:
     support: region
     unavailable_reason: >-
@@ -217,7 +222,8 @@ refusals:
 # it does, these are the equations that say the two agree and that no area has
 # been counted twice.
 closure:
-  #     open_water + playa + dry_mineral == 1, over a cell's land area
+  #     open_water + seasonal_inundation + playa + dry_mineral == 1, over a
+  #     cell's land area
   # and, if a saturated share is ever revived and licensed,
   #     saturated_mineral + dry_mineral_remaining == dry_mineral
   # which is the rule that keeps it OUT of the resolved classes rather than
