@@ -182,11 +182,20 @@ def build_current_model(threads: int, verbose: bool = False) -> Path:
     return path
 
 
-def model_exe(bed: Path) -> Path:
-    exes = sorted(bed.glob("most_plasim_*.x"))
-    if not exes:
-        raise SystemExit(f"no model executable in {bed}")
-    return exes[0]
+def model_exe(bed: Path, name: str) -> Path:
+    """The executable inside a bed, BY NAME rather than by glob.
+
+    An unpublished build is `plasim.x` in its build directory, not
+    `most_plasim_<res>_l<n>_p<r>.x`, which is the name the registry publishes
+    under. Globbing the published pattern found nothing and the run died after
+    taking the host lock, which is the expensive way to learn it. The name is
+    the one this script handed `make_profile_bed.py`, so the two cannot drift.
+    """
+    exe = bed / name
+    if not exe.is_file():
+        raise SystemExit(f"no executable {name} in {bed}; "
+                         f"it holds {sorted(q.name for q in bed.glob('*.x'))}")
+    return exe
 
 
 def perf_record_shares(bed: Path, exe: Path, threads: int) -> dict:
@@ -384,8 +393,9 @@ def main() -> None:
     short, long = sorted(args.steps)
     exe = build_current_model(args.threads, args.verbose)
     exe_sha = __import__("hashlib").sha256(exe.read_bytes()).hexdigest()
-    beds = {n: make_bed(n, args.from_run, exe) for n in (short, long)}
-    exe = model_exe(beds[short])
+    built = exe
+    beds = {n: make_bed(n, args.from_run, built) for n in (short, long)}
+    exe = model_exe(beds[short], built.name)
     env = dict(OMP_NUM_THREADS=str(args.threads), OMP_WAIT_POLICY="passive")
 
     loads = [load()[0]]
@@ -430,7 +440,8 @@ def main() -> None:
     startup_cpu_ms = (cpu_short - cpu_per_step_ms * short) if cpu_per_step_ms else None
 
     working_set = socrates_working_set()
-    shares = perf_record_shares(beds[long], exe, args.threads)
+    shares = perf_record_shares(beds[long], model_exe(beds[long], built.name),
+                                args.threads)
     rad = radiation_share(shares)
 
     columns = args.nlon * args.nlat
@@ -471,7 +482,7 @@ def main() -> None:
         threads=args.threads,
         rounds=args.rounds,
         executable=dict(path=str(exe), sha256=exe_sha,
-                        built_here=not args.bed_binary),
+                        built_here=True, from_run=str(args.from_run)),
         bed=dict(source=str(SOURCE_BED.relative_to(ROOT)),
                  steps_short=short, steps_long=long,
                  wall_s_short=wall_short, wall_s_long=wall_long,

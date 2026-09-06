@@ -151,15 +151,41 @@ so the `full` arm measures the scheme and not the reconstruction.
 **SO ROUTE A IS AVAILABLE.** The prior gate the row declares is passed, and the
 comparison is live.
 
-**The cost per step is NOT settled by this sweep and is not quoted as though it
-were.** What the contaminated timings do show, and what contention cannot
-invent, is the shape: the cost is one sparse factorisation per Picard pass, the
-per-solve cost grew about 3.4 times for four times the regions between the two
-arms, and a direct factorisation is the wrong solver at the active build's
-10,000,005 regions -- GW-8 already found the LINEAR water-table case there
-beyond this host's memory at about 10 GB of factor entries. A production Route A
-needs an iterative solver with a preconditioner, and that is a cost item this
-gate does not price.
+## The cost, run twice at different loads, and what survives that
+
+The sweep was run a second time on 2026-09-06 to get a quiet timing and the host
+did not oblige: the one-minute load was 1.41 rising to 18.34 on the first pass
+and 17.93 rising to 28.87 on the second. So there is no quiet number here. What
+two passes at different loads DO give is a bracket and a control, and the
+control is the sharper half.
+
+**EVERY ITERATION COUNT REPRODUCED EXACTLY.** 18, 24, 7, 20, 60, 49 at 20,000
+regions and 16, 21, 5, 17, 60, 26 at 80,000, identical across the two passes, as
+did every profile error, every margin position and every volume change. That is
+what says the gate's verdict is arithmetic and not a property of the machine.
+
+**THE ABSOLUTE COST IS A BRACKET AND IS QUOTED AS ONE.** Per linear solve, 0.011
+to 0.019 s at 20,000 regions and 0.037 to 0.052 s at 80,000, the two ends being
+the two passes. The second pass is 30 to 50 per cent dearer throughout, which is
+the load and not the code.
+
+**THE SCALING IS NOT A BRACKET, because a ratio taken inside one pass carries
+its own load away with it: 3.4 times the cost for 4 times the regions, in BOTH
+passes.** That is close to linear in the region count for this sparsity, and it
+is the number a reader should extrapolate with rather than either absolute end.
+
+**And what it extrapolates to is the real cost item.** One sparse factorisation
+per Picard pass, at 5 to 26 passes a step, is affordable at these mesh sizes and
+is not the question. At the active build's 10,000,005 regions a DIRECT
+factorisation is the wrong solver: GW-8 already found the LINEAR water-table
+case there beyond this host's memory, at roughly 834 million factor entries and
+about 10 GB, and a doubly nonlinear operator re-factorises every pass rather than
+once. **A production Route A needs an iterative solver with a preconditioner,
+and that is the piece this gate did not price.** The matrix is a symmetric
+M-matrix at every pass, which is the condition under which a preconditioned
+conjugate gradient is straightforward, so this is a known-shaped piece of work
+rather than an open question -- but it is not free and it is not in the 600 to
+900 lines above.
 
 ## Route B, read against the artifact, and it is not what the row assumed
 

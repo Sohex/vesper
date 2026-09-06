@@ -181,27 +181,27 @@ is worth 23.79% of the model's retired instructions and 4.25% of its wall clock
 at T21, measured under WORLD-43RK, falling as the rung rises, and it is not
 bit-identical.
 
-**And the two-scheme comparison above is not a cost comparison.** It is a
-comparison of instruction counts, and WORLD-43RK measured what an instruction
-count of this kind is worth in place: the mask removal's 23.79% of instructions
-bought 4.25% of the clock. The same correction applies to the candidate's
-vectorisable `exp`, so the brackets in that table do not order the two schemes by
-cost in either direction. What this note establishes is that the candidate is
-not an ORDER OF MAGNITUDE dearer, which is what CLIM-61 assumed; which is faster
-is still unmeasured for both.
+**And the two-scheme comparison above is not a cost comparison, which the
+measurement below then proved the hard way.** It is a comparison of instruction
+counts, and WORLD-43RK measured what an instruction count of this kind is worth
+in place: the mask removal's 23.79% of instructions bought 4.25% of the clock.
+The same correction applies to the candidate's vectorisable `exp`. What that
+table establishes is that the candidate is not an order of magnitude dearer IN
+TRANSCENDENTAL WORK, and it says in its own last paragraph what it excludes --
+the two-stream and adding algebra, the k-table interpolation, the per-band cloud
+overlap, the per-band Planck integral and SOCRATES's own overhead. Those excluded
+terms turn out to be most of the cost, and the candidate is dearer by a factor of
+8.6 in CPU time per column per call. The table is kept because the reasoning in
+it is sound and the failure is instructive: a count of one kind of operation is
+not a cost, however carefully the count is taken.
 
 **The swap is not compelled by accuracy either.** The 40-percent figure that
 motivated it is gone and the re-weighted broadband scheme reproduces
 correlated-k to within a few percent on every quantity that has been compared.
 What argues for it is structural: three known holes that re-weighting cannot
-close, and seven manual per-star derivations that a band-resolved scheme would
-retire.
-
-**So the decision is a maintenance-and-capability one, and it needs one more
-number this host cannot give today:** a cost per timestep for both schemes,
-measured rather than counted. The command is a wrapped `radstep` on
-`bench/bed_t170cold` under `perf`, with the candidate stood up far enough to run
-one column, on a machine with nothing else on it.
+close, and per-star derivations a band-resolved scheme would perform as
+configuration -- two of the ten this project actually runs, by the graph count
+below.
 
 ## The buy criterion, fixed before the cost per timestep was measured
 
@@ -328,3 +328,97 @@ columns. The per-step cost is the DIFFERENCE between an 8,000-step and a
 16,000-step arm, so the bed's own startup cancels rather than being assumed
 small; `where-the-time-goes.md` records a confident T42 number on a bed shorter
 than its startup that reversed sign when the bed was lengthened.
+
+## The cost per timestep, measured 2026-09-06
+
+Load through the run: minimum 2.98, median 6.46, maximum 10.62 over ten samples,
+and the measuring job is itself sixteen threads on thirty-two logical cores, so
+most of that is its own. T21, sixteen threads, three interleaved rounds, warm
+from `run_0d41aa82c287`. The profile attributes 98.1 per cent of its samples to a
+named object.
+
+**THE BED IS 46 TIMES ITS OWN STARTUP.** 339,918 ms of CPU on the 8,000-step arm
+against a startup of 7,378 ms, and 672,458 ms on the 16,000-step arm; the
+difference over the extra 8,000 steps is 41.57 ms of CPU a step. That is the
+sizing this measurement had to meet and it meets it emphatically, against the
+2.94 s bed at 1.8 times its startup that `where-the-time-goes.md` records
+returning a confident number with the wrong sign.
+
+**RADIATION IS 31.99 PER CENT OF T21.** `swr` 10.47, `lwr` 7.51, `radstep`'s own
+0.34, and libm 13.67. libmvec is 6.32 per cent and is reported beside rather than
+inside, because every non-integer `**` in the radiation sits behind a `where` and
+none of them reaches a vector call.
+
+**THE PRICE, per column per radiation call, in CPU-seconds:**
+
+| | present | candidate | ratio | slowdown T21 | slowdown T85 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| clear sky, every column lit | 6.49e-06 | 3.39e-05 | 5.22 | 2.35 | 2.16 |
+| clear sky, diurnal spread | 6.49e-06 | 3.48e-05 | 5.36 | 2.40 | 2.20 |
+| **cloudy, every column lit** | 6.49e-06 | 5.57e-05 | **8.57** | **3.42** | **3.08** |
+| **cloudy, diurnal spread** | 6.49e-06 | 5.62e-05 | **8.66** | **3.45** | **3.10** |
+
+**The cloudy rows are the representative ones.** The model runs `nswrcl = 1` and
+always carries cloud, and its own 6.49e-06 is measured in situ with that cloud in
+it, so cloudy against cloudy is the like-for-like comparison. Cloud costs the
+candidate 61 per cent; the zenith treatment costs it 2.6 per cent, which settles
+that arm -- neither scheme saves anything worth measuring on a dark column.
+
+**The rung transfer, derived rather than assumed.** Radiation cost per orbit goes
+as columns per step and the whole-model cost per orbit is measured, so from
+`notes/audits/resolution-ladder-wall-clock.md` radiation grows 32.0 times from
+T21 to T85 while the model grows 37.3, and the radiation share at T85 is 0.858
+times its T21 value: 27.45 per cent. The independent check is the far end --
+`where-the-time-goes.md` measured 24.63 per cent at T170 -- and a share falling
+32.0, 27.5, 24.6 across T21, T85 and T170 is the trend the arithmetic predicts.
+
+## The verdict against the criterion fixed before the measurement
+
+**MARGINAL at the clear-sky end and PROHIBITIVE at the cloudy end, and the cloudy
+end is the one this model runs.** The bar declared above was 1.5 or less
+affordable, 1.5 to 3 marginal, above 3 prohibitive, stated at T85 because that is
+where the answer changes. The representative arm lands at 3.08 to 3.10.
+
+**In a commissioning that is 5.2 to 10.6 hours at T85 becoming 16 to 33.** Loop
+A's iteration cadence would be set by the clock rather than by the physics, which
+is exactly what the prohibitive band was drawn to mean.
+
+**THIS REVERSES THE DIRECTION THE INSTRUCTION COUNT IMPLIED, and the earlier
+section already said why it could.** That comparison found the candidate cheaper
+at every corner on transcendental work, and listed what it excluded: the
+two-stream and adding algebra, the k-table interpolation in pressure and
+temperature, the per-band cloud overlap, the per-band Planck integral and
+SOCRATES's own code overhead. Those are not a correction to the transcendental
+count, they are most of the cost. A count of one kind of operation is not a cost,
+and this is the second time on this row that a counted quantity has pointed the
+wrong way.
+
+**The working-set criterion PASSES, and it was the one with a disposition
+attached.** The candidate carries 42.09 KB of marginal state per column with
+10.56 MB fixed for the spectral tables, one copy a process. Eight threads on a
+die inside the 32 MB target is 65 columns a thread, and the per-column cost is
+flat across a sweep from 25 to 1,600 columns -- 2.59e-05 to 3.62e-05 with no
+trend, which is scatter and not slope. So blocking the columns is free, and the
+standing constraint is not what refuses this scheme.
+
+**What the price does NOT settle.** It is a cost for `ga7` as shipped.
+`sbin/Ccorr_k` can drop absorbers and k-terms this world has no use for, and ga7
+carries eight shortwave absorbers including sulphur dioxide and carbonyl sulphide
+and twelve longwave including four CFCs, an HCFC and an HFC. A trimmed spectral
+file is the obvious lever and it is not priced here; what can be said is that the
+gap is a factor of 8.6 and the trim would have to close most of it.
+
+**So the decision is now unambiguous in shape.** The swap is not compelled by
+accuracy -- `corrk-cross-check.md` has the re-weighted broadband scheme within a
+few per cent of correlated-k on every quantity compared. It is not compelled by
+maintenance -- the graph count above says a band-resolved scheme retires two of
+ten per-star radiative re-derivations, the other eight being surface albedos it
+does not touch. And it now costs a factor of three at the rung that matters. What
+remains for it is three structural holes re-weighting cannot close: the per-band
+attribution inside the CO2 total, wrong by two orders of magnitude at 2.7 um and
+surviving by cancellation; 13 per cent of the CO2 shortwave absorption falling
+outside every band Howard measured; and no water vapour continuum term, which is
+why `h2o_sw_level` is a bracket. **Those three now have to be worth trebling a
+commissioning, and the honest recommendation is that on this evidence they are
+not -- but that is a judgement about what this world's numbers must be able to
+bear, and it is the author's to take rather than this note's.**
