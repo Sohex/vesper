@@ -913,7 +913,7 @@ steps:
     # world-wfge carries the cost and the lever the solver file already names.
     cost: hours
     needs: [hydrography, bootstrap_climatology, surface_water, land_water_ledger]
-    writes: ["hydrography/data/{build}/water_table.nc", hydrography/analysis/groundwater_report.json, hydrography/analysis/groundwater_reduction_test.json, hydrography/analysis/groundwater_divide_test.json, "hydrography/analysis/groundwater_report_sigma*.json", "hydrography/analysis/groundwater_report_noise*.json", "hydrography/analysis/groundwater_report_et*.json"]
+    writes: ["hydrography/data/{build}/water_table.nc", "hydrography/data/{build}/water_table_*.nc", hydrography/analysis/groundwater_report.json, hydrography/analysis/groundwater_reduction_test.json, hydrography/analysis/groundwater_divide_test.json, "hydrography/analysis/groundwater_report_sigma*.json", "hydrography/analysis/groundwater_report_noise*.json", "hydrography/analysis/groundwater_report_et*.json", "hydrography/analysis/groundwater_report_cover_thickness*.json", "hydrography/analysis/groundwater_report_unconfined*.json"]
     gate: >
       the steady-state water table, and a MEASUREMENT of the net groundwater
       exchange per basin. `carve_verdict` TAKES the term when handed one, under
