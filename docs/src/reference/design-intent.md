@@ -42,3 +42,27 @@
   Supplying an effective radius means replacing the scheme with one that takes
   it, which is a scheme decision and not a constant.
   `exoplasim/notes/cloud-water-reference.md`.
+
+- **The broadband radiation scheme stays, and a band-resolved replacement is
+  refused on price.** Measured, not estimated: the correlated-k candidate costs
+  8.6 times the present scheme per column per radiation call on the corner this
+  model actually runs -- cloudy, which is every column, since `nswrcl=1` and the
+  present scheme's own cost is measured in situ with that cloud in it. Radiation
+  is 32 per cent of T21 wall clock and the share falls to 0.858 of that at T85,
+  so the swap trebles a commissioning: 5.2-10.6 hours becomes 16-33. The
+  criterion was fixed before the measurement and the cloudy corner lands past its
+  prohibitive end. What the swap would have bought is three holes re-weighting
+  cannot close -- the per-band attribution inside the CO2 total, wrong by two
+  orders of magnitude at 2.7 um and surviving by cancellation; 13 per cent of the
+  CO2 shortwave absorption falling outside every band Howard measured; and no
+  water vapour continuum term, which is why `h2o_sw_level` is a bracket. Those
+  three are not worth trebling every commissioning this world runs. The present
+  scheme is within a few per cent of correlated-k on the comparison
+  `exoplasim/notes/corrk-cross-check.md` records, which is what makes the refusal
+  affordable rather than merely cheap.
+  THE THREE HOLES REMAIN OPEN AND ARE NOT CLOSED BY THIS DECISION: the route to
+  them is targeted gap fill inside the present scheme, priced one hole at a time,
+  and NOT a scheme replacement re-argued from the same three. A future proposal
+  to swap has to beat this measurement rather than restate the holes.
+  `exoplasim/notes/radiation-scheme-price.md` carries the price, its bracket and
+  the load it was taken under.
