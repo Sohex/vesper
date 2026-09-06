@@ -732,10 +732,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !         dt  <  a / (c sqrt(N (N+1))),    c = sqrt(R T0 / (1 - kappa))
 !
-!     That speed is right -- it is within 2 percent of the largest eigenvalue of
-!     the vertical structure matrix `makebm` inverts -- and the limit is still
-!     not where the term becomes usable, because the mode the term destabilises
-!     is not a gravity wave. `sdt - sd` is the second time difference: O(dt^2)
+!     That speed is right -- taken on the model's OWN fastest external mode, the
+!     largest eigenvalue of the vertical structure matrix `makebm` inverts, the
+!     limit moves by 1 percent -- and it is still not where the term becomes
+!     usable, because the mode the term destabilises is not a gravity wave. `sdt - sd` is the second time difference: O(dt^2)
 !     for a smooth mode and, for the LEAPFROG COMPUTATIONAL MODE, which
 !     alternates sign every step, exactly `-2 sd`. So the term feeds the
 !     computational mode, the only thing that damps that mode is the

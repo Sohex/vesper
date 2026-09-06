@@ -18,10 +18,11 @@ carries the refutation. It remains as a CONTROL.
 
 WHY THE GUARD IT CARRIED CANNOT BE THE BOUNDARY. The model refuses the setting
 above `a / (c sqrt(N(N+1)))` with `c = sqrt(R T0 / (1 - kappa))`, the explicit
-gravity-wave limit. That speed is right -- it is within 2% of the largest
-eigenvalue of the model's own semi-implicit vertical structure matrix -- and the
-limit is still not where the term becomes usable, because the mode the term
-destabilises is not a gravity wave. `sdt - sd` is the second time difference:
+gravity-wave limit. That speed is right -- taken on the model's own fastest
+external mode instead, the largest eigenvalue of the semi-implicit vertical
+structure matrix, the limit moves by 1% at every rung -- and it is still not
+where the term becomes usable, because the mode the term destabilises is not a
+gravity wave. `sdt - sd` is the second time difference:
 O(dt^2) for a smooth mode and, for the LEAPFROG COMPUTATIONAL MODE, which
 alternates sign every step, exactly `-2 sd`. The term therefore feeds the
 computational mode, the only thing that damps that mode is the Robert-Asselin
@@ -196,6 +197,29 @@ class Column:
         """The limit `plasim.f90`'s NCONVTIME guard used to test against."""
         cgw = math.sqrt(self.gascon * self.t0_k / (1.0 - self.akap))
         return self.plarad / (cgw * math.sqrt(self.ntru * (self.ntru + 1.0))) / 60.0
+
+    def structure_gravity_wave_limit_minutes(self) -> float:
+        """The same limit on the model's OWN fastest external mode.
+
+        A CHECK THAT CAN FAIL, and it is what says the guard's estimate was not
+        the problem. `sqrt(R T0 / (1 - kappa))` is a single-level estimate of
+        the external mode's phase speed; the model's actual gravity-wave speeds
+        are `sqrt(cn * lambda)` over the eigenvalues of the vertical structure
+        matrix `makebm` builds from `t0`, `dsigma`, `g` and `tau`, and the
+        fastest is the largest of them. If this and the estimate disagreed by
+        much, the guard would have been mis-derived rather than aimed at the
+        wrong mode, and the repair would be a different one.
+        """
+        n = self.nlev
+        m = np.zeros((n, n))
+        for j1 in range(n):
+            for j2 in range(n):
+                m[j2, j1] = (self.t0[j1] * self.dsigma[j2]
+                             + np.dot(self.g[:, j1], self.tau[j2, :]))
+        lam = max(abs(np.linalg.eigvals(m)))
+        cv = self.plarad * self.ww
+        return self.plarad / (math.sqrt(lam) * cv
+                              * math.sqrt(self.ntru * (self.ntru + 1.0))) / 60.0
 
     def growth(self, dt_minutes: float, jn: int, nconvtime: bool = True) -> float:
         """Amplification per step of the linearised step at wavenumber `jn`."""
@@ -379,6 +403,8 @@ def main() -> int:
         boundary = column.boundary_minutes()
         row = {"rung": rung, "timestep_minutes": dt, "pnu": pnu,
                "gravity_wave_limit_minutes": round(guard, 4),
+               "gravity_wave_limit_from_structure_matrix_minutes":
+                   round(column.structure_gravity_wave_limit_minutes(), 4),
                "stability_boundary_minutes":
                    None if boundary is None else round(boundary, 4),
                "guard_over_boundary":
@@ -407,7 +433,12 @@ def main() -> int:
                  "at. A null boundary means the modification grows at every "
                  "step down to 0.05 min, which is what PNU = 0 gives: the "
                  "Robert-Asselin filter is the only thing damping the leapfrog "
-                 "computational mode the term feeds. world-bt3b."),
+                 "computational mode the term feeds. "
+                 "gravity_wave_limit_from_structure_matrix_minutes is the same "
+                 "limit taken on the model's own fastest external mode rather "
+                 "than on a single-level estimate of it, and the two agreeing "
+                 "is what says the guard was aimed at the wrong mode rather "
+                 "than mis-derived. world-bt3b."),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

@@ -656,8 +656,9 @@ own question.
 
 AND THE ANSWER IS NOT THE EXPLICIT GRAVITY-WAVE TIMESTEP. That limit,
 `dt < a / (c sqrt(N(N+1)))` with `c = sqrt(R T0 / (1 - kappa))`, is a necessary
-condition; the speed in it is within 2 percent of the largest eigenvalue of the
-model's own semi-implicit vertical structure matrix, so it is not mis-derived.
+condition, and it is not mis-derived: taken on the model's own fastest external
+mode instead -- the largest eigenvalue of the semi-implicit vertical structure
+matrix -- the limit moves by 1 percent at every rung.
 The mode this term destabilises is not a gravity wave: `sdt - sd` is the second
 time difference, O(dt^2) for a smooth mode and exactly `-2 sd` for the leapfrog
 computational mode, so the term feeds that mode, the Robert-Asselin filter is
