@@ -185,11 +185,23 @@ def radiation_share(shares: dict) -> dict:
                 radiation_percent_model_code_only=round(swr + lwr + radstep, 3))
 
 
-def socrates_arm(nprofile: int, nrep: int, nlayer: int, cloud: int) -> dict:
+def socrates_arm(nprofile: int, nrep: int, nlayer: int, cloud: int,
+                 zenith: int = 0) -> dict:
+    """One candidate arm.
+
+    `zenith` is an ARM and not a setting. 0 spreads the zenith cosine over a
+    full diurnal cycle, so half the columns are dark and whatever the candidate
+    does with a dark column is in the number; 1 lights every column at 0.5,
+    which is the arm no skipped column can flatter. The broadband scheme it is
+    compared against evaluates both branches of a `where` and selects, so it
+    does not save on a dark column either, and reporting both is what keeps the
+    comparison from resting on that difference.
+    """
     if SOC_BENCH is None or not SOC_BENCH.is_file():
         return dict(unavailable="SOCRATES_BENCH is not set to a built driver")
     env = dict(SB_NPROFILE=str(nprofile), SB_NREP=str(nrep),
-               SB_NLAYER=str(nlayer), SB_CLOUD=str(cloud))
+               SB_NLAYER=str(nlayer), SB_CLOUD=str(cloud),
+               SB_ZENITH=str(zenith))
     cwd = SOC_BENCH.parent
     e = dict(os.environ)
     e.update(env)
@@ -206,7 +218,8 @@ def socrates_arm(nprofile: int, nrep: int, nlayer: int, cloud: int) -> dict:
                 pass
     parsed.update(task_clock_ms=stat.get("task_clock_ms"),
                   instructions=stat.get("instructions"),
-                  nprofile=nprofile, nrep=nrep, nlayer=nlayer, cloud=cloud)
+                  nprofile=nprofile, nrep=nrep, nlayer=nlayer, cloud=cloud,
+                  zenith=zenith)
     return parsed
 
 
@@ -214,9 +227,17 @@ def main() -> None:
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--steps", type=int, nargs=2, default=[500, 2500],
+    ap.add_argument("--steps", type=int, nargs=2, default=[8000, 16000],
                     help="the short and long model arms; the difference is the "
-                         "per-step cost and the startup cancels")
+                         "per-step cost and the startup cancels. The default "
+                         "pair is WORLD-43RK's own, and it is chosen against the "
+                         "startup rather than for convenience: the T21 bed "
+                         "starts in about 3.3 s, so a 500-step arm is a quarter "
+                         "of its own startup and the difference it would resolve "
+                         "sits near this machine's round-to-round scatter. 8,000 "
+                         "and 16,000 steps are 16.7 s and 30.1 s there, and the "
+                         "13.4 s between them carries 2 per cent scatter rather "
+                         "than 6")
     ap.add_argument("--rounds", type=int, default=3)
     ap.add_argument("--threads", type=int, default=16)
     ap.add_argument("--nlon", type=int, default=NLON)
@@ -241,8 +262,10 @@ def main() -> None:
         for n in order:
             model[n].append(run_perf_stat([str(exe)], beds[n], env))
             loads.append(load()[0])
-        socr.append(socrates_arm(args.socrates_profiles, args.socrates_reps,
-                                 10, 0))
+        for zen in (0, 1):
+            for cloud in (0, 1):
+                socr.append(socrates_arm(args.socrates_profiles,
+                                         args.socrates_reps, 10, cloud, zen))
         loads.append(load()[0])
 
     def med(rows, key):
@@ -272,12 +295,25 @@ def main() -> None:
     present_s_per_col_call = (rad_cpu_per_step_ms / 1000.0 / columns
                               if rad_cpu_per_step_ms else None)
 
-    cand = [s for s in socr if "both_s_per_col_call" in s]
-    cand_med = statistics.median(s["both_s_per_col_call"] for s in cand) if cand else None
-    ratio = (cand_med / present_s_per_col_call
-             if cand_med and present_s_per_col_call else None)
-    slowdown = (1.0 + rad["radiation_percent"] / 100.0 * (ratio - 1.0)
-                if ratio else None)
+    def arm_median(zen, cloud):
+        vals = [x["both_s_per_col_call"] for x in socr
+                if x.get("zenith") == zen and x.get("cloud") == cloud
+                and "both_s_per_col_call" in x]
+        return statistics.median(vals) if vals else None
+
+    by_arm = {f"zenith{z}_cloud{c}": arm_median(z, c)
+              for z in (0, 1) for c in (0, 1)}
+    have = [v for v in by_arm.values() if v]
+    cand_lo, cand_hi = (min(have), max(have)) if have else (None, None)
+
+    def slow(v):
+        if not (v and present_s_per_col_call):
+            return None, None
+        r = v / present_s_per_col_call
+        return r, 1.0 + rad["radiation_percent"] / 100.0 * (r - 1.0)
+
+    ratio_lo, slowdown_lo = slow(cand_lo)
+    ratio_hi, slowdown_hi = slow(cand_hi)
 
     report = dict(
         measured_on=time.strftime("%Y-%m-%d"),
@@ -305,10 +341,11 @@ def main() -> None:
         candidate=dict(
             spectral_files="ga7",
             arms=socr,
-            cpu_s_per_column_per_call=cand_med),
+            by_arm=by_arm,
+            cpu_s_per_column_per_call=[cand_lo, cand_hi]),
         comparison=dict(
-            candidate_over_present=ratio,
-            whole_model_slowdown_at_this_rung=slowdown,
+            candidate_over_present=[ratio_lo, ratio_hi],
+            whole_model_slowdown_at_this_rung=[slowdown_lo, slowdown_hi],
             note="the slowdown assumes the radiation share measured here and "
                  "that the rest of the model is untouched; it is stated at the "
                  "rung the bed is, and the note carries what it means at T85"),
@@ -318,7 +355,7 @@ def main() -> None:
     args.out.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report["comparison"], indent=2))
     print(json.dumps(report["present_scheme"]["attribution"], indent=2))
-    print("candidate s/col/call", cand_med)
+    print("candidate s/col/call", by_arm)
     print("present   s/col/call", present_s_per_col_call)
 
 
