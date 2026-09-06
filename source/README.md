@@ -177,7 +177,12 @@ manifest rather than trusting a figure quoted anywhere.
   what the spectral model's own global budget is taken over, so on those grids
   the two are one fact: `grid_cell_area = R² × Δlon × gauss_weight`.
   `cos(lat)` is a fourth thing and is none of them; it is not a partition of the
-  sphere at all.
+  sphere at all. Take the weight from
+  `lib/gridding.py:gaussian_area_weights(lat, nlon)` per cell,
+  `gaussian_row_weights(lat)` per row, or `label_row_weights(lat, nlat)` for a
+  per-cell product keyed by the latitude it carries; each checks the axis it is
+  handed. `notes/audits/ocean-grid-crossing.md` section 3d has what the cosine
+  was worth.
   A Gaussian row is a quadrature abscissa and not a cell centre, so a partition
   built on midpoints between rows is a DIFFERENT partition of the sphere. It
   closes to 4πR² just as exactly and it reports a global mean the model does not
