@@ -225,6 +225,7 @@
 !     under another star, which `snowmaskmod` refuses to import. At zero the
 !     store runs and drives nothing optical, which is what keeps the albedo
 !     path a declared decision while the water path follows `forpai`.
+!     WORLD-BA1E is that decision.
       real    :: forcap  = 2.0e-4 ! canopy snow capacity per unit plant area
                                   ! index (m water equivalent)
       real    :: forceff = 0.25   ! interception efficiency of the canopy
