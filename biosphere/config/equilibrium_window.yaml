@@ -224,13 +224,27 @@ trend:
     # share it reaches over the detrended windows of this run's own record before
     # the acceptance window.
     null_statistic: maximum_over_detrended_windows_of_this_run
-    # DECISION at the conventional level, and it is a PER-FIELD rate: a stationary
-    # field exceeds the largest of N detrended null windows with probability
-    # 1/(N+1). This half refuses a run when ANY assessed quantity exceeds,
-    # so its FAMILY rate is larger -- measured at 0.34 on 100 windows and about
-    # 0.24 on the 124 a 1253-cycle record leaves. That errs toward REFUSING, so a
-    # pass through this half is evidence and a refusal through it is not, and the
-    # analytic replacement is world-4hlw rather than a longer record.
+    # A CEILING ON A DERIVED RATE, and not a setting. A stationary quantity
+    # exceeds the largest of N detrended null windows with probability 1/(N+1),
+    # so the per-field rate is the RECORD's and not a number anyone picks; this
+    # is the level above which the reducer refuses the record for being too
+    # short to measure its own null. Declared at the conventional level.
+    #
+    # THE RATE A RUN PAYS IS THE FAMILY RATE AND IT IS NOT WRITTEN HERE. This
+    # half refuses a run when ANY assessed quantity exceeds, so a settled run
+    # pays the union of those events, bounded by `Q/(N+1)` over the assessed
+    # count Q whatever the dependence between them. That moves with the record
+    # AND with the assessed set, so `lib/lpj_output.py` derives it per run and
+    # puts it on the acceptance artifact as `family_false_refusal_bound`, beside
+    # the independent value and the record that would bring the bound to this
+    # ceiling. A family rate written down beside a list that gains a row is a
+    # number that stops being true: the 0.34 that used to sit here was measured
+    # over the 64 columns of the seven stability tables and outlived them.
+    #
+    # The error is in the REFUSING direction either way, so a pass through this
+    # half is evidence and a refusal through it has to be read against its own
+    # bound. world-4hlw holds the analytic replacement, which is what removes
+    # the 1/(N+1) resolution limit rather than a longer record.
     per_field_false_refusal_rate: 0.05
 uncertainty:
   temporal_statistic: sample_standard_deviation_over_annual_values

@@ -531,14 +531,40 @@ the global half in none.
 
 It runs on the assessed quantities, at each quantity's own tolerance, exactly as
 the global half does. It is still a slope over `complete_forcing_cycles`, so it
-still sits inside one memory time, and its size is still absorbed into a limit
-measured from the run's own detrended windows rather than derived. Its family
-false-refusal rate is 0.34 on 100 windows and about 0.24 on the 124 a 1253-cycle
-record leaves; over the assessed quantities rather than the 64 columns of the
-seven stability tables it is smaller than either, and it is still not derived. That errs toward REFUSING, so
-a pass through it is evidence and a refusal through it is not, and its
-empirical-null construction needs many windows and therefore cannot adopt the
-whole-record statistic. world-4hlw holds the analytic replacement.
+still sits inside one memory time, and its LIMIT is still absorbed into a
+measurement from the run's own detrended windows rather than derived. That is
+what world-4hlw holds, and the analytic replacement is what removes the 1/(N+1)
+resolution limit rather than a longer record.
+
+WHAT THE FAMILY RATE COSTS IS ARITHMETIC AND IT HAS FALLEN BY A FACTOR OF FIVE.
+The rate a settled run pays through this half is the union of one event per
+assessed quantity, so it is bounded by `Q/(N+1)` whatever the dependence between
+them, and `1-(1-1/(N+1))^Q` if they are independent. Neither is written into the
+contract: both move with the record AND with the assessed set, so
+`lib/lpj_output.py` derives them per run and puts them on the acceptance
+artifact beside the record that would bring the bound to the declared ceiling.
+
+| record | windows | per quantity | union bound | independent |
+| --- | --- | --- | --- | --- |
+| 1000 cycles, 7 assessed quantities | 99 | 0.0100 | 0.0700 | 0.0679 |
+| 1253 cycles, 7 assessed quantities | 124 | 0.0080 | 0.0560 | 0.0547 |
+| 1400 cycles, 7 assessed quantities | 139 | 0.0071 | 0.0500 | 0.0489 |
+| 1000 cycles, the 64 columns it used to run on | 99 | 0.0100 | 0.6400 | 0.4740 |
+| 1253 cycles, the 64 columns it used to run on | 124 | 0.0080 | 0.5120 | 0.4020 |
+
+The measured 0.34 and 0.24 that used to be quoted here are the 64-column rows,
+by leave-one-out rather than by bound, and they sit below both bounds because
+about 35 of those 64 columns were effectively independent. Over the assessed
+quantities the bound is 0.056 against a declared per-field ceiling of 0.05, and
+1400 retained cycles -- 12 per cent more than the record on disk -- closes the
+remaining gap exactly. So the argument for the analytic replacement is no longer
+its cost; it is that an empirical null cannot express a probability finer than
+1/(N+1) at all, and that does not depend on the family size.
+
+The error is still in the REFUSING direction, so a pass through this half is
+evidence and a refusal through it has to be read against its own bound, which
+now travels with it. Its empirical-null construction needs many windows and
+therefore still cannot adopt the whole-record statistic the global half uses.
 
 ## How long a run this world's ecology needs
 
