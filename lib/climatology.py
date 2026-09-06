@@ -320,3 +320,96 @@ def masked_mean(field: np.ndarray, centres: np.ndarray,
         raise ValueError("the mask selects no bins")
     w = w / w.sum()
     return np.tensordot(w, np.asarray(field, dtype=float)[mask], axes=(0, 0))
+
+
+# ---------------------------------------------------------------------------
+# The record count read from the RUN, for the axis that cannot carry it
+# ---------------------------------------------------------------------------
+#
+# Everything above recovers the record count from the file where the file
+# determines it and REFUSES where it does not. This is the other door: what the
+# run itself says it wrote, which is where the number actually lives.
+#
+# THE MODEL'S OWN ARITHMETIC, and not a restatement of it. `plasim.f90:1920`
+# derives the steps in an absolute 24-hour day and rounds it up to even,
+# `plasim.f90:1926-1933` derives the write interval from that, and the record
+# count is the orbit's steps over the interval, floored, because the model
+# writes on `mod(nhcstp, nafter) == 0` and a partial interval at the end of an
+# orbit writes nothing.
+#
+#     mtspd  = 86400 / (mpstep * 60)          integer division, then made even
+#     nafter = mtspd                          the default: one write a day
+#     nafter = mtspd / nwpd                   when 0 < nwpd <= mtspd
+#     nafter = nstpw                          when NLOWIO is on and nstpw > 0
+#
+# THE REGIME IS PER ORBIT AND THE INTERVALS ARE PER RUN. A run's staged
+# namelist is rewritten on every continuation, so it describes the LAST
+# segment; what changes between segments here is the I/O regime, which
+# `exoplasim/scripts/segments.py` records per orbit. So `low_io` is a caller's
+# per-orbit fact and the rest come off the namelist. Handing the last segment's
+# regime to every orbit is what makes orbit zero of a clean run come out at 182
+# records when it holds 36, and `bin_counts` refuses that pairing wherever the
+# axis is determined enough to show it.
+SECONDS_PER_ABSOLUTE_DAY = 86400
+
+
+def timesteps_per_absolute_day(mpstep_minutes: float) -> int:
+    """`mtspd`: the model's own steps per 24-hour day, rounded up to even."""
+    seconds = int(round(float(mpstep_minutes) * 60.0))
+    if seconds <= 0:
+        raise ValueError(f"a timestep of {mpstep_minutes} minutes is not a step")
+    mtspd = SECONDS_PER_ABSOLUTE_DAY // seconds
+    if mtspd <= 0:
+        raise ValueError(
+            f"a timestep of {mpstep_minutes} minutes is longer than the "
+            "24-hour day the model derives its write interval from")
+    return mtspd + mtspd % 2
+
+
+def write_interval_steps(mpstep_minutes: float, nwpd: int, nstpw: int,
+                         low_io: bool) -> int:
+    """`nafter`: timesteps between two regular-output records."""
+    mtspd = timesteps_per_absolute_day(mpstep_minutes)
+    nafter = mtspd
+    if 0 < int(nwpd) <= mtspd:
+        nafter = mtspd // int(nwpd)
+    if low_io and int(nstpw) > 0:
+        nafter = int(nstpw)
+    if nafter <= 0:
+        raise ValueError(
+            f"a write interval of {nafter} steps is not an interval; NWPD "
+            f"{nwpd} and NSTPW {nstpw} at {mpstep_minutes} minutes a step")
+    return nafter
+
+
+def records_per_orbit(runsteps_per_orbit: int, mpstep_minutes: float,
+                      nwpd: int, nstpw: int, low_io: bool) -> int:
+    """How many raw records one orbit of this run wrote to its regular stream.
+
+    This is the `ntimes` an evenly spaced bin axis cannot carry. It is DECLARED
+    from the run rather than inferred from the file, and `bin_counts` checks it
+    against the centres before using it, so a count from the wrong segment or
+    the wrong regime fails wherever the file is determined enough to say so.
+    """
+    nafter = write_interval_steps(mpstep_minutes, nwpd, nstpw, low_io)
+    records = int(runsteps_per_orbit) // nafter
+    if records < 1:
+        raise ValueError(
+            f"{runsteps_per_orbit} steps at a write interval of {nafter} "
+            "writes no record at all, so there is no orbit to bin")
+    return records
+
+
+def axis_determines_its_weights(centres: np.ndarray) -> bool:
+    """Whether this file's bin centres fix the weights on their own.
+
+    False says the axis is consistent with two fillings that weight the bins
+    differently, so a declared record count is the WHOLE of the evidence for
+    the weights and a product built from it has to say so. Every `NLOWIO = 1`
+    orbit this project has run is in that class.
+    """
+    try:
+        infer_ntimes(centres)
+    except ValueError:
+        return False
+    return True
