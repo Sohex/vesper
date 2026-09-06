@@ -1187,7 +1187,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # a contraction wherever the head step is smaller than the saturated
         # column. A confined run reassembles nothing and is bit-identical.
         if unconfined:
-            with phases("assemble"):
+            with phases("transmissivity"):
                 t_cell, trans = assemble(head)
                 rowsum = row_sums(trans)
 
@@ -1568,7 +1568,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # head has stopped moving the thickness that produced it. A confined run
         # reassembles nothing and the residual keeps its old meaning exactly.
         if unconfined:
-            with phases("assemble"):
+            with phases("transmissivity"):
                 t_cell, trans = assemble(head)
                 rowsum = row_sums(trans)
 

@@ -792,12 +792,16 @@ def main() -> int:
             "peak_resident_gb": round(
                 resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1048576, 2),
             "phase_note": ("wall seconds inside solve(), by phase. `setup` is "
-                           "everything before the first pass, `factor_solve` is "
-                           "the sparse factorisation and back-substitution, "
-                           "`assembly` builds the matrix, `release` and "
-                           "`residual` are the two water balances per pass. The "
-                           "load average is this host's at the moment the "
-                           "report was written"),
+                           "everything before the first pass; `partition` cuts "
+                           "the free set into the blocks GW-17's fixed heads "
+                           "leave it in; `assembly` builds the matrix; "
+                           "`factor_solve` is the per-block factorisation and "
+                           "back-substitution; `release` and `residual` are the "
+                           "two water balances per pass; `transmissivity` is "
+                           "the unconfined form's reassembly of T from the head "
+                           "and is absent from a confined run. The load average "
+                           "is this host's at the moment the report was "
+                           "written"),
         },
         "outer_iterations": res.get("outer_iterations"),
         "water_table": {
