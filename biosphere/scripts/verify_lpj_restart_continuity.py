@@ -24,7 +24,8 @@ surface and no pore ice, whatever the run it continued had ended with.
 reads the serializer statically; this is the other half, and it is the half that
 can fail on behaviour.
 
-THREE MODES, and the last two localise what the first only detects.
+FOUR MODES. The middle two localise what the first only detects, and the last
+one tests a different subject: the RUNNER rather than the model.
 
   default       two runs of `--nyear` years, one whole and one split at the
                 year boundary before `--state-year`, compared over their OUTPUT
@@ -41,6 +42,30 @@ THREE MODES, and the last two localise what the first only detects.
                 simulated day in between. Nothing integrates between the two
                 files, so every difference is something the write-and-read of a
                 state file does not carry.
+  --runner      the PRODUCTION runner end to end: a parent that saves, a
+                continuation from it, an uninterrupted control twice as long,
+                and a continuation at a patch count the parent never ran, which
+                has to be refused. The three above test the MODEL's serializer;
+                this tests `run_lpj_guess.py`'s plumbing, and neither covers the
+                other.
+
+`--cells` slices the driver to named lon,lat pairs and both arms read the slice.
+Cells are independent in LPJ-GUESS and this project's stochastic streams are
+keyed by coordinate rather than by traversal order or rank, so a cell integrates
+the same trajectory either way; what a subset loses is REACH, and a subsetted
+run's verdict is written to a separate report that does not gate a continuation.
+The whole grid at the spin-up floor this fixture needs costs about thirteen
+minutes per arm on the shared host and two cells cost six seconds, which is the
+difference between a measurement taken once and a member-by-member search.
+
+EVERY MODE ALSO ASKS THE MODEL WHICH INSTANTS IT PARSED. `state_day -1` and
+`save_day -1` are the year-boundary sentinel, and `libraries/plib` delivered 0
+for both: every restart taken here was an arbitrary-day restart at day 0 of
+`state_year` while the instruction file, the runner, this fixture and
+`--self-test` all said year boundary and all agreed with each other, because all
+four held copies of the rule rather than the model's answer. `framework.cpp`
+prints what it parsed and every mode refuses when that differs from what the arm
+asked for. world-glu7.
 
 `--self-test` is a fourth thing and needs neither model nor forcing: it checks
 the two integers `run_lpj_guess.py --save-state` and `--continue-from` decide

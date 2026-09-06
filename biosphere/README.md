@@ -625,24 +625,47 @@ python biosphere/scripts/wetland_gate.py --check-run runs/<id> # accept or rejec
 
 `verify_lpj_restart_continuity.py` is the behavioural half of the last of those
 four, where the two serializer probes are the static half. It runs the same
-forcing twice and requires the resumed run to reproduce the uninterrupted one,
-in three modes. The default splits at a simulated year boundary and compares the
-output tables from the restart point on. `--one-day` splits at an arbitrary
-simulated DAY and compares the two runs' state files one day later, so state the
-serializer drops appears as bytes that differ after a single day rather than as
-a year of divergence. `--round-trip` writes the state again with no simulated
-day in between, which names what the write and read of a state file does not
-carry -- the form that found `world-8yyh` in the climate model. The last two
-exist because WORLD-FUJ4 gave `framework.cpp` a save point the caller can place
-on any simulated day, a restart that resumes on it, and permission to do both in
-one run; before that it serialized exactly once, at the end of year
-`state_year - 1`. All three need a compiled model and a built forcing and exit
-naming what is missing rather than reporting a pass they did not earn.
+forcing twice and requires the resumed run to reproduce the uninterrupted one.
+The default splits at a simulated year boundary and compares the output tables
+from the restart point on. `--one-day` splits at an arbitrary simulated DAY and
+compares the two runs' state files one day later, so state the serializer drops
+appears as bytes that differ after a single day rather than as a year of
+divergence. `--round-trip` writes the state again with no simulated day in
+between, which names what the write and read of a state file does not carry --
+the form that found `world-8yyh` in the climate model. Those two exist because
+WORLD-FUJ4 gave `framework.cpp` a save point the caller can place on any
+simulated day, a restart that resumes on it, and permission to do both in one
+run; before that it serialized exactly once, at the end of year
+`state_year - 1`. `--runner` is a fourth mode with a different subject: it
+invokes `run_lpj_guess.py` for a parent that saves, a continuation from it, an
+uninterrupted control twice as long, and a continuation at a patch count the
+parent never ran, which has to be refused. The first three test the MODEL's
+serializer and the fourth tests the RUNNER's plumbing. All four need a compiled
+model and a built forcing and exit naming what is missing rather than reporting
+a pass they did not earn.
+
+`--cells` slices the driver to named lon,lat pairs. Cells are independent in
+LPJ-GUESS and this project's stochastic streams are keyed by coordinate, so a
+cell integrates the same trajectory in a two-cell driver as in the whole grid;
+what a subset loses is reach, so its verdict is written to
+`lpj_restart_continuity_subset.json` and the continuation gate in
+`run_lpj_guess.py` keeps reading only the whole-grid report. `--runner` requires
+it, because the runner simulates every cell in the driver it is handed.
+
+Every mode also asks the model which restart instants it PARSED and refuses when
+they differ from what the arm asked for. `state_day -1` and `save_day -1` are
+the year-boundary sentinel and `libraries/plib` delivered 0 for both, so every
+restart taken here was an arbitrary-day restart at day 0 of `state_year` while
+the instruction file, the runner, the fixture and `--self-test` all reported a
+year boundary; four documents agreeing with four copies of the same rule.
+`biosphere/notes/restart-state-outside-soil.md` has the finding.
 
 ```bash
 python biosphere/scripts/verify_lpj_restart_continuity.py --nyear 12 --state-year 8
 python biosphere/scripts/verify_lpj_restart_continuity.py --one-day --state-year 8 --state-day 120
 python biosphere/scripts/verify_lpj_restart_continuity.py --round-trip --state-year 8 --state-day 120
+python biosphere/scripts/verify_lpj_restart_continuity.py --cells "11.25,19.38" --nyear 30 --nyear-spinup 201 --state-year 211
+python biosphere/scripts/verify_lpj_restart_continuity.py --runner --cells "11.25,19.38;0.00,85.76" --nyear 30 --nyear-spinup 201 --state-year 211
 ```
 
 ### What a restarted soil column inherits
