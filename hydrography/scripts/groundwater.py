@@ -1139,15 +1139,19 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     factors = {}
     n_factorised = n_reused = 0
     n_blocks_last = largest_block_last = 0
-    # THE CACHE IS A PROBE THAT TURNS ITSELF OFF, and it has to be, because
-    # holding every block's factor costs the fill of the whole free set for a
-    # reuse that may never come. It is on for the first pass that assembles a
-    # matrix; if that pass and the next one between them reuse nothing, the
-    # active set or the sink is moving everywhere and no factor will ever be
-    # recognised again, so the table is dropped and the peak falls back to one
-    # block's fill. The count of reuses is reported either way, which is what
-    # world-wfge asks to have STATED rather than assumed.
-    caching = True
+    # THE CACHE IS SPENT ONLY WHERE A REUSE IS POSSIBLE, and which passes those
+    # are is known exactly rather than guessed. A block's factor can be reused
+    # only if the block is the same block, which needs the FREE SET unchanged,
+    # which happens exactly when the previous pass released and pinned nothing.
+    # So a factor kept from a pass that flipped a cell is provably dead, and
+    # holding one costs the fill of the whole free set at the passes where that
+    # fill is largest.
+    #
+    # Caching therefore turns on only after a pass with no flips, which is the
+    # settled tail of the iteration where the free set has already shrunk. The
+    # count of reuses is reported either way, and it is what world-wfge asks to
+    # have STATED rather than assumed.
+    caching = False
     for outer in range(max_outer):
         phases("active_set")
         # A cell with no conducting face has no LATERAL equation: nothing can
@@ -1543,9 +1547,6 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         factors = kept
         del kept
         pass_factorised = n_factorised - pass_factorised
-        if caching and outer >= 1 and n_reused == 0:
-            caching = False
-            factors = {}
         if not np.all(np.isfinite(x)):
             raise SystemExit(
                 f"the direct solve returned {int((~np.isfinite(x)).sum()):,} "
@@ -1605,6 +1606,12 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
             result["residual_bar"] = float(bar)
 
         flips = int(over.sum()) + int(release.sum())
+        # Decided here, for the NEXT pass, because this is where the free set
+        # stops moving: with no flips the pass after this one solves over the
+        # same cells and its blocks can be the same blocks.
+        caching = flips == 0
+        if not caching:
+            factors = {}
         trace.append([outer, m, flips, residual, infeasible, leak_frac])
         if verbose:
             # FLUSHED, and that is not decoration. A solve of this size has been
