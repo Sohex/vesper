@@ -61,7 +61,8 @@ import numpy as np
 from netCDF4 import Dataset
 
 from _paths import PROJECT_ROOT  # noqa: F401  -- puts lib/ on sys.path
-from gridding import gaussian_grid, gaussian_latitudes  # noqa: E402
+from gridding import (gaussian_grid, gaussian_latitudes,  # noqa: E402
+                      model_longitude_labels)
 import nc_geometry  # noqa: E402
 
 EARTH_YEAR_S = 365.25 * 86400.0
@@ -305,16 +306,24 @@ def _self_test() -> bool:
     # A uniform deposition field over a uniform weight has a land mean equal to
     # itself, converted. Run against a value chosen so that the answer is not
     # 1 and a dropped conversion shows.
+    #
+    # ON A GRID THIS PROJECT RUNS, like check 4 below and for a second reason.
+    # The analytic answer is a property of the conversion and holds under any
+    # weight that normalises, so an equally spaced axis and a weight of ones
+    # left it passing; what they also did was hand the writer a grid nobody
+    # integrates on, and the writer now declares the geometry of what it wrote.
+    # A fixture that cannot be declared is a fixture the callers do not
+    # resemble.
     nlat, nlon, nbin = 8, 16, 3
     flux = 1.0e-12                                     # kg m-2 s-1
     dry = np.full((nbin, nlat, nlon), flux / nbin / 2.0)
     wet = np.full((nbin, nlat, nlon), flux / nbin / 2.0)
-    weight = np.ones((nlat, nlon))
+    weight = gaussian_grid(nlat, nlon).cell_area_fraction()
     expected = flux * EARTH_YEAR_S * 1e6
     with tempfile.TemporaryDirectory() as d:
         summary = write_deposition(
             Path(d) / "t.nc", Path(d) / "t.json",
-            lat=np.linspace(-80, 80, nlat), lon=np.linspace(0, 340, nlon),
+            lat=gaussian_latitudes(nlat), lon=model_longitude_labels(nlon),
             bins_um=[[0.1, 1.0], [1.0, 3.0], [3.0, 10.0]],
             dry_per_bin=dry, wet_per_bin=wet, comp=comp,
             land_weight=weight, ocean_weight=weight, payload={"note": "self-test"})
@@ -361,7 +370,7 @@ def _self_test() -> bool:
         nc_path = Path(d) / "t.nc"
         write_deposition(
             nc_path, Path(d) / "t.json",
-            lat=lat_t, lon=np.linspace(0, 337.5, nlon),
+            lat=lat_t, lon=model_longitude_labels(nlon),
             bins_um=[[0.1, 1.0], [1.0, 3.0], [3.0, 10.0]],
             dry_per_bin=dry, wet_per_bin=wet, comp=comp,
             land_weight=area, ocean_weight=area, payload={"note": "self-test"})
