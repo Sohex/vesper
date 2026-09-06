@@ -780,14 +780,20 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !        two arms share the bias to about 5e-8 on a stable configuration while
 !        the first unstable step separates them by 4.2e-3.
          zcres = abs(zcctrl - 1.0)
+!        SIXTEEN DIGITS AND NOT EIGHT. These two numbers are what
+!        `exoplasim/scripts/conversion_time_stability.py --against` compares its
+!        own arms with, and a report rounded to eight would put a floor on that
+!        comparison at 1e-8 -- which is above the 5e-8 the two arms differ by on
+!        a stable configuration, so the check would have been unable to see the
+!        thing it exists to check.
          if (mypid == NROOT) then
-            write(nud,'(A,E16.8,A,I5)')                                 &
+            write(nud,'(A,E24.16,A,I5)')                                &
      &         ' NCONVTIME: amplification ',zcgrow,                      &
      &         ' per step at total wavenumber ',jcworst
-            write(nud,'(A,E16.8,A,I5)')                                 &
+            write(nud,'(A,E24.16,A,I5)')                                &
      &         ' NCONVTIME: control arm    ',zcctrl,                     &
      &         ' per step at total wavenumber ',jcctrl
-            write(nud,'(A,E16.8,A,E16.8,A,F8.1,A)')                     &
+            write(nud,'(A,E24.16,A,E24.16,A,F8.1,A)')                   &
      &         ' NCONVTIME: effect ',zcgrow-zcctrl,' against a resolution of ',&
      &         zcres,', this run runs at ',deltsec/60.0,' min'
             write(nud,'(A,F8.1,A)')                                     &
