@@ -2512,6 +2512,13 @@ one_offs:
   # input any step reads, and because it runs no model: every series is a
   # synthetic AR(1) or a completed run's own table. world-rnns.
   - biosphere/scripts/validate_drift_statistic.py
+  # Derives the equilibrium contract's tolerance on the two `fpc.out` cover
+  # quantities through the consumer that closes a loop with them, and says
+  # whether the declared number still agrees with the chain. Outside the graph
+  # because it writes nothing and declares nothing: every link is read from the
+  # artifact that owns it and the answer is a verdict on a declaration, not an
+  # input any step consumes. world-mqzk.
+  - biosphere/scripts/derive_cover_tolerance.py
   - exoplasim/scripts/compare_flux_sweep.py
   - exoplasim/scripts/compare_albedo_bracket.py
   - exoplasim/scripts/close_term_energy.py

@@ -53,13 +53,13 @@ assessed:
       columns_excluding: [C3G, C4G, Total]
       relative_end_to_end_limit: 0.05
       read_by: [exoplasim/scripts/build_surface_albedo.py, biosphere/scripts/score_prediction.py]
-      derivation: albedo chain, and it is the chain the tolerance below was derived through
+      derivation: biosphere/scripts/derive_cover_tolerance.py, and it is the chain the tolerance below was derived through
     - id: fpc.out grass cover
       table: fpc.out
       columns: [C3G, C4G]
       relative_end_to_end_limit: 0.05
       read_by: [exoplasim/scripts/build_surface_albedo.py, biosphere/scripts/score_prediction.py]
-      derivation: albedo chain, and it is the chain the tolerance below was derived through
+      derivation: biosphere/scripts/derive_cover_tolerance.py, and it is the chain the tolerance below was derived through
     # `build_soil.py` reads the SoilC column for positive baseline iterations, and
     # it is loop B's exit quantity. Its own chain -- soil carbon to organic mass
     # fraction to volumetric water capacity to the model's dwmax -- has not been
@@ -142,18 +142,32 @@ assessed:
       read_by: [biosphere/scripts/score_prediction.py]
       derivation: tightest half-width over centre of the ten pre-registered prediction bands
 trend:
-  # DECISION, and sized through the consumer's own chain rather than left bare.
-  # `exoplasim/scripts/build_surface_albedo.py --mode modelled` reads fpc.out and
-  # mixes cover into the surface albedo, so a 5 per cent drift there is worth
-  # about +0.064 K of surface temperature, bracketed +0.032 to +0.128 K. Against
-  # what the climate arm resolves -- 0.15 K for the single-run convergence
-  # criterion, 0.05 K for its resolving-power bar, 0.027 K for the standard error
-  # of a 57-orbit climatology mean -- the derived limit spans 0.02 to 0.23 and
-  # cannot choose this number. The bracket is dominated by ONE unmeasured link,
-  # the surface-to-planetary albedo attenuation, declared 0.5 with an explicit
-  # factor of two in scripts/error_budget.py and open as world-ckbt. So this stays
-  # a declared tolerance with its bracket recorded, and world-mqzk holds the
-  # argument and the unblocker rather than a derivation being invented.
+  # DERIVED through the consumer that closes a loop with it, and re-derivable:
+  # `biosphere/scripts/derive_cover_tolerance.py --run <run>` takes the chain
+  # from the artifacts that own each link and says whether this number still
+  # agrees with it. Every link is measured. `build_surface_albedo.py --mode
+  # modelled` mixes the simulated cover into the surface albedo over the cells
+  # BOTH models own, that reaches the top of the modelled atmosphere through the
+  # measured surface-to-planetary attenuation, and it reaches kelvin through
+  # lib/sensitivity.py.
+  #
+  # THE BAR IS READ RATHER THAN CHOSEN. A drift in the simulated cover is a
+  # second error term in the same kelvin as the climate arm's own residual
+  # offset, so the share it may take of that is `OFFSET_TOLERANCE_K` over
+  # `RESOLVING_FACTOR` from exoplasim/scripts/assess_convergence.py, both fixed
+  # before they were applied to any assessment. Giving the biosphere term the
+  # whole offset tolerance would be a two-term budget at one term's size; the
+  # standard error of a climatology mean and a paired A/B's smallest resolvable
+  # difference are what the arm can SEE, and a bias below the noise floor is a
+  # far stricter demand than a bias that changes no verdict.
+  #
+  # WHAT THE CHAIN CANNOT DO IS CHOOSE FINER THAN A FACTOR OF TWO, which is what
+  # its own bracket spans, so this number is retained where the derivation sits
+  # inside that factor rather than moved onto a central value the chain cannot
+  # distinguish from it. On the record on disk it does: the drift this tolerance
+  # permits is worth less than a tenth of a kelvin and the derived limit is
+  # inside the registered factor. The script prints both, and the note carries
+  # the argument. world-mqzk.
   #
   # IT IS THE TIGHTEST OF THE ASSESSED QUANTITIES' OWN LIMITS AND NOT A SEPARATE
   # NUMBER: the reader refuses when it is not, so the two cannot drift apart. It

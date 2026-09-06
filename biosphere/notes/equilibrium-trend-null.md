@@ -312,33 +312,74 @@ now taken over the whole retained record, and the standard error travels with
 the value on the report. `complete_forcing_cycles` names the per-cell half's
 window and nothing else.
 
-## What a 5 per cent drift is worth to the consumer
+## What the cover tolerance is worth to the consumer, and where it comes from
 
 The tolerance's own derivation, through the consumer that closes a loop:
 `exoplasim/scripts/build_surface_albedo.py --mode modelled` reads `fpc.out` and
 mixes tree and grass cover into the surface albedo, so the lever is the rootable
 fraction times canopy albedo minus substrate albedo.
+`biosphere/scripts/derive_cover_tolerance.py` takes it; every link is read from
+the artifact that owns it, so this is a table of where rather than of what.
 
-| link | value | source |
-| --- | --- | --- |
-| tree, grass albedo | 0.143 [0.130, 0.148], 0.209 [0.190, 0.217] | `config/planet.yaml` |
-| substrate albedo | 0.25585 land mean bare rock | `exoplasim/inputs/t21/albedo_report.json` |
-| rootable fraction of model land | 0.83488 | `biosphere/generated/vesper_driver_provenance.json` |
-| land fraction | 0.432841 | build manifest `landFractionBySurfaceClass` |
-| surface to planetary attenuation | 0.5, DECLARED, factor of two | `scripts/error_budget.py` |
-| flux to kelvin | 159.7 K per flux ratio [155.3, 160.6] | `lib/sensitivity.py` |
+| link | source |
+| --- | --- |
+| tree, grass albedo, with their brackets | `config/planet.yaml` |
+| substrate albedo | `exoplasim/inputs/<rung>/albedo_report.json` `land_mean_bare_rock` |
+| rootable fraction, per gridcell | `biosphere/data/<build>/rootable_fraction_<rung>.nc` |
+| the cells whose cover reaches a climate run | `orogen_<rung>_surf_0172.sra`, the model's own land mask |
+| simulated tree and grass cover, per gridcell | the run's `fpc.out`, over its whole retained record |
+| surface to planetary attenuation, MEASURED with its span | `scripts/error_budget.py`, `notes/audits/albedo-attenuation.md` |
+| flux to kelvin, with its span | `lib/sensitivity.py` |
 
-A 5 per cent drift in both tree and grass cover is worth about +0.064 K of
-surface temperature, bracketed +0.032 to +0.128 K. Against what the climate arm
-resolves -- 0.15 K for the single-run convergence criterion, 0.05 K for its
-resolving-power bar, 0.027 K for the standard error of a 57-orbit climatology
-mean -- the derived limit spans 0.02 to 0.23 and cannot choose the number. The
-bracket is dominated by one unmeasured link: there is no measured
-d(planetary albedo)/d(surface albedo) in this tree, `lib/sensitivity.py`
-explicitly declines to own it, `scripts/error_budget.py` declares 0.5 and says
-in the same breath that the honest claim is a factor of two, and the single
-measured point is 0.3045 from one paired arm. world-ckbt is open to measure it.
-Until it closes, 0.05 stays a declared tolerance with this bracket recorded.
+THE SET THE CHAIN IS TAKEN OVER IS THE ONE BOTH MODELS OWN. LPJ simulates every
+gridcell with any native land and ExoPlaSim reads a staged surface field only
+where its own binary mask says land, so simulated cover on a cell that mask
+calls ocean reaches no climate run and is worth no kelvin. Measured on
+2026-09-05 against `lpj_7d3c576ee4e342acb097b46fece976e0`, the ecology model ran
+1617 gridcells, the climate model calls 1019 land, and the chain is over the 997
+that are both. Weighting it over the simulated set instead inflates it by 1.71,
+which is larger than every bracket in the chain put together.
+
+THE BAR IS READ RATHER THAN CHOSEN, and it is the half of this that was open
+longest. A drift in the simulated cover is a SECOND error term in the same
+kelvin as the climate arm's own residual offset, so the share it may take of
+that is `OFFSET_TOLERANCE_K / RESOLVING_FACTOR` from
+`exoplasim/scripts/assess_convergence.py`: 0.15 K over 3, both fixed there
+before they were applied to any assessment, the first being what a converged
+climate run may carry and the second the factor at which a term stops being able
+to flip a verdict on the first. Three other bars were considered.
+`OFFSET_TOLERANCE_K` itself gives one extra term the whole of the allowance the
+climate arm gives itself, which is a two-term budget at one term's size. The
+standard error of a climatology mean and the smallest difference a paired A/B
+off a common donor resolves are NOISE FLOORS: what the arm can see. A bias below
+the noise floor is a far stricter demand than a bias that changes no verdict,
+and the paired one is about a difference in which a drift common to both arms
+cancels exactly, so it is a bar on a quantity this drift does not enter.
+
+Measured on the same run and the same date: the chain is 1.551 K per unit
+relative cover drift, bracketed 1.092 to 2.231 over the measured attenuation
+span, the two albedo brackets and the flux-to-kelvin span. So the declared 0.05
+is worth 0.0776 K [0.0546, 0.1115], and against a 0.05 K bar the derived limit
+is 0.0322 [0.0224, 0.0458].
+
+THE CHAIN CANNOT CHOOSE FINER THAN ITS OWN BRACKET, which spans a factor of
+2.04. The declared 0.05 sits 1.55 times the derived central value, inside the
+factor of two registered before the chain was taken with a measured attenuation,
+so it is RETAINED and now carries a derivation rather than being moved onto a
+central value the chain cannot distinguish from it. Reading the 1.55 as a result
+would be reading the instrument's own scatter.
+
+WHAT WOULD REOPEN IT. The cover magnitudes come from a refused run, so the
+script reports how far they would have to move: 1.29 times larger or 0.32 times
+smaller before the declared tolerance leaves the registered factor. An accepted
+run whose covers land inside that leaves this verdict where it is, and one
+outside it re-decides the number. The script is the check and it refuses when a
+link moves the answer out of the factor, so nothing here has to be re-typed.
+
+The attenuation is no longer the dominant term. It was declared 0.5 with an
+explicit factor of two; `notes/audits/albedo-attenuation.md` measured 0.38 with
+a span of 0.29 to 0.48 on four paired arms, which is a factor of 1.66 and is
+now one bracket among four rather than the whole of the uncertainty.
 
 ## What each quantity owes, and the twenty-seven-fold it was costing
 
@@ -368,7 +409,7 @@ own closure block is a fourth reader.
 
 | consumer | quantity | tolerance | derivation |
 | --- | --- | --- | --- |
-| `build_surface_albedo.py --mode modelled` | `fpc.out` tree cover, grass cover | 0.05 | the albedo chain above, which is ABOUT these two |
+| `build_surface_albedo.py --mode modelled` | `fpc.out` tree cover, grass cover | 0.05 | `derive_cover_tolerance.py`, the chain above, which is ABOUT these two |
 | `build_soil.py` | `cpool.out` SoilC | 0.05 | the tightest derived in this tree, applied conservatively to an unpriced chain |
 | `lpj_acceptance.yaml` closure | `cpool.out` and `npool.out` Totals, `soil_npool.out` NO2/NO/N2O/N2, `maet.out`, `mevap.out`, `mintercep.out` months, `tot_runoff.out` Total | 0.05 | the same, and the closure imposes no drift tolerance of its own |
 | `score_prediction.py` | `anpp.out` Total, `lai.out` Total, `fpc.out` tree, grass, C4G and boreal cover | 0.2727 | tightest half-width over centre of the ten pre-registered bands |
