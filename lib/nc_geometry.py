@@ -32,8 +32,9 @@ convention BY NAME, `read_grid` reconstructs the named convention's axis from
 two files compares two names rather than two axes. CLAUDE.md rule 3.
 
 THE PLANET IS READ, NEVER COPIED. `planet_radius_m` is the one expression that
-turns `config/planet.yaml`'s `planet.radius_earth` into metres, and the six
-scripts that each carried their own `6.371e6` are what it replaces. CLAUDE.md
+turns `config/planet.yaml`'s `planet.radius_earth` into metres and
+`sphere_area_m2` the one that forms the area of the sphere from it, against the
+several spellings of the conversion each script used to carry. CLAUDE.md
 rule 2.
 
 TWO SUPPORTS, BECAUSE THIS PROJECT WRITES TWO. `declare_grid` is for a product on
@@ -64,10 +65,10 @@ EARTH_RADIUS_M = 6_371_000.0
 """Earth's mean radius, the unit `planet.radius_earth` is expressed in.
 
 Here because `config/planet.yaml` states the radius as a RATIO and something has
-to hold the denominator. It is a unit conversion and not a planetary parameter:
-nothing in this project may use it as a radius. Four scripts each carried their
-own spelling of it -- `6371e3`, `6.371e6`, `6_371_000.0` -- and two of them
-formed the area of the sphere from it directly."""
+to hold the denominator. It is a unit conversion and NOT a planetary parameter:
+nothing in this project may use it as a radius. It had been spelled `6371e3`,
+`6.371e6` and `6_371_000.0` in different scripts, several of which formed the
+area of the sphere from it inline, which is what `sphere_area_m2` is for."""
 
 DECLARATION_VERSION = "vesper-nc-geometry/1"
 """Stamped as `vesper_geometry_declaration`. A reader keys on this, not on the

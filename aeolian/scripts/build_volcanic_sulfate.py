@@ -250,8 +250,7 @@ def main() -> None:
             f"invented geography")
     arc_area_fraction = float((arc * area).sum() / area.sum())
 
-    planet_area = 4.0 * np.pi * (
-        float(config["planet"]["radius_earth"]) * 6.371e6) ** 2
+    planet_area = nc_geometry.sphere_area_m2(config)
     b1 = band1_fraction()
     lam_s, f_s = stellar_weights()
 

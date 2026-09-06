@@ -327,8 +327,7 @@ def main() -> None:
                              / scav["reference_precipitation_mm_per_hour"]
                              ) ** scav["scavenging_b"]
 
-        planet_area = 4.0 * np.pi * (
-            float(config["planet"]["radius_earth"]) * 6.371e6) ** 2
+        planet_area = nc_geometry.sphere_area_m2(config)
         b1 = optics_payload["stellar_flux_fraction_band1"]
         # Optical properties for the forcing, taken at the ocean-mean humidity and
         # weighted across bins by their optical depth rather than their mass, which

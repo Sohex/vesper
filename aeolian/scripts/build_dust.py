@@ -574,7 +574,7 @@ def advect_to_steady_state(emission, u, v, loss_rate, lat, lon, cfg):
     """
     tr = cfg["transport"]
     nlat, nlon = emission.shape
-    radius = 6.371e6 * float(cfg["_planet_radius_earth"])  # from config/planet.yaml
+    radius = nc_geometry.EARTH_RADIUS_M * float(cfg["_planet_radius_earth"])
     spec = gaussian_grid(nlat, nlon, name="dust-transport")
     require_gaussian_rows(spec, lat, "the dust transport grid")
     dphi = np.abs(np.gradient(np.deg2rad(lat)))
@@ -962,8 +962,8 @@ def main() -> None:
     mee = 1000.0 * (f1 * band1["mass_extinction_efficiency_m2_g"]
                     + (1 - f1) * band2["mass_extinction_efficiency_m2_g"])
 
-    radius = 6.371e6 * float(config["planet"]["radius_earth"])
-    planet_area = 4 * np.pi * radius ** 2
+    radius = nc_geometry.planet_radius_m(config)
+    planet_area = nc_geometry.sphere_area_m2(config)
     outcomes, fields = {}, {}
     for shelter, z0a in ends:
         emission, load, converged = run_one(
