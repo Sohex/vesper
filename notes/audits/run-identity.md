@@ -159,6 +159,13 @@ most of them cannot be recovered at all. The disposition per run is either a
 statement that the claim resting on it cannot be checked -- which is what
 `notes/audits/resolution-ladder.md` now says of its own rows.
 
-Also open: `maps/` uses the same UUID-plus-tracked-index pattern for rendered
-frames, with `maps/data/<build>/INDEX.json` written from what is on disk. Whether
-it has the same shape of defect is not measured here.
+`maps/` uses the same UUID-plus-tracked-index pattern for rendered frames, and
+measuring it on 2026-09-05 found the leak is not there: `maps/data/<build>/INDEX.json`
+is accumulated by `maps/frames.py` and nothing rebuilds it from a directory
+listing, so a deleted frame keeps its row and can be redrawn from the inputs the
+row names. What it did share is the concurrency half: `render_projections.py`
+read the whole index, rendered for minutes and wrote the whole index back, so
+two renders at once lost a row and left a UUID of pixels nothing could name, and
+two processes at one new fingerprint took two ids for one picture. The row is
+now taken with the id, before anything is drawn, and every write of the index is
+under a lock beside it.
