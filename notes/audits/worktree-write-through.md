@@ -170,10 +170,12 @@ blinding the comparison, and stopping the linker from re-baselining.
 
 `lib/write_door.py` is the one refusal, and `exoplasim/scripts/sra.py` states
 only what is particular to a staged field on top of it. A door is worth putting
-on a group when it has a single Python writer, the write is a regeneration a
-worktree plausibly runs, and nothing else already refuses. Three groups meet
-that and have one; three need no door, for three different reasons; three want
-one and it has to be installed by the component that owns the writer.
+on a group when the write is a regeneration a worktree plausibly runs and
+nothing else already refuses. Where a group has one write function the door is
+one call; where it has six writers and no shared write function it is one call
+per writer, at the point each resolves its output path rather than at the write,
+so a refusal does not arrive after the priority flood or after a rung of
+support. Six groups have a door; three need none, for three different reasons.
 
 | group | disposition |
 | --- | --- |
@@ -229,7 +231,8 @@ complete answer rather than a gap.
 
 ## What is still carried by convention
 
-The groups with a door prevent the write; the rest are reported by
+The groups with a door prevent the write; the rest -- the fetched external data,
+the prerebuild record, `.beads/` -- are reported by
 `scripts/check_worktree_links.py` after it lands, which names the fact and not
 the culprit. That is the honest limit: from inside a worktree, a write from here
 and a regeneration in the main checkout are indistinguishable, and the
