@@ -1251,20 +1251,62 @@ for every other component.
 ### 18. Tuning knobs that are currently inert, and the traps in them
 
 A tuning that no run reaches costs nothing today and costs everything on the day
-someone throws its switch. Each of these is recorded with the switch that arms
-it, which is the form `opaque-constants.md` finding 10 established after the
-ocean radius was found under a scheduled measurement.
+someone throws its switch. It is also invisible to this audit's own instrument:
+grepping for values IN USE returns nothing, because none of these is in use. So
+each is recorded with the SWITCH THAT ARMS IT, which is the form
+`opaque-constants.md` finding 10 established after the ocean radius was found
+under a scheduled measurement, and with WHERE THAT PAIRING IS WRITTEN DOWN in
+the tree, because a table in an audit is not what a reader throwing a switch has
+open.
 
-| where | value | armed by |
-| --- | --- | --- |
-| `radmod.f90:76` | `tpofmt = 1.00`, self-declared "tuning of point of mean transmittance" | nothing; it is at its identity and no run sets it. It is a live multiplier at `:3591` with no source, so any run that moves it moves an unsourced knob |
-| `carbonmod.f90:97-98` | `tune1 = 5.41`, `tune2 = 2.20`, commented "Tuning adjustment to make global average match" | `NCARBON = 1`. The module header already says it is fitted to Earth by construction |
-| `hurricanemod.f90:50-114` | the pLCL empirical parameters and `CL`, which the header calls an admitted fudge | the diagnostic switch. `run_exoplasim.py:2629` already refuses it on these grounds |
-| `simba.f90` | Earth-fitted throughout, with turnover times scaled by the ORBITAL period | `NVEG = 1` |
-| `vendor/lpj-guess/modules/blaze.cpp:59-66` | four litter combustion factors spanning 300 times, selected by ABSOLUTE EARTH LATITUDE at `:1003-1017`, under the comment `// Latitude depending tuning values mortality` | `firemodel "BLAZE"`. `run_lpj_guess.py:148` overrides to GLOBFIRM, and `global.ins:97` still says BLAZE |
-| `vendor/lpj-guess/modules/soil.h:211,299` | `CH4toCO2_inundated = 0.027`, commented "to match global emissions"; `PEATLAND_WETLAND_LATITUDE_LIMIT = 40.0` selecting physics on Earth latitude | `ifmethane 1`. `biosphere/config/wetlands.yaml:138-142` already names the 40.0 and forbids latitude as a regime selector |
-| `vendor/lpj-guess/modules/soilinput.cpp:350-352` | `kplab`, `spmax`, `pwtr` at Amazon-FACE site values, marked `// FIXED FOR AMAZON FACE AT THE MOMENT`, applied planet-wide | `ifplim 1` with the pedology contract absent. The live path at `:407-411` reads the contract |
-| `vendor/exoplasim/exoplasim/pyburn.py:2003, 2843` | `tstar[tstar<255] = 0.5*(255+tstar)`, ECMWF's cold-surface guard, calibrated on Earth's surface temperature distribution | anything reading `psl`. Nothing does yet, and at 32 degrees of obliquity the guard fires over a large share of the land for much of the orbit |
+Re-read against the source 2026-09-05. Line numbers are from that read.
+
+| where | value | armed by | paired at its declaration |
+| --- | --- | --- | --- |
+| `radmod.f90:164` | `tpofmt = 1.00`, self-declared "tuning of point of mean transmittance" | `radmod_nl`, which carries it at `:1219`. It is a live multiplier at `:4148` on every longwave call | NO. See the finding below |
+| `carbonmod.f90:97-98` | `tune1 = 5.41`, `tune2 = 2.20`, commented "Tuning adjustment to make global average match" | `NCARBON`, declared `1` at `carbonmod.f90:55` and staged at `0` by `exoplasim/__init__.py:2224` from `co2weathering` | YES, `carbonmod.f90:26-31`, world-9d1 |
+| `hurricanemod.f90:50-114` | the pLCL empirical parameters and `CL`, which the header calls an admitted fudge | `NSTORMDIAG` and `HC_CAPTURE`, both written `0` by `run_exoplasim.py:2535-2536` | YES, the module header and `declare_storm_diagnostics` at `run_exoplasim.py:2488`, and ASSERTED at `:3519-3520` |
+| `simba.f90` | Earth-fitted throughout, with turnover times scaled by the ORBITAL period | `NVEG`, written by `exoplasim/__init__.py:2240` from `self.vegetation`, whose kwarg default is `False` at `:1537` | NO. See the finding below |
+| `vendor/lpj-guess/modules/blaze.cpp:59-66` | four litter combustion factors spanning 300 times, selected by ABSOLUTE EARTH LATITUDE at `:1007-1016`, under the comment `// Latitude depending tuning values mortality` | `firemodel "BLAZE"`. `run_lpj_guess.py:494` writes `GLOBFIRM` after the import of `vesper_pfts.ins`, which still carries the shipped `BLAZE` | PARTLY: `biosphere/README.md:1017` records the ordering the override depends on; nothing at `blaze.cpp` |
+| `vendor/lpj-guess/modules/soil.h:211,299` | `CH4toCO2_inundated = 0.027`, commented "to match global emissions"; `PEATLAND_WETLAND_LATITUDE_LIMIT = 40.0` selecting physics on Earth latitude | `ifmethane 1`; every run manifest records `ifmethane 0` | PARTLY: `biosphere/config/wetlands.yaml` names the 40.0 and forbids latitude as a regime selector, and `biosphere/README.md:587` pairs the two switches; nothing at `soil.h` |
+| `vendor/lpj-guess/modules/soilinput.cpp:350-352` | `kplab`, `spmax`, `pwtr` at Amazon-FACE site values applied planet-wide | `ifplim 1` with the pedology contract absent. The live path at `:407-411` reads the contract | YES, the fork's own comment at `:348-349` names the state and what ends it |
+| `vendor/exoplasim/exoplasim/pyburn.py:599` | `PSL_COLD_GUARD_K_EARTH = 255.0`, ECMWF's cold-surface guard, calibrated on Earth's surface temperature distribution | anything reading `psl`, code 151, which this project leaves out of the codes it writes | YES, `pyburn.py:594-598`, world-ld1 |
+
+**`tpofmt` IS DOCUMENTED, AND WHAT THE DOCUMENTATION SAYS IS THAT IT IS A
+TUNING.** `Plasim_RM_16/parameterizations.tex:1268-1279` gives the mean
+transmissivity of a partially clouded layer, used to build the effective Planck
+function, as `T = f_T * T_cs * (1 - cc * A_cl)`, and says of the factor only
+that it "provides a tuning opportunity". `Plasim_RM_16/modules.tex:768` lists
+TPOFMT with a default of **0.15**. The compiled declaration is **1.00**. So the
+row's disposition changes from opaque to tuned-with-its-own-admission, and two
+things follow. The code ships at the value that makes the factor drop out, which
+is the right state for a planet that does not inherit Earth's cloud tuning; and
+the manual shipped BESIDE it in the same tree recommends a value 6.7 times
+smaller, so a reader who consults the documentation to decide is told to arm it.
+The knob is in `radmod_nl` and one namelist line moves it. Sourcing it further
+is not available from this tree: the manual states no derivation, only the
+opportunity.
+
+**TWO ARMING SWITCHES ARE LIBRARY KWARG DEFAULTS RATHER THAN PROJECT
+ASSERTIONS, AND THE TREE ALREADY KNOWS THE DIFFERENCE.**
+`run_exoplasim.py:verify_staged_namelists` asserts `NSTORMDIAG = 0` and
+`HC_CAPTURE = 0` unconditionally, and says why in its own comment: so that off
+is a state this project asserts rather than the shipped namelist's default
+surviving by luck. `NCARBON` and `NVEG` are the same class of switch over
+comparable Earth-fitted machinery, and neither is in that check --
+`carbonmod_namelist` is not in its `want` dictionary at all. What holds them at
+zero is `exoplasim/__init__.py`'s `co2weathering` and `vegetation` kwarg
+defaults, and `carbonmod.f90`'s own compiled default is `ncarbon = 1`, so the
+model source and the run staging disagree and the staging wins silently. Every
+staged `carbonmod_namelist` in the tree reads `NCARBON = 0` and every staged
+`plasim_namelist` reads `NVEG = 0`, so nothing is wrong today; what is missing
+is the assertion that says so. This is the oceanmod precedent's exact shape, and
+the repair is two entries in a check that already exists.
+
+`NVEG = 0` is also load-bearing beyond simba's own constants:
+`build_surface_roughness.py` derives the roughness field on the stated ground
+that `landmod.f90` takes `dz0 = dz0clim` directly at that setting, so a change
+to `NVEG` silently replaces a derived field with simba's Earth-fitted terms.
 
 ---
 
@@ -1281,23 +1323,81 @@ This is the class in its most concentrated form anywhere in the tree, and it is
 not a list of numbers. It is machinery whose PURPOSE is to rescale modelled
 temperature, runoff and productivity fields until they match Earth observations,
 with the reference patterns shipped as data files. On this world every one of
-those options must be off and every calibration factor must be 1.0, and nothing
-in this project says so.
+those options must be off and every calibration factor must be 1.0.
 
-Beside it, `references/INDEX.md`'s entry on Holden et al. (2016) records that the
-same family's ocean coupling carries three more: `scf`, which the paper states is
-"a TUNED ensemble parameter, not a regridding artifact and not derivable from a
-stress-product ratio"; an Atlantic-Pacific moisture flux adjustment set against
-Talley (2008) basin budgets; and energy flux corrections diagnosed against
-observed present-day sea-ice thickness.
+**Disposition: IRREDUCIBLE, and the output of this row is a DECLARATION rather
+than a fix.** cgenie is ADOPTED, OCN-3 having closed on 2026-08-26, and it
+builds and runs here. What remains true is that nothing READS it: no step in
+`config/pipeline.yaml` generates an artifact from rokgem, and no case the
+drivers build enables it. So none of this reaches the world's numbers, and the
+requirement is that an adoption decision for any cgenie component STATES the
+calibration state of that component before it is wired to anything, rather than
+the state being discovered from a result.
 
-**Disposition: IRREDUCIBLE, and that is the argument for the boundary rather than
-for the values.** cgenie is the candidate under OCN-3, nothing reads it, and it
-does not build where it stands. The correct output of this row is not a fix but a
-precondition: an adoption decision for any cgenie component states which
-calibration switches are off and which reference files are absent, before the
-component is wired to anything. `ocean-tier-implicit-earth.md` does not reach
-rokgem.
+`ocean-tier-implicit-earth.md` does not reach rokgem.
+
+#### The declaration for rokgem, measured 2026-09-05
+
+Read from `genie-main/src/xml-config/xml/definition.xml`, which is where cgenie
+holds the shipped namelist defaults, and from the contents of
+`genie-rokgem/data/input/`.
+
+| what | shipped state | reading |
+| --- | --- | --- |
+| `rg_opt_calibrate_T_0D`, `_R_0D`, `_P_0D` | all `.FALSE.` | OFF, and off is the shipped default rather than something this project set |
+| `rg_par_data_T_0D` | 9.530 | Earth's mean global land surface temperature in C, loaded and unreachable |
+| `rg_par_data_R_0D` | 241.9 | Earth's mean global runoff in mm/yr, loaded and unreachable |
+| `rg_par_data_P_0D` | not in `definition.xml` | declared in the module and never given a default; a 0-D productivity calibration would run against whatever the namelist supplies |
+| `rg_calibrate_weath` | `.FALSE.` | OFF |
+| `rg_calibrate_weather_GKWM_CaCO3` | 1.583 | **NOT 1.0.** The module's own comment says "leave as 1.0 for uncalibrated" |
+| `rg_calibrate_weather_GEM_CO2_CaCO3` | 1.178 | **NOT 1.0** |
+| `rg_calibrate_weather_GKWM_CaSiO3` | 0.8548 | **NOT 1.0** |
+| `rg_calibrate_weather_GEM_CO2_CaSiO3` | 0.8878 | **NOT 1.0** |
+| `rg_opt_calibrate_T_2D`, `_R_2D`, `_P_2D` | all `.FALSE.` | OFF |
+| `rg_par_ref_T0_2D`, `_R0_2D`, `_P0_2D` | name `T0_036_036.dat`, `R0_036_036.dat`, `P0.dat` | ALL THREE ABSENT from `genie-rokgem/data/input/`; only `T0_036_036_orig.dat` and `R0_036_036_orig.dat` are there |
+| `rg_par_data_T_2D`, `_R_2D`, `_P_2D` | name `data_temp_036_036.dat`, `data_roff_036_036.dat`, `data_prod_036_036.dat` | ALL THREE PRESENT |
+
+**The four weathering factors are the finding.** Every switch ships off, which
+is what a reader would hope; but the factors those switches gate are NOT at
+their identity. They ship pre-loaded with Earth drift corrections, derived to
+balance Earth's carbonate burial flux, and one logical -- `rg_calibrate_weath`
+-- stands between them and a modelled weathering flux. Someone enabling 2-D
+weathering on a Vesper lithology map has an obvious reason to set that logical
+and no reason at all to look at four factors named for Earth calibration runs.
+That is the shape section 18 is about, in the component with the largest
+concentration of it.
+
+**The 2-D reference patterns are protected by ABSENCE, which is not a
+decision.** All three base-pattern files the 2-D options scale against are
+missing from the tree, so a 2-D calibration run fails on a missing file rather
+than silently reproducing Earth. That is the right outcome by the wrong
+mechanism: nothing states it, and restoring a file from upstream would remove
+the protection without anything objecting. The three `par_data_*_2D` target
+files ARE present, so half the pair is already in place.
+
+#### What the driven path carries, and what it does not
+
+The driven surface-flux path world-e3gp built reaches only `genie-goldstein` and
+`genie-goldsteinseaice`; `calibrate` matches nothing in either, and rokgem is
+not reachable from it. That path made this row's declaration for itself, before
+wiring rather than after, and
+`notes/audits/cgenie-embm-free-path-and-threading.md` section 1f carries it: `scf`
+shipped at 2.00 against `definition.xml`'s own "plausible range 1 to 3" with three
+fitted values beside it (1.6674 EnKF, 1.1841 ACCPM, 1.3005 NSGA-II), entering
+linearly at `goldstein.F:199-205` so any sweep returns OCN-17's bracket rather
+than a number; and `delta_flux`, the residual by which the surface solve fails to
+conserve, computed and dropped on a driven path because there is no atmosphere to
+hand it back to -- a diagnostic the forcing contract may read and never a
+correction.
+
+What is still undeclared is every OTHER component. Beside rokgem,
+`references/INDEX.md`'s entry on Holden et al. (2016) records three more in the
+same family's ocean coupling: `scf`, which that paper states is "a TUNED ensemble
+parameter, not a regridding artifact and not derivable from a stress-product
+ratio"; an Atlantic-Pacific moisture flux adjustment set against Talley (2008)
+basin budgets; and energy flux corrections diagnosed against observed present-day
+sea-ice thickness. Each needs the same declaration before it is wired to
+anything.
 
 ---
 
@@ -1399,8 +1499,8 @@ filed.
 | 15. the unbracketed pedogenesis values | `world-9ctm` |
 | 16. `ntoc`, `frac_maxtomin` | `world-xfif`. The GLOBFIRM burn-probability floor left this class rather than being repaired in it: it is implicit-Earth, `world-v5j1` deleted it, and `biosphere/config/fire.yaml` registers the deletion |
 | 17. `ntransform.yaml`'s six `unsourced` entries | already registered; the gate refuses on them |
-| 18. the dormant knobs | `world-9g8p` |
-| 19. the cgenie tier | `world-u9kg` |
+| 18. the dormant knobs | `world-9g8p` recorded the pairing; six of the eight now carry it at the declaration. `world-yuut` is tpofmt's disposition, `world-64bd` asserts NCARBON and NVEG, `world-4j27` is the two LPJ-GUESS declarations |
+| 19. the cgenie tier | `world-u9kg`; rokgem's declaration is measured above and `world-ukc9` is what it found. The Holden et al. (2016) three are still undeclared |
 
 ## The five papers, and what reading them changed
 
