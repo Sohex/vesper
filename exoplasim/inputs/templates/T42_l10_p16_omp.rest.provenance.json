@@ -6,7 +6,7 @@
   "generator_sha256": "2b42dddc10ccf3c18b7f24a0e8dfb31d3d9731af67da36d51b6efc3a9d6e238f",
   "schema_sha256": "817434e7ed100b214cba68f3287167ba2f2a5137a62060ffd2b5c5f98d2f01c2",
   "output": {
-    "path": "/home/cfutro/docs/world/exoplasim/inputs/templates/T42_l10_p16_omp.rest",
+    "path": "exoplasim/inputs/templates/T42_l10_p16_omp.rest",
     "sha256": "975f7a0b98efc7ae903497eaf03ddf1f5cea64946230376e8aa45eba8ba6ff59"
   },
   "cut_from": {
@@ -18,7 +18,7 @@
     "status": "equilibrated_for_worldbuilding"
   },
   "executable": {
-    "path": "/home/cfutro/docs/world/exoplasim/runs/run_4fe5e6050df5/most_plasim_t42_l10_p16_omp.x",
+    "path": "exoplasim/runs/run_4fe5e6050df5/most_plasim_t42_l10_p16_omp.x",
     "sha256": "68ad59e5cecb6889858f7a4583669b6a61c1bc1acbd493ee068f1325506c016a",
     "note": "Built precision is not encoded in the filename. If model.precision_bytes changes, pass recompile=True or remove the binary, or the old one is silently reused."
   },

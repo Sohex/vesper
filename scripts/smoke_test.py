@@ -2428,6 +2428,48 @@ def check_autocorrelation_estimator() -> list[str]:
     return bad
 
 
+def check_restart_template_provenance_travels() -> list[str]:
+    """A restart template's record names its files from the project root.
+
+    WORLD-BR8L. `exoplasim/inputs/templates/*.provenance.json` is TRACKED, and
+    it is how a reader learns which run a converted arm's initial state
+    descends from. An absolute path there names one machine's home directory,
+    so the record answers that question in the checkout it was written in and
+    nowhere else -- and this project runs many worktrees at once, where such a
+    path names a directory that is not the reader's at all. It is the shape
+    world-fvpt was: a guard comparing a repo-relative stamp against an absolute
+    one can never match.
+
+    The check is a string test on the recorded value rather than on the file it
+    names, because a path that resolves here is exactly what the defect looks
+    like from inside the tree that wrote it.
+    """
+    bad = []
+    for path in sorted((ROOT / "exoplasim" / "inputs" / "templates")
+                       .glob("*.provenance.json")):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            bad.append(f"{path.relative_to(ROOT)} does not read: {exc}")
+            continue
+
+        def walk(node, where):
+            for key, value in (node.items() if isinstance(node, dict)
+                               else enumerate(node) if isinstance(node, list)
+                               else ()):
+                spot = f"{where}.{key}"
+                if isinstance(value, str) and value.startswith("/"):
+                    bad.append(
+                        f"{path.relative_to(ROOT)} records {spot} as the "
+                        f"absolute {value}; build_restart_template.py spells "
+                        "recorded paths through lib/paths.py:rel")
+                else:
+                    walk(value, spot)
+
+        walk(record, "")
+    return bad
+
+
 def check_restart_schema_covers_the_model() -> list[str]:
     """Every restart record the model writes has a policy, with the right reset.
 
@@ -6486,6 +6528,8 @@ def main() -> None:
                lambda: check_tail_fit_stops_above_roundoff()),
               ("the restart schema covers every record the model writes",
                lambda: check_restart_schema_covers_the_model()),
+              ("every restart template's provenance travels between checkouts",
+               lambda: check_restart_template_provenance_travels()),
               ("every postprocessor code requested is one something produces",
                lambda: check_requested_codes_are_produced()),
               ("every code the model writes is named or refused with a reason",

@@ -179,6 +179,7 @@ from rootable import read_rootable_partition
 
 sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
 from soil_albedo_wetting import sadeghi_mix  # noqa: E402
+from paths import rel  # noqa: E402
 
 # 174 broadband, 175 below 0.75 um, 176 above. With NSIMPLEALBEDO=0 the
 # radiation uses the two-band pair; 174 is written too so the broadband
@@ -560,7 +561,7 @@ def rock_wetting_ratios(path: Path, mesh_root: Path, arm: str
     return ratios, {
         "arm": arm,
         "arms_available": list(WETTING_ARMS),
-        "source": str(path),
+        "source": rel(path),
         "generated": table.get("generated"),
         "refused_classes": refused,
         "held_pair_bracket_passes": table["held_pair_bracket"]["passes"],
@@ -956,7 +957,7 @@ def main() -> None:
                     # The albedo now depends on a CLIMATOLOGY, which it did not
                     # before. Record which one: an evaporite split derived from
                     # another climate describes another world's salt flats.
-                    "climatology": str(args.climatology),
+                    "climatology": rel(args.climatology),
                     "orbital_year_seconds": year_s,
                     "geometric_salt_fraction_of_land":
                         float(area_r[geo_salt].sum() / area_r[is_land].sum()),
@@ -985,7 +986,7 @@ def main() -> None:
         region_wet2[paint_water] = ww2
         after = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
         lake_report = {
-            "source": str(args.lakes),
+            "source": rel(args.lakes),
             "terrain_hash": lake_terrain,
             "lake_regions": int(lake.sum()),
             "lake_fraction_of_land": float(area_r[lake].sum() / area_r[is_land].sum()),
@@ -1271,7 +1272,7 @@ def main() -> None:
 
         missing = int(land_cells.sum()) - matched
         vegetation_summary = {
-            "source": str(args.vegetation),
+            "source": rel(args.vegetation),
             "equilibrium_window": equilibrium_window,
             "rootable_surface": rootable_provenance,
             "rootable_partition_max_absolute_residual": partition_residual,
@@ -1301,7 +1302,7 @@ def main() -> None:
             "barren_and_lakes_masked": (
                 "BIO-11 rootable fraction excludes dry barren substrate and "
                 "persistent solved water, with overlap deducted once"),
-            "coordinate_source": str(args.climatology),
+            "coordinate_source": rel(args.climatology),
         }
 
     # Ocean cells carry the water value; ExoPlaSim computes ocean albedo itself,
@@ -1671,7 +1672,7 @@ def main() -> None:
         for code in WET_ALBEDO_CODES:
             path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
             write_sra(path, code, wet_fields[code])
-            written.append(str(path))
+            written.append(rel(path))
         if knee_fields is not None:
             wetting_report["third_point"] = {
                 "staged": True,
@@ -1699,7 +1700,7 @@ def main() -> None:
             for code in KNEE_ALBEDO_CODES:
                 path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
                 write_sra(path, code, knee_fields[code])
-                written.append(str(path))
+                written.append(rel(path))
         else:
             wetting_report["third_point"] = {
                 "staged": False,
@@ -1716,15 +1717,15 @@ def main() -> None:
     for code in ALBEDO_CODES:
         path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
         write_sra(path, code, band_fields[code])
-        written.append(str(path))
+        written.append(rel(path))
     forest_path = output / f"orogen_{resolution}_surf_{FOREST_CODE:04d}.sra"
     write_sra(forest_path, FOREST_CODE, forest)
-    written.append(str(forest_path))
+    written.append(rel(forest_path))
 
     report = {
         "mode": mode,
-        "mesh": str(mesh.root),
-        "grid": str(grid_dir),
+        "mesh": rel(mesh.root),
+        "grid": rel(grid_dir),
         "resolution": resolution,
         "terrain_hash": mesh.terrain_hash,
         "codes": list(ALBEDO_CODES) + [FOREST_CODE]

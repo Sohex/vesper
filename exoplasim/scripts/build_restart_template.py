@@ -52,9 +52,18 @@ import reset_restart_accumulators  # noqa: E402
 import restart_format  # noqa: E402
 import restart_schema  # noqa: E402
 from _paths import COMPONENT_ROOT, MODEL_SRC, PROJECT_ROOT  # noqa: E402
+from paths import rel  # noqa: E402
 
 MODEL_SOURCE = MODEL_SRC / "plasim" / "src"
 TEMPLATES = COMPONENT_ROOT / "inputs" / "templates"
+
+# Keys anywhere in the copied manifest blocks that name a FILE. The manifest is
+# `run_exoplasim.py`'s record and spells them absolute; a template's record is
+# TRACKED, so a path naming one machine's home directory is committed and read
+# by every other checkout and by every worktree, where it names a directory that
+# is not theirs. They are re-spelled here rather than left to the manifest
+# because that is where the travelling copy is made.
+MANIFEST_PATH_KEYS = ("path", "manifest", "run_dir", "restart")
 
 
 def sha256(path: Path) -> str:
@@ -99,6 +108,27 @@ def audit(path: Path) -> dict:
             "accumulators_the_model_never_resets": uncheckable}
 
 
+def repo_relative(value):
+    """The same structure with every path-shaped leaf spelled from the root.
+
+    Applied to the manifest blocks this record COPIES, because a copy is where
+    a path stops travelling with the thing that owns it: the manifest sits
+    beside its own run and can afford to name a machine, and this record is
+    tracked and is read from checkouts that machine does not have.
+
+    A string that is not a path is left alone: only the keys in
+    `MANIFEST_PATH_KEYS` are rewritten, so a note or a sha is never touched.
+    `lib/paths.py:rel` is the one door, and an absolute result from it now
+    means the file genuinely lies outside the tree.
+    """
+    if isinstance(value, dict):
+        return {k: (rel(v) if k in MANIFEST_PATH_KEYS and isinstance(v, str)
+                    else repo_relative(v)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [repo_relative(v) for v in value]
+    return value
+
+
 def provenance(run_dir: Path, source: Path, output: Path, report: dict) -> dict:
     """Who made this template, from what, and against which surface."""
     manifest_path = run_dir / "run_manifest.json"
@@ -111,11 +141,11 @@ def provenance(run_dir: Path, source: Path, output: Path, report: dict) -> dict:
         "generator": "exoplasim/scripts/build_restart_template.py",
         "generator_sha256": sha256(Path(__file__)),
         "schema_sha256": sha256(Path(restart_schema.__file__)),
-        "output": {"path": str(output), "sha256": sha256(output)},
+        "output": {"path": rel(output), "sha256": sha256(output)},
         "cut_from": {
-            "run_dir": str(run_dir),
+            "run_dir": rel(run_dir),
             "run_id": manifest.get("run_id"),
-            "restart": str(source),
+            "restart": rel(source),
             "restart_sha256": sha256(source),
             "completed_orbits": manifest.get("completed_orbits"),
             "status": manifest.get("status"),
@@ -123,7 +153,7 @@ def provenance(run_dir: Path, source: Path, output: Path, report: dict) -> dict:
         # The template's authority is exactly the executable that wrote it: its
         # record set, its real width and its seed shape are properties of this
         # binary and of no other.
-        "executable": manifest.get("executable"),
+        "executable": repo_relative(manifest.get("executable")),
         "physical": manifest.get("physical"),
         "source_build": manifest.get("source_build"),
         "config_sha256": manifest.get("config_sha256"),
