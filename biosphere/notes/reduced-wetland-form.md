@@ -67,8 +67,10 @@ native mesh, crossed to the climate grid as area shares by
 - persistent peat-forming land, from the simulated peatland stand's own state;
 - seasonal inundation, from the periodic lake cycle's per-region wet-bin count,
   which is the closed-basin third of that quantity and no more;
-- open lake and playa water, from the same cycle's always-wet set;
-- dry mineral soil, the residual.
+- open water, from the same cycle's always-wet set. Lakes only: there is no
+  river area and no playa lake distinct from the solved lake surface;
+- dry mineral soil, the residual, which absorbs hydrography's PLAYA class as
+  well as ordinary upland.
 
 WHAT IS DROPPED. The saturated non-inundated mineral class, at every support.
 
@@ -115,6 +117,18 @@ and forming one from a water content is what
 `hydrography/config/wetness.yaml`'s `area_proxy_from_cell_mean` refuses. So the
 seasonal share is a lower bound too, and it may not be compared with an Earth
 seasonal inundated area as like with like.
+
+**The residual absorbs the playa, so the dry mineral class is not a substrate
+statement.** The wetness partition resolves four classes and the wetland
+partition names five, and the two lists do not line up: the exposed floor of a
+closed depression that does not fill is a class hydrography resolves and the
+wetland classification has no name for. It joins the residual, because it is
+land that is neither wetland nor open water, and that is the only true thing the
+wetland partition can say about it. What it is NOT is mineral soil that carries
+roots. Anything that needs that distinction takes it from pedology's surface
+classes and from BIO-11's barren fraction, not from this class, and a consumer
+that reads `dry_mineral` as rootable upland has read a partition of wetness as a
+partition of substrate.
 
 **Dropping river water costs the claim that the open-water class is open
 water.** `surface_water.nc` carries a discharge and no channel width, so a river
@@ -252,8 +266,8 @@ that reads it, or it does not propagate.
 
 - That the simulated wetland extent is an estimate. It is a lower bound whose
   missing part is every saturated surface that is not under standing water.
-- That the simulated dry mineral area is dry. It is an upper bound by the same
-  quantity.
+- That the simulated dry mineral area is dry, or that it is mineral soil. It is
+  an upper bound on dry ground by the saturated area, and it holds the playa.
 - That any emitted methane number is a production, an oxidation or a transport
   flux. It is a net surface flux carrying a bracket at least as wide as the
   spread between the two constants the fork already holds.

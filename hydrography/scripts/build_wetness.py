@@ -387,9 +387,14 @@ def closure_state() -> dict:
     """
     ti = yaml.safe_load(TI_CFG.read_text(encoding="utf-8"))["closure"]
     status = str(ti.get("status", "active"))
+    # `withdrawn_on` is a YAML 1.1 DATE, which json refuses. Rendered here
+    # rather than at the point of writing: the report and the netCDF attribute
+    # both read this dict, and a value that is a date in one and a string in the
+    # other is the same defect twice.
+    withdrawn_on = ti.get("withdrawn_on")
     out = {"closure_status": status,
            "withdrawn": status == "withdrawn",
-           "withdrawn_on": ti.get("withdrawn_on"),
+           "withdrawn_on": None if withdrawn_on is None else str(withdrawn_on),
            "withdrawn_because": ti.get("withdrawn_because"),
            "reason": "hydrography/config/topographic_index.yaml closure.status"}
     if SCORE_PATH.exists():

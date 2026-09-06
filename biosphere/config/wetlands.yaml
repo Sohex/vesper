@@ -151,6 +151,17 @@ extent:
     nothing is written -- and it re-measures the two lake paints against each
     other on every run. Fractions throughout: no threshold on a cell mean, and
     no absolute compound-topographic-index cut.
+    THE TWO CLASS LISTS DO NOT LINE UP AND THE RESIDUAL IS WHERE THAT SHOWS.
+    Hydrography resolves four classes and this partition names five. Its PLAYA,
+    the exposed floor of a closed depression that does not fill, has no name
+    here and joins `dry_mineral`, because it is land that is neither wetland nor
+    open water and that is the only true thing this partition can say about it.
+    `dry_mineral` is therefore a statement about WETNESS and not about
+    substrate: what separates a playa floor from rootable upland inside it is
+    pedology's surface classes and BIO-11's barren fraction, and a consumer that
+    reads this class as rootable upland has read the wrong partition. Open water
+    is lakes: there is no river area and no playa lake distinct from the solved
+    lake surface.
     AGAINST BIO-11'S ROOTABLE SURFACE the identity is
     `rootable == 1 - nonrootable_water - nonrootable_barren` with this
     partition's playa inside that barren, and the two sides currently cut the
