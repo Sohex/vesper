@@ -542,8 +542,6 @@ def invoke_runner(bed: Path, driver: Path, pfts: Path, ranks: int,
     result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True,
                             text=True)
     output = result.stdout + result.stderr
-    (bed / "runner.log").write_text(
-        (bed / "runner.log").read_text() if (bed / "runner.log").is_file() else "")
     with (bed / "runner.log").open("a") as handle:
         handle.write(f"$ {' '.join(command)}\n{output}\n")
     if expect_failure:
