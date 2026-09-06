@@ -106,6 +106,13 @@ models using only c-GOLDSTEIN's ocean and sea-ice modules". It is in
 `genie-goldstein/src/fortran/makefile`, it has `surf_ocn_sic_wrapper` in
 `genie_loop_wrappers.f90`, and no line of `genie.F` calls that wrapper.
 
+It is KEPT, and `notes/audits/cgenie-unreachable-code-dispositions.md`
+section 3 is the verdict with its evidence: mainline, maintained upstream in the
+implicit-Earth dimension this project audits for, cited as evidence by three
+documents here, and costing 3.3 MB of static storage at 144 x 144 against a
+ceiling three orders above that. `gold_ocnsic_avg.F` beside it is reached by
+nothing at all, `surf_ocn_sic` included.
+
 It is not the path to use, and the reason is the one that chose the
 architecture. It takes atmospheric STATE -- lowest-level temperature, humidity,
 pressure, height and winds -- and computes the turbulent fluxes from bulk
@@ -359,12 +366,17 @@ from the other side: the flag made locals wrongly SHARED, and a `private` clause
 makes them wrongly UNINITIALISED. The `omppoison` arm below is what tests for
 the second.
 
-`velc`'s `dzu` needed the opposite treatment. It is declared `dzu(2,maxk)` in
-`ocean.cmn`, so it is one array for the whole process, but it is per-column
-scratch: `velc` is its only reader and writer anywhere in the tree and
-`initialise_goldstein.F` only zeroes it. It is now a local. The COMMON member is
-left in place because removing it changes the block's layout in every file that
-includes the header.
+`velc`'s `dzu` needed the opposite treatment. It was declared `dzu(2,maxk)` in
+`ocean.cmn`, so it was one array for the whole process, but it is per-column
+scratch: `velc` was its only reader and writer anywhere in the tree and
+`initialise_goldstein.F` only zeroed it. It is now the local `dzu_col`, and the
+COMMON member is gone from the header and from `initialise_goldstein.F` as well.
+Removing it changes the block's layout in every file that includes the header,
+which is safe because `/ocn_vars/` is declared in exactly one place and no
+routine writes the block as a unit;
+`notes/audits/cgenie-unreachable-code-dispositions.md` section 2 carries the
+check and the acceptance, which both regression cases pass bit-for-bit at one
+thread and at sixteen.
 
 ## 4c. What the acceptance test actually ran
 

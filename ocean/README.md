@@ -48,6 +48,17 @@ recorded in `notes/audits/cgenie-parallelism-and-coupling-support.md`; it is
 reopened only for an accepted support above 144 x 144 or a fresh profile above
 that threshold.
 
+`vendor/cgenie` carries a second, unreachable surflux family that is kept
+deliberately: `surf_ocn_sic.F`, `outm_surf_ocn_sic.f`, `gold_ocnsic_avg.F` and
+`surf_ocn_sic_wrapper` compile into every executable and no line of `genie.F`
+calls any of them. They are the coupling to an atmosphere this subtree no longer
+contains, they compute surface fluxes from state on the ocean grid rather than
+taking them, and they are NOT the driven path. That path is `flag_fluxatmos`,
+which calls `surflux_goldstein_seaice` and refuses in `initialise_genie.F` while
+the supply half is missing. `notes/audits/cgenie-unreachable-code-dispositions.md`
+is the verdict, the evidence, and the rule that decides whether unreachable code
+in this maintained fork is deleted or kept.
+
 `exoplasim/scripts/verify_ocean_flux_channel.py` remains the independent OCN-2
 instrument for surface code 903. Its published invocation for the pipeline row
 uses `check ... --output exoplasim/analysis/ocean_flux_channel_report.json`.
