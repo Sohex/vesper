@@ -77,6 +77,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import struct
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -93,6 +94,124 @@ from orbit import model_year_days  # lib/orbit.py, the year length  # noqa: E402
 
 import run_lpj_guess  # noqa: E402
 import wetland_gate  # noqa: E402
+
+
+# The VESPDRV8 driver layout, as `build_lpj_driver.py` writes it and
+# `vendor/lpj-guess/modules/vesperinput.cpp` reads it. Restated here for one
+# purpose only -- taking a subset of the cells out of a driver file -- and the
+# two consumers of the layout are checked against each other by
+# `slice_driver`, which refuses a file whose length the layout does not
+# explain.
+DRIVER_MAGIC = b"VESPDRV8"
+DRIVER_HEADER = "<6i2d"          # cells, intervals, year length, years, subdaily, pad, CO2, Ndep
+DRIVER_PROVENANCE_BYTES = 64
+DRIVER_INTERVAL_BYTES = 4 * 8    # start, end, duration, and the fourth double
+
+
+def slice_driver(driver: Path, wanted: list[tuple[float, float]],
+                 out: Path) -> list[tuple[float, float]]:
+    """Write a driver file holding only the named cells, and say which it took.
+
+    WHY A SUBSET IS A LEGITIMATE BED HERE, and it is worth stating because a
+    subset of a coupled model would not be. LPJ-GUESS simulates each gridcell
+    independently: no cell reads another cell's state, and this project's
+    stochastic streams are keyed by COORDINATE rather than by traversal order
+    or rank (`derive_stochastic_seed`, DEMO-5). So a cell in a two-cell driver
+    integrates the same trajectory it integrates in a sixteen-hundred-cell one,
+    and a restart defect that reaches that cell reaches it either way.
+
+    WHAT IT BUYS. The whole grid at the spin-up floor this fixture needs costs
+    about thirteen minutes per arm on the shared host; four cells cost seconds.
+    That is the difference between a measurement taken once and a member-by-
+    member search, which is what naming lost state actually takes.
+
+    WHAT IT COSTS, and why the verdict is written elsewhere. A subset is a
+    weaker statement than the grid: a defect confined to cells it does not hold
+    is invisible to it. `main` therefore writes a subsetted run's report to a
+    different path, and the production gate in `run_lpj_guess.py` keeps reading
+    only the whole-grid one.
+    """
+    raw = driver.read_bytes()
+    if raw[:8] != DRIVER_MAGIC:
+        raise SystemExit(
+            f"{rel(driver)} does not carry the {DRIVER_MAGIC.decode()} magic, "
+            "so this is not a driver file this fixture can subset.")
+    head = struct.calcsize(DRIVER_HEADER)
+    (ncells, nintervals, year_length, nyears, subdaily,
+     _pad, co2, ndep) = struct.unpack(DRIVER_HEADER, raw[8:8 + head])
+    offset = 8 + head + DRIVER_PROVENANCE_BYTES
+    provenance = raw[8 + head:offset]
+    offset += nyears * nintervals * DRIVER_INTERVAL_BYTES
+    span = nintervals * nyears
+    body = len(raw) - offset
+    if ncells < 1 or body % ncells:
+        raise SystemExit(
+            f"{rel(driver)} has {body} bytes of cell records for {ncells} "
+            "cells, which is not a whole number of records. The layout this "
+            "script restates does not describe this file; re-read "
+            "build_lpj_driver.py.")
+    cell_bytes = body // ncells
+    # lon, lat, soilcode+pad, four retention numbers, one usable share per soil
+    # layer, then the four forcing arrays.
+    layers = (cell_bytes - 2 * 8 - 2 * 4 - 4 * 8 - 4 * span * 8) // 8
+    if layers < 1:
+        raise SystemExit(
+            f"{rel(driver)} has {cell_bytes}-byte cell records, too short for "
+            f"{span} forcing samples. The layout does not describe this file.")
+
+    coords = []
+    for index in range(ncells):
+        at = offset + index * cell_bytes
+        lon, lat = struct.unpack("<dd", raw[at:at + 16])
+        coords.append((lon, lat))
+
+    chosen: list[int] = []
+    taken: list[tuple[float, float]] = []
+    for lon, lat in wanted:
+        best = min(range(ncells),
+                   key=lambda i: (coords[i][0] - lon) ** 2 + (coords[i][1] - lat) ** 2)
+        if (abs(coords[best][0] - lon) > 0.5 or abs(coords[best][1] - lat) > 0.5):
+            raise SystemExit(
+                f"no cell in {rel(driver)} is within half a degree of "
+                f"{lon},{lat}; the nearest is {coords[best][0]},{coords[best][1]}")
+        if best in chosen:
+            raise SystemExit(
+                f"{lon},{lat} names the same cell as one already asked for, "
+                f"{coords[best][0]},{coords[best][1]}")
+        chosen.append(best)
+        taken.append(coords[best])
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("wb") as handle:
+        handle.write(DRIVER_MAGIC)
+        handle.write(struct.pack(DRIVER_HEADER, len(chosen), nintervals,
+                                 year_length, nyears, subdaily, 0, co2, ndep))
+        handle.write(provenance)
+        handle.write(raw[8 + head + DRIVER_PROVENANCE_BYTES:offset])
+        for index in chosen:
+            at = offset + index * cell_bytes
+            handle.write(raw[at:at + cell_bytes])
+    return taken
+
+
+def parse_cells(text: str) -> list[tuple[float, float]]:
+    """`lon,lat` pairs separated by semicolons, as the output tables print them."""
+    cells = []
+    for piece in text.split(";"):
+        piece = piece.strip()
+        if not piece:
+            continue
+        parts = piece.split(",")
+        if len(parts) != 2:
+            raise SystemExit(
+                f"--cells takes lon,lat pairs separated by ';', not {piece!r}")
+        try:
+            cells.append((float(parts[0]), float(parts[1])))
+        except ValueError:
+            raise SystemExit(f"--cells: {piece!r} is not a lon,lat pair")
+    if not cells:
+        raise SystemExit("--cells was given no cells")
+    return cells
 
 
 def rel(path: Path) -> Path:
@@ -475,6 +594,16 @@ def main() -> None:
                              "the CENTURY accelerator window empty, so this "
                              "fixture does not exercise the accelerator's own "
                              "restart state.")
+    parser.add_argument("--cells", type=str, default=None,
+                        help="run only these cells, as lon,lat pairs separated "
+                             "by ';' -- the coordinates the output tables "
+                             "print. The driver is sliced into the bed and both "
+                             "arms read the slice. Cells are independent in "
+                             "LPJ-GUESS and this project's stochastic streams "
+                             "are keyed by coordinate, so a cell integrates the "
+                             "same trajectory either way; what a subset loses is "
+                             "reach, so its verdict is written to a separate "
+                             "report and does not gate a continuation.")
     parser.add_argument("--ranks", type=int, default=4)
     parser.add_argument("--npatch", type=int, default=5)
     parser.add_argument("--bed", type=Path, default=None,
@@ -567,6 +696,7 @@ def main() -> None:
         tuple(declaration["acceptance"]["retained_outputs"]) if active else ())
 
     bed_root = args.bed or (RUNS / "restart_continuity")
+    bed_root.mkdir(parents=True, exist_ok=True)
     whole, resumed = bed_root / "whole", bed_root / "resumed"
     state_dir = bed_root / "state"
     whole_state = bed_root / "state_whole"
@@ -574,6 +704,19 @@ def main() -> None:
         if path.exists():
             raise SystemExit(f"{path} exists; remove it before re-running")
     state_dir.mkdir(parents=True, exist_ok=True)
+
+    cells = parse_cells(args.cells) if args.cells else None
+    if cells is not None:
+        if args.ranks > len(cells):
+            raise SystemExit(
+                f"--ranks {args.ranks} against {len(cells)} cells: a rank with "
+                "no cells writes no output and the merge would be short. Ask "
+                f"for at most {len(cells)} ranks.")
+        sliced = bed_root / "driver_subset.bin"
+        taken = slice_driver(Path(args.driver), cells, sliced)
+        print(f"driver sliced to {len(taken)} cells: "
+              + "; ".join(f"{lon},{lat}" for lon, lat in taken))
+        args.driver = sliced
 
     def paths_for(bed: Path) -> dict:
         return {"driver": Path(args.driver).resolve(),
@@ -683,10 +826,17 @@ def main() -> None:
         # that ran it; `run_lpj_guess.py` refuses --continue-from unless a
         # verdict here says `continuous` for the binary it is about to run.
         "binary_sha256": run_lpj_guess.sha256(GUESS_BINARY),
+        # WHICH CELLS THIS VERDICT IS ABOUT. Null is the whole driver, which is
+        # the only thing the production gate accepts; a list is a subset bed
+        # built to localise a defect and its report is written elsewhere, so a
+        # cheap pass over four cells can never be read as a pass over the grid.
+        "cells": ([[lon, lat] for lon, lat in taken]
+                  if cells is not None else None),
         "continuous": not failures,
         "failures": failures,
     }
-    out = GENERATED / "lpj_restart_continuity.json"
+    out = (GENERATED / ("lpj_restart_continuity_subset.json" if cells is not None
+                        else "lpj_restart_continuity.json"))
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2) + "\n")
 
