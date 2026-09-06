@@ -62,6 +62,7 @@ import yaml
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
 import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from paths import best_available_climatology, rel, require_configured_grid  # noqa: E402
+from gridding import gaussian_area_weights  # noqa: E402
 from provenance import input_stamp
 from sra import write_sra
 
@@ -222,8 +223,8 @@ def main() -> None:
         lsm = np.asarray(ds["lsm"][0], dtype=float) > 0.5
         ts_mean = float(np.average(
             climatology.annual_mean_of(ds, "ts"),
-            weights=np.broadcast_to(np.cos(np.deg2rad(lat))[:, None],
-                                    (len(lat), len(lon)))))
+            weights=gaussian_area_weights(lat, len(lon),
+                                          what=str(args.climatology))))
     # The same guard the resolver applies, called explicitly because
     # `--climatology` can hand this an arbitrary file that never went through
     # the resolver. One expression, in lib/paths.py.
@@ -281,7 +282,7 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     write_sra(output, DUST_CODE, tau1)
 
-    weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, nlon))
+    weights = gaussian_area_weights(lat, nlon, what=str(args.climatology))
     land_mean = float(np.average(tau1[lsm], weights=weights[lsm]))
     global_mean = float(np.average(tau1, weights=weights))
 

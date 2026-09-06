@@ -68,6 +68,7 @@ from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: E402
 import climatology  # noqa: E402  from lib/, via _paths
 from build_dust import advect_to_steady_state, flag_anomalous_bins, settling_velocity
 from build_dust import steering_wind, weibull_shape_from_samples
+from gridding import gaussian_area_weights
 from paths import best_available_climatology, rel, snapshot_beside
 
 sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
@@ -227,10 +228,19 @@ def main() -> None:
     weights = weights / weights.sum()
 
     ocean = lsm < 0.5
-    coslat = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, lon.size))
+    # THE AREA WEIGHT and THE SOLVER'S METRIC are two different quantities and
+    # this is the one place they part. `area` is each cell's share of the
+    # sphere, the Gauss-Legendre partition the model's own budget is taken over,
+    # and every mean and every emission total below is weighted by it.
+    # `coslat_solver` is the cosine `advect_to_steady_state` divides its
+    # east-west width by, floored near the poles so the explicit step survives
+    # the converging longitude grid; the mass balance is checked against that
+    # because it is the metric the solver actually conserved over.
+    area = gaussian_area_weights(lat, lon.size, what=str(clim_path))
     coslat_solver = np.maximum(
-        coslat, cfg["transport"].get("polar_coslat_floor", 1e-3))
-    area_w = coslat * ocean
+        np.cos(np.deg2rad(lat))[:, None] * np.ones((1, lon.size)),
+        cfg["transport"].get("polar_coslat_floor", 1e-3))
+    area_w = area * ocean
 
     spd_a = annual_mean(spd, weights)
     ta_a = annual_mean(ta, weights)
@@ -316,7 +326,8 @@ def main() -> None:
                              / scav["reference_precipitation_mm_per_hour"]
                              ) ** scav["scavenging_b"]
 
-        planet_area = 4.0 * np.pi * (1.2 * 6.371e6) ** 2
+        planet_area = 4.0 * np.pi * (
+            float(config["planet"]["radius_earth"]) * 6.371e6) ** 2
         b1 = optics_payload["stellar_flux_fraction_band1"]
         # Optical properties for the forcing, taken at the ocean-mean humidity and
         # weighted across bins by their optical depth rather than their mass, which
@@ -392,7 +403,7 @@ def main() -> None:
                 report.append({
                     "bin_dry_um": [lo, hi],
                     "emission_tg_per_earth_year": round(float(
-                        (per_bin_emission[i] * coslat).sum() / coslat.sum()
+                        (per_bin_emission[i] * area).sum() / area.sum()
                         * planet_area * EARTH_YEAR_S / 1e9), 1),
                     "burden_mg_m2_ocean_mean": round(float(
                         (m * area_w).sum() / area_w.sum() * 1e6), 4),
@@ -461,15 +472,15 @@ def main() -> None:
             forcing = f1 + f2
             variants[label] = {
                 "toa_shortwave_forcing_w_m2_global": round(
-                    wmean(forcing, coslat), 4),
+                    wmean(forcing, area), 4),
                 "toa_shortwave_forcing_w_m2_ocean": round(
                     wmean(forcing, area_w), 4),
                 "emission_tg_per_earth_year": round(float(
-                    (per_bin_v.sum(axis=0) * coslat).sum() / coslat.sum()
+                    (per_bin_v.sum(axis=0) * area).sum() / area.sum()
                     * planet_area * EARTH_YEAR_S / 1e9), 1),
                 "burden_mg_m2_ocean_mean": round(wmean(burden_v, area_w) * 1e6, 4),
-                "burden_mg_m2_global_mean": round(wmean(burden_v, coslat) * 1e6, 4),
-                "optical_depth_global_mean": round(wmean(aod_v, coslat), 5),
+                "burden_mg_m2_global_mean": round(wmean(burden_v, area) * 1e6, 4),
+                "optical_depth_global_mean": round(wmean(aod_v, area), 5),
                 "optical_depth_ocean_mean": round(wmean(aod_v, area_w), 5),
                 "optical_depth_band1_ocean_mean": round(wmean(aod1_v, area_w), 5),
                 "optical_depth_band2_ocean_mean": round(wmean(aod2_v, area_w), 5),
@@ -643,7 +654,7 @@ def main() -> None:
     # small because a 30 um drop does not reach the coast.
     dry_all, wet_all = deposition["all_modes"]
     dry_ns, wet_ns = deposition["no_spume"]
-    land_w = coslat * (~ocean)
+    land_w = area * (~ocean)
     comp = cfg["composition"]
     dep = write_deposition(
         args.output_deposition_nc, args.output_deposition,

@@ -76,6 +76,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
 from sra import write_sra  # noqa: E402
 
 import build_dust as bd  # noqa: E402
+from gridding import gaussian_area_weights  # noqa: E402
 
 # The codes the patch registers in `surface_ini`. 1801-1803 were reserved for
 # this by the prescribed-dust patch, which took 1811 and left them alone.
@@ -478,7 +479,7 @@ def main() -> None:
         write_sra(path, code, field)
         outputs[code] = path
 
-    weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, nlon))
+    weights = gaussian_area_weights(lat, nlon, what="the dust source grid")
     provenance = {
         "note": "DUST-3 in-model dust emission. Surface codes 1801 dsrcw, 1802 "
                 "ddrage and 1803 dwpr, plus the aero_nl group they need. "

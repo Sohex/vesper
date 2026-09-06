@@ -48,6 +48,7 @@ from write_door import refuse_a_write_through_a_symlink
 from segments import low_io_orbits, non_production_orbits
 
 import climatology
+from gridding import gaussian_area_weights
 
 
 COORDINATES = {"time", "lat", "lon", "lev", "levp", "fourier", "modes"}
@@ -237,8 +238,7 @@ def climate_series(paths: list[Path], years: list[int], orbit_seconds: float) ->
             lat = np.asarray(data["lat"][:], dtype=float)
             nlon = len(data["lon"][:])
             land = np.asarray(data["lsm"][0], dtype=float) > 0.5
-            weight = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, nlon))
-            weight = weight / weight.sum()
+            weight = gaussian_area_weights(lat, nlon, what=str(path))
             land_weight_total = float(weight[land].sum())
 
             def per_bin(name: str, mask=None) -> list[float]:

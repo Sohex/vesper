@@ -66,7 +66,7 @@ from paths import rel  # noqa: E402
 
 import builds
 import orbit
-from gridding import land_fraction_of_class
+from gridding import gaussian_area_weights, land_fraction_of_class
 from orogen import Export
 from rootable import read_rootable
 
@@ -292,8 +292,8 @@ def integrate_onto_days(values: np.ndarray, spans: np.ndarray,
 
 
 def area_weights(lat: np.ndarray, nlon: int) -> np.ndarray:
-    w = np.cos(np.deg2rad(lat))
-    return (w / w.sum())[:, None] * np.ones((1, nlon)) / nlon
+    """Each cell's share of the sphere, summing to one. `lib/gridding.py` owns it."""
+    return gaussian_area_weights(lat, nlon, what="the driver's grid")
 
 
 def soil_codes(config: dict, land: np.ndarray) -> tuple[np.ndarray, dict]:

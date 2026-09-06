@@ -111,6 +111,7 @@ import carve_verdict as cv
 from _paths import CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from builds import component_data
+from gridding import gaussian_area_weights
 from orbit import orbital_year_days
 from paths import climatology_path, rel, require_configured_grid
 from provenance import staged_surface_field
@@ -1966,7 +1967,8 @@ def main() -> None:
     with Dataset(args.climatology) as ds:
         _ts = climatology.annual_mean_of(ds, "ts")
         _lat = np.asarray(ds["lat"][:])
-        _w = np.cos(np.deg2rad(_lat))[:, None] * np.ones_like(_ts)
+        _w = gaussian_area_weights(_lat, _ts.shape[1],
+                                   what=str(args.climatology))
         mean_ts = float((_w * _ts).sum() / _w.sum())
     runoff_source = ("precipitation minus evaporation over the catchment"
                      if args.runoff_source == "p_minus_e"

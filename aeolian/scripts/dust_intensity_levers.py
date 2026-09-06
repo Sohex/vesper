@@ -71,7 +71,7 @@ from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
 import climatology                                           # noqa: E402  from lib/, via _paths
 import build_dust as bd                                      # noqa: E402
 from builds import component_data, grid_export, mesh_export, soilmap
-from gridding import region_cells
+from gridding import gaussian_area_weights, region_cells
 from orogen import LAND, Export
 from paths import rel
 
@@ -205,8 +205,8 @@ class Emitter:
         cfg["subgrid_wind"]["weibull_shape"] = float(
             report["subgrid_wind"]["weibull_shape_used"])
         self.report = report
-        self.weight = (np.cos(np.deg2rad(self.lat))[:, None]
-                       * np.ones((1, self.nlon)))
+        self.weight = gaussian_area_weights(self.lat, self.nlon,
+                                            what="the lever grid")
 
         lakes = component_data("hydrography", config, strict=True) / "surface_water.nc"
         (self.erodible, self.land_fraction, self.per_class, self.detail,
@@ -341,7 +341,7 @@ def pattern_vs_intensity() -> dict:
                     for e in ("low", "central", "high")}
         aod = {e: np.asarray(ds[f"aod_{e}"][:])
                for e in ("low", "central", "high")}
-    w = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, nlon))
+    w = gaussian_area_weights(lat, nlon, what=str(BASELINE_NC))
     total = {e: float((v * w).sum()) for e, v in emission.items()}
     out = {"emission_bracket_factor": total["low"] / total["high"],
            "pairs": {}}

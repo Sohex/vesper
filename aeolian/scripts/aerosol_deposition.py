@@ -60,6 +60,9 @@ from pathlib import Path
 import numpy as np
 from netCDF4 import Dataset
 
+from _paths import PROJECT_ROOT  # noqa: F401  -- puts lib/ on sys.path
+from gridding import gaussian_grid, gaussian_latitudes  # noqa: E402
+
 EARTH_YEAR_S = 365.25 * 86400.0
 
 
@@ -337,11 +340,15 @@ def _self_test() -> bool:
     # integral on any field correlated with cell area, so the check is run
     # with both operators on a deliberately correlated field: the weighted one
     # must conserve and the unweighted one must be caught not conserving.
+    # A REAL PARTITION OF THE SPHERE, from `lib/gridding.py`, so that the
+    # closure this checks is the one a caller gets. A cosine of the row centres
+    # is not one and this check would pass on it, which is exactly why the
+    # fixture uses the weight the callers now pass.
     nlat, nlon = 8, 16
-    lat_t = np.linspace(-75.0, 75.0, nlat)
-    area = np.cos(np.deg2rad(lat_t))[:, None] * np.ones((1, nlon))
+    lat_t = gaussian_latitudes(nlat)
+    area = gaussian_grid(nlat, nlon).cell_area_fraction()
     # Squared, not linear: a linear gradient's covariance with a symmetric
-    # cos(lat) area cancels BETWEEN blocks and the broken operator hides.
+    # area cancels BETWEEN blocks and the broken operator hides.
     grad = ((1.0 + np.arange(nlat, dtype=float)) ** 2)[:, None] \
         * np.ones((1, nlon))
     dry = np.stack([1.0e-12 * grad, 0.5e-12 * grad, 0.25e-12 * grad])

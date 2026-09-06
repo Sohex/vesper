@@ -67,7 +67,7 @@ from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data, mesh_export
 from climatology import annual_mean as weighted_annual_mean, bin_weights
 from gridding import (coupling_cells, coupling_ocean_fraction, coupling_path,
-                      require_index_alignment)
+                      gaussian_area_weights, require_index_alignment)
 from orbit import orbital_year_days
 from orogen import Export
 from paths import (climatology_path, rel, require_clean_io,
@@ -543,7 +543,8 @@ def seasonal_rectification(climatology, year_s: float) -> dict:
     # a single `year_s / nbin` mis-times the dry-bin deficit below.
     dt = year_s * bin_weights(centres)
     land = lsm > 0.5
-    w = np.where(land, np.cos(np.deg2rad(lat))[:, None] * np.ones_like(lsm), 0.0)
+    w = np.where(land, gaussian_area_weights(lat, lsm.shape[1],
+                                             what=str(climatology)), 0.0)
 
     def land_mean(field):
         return float((field * w).sum() / w.sum()) * 1000.0     # mm

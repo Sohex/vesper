@@ -84,7 +84,8 @@ sys.path.insert(0, str(ROOT / "lib"))
 
 from builds import grid_export, mesh_export  # noqa: E402
 from climatology import annual_mean  # noqa: E402
-from gridding import cell_fraction, cell_mean, region_cells  # noqa: E402
+from gridding import (cell_fraction, cell_mean,  # noqa: E402
+                      gaussian_area_weights, region_cells)
 from orogen import Export, LAND  # noqa: E402
 from paths import best_available_climatology, rel  # noqa: E402
 
@@ -280,7 +281,8 @@ def main() -> None:
     # Both masks are the model's: the climatology's lsm is what the run
     # integrated, and the export's land is what the emissivity is defined on.
     land = land_cells & (lsm > 0.5)
-    weight = np.cos(np.deg2rad(lat))[:, None] * np.ones_like(rls) * land
+    cell_weight = gaussian_area_weights(lat, nlon, what=str(args.climatology))
+    weight = cell_weight * land
 
     def wmean(x):
         return float((x * weight).sum() / weight.sum())
@@ -304,7 +306,7 @@ def main() -> None:
     verdict["field_is_worth_carrying"] = all(verdict.values())
 
     endo_heavy = land & (endo >= 0.5)
-    w_endo = np.cos(np.deg2rad(lat))[:, None] * np.ones_like(rls) * endo_heavy
+    w_endo = cell_weight * endo_heavy
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),

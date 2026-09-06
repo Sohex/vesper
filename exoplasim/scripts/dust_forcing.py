@@ -76,6 +76,7 @@ from sra import read_sra  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "lib") not in sys.path:
     sys.path.insert(0, str(ROOT / "lib"))
+from gridding import gaussian_area_weights, gaussian_row_weights  # noqa: E402
 from lapse import environmental_lapse_k_per_km  # noqa: E402
 import climatology  # noqa: E402  from lib/, via _paths
 from paths import climatology_path, rel  # noqa: E402
@@ -350,11 +351,11 @@ def main() -> None:
     # the PHYS-12 pass. Planck emission goes as T^4, so drift here reaches the
     # longwave term directly.
     from netCDF4 import Dataset as _Dataset
-    from numpy.polynomial.legendre import leggauss as _leggauss
     with _Dataset(climatology_path()) as _ds:
         _ts = climatology.annual_mean_of(_ds, "ts")
-        _gw = _leggauss(_ts.shape[0])[1][::-1]
-        t_surface = float((_ts * _gw[:, None]).sum() / (_gw.sum() * _ts.shape[1]))
+        _w = gaussian_area_weights(np.asarray(_ds["lat"][:], dtype=float),
+                                   _ts.shape[1], what=str(climatology_path()))
+        t_surface = float((_ts * _w).sum())
     scale_h_m = float(dust_cfg["transport"]["dust_scale_height_m"])
     lapse_k_per_km = environmental_lapse_k_per_km(config)
     print(f"lapse rate {lapse_k_per_km:.2f} K/km, measured (lib/lapse.py, annual)")
@@ -507,7 +508,8 @@ def main() -> None:
         from netCDF4 import Dataset as _DS
         with _DS(args.dust_field) as _ds:
             _lat = np.asarray(_ds["lat"][:], dtype=float)
-        wt = np.cos(np.deg2rad(_lat))[:, None] * np.ones((1, drss.shape[1]))
+        wt = gaussian_area_weights(_lat, drss.shape[1],
+                                   what=str(args.dust_field))
         surface_field = {
             "output": rel(args.output_nc),
             "size_distribution": end_name,

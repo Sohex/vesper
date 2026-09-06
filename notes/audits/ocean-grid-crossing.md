@@ -183,6 +183,68 @@ thermostat products, in their absolute per-cell numbers and in their polar rows.
 This document's own section 3 measurements are measurements OF the superseded
 field and stay true of what is on disk.
 
+## 3d. The fourth weight: `cos(lat)` on a Gaussian row
+
+The three area quantities above are the ones an export SHIPS. A fourth was in
+the tree and shipped by nothing: twenty-eight sites took a global, land or ocean
+mean over a climatology with `np.cos(np.deg2rad(lat))` as the weight. It is the
+metric factor of a band that is equally spaced in latitude, and a Gaussian row
+is not one, so it is not a partition of the sphere in the same way the
+nearest-row construction of section 3 is not the model's own.
+
+Against the quadrature weights, normalised to the same total, measured
+2026-09-05 from `lib/gridding.py`:
+
+| rung | polar row | second row | interior median |
+| --- | --- | --- | --- |
+| T21 | +1.7669 per cent | +0.3507 per cent | 0.0299 per cent |
+| T42 | +1.7960 per cent | +0.3795 per cent | 0.0097 per cent |
+| T85 | +1.8050 per cent | +0.3883 per cent | 0.0030 per cent |
+| T170 | +1.8076 per cent | +0.3910 per cent | 0.0009 per cent |
+
+**The polar row converges to about 1.81 per cent and not to zero.** The interior
+converges normally, which is the half a reader expects and the half that does
+not matter: the shape of this error is a fixed excess on the two rows that hold
+the least area.
+
+So the dilution argument of 3b applies again and with a smaller numerator.
+Measured 2026-09-05 on `exoplasim/analysis/climatology/baseline_regular_climatology.nc`,
+which is T21 and therefore the worst rung the tree holds, cosine weights against
+the quadrature:
+
+| quantity | cosine | quadrature | move |
+| --- | --- | --- | --- |
+| land fraction of the sphere | 0.42779628 | 0.42769157 | -0.0245 per cent |
+| global mean surface temperature | 281.14828 K | 281.15922 K | +0.0109 K |
+| land mean surface temperature | 277.69055 K | 277.70905 K | +0.0185 K |
+| global mean top-of-atmosphere shortwave | 220.67062 W/m2 | 220.69521 W/m2 | +0.0246 W/m2 |
+| land mean precipitation | -- | -- | +0.0409 per cent |
+| global mean sea ice fraction | 0.06936170 | 0.06933166 | -0.0433 per cent |
+
+Nothing in that table reaches the scatter of the statistic it belongs to. The
+two places where a threshold could have moved were checked rather than assumed:
+the shortwave water path this tree reproduces against the declared
+`CORRK_PATH_CM` goes from 2.1278 cm to 2.1283 cm, a move of 0.023 per cent
+against a gate set at 5 per cent; and the emissivity contrast's area-weighted
+standard deviation, 0.592 W/m2 against a criterion of 1.4, cannot be carried
+across it by a weight that moves means in their fifth significant figure.
+
+**So this changed no verdict and no decision, and it is still wrong.** The
+repair is in `lib/gridding.py`, which now owns the weight in the three shapes
+its callers need -- per row, per cell, and per point of a product keyed by the
+latitude it carries -- each of which CHECKS the axis it was handed, so a grid
+that is uniform in latitude is refused rather than weighted as if it were
+Gaussian. What the sweep leaves alone is the cosine used as a METRIC term: the
+east-west cell width `advect_to_steady_state` divides by, the projections' unit
+vectors, `maps/build_basemap.py`'s polar-convergence blur, and
+`analysis/snow_albedo_zenith.py`'s uniform latitude sample, where a fixed-width
+band's area really is proportional to the cosine of its centre.
+
+Two hardcoded planet radii came out with it: `build_sea_salt.py` and
+`build_volcanic_sulfate.py` both formed the sphere's area as
+`4 pi (1.2 * 6371 km)^2` rather than reading `config/planet.yaml`. They agree
+with the configured radius today, which is what made them invisible.
+
 # 4. The coastline is the part construction does not settle
 
 The ocean's wet mask comes from the Orogen mesh through OCN-11 and the

@@ -48,7 +48,7 @@ import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 import builds
 from paths import rel  # noqa: E402
 import orbit
-from gridding import land_fraction_of_class
+from gridding import gaussian_area_weights, land_fraction_of_class
 from orogen import Export, LAND
 from rootable import read_rootable
 from lpj_output import reduce_table, require_lpj_acceptance
@@ -1145,7 +1145,7 @@ def main() -> None:
                 f"{andisol['andic_p_fixation'][j, i]:.4f} "
                 f"{exchange['cec_cmol_kg'][j, i]:.3f}\n")
 
-    weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))
+    weights = gaussian_area_weights(lat, len(lon), what=str(climatology))
     lw = weights[land]
 
     def mean(field: np.ndarray) -> float:

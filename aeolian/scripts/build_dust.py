@@ -87,7 +87,8 @@ from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
 
 import climatology  # noqa: E402  from lib/, via _paths
 from builds import component_data, grid_export, mesh_export, resolution_of, soilmap
-from gridding import (gaussian_grid, land_fraction_of_class,
+from gridding import (gaussian_area_weights, gaussian_grid,
+                      gaussian_row_weights, land_fraction_of_class,
                       region_cells, require_gaussian_rows)
 from lapse import sigma_levels
 from orogen import LAND, Export
@@ -202,7 +203,8 @@ def mosaic_scalar_z0(z0_plane: np.ndarray, erodible: np.ndarray,
     world-h24h, and the in-model arm emitted up to four times the offline one
     for no reason but that.
     """
-    weight = erodible * np.cos(np.deg2rad(lat))[:, None]
+    weight = erodible * gaussian_row_weights(
+        np.asarray(lat, dtype=float), what="the mosaic's grid")[:, None]
     denom = float(weight.sum())
     if denom <= 0.0:
         raise ValueError("no erodible area: there is no mosaic to average")
@@ -402,14 +404,16 @@ def emission_over_weibull(u_star_mean: np.ndarray, u_star_t: np.ndarray,
 
 
 def area_mean(field, lat) -> float:
-    """The cos(latitude)-weighted mean of a (..., lat, lon) field.
+    """The area-weighted mean of a (..., lat, lon) field.
 
     A plain mean over a Gaussian grid counts a polar row and an equatorial row
     alike. Every global mean in this component is area-weighted; this is the
-    one spelling of it for fields that arrive with a leading time axis.
+    one spelling of it for fields that arrive with a leading time axis, and the
+    weight is the quadrature `lib/gridding.py` owns rather than a cosine.
     """
     field = np.asarray(field, dtype=float)
-    w = np.cos(np.deg2rad(np.asarray(lat, dtype=float)))[:, None]
+    w = gaussian_row_weights(np.asarray(lat, dtype=float),
+                             what="the field's grid")[:, None]
     w = np.broadcast_to(w, field.shape)
     return float((field * w).sum() / w.sum())
 
@@ -934,7 +938,7 @@ def main() -> None:
     # roughnesses within the same arm, which is the whole point of world-c8m.
     ends = [("low", z0_cell[0]), ("central", z0_cell[1]), ("high", z0_cell[2])]
 
-    w = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, nlon))
+    w = gaussian_area_weights(lat, nlon, what="the dust grid")
     is_land = land_fraction > 0.5
 
     def gmean(field, mask=None):

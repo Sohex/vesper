@@ -870,7 +870,8 @@ def main():
     with Dataset(_CLIM_FILE) as ds:
         land_mask = cv.annual_mean(ds, "lsm") > 0.5
         model_evap = -cv.annual_mean(ds, "evap")
-    area_weight_all = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, runoff.shape[1]))
+    area_weight_all = gridding.gaussian_area_weights(lat, runoff.shape[1],
+                                                     what=str(_CLIM_FILE))
     area_weight_sea = area_weight_all * ~land_mask
     cell_weight = area_weight_all * land_mask
     report = {
