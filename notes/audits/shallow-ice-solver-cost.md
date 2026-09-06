@@ -181,7 +181,10 @@ Route B is not cheaper at all, let alone by three times, and the two things a
 port is supposed to buy -- a working solver and someone else's maintenance -- are
 both absent: there is no callable solver, and no licence under which to maintain
 one. Route C remains what section 45c-d found, a downgrade on the free boundary,
-and it is the only one of the three with a licence and a real solver behind it.
+and of the two PORT routes it is the only one with a licence and a callable
+solver behind it. Route A needs neither, being this project's own code on this
+project's own mesh, which is the half of the row's rule the measurement above
+turns from an assumption into a fact.
 
 **What Route A would actually cost to build.** The prototype is 400 lines
 including its own test harness, and it reuses `hydrography/scripts/groundwater.py`'s
