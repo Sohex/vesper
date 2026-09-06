@@ -12,6 +12,7 @@ python hydrography/scripts/carve_overshoot.py --self-test  # the overshoot compa
 python hydrography/scripts/surface_water.py       # ~3 s, needs a climatology
 python hydrography/scripts/groundwater.py         # the discretisation checks
 python hydrography/scripts/groundwater.py --uniqueness-test   # the identity, and the controls it rejects
+python hydrography/scripts/groundwater.py --factorisation-test  # that a block solved alone is the same arithmetic
 python hydrography/scripts/groundwater.py --instrument        # what the operator's error is an error IN
 python hydrography/scripts/build_groundwater.py   # the water table, needs a climatology
 python hydrography/scripts/land_water_ledger.py   # the store and flux ownership contract
@@ -415,6 +416,21 @@ without it:
 carries over from Earth unchanged; hydraulic conductivity is `k rho g / mu` and
 is this world's. The config tabulates permeability and never conductivity, and
 the solver takes gravity from `config/planet.yaml`.
+
+**The free set is solved BLOCK BY BLOCK, and it is not one problem.** GW-17's
+river and lake cells are a fixed head, so they are a boundary rather than an
+unknown and a face touching one carries no off-diagonal: the channel network
+cuts the free set into one block per interfluve plus one per island, and the
+blocks exchange water only through the rivers between them. A direct
+factorisation's work and fill are superlinear in the unknowns, so `K` blocks of
+`n/K` cells cost `n^1.5 / sqrt(K)` and the peak is one block rather than the
+whole. It is exact rather than an approximation to the coupled solve -- there
+are no entries between blocks, so there is no fill between them and the
+elimination inside a block is the sequence it would have been inside the whole
+matrix. `groundwater.py --factorisation-test` asserts that bitwise on
+interleaved blocks under a scrambled labelling, with `SymmetricMode` as the
+control it must reject. `groundwater_report.json` records the block count, the
+largest block, and how many block factorisations were reused.
 
 ## What this field may be used for, and what it may not
 
