@@ -6,9 +6,10 @@ four quantities the vegetation model's mineral-aware arm asks that soil for.
 
 `biosphere/config/mineral_reactivity.yaml` declares two arms for soil organic
 matter protection and phosphorus sorption in the simulated soil. The texture
-only arm is what runs. The mineral-aware arm refuses, because four proxies it
-needs all carry the `undeclared` sentinel and the contract records that nothing
-in this pipeline produces them. This is the pedology-side verdict on each:
+only arm is what runs. The mineral-aware arm refuses, because two of the four
+proxies it needs still carry the `undeclared` sentinel and the contract records
+that nothing in this pipeline produces them. This is the pedology-side verdict
+on each:
 whether this component can derive it from the World Orogen export and the
 ExoPlaSim climatology it already reads, and if not, what would settle it.
 
