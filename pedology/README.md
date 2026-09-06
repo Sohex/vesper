@@ -13,8 +13,9 @@ survives, and the biosphere sets the organic fraction. That last one is why this
 is a loop and not a stage.
 
 ```bash
-python pedology/scripts/build_soil.py                          # iteration 0
-python pedology/scripts/build_soil.py --soil-carbon <cpool.out> --iteration 1
+python pedology/scripts/build_soil.py --state baseline --iteration 0
+python pedology/scripts/build_soil.py --state baseline --iteration 1 --soil-carbon <cpool.out>
+python pedology/scripts/build_soil.py --state baseline --iteration 0 --grid source/<build>/exoplasim-<rung>
 python pedology/scripts/weathering_fluxes.py                   # CO2 and silica
 python pedology/scripts/brine_paths.py                         # the chemical divide
 python pedology/scripts/build_surface_classes.py               # needs brine_paths
@@ -49,9 +50,24 @@ number written back into those keys. The lithology contrast is declared
 separately as a base-cation supply, and this module refuses a supply whose
 implied fresh solution falls outside the derived silicate bracket.
 
-Writes `data/<source_build>/soilmap.txt`, which is LPJ-GUESS's own `SoilInput`
-format, and `analysis/soil_report.json`. The soil map is per build, because
-texture derives from lithology.
+Writes `data/<source_build>/soilmap_<rung>.txt`, which is LPJ-GUESS's own
+`SoilInput` format, and `analysis/soil_report.json`. The soil map is per build
+because texture derives from lithology, and per rung because it is one row per
+LAND CELL of a climate grid.
+
+**The rung is `--grid`, and it is the whole of it.** `--grid
+source/<build>/exoplasim-<rung>` decides the grid the lithology is integrated
+onto, the soil map's name, which rootable fraction is read and which
+climatology is resolved; an export of a build other than the configured one is
+refused. The climatology declaration in `config/planet.yaml` is per rung and
+takes a rung-to-path mapping beside the scalar form, so a soil at a second rung
+WAITS for a climate at that rung and is refused where none is declared. It is
+not built on a climatology remapped from another rung: this step reads
+temperature, precipitation, runoff, evaporation and elevation, and remapped
+precipitation and evaporation balance on a mask no run integrated, while runoff
+is taken as their difference. `exoplasim/notes/route-step-criteria.md` carries
+the argument. `--climatology` restates the declared file as a cross-check and
+is refused when it is anything else.
 
 ## The exchange complex
 

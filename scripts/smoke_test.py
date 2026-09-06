@@ -3007,6 +3007,105 @@ def check_best_available_climatology_resolves_by_stage() -> list[str]:
     return problems
 
 
+def check_climatology_declaration_is_per_rung() -> list[str]:
+    """A climatology declared at one rung never answers for another.
+
+    FOUR RIGHT ANSWERS, and each of them can fail. A climatology carries its
+    rung nowhere in its name, and the rung is not a stage: a climatology
+    integrated on one rung's land mask and orography is another world's climate
+    rather than an earlier version of this one's, so a step told a grid at a
+    second rung must be REFUSED rather than handed the first rung's file. That
+    refusal is what makes `pedology/scripts/build_soil.py --grid` safe to have.
+
+      1. A SCALAR declaration answers for the configured rung.
+      2. A SCALAR declaration refuses any other rung: one path cannot say which
+         rung it was integrated at, so there is nothing there to answer with.
+      3. A MAPPING declaration answers per rung, and a rung it does not name is
+         refused. This is how a second rung's climatology is declared once an
+         arm at that rung has one.
+      4. `climatology_stage` recognises a file declared at ANY rung. Scanning
+         only the configured rung would label a declared climatology `unnamed`
+         and put a stage a caller declared beside a stage nothing recognised.
+
+    Driven against a synthetic config root for the reason
+    `check_best_available_climatology_resolves_by_stage` gives: the check states
+    the property rather than restating today's `config/planet.yaml`, and the
+    files need not exist because the resolver chooses on what config DECLARES.
+    """
+    import tempfile
+    sys.path.insert(0, str(ROOT / "lib"))
+    import paths as paths_lib
+
+    scalar = ("model:\n  resolution: T21\n  latitudes: 32\n  longitudes: 64\n"
+              "bootstrap_climatology: a/boot.nc\n")
+    mapping = ("model:\n  resolution: T21\n  latitudes: 32\n  longitudes: 64\n"
+               "bootstrap_climatology:\n  T21: a/boot21.nc\n  T42: a/boot42.nc\n")
+    problems = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "config").mkdir()
+        cfg = root / "config" / "planet.yaml"
+
+        def resolved(text, rung):
+            cfg.write_text(text, encoding="utf-8")
+            return paths_lib.bootstrap_climatology_path(root=root, rung=rung)
+
+        for label, text, rung, want in (
+                ("a scalar declaration at the configured rung", scalar, None,
+                 "a/boot.nc"),
+                ("a scalar declaration named at its own rung", scalar, "T21",
+                 "a/boot.nc"),
+                ("a mapping declaration at the configured rung", mapping, None,
+                 "a/boot21.nc"),
+                ("a mapping declaration at a second rung", mapping, "T42",
+                 "a/boot42.nc")):
+            try:
+                got = resolved(text, rung)
+            except SystemExit as exc:
+                problems.append(f"{label} was refused: {exc}")
+                continue
+            if got != root / want:
+                problems.append(
+                    f"{label} resolved to {got}, not {root / want}")
+
+        for label, text, rung in (
+                ("a scalar declaration asked for another rung", scalar, "T42"),
+                ("a mapping declaration asked for a rung it does not name",
+                 mapping, "T85")):
+            cfg.write_text(text, encoding="utf-8")
+            try:
+                got = paths_lib.bootstrap_climatology_path(root=root, rung=rung)
+            except SystemExit:
+                continue
+            problems.append(
+                f"{label} returned {got} instead of raising. A climatology at "
+                "another rung is another world's climate, and returning one is "
+                "the fallback the no-fallback rule forbids")
+
+        # A rung that is not on the ladder is an error rather than a default:
+        # `lib/rungs.py:geometry` is what refuses it, and it is reached through
+        # the declaration rather than only through a grid directory's name.
+        cfg.write_text(scalar, encoding="utf-8")
+        try:
+            paths_lib.bootstrap_climatology_path(root=root, rung="T99")
+        except (RuntimeError, SystemExit):
+            pass
+        else:
+            problems.append(
+                "a declaration was resolved at T99, which is not a ladder rung")
+
+        cfg.write_text(mapping, encoding="utf-8")
+        for name, want_stage in (("a/boot21.nc", "bootstrap"),
+                                 ("a/boot42.nc", "bootstrap"),
+                                 ("a/elsewhere.nc", "unnamed")):
+            got = paths_lib.climatology_stage(root / name, root=root)
+            if got != want_stage:
+                problems.append(
+                    f"{name} declared in a per-rung mapping was labelled "
+                    f"{got!r}, not {want_stage!r}")
+    return problems
+
+
 def check_no_shadowed_imports(files: list[Path]) -> list[str]:
     """A name bound by `import X` is never rebound to something else.
 
@@ -6478,6 +6577,8 @@ def main() -> None:
                lambda: check_climatology_needs_match_call_sites()),
               ("the best-available resolver names the stage it returned",
                lambda: check_best_available_climatology_resolves_by_stage()),
+              ("a climatology declared at one rung answers for no other",
+               lambda: check_climatology_declaration_is_per_rung()),
               ("no imported module name is rebound",
                lambda: check_no_shadowed_imports(files)),
               ("no name is loaded that nothing binds, model Python included",
