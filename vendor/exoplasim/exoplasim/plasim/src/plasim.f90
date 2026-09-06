@@ -449,6 +449,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     allocate additional diagnostic arrays, if switched on
 !
+!     THE COUNTS ARE CHECKED BEFORE ANYTHING IS ALLOCATED, because both ways
+!     they can be wrong are silent. world-2v9z.
+      call check_diagnostic_blocks
 
       if(ndiaggp2d > 0) then
        allocate(dgp2d(NHOR,ndiaggp2d))
@@ -2333,6 +2336,84 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       return
       end
 
+
+!     ================================
+!     SUBROUTINE CHECK_DIAGNOSTIC_BLOCKS
+!     ================================
+
+      subroutine check_diagnostic_blocks
+      use pumamod
+
+!     THE OPTIONAL DIAGNOSTIC BLOCKS, REFUSED RATHER THAN WRITTEN WRONG.
+!     world-2v9z. Two independent ways a namelist can ask for something the
+!     model cannot deliver, and neither of them says so on its own.
+!
+!     1. A BLOCK LONGER THAN ITS CODE BAND. `outdiag` and `snapshotdiag`
+!        number each block off the loop index from the bases in plasimmod, and
+!        a count past the band runs one block onto the next block's codes --
+!        the same collision the bases were moved to remove, one door along. A
+!        code collision inside one output stream is invisible: the
+!        postprocessor keeps the FIRST record's header per code and reshapes
+!        everything it later joins under that code by it, so two different
+!        fields come back as one variable with the wrong time axis.
+!
+!     2. A SWITCH THAT FILLS MORE ARRAYS THAN THE ALLOCATION HOLDS. `ndiaggp`
+!        and `ndiagsp` turn the writes on; `ndiaggp3d` and `ndiagsp3d` size the
+!        arrays. They are different namelist keys and nothing ties them
+!        together, so `ndiaggp = 1` with a smaller `ndiaggp3d` -- or with the
+!        key unset, which leaves `dgp3d` UNALLOCATED -- writes past the end of
+!        an allocatable from five different modules. The counts it needs are
+!        NDIAGGP_ARRAYS_FILLED and NDIAGSP_ARRAYS_FILLED, which
+!        `exoplasim/scripts/lint_diag_arrays.py` holds to what the source
+!        actually writes.
+!
+!     A REFUSAL AND NOT A CLAMP. Raising `ndiaggp3d` on the caller's behalf
+!     would produce a run whose output has more fields than the namelist asked
+!     for, and shrinking `ndiaggp` would produce one with fewer; neither is
+!     what was asked for, and both leave a record that says the namelist was
+!     honoured.
+
+      integer :: kbad
+
+      kbad = 0
+
+      if (ndiaggp2d > NDIAG_BLOCK_CODES) kbad = 1
+      if (ndiaggp3d > NDIAG_BLOCK_CODES) kbad = 1
+      if (ndiagsp2d > NDIAG_BLOCK_CODES) kbad = 1
+      if (ndiagsp3d > NDIAG_BLOCK_CODES) kbad = 1
+      if (kbad > 0) then
+         if (mypid == NROOT) then
+            write(nud,*) 'NDIAGGP2D/NDIAGGP3D/NDIAGSP2D/NDIAGSP3D are ',    &
+     &         ndiaggp2d,ndiaggp3d,ndiagsp2d,ndiagsp3d
+            write(nud,*) 'each block is numbered from its own base and has ',&
+     &         NDIAG_BLOCK_CODES,' codes; a longer block writes onto the ',  &
+     &         'next block. see world-2v9z'
+         endif
+         stop 'a diagnostic block is longer than its code band'
+      endif
+
+      if (ndiaggp > 0 .and. ndiaggp3d < NDIAGGP_ARRAYS_FILLED) then
+         if (mypid == NROOT) then
+            write(nud,*) 'NDIAGGP is ',ndiaggp,' which fills dgp3d arrays 1 to ',&
+     &         NDIAGGP_ARRAYS_FILLED,' and NDIAGGP3D allocates ',ndiaggp3d
+            write(nud,*) 'set NDIAGGP3D to at least that, or NDIAGGP to 0. ', &
+     &         'see world-2v9z'
+         endif
+         stop 'ndiaggp fills more arrays than ndiaggp3d allocates'
+      endif
+
+      if (ndiagsp > 0 .and. ndiagsp3d < NDIAGSP_ARRAYS_FILLED) then
+         if (mypid == NROOT) then
+            write(nud,*) 'NDIAGSP is ',ndiagsp,' which fills dsp3d arrays 1 to ',&
+     &         NDIAGSP_ARRAYS_FILLED,' and NDIAGSP3D allocates ',ndiagsp3d
+            write(nud,*) 'set NDIAGSP3D to at least that, or NDIAGSP to 0. ', &
+     &         'see world-2v9z'
+         endif
+         stop 'ndiagsp fills more arrays than ndiagsp3d allocates'
+      endif
+
+      return
+      end
 
 !     =================
 !     SUBROUTINE MAKEBM

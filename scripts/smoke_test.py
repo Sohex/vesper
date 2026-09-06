@@ -2595,20 +2595,54 @@ def check_every_written_code_is_named_or_refused() -> list[str]:
 
 # Which codes each optional diagnostic block writes, from `outmod.f90:outdiag`,
 # as a function of how many arrays it is asked for. The numbering is off the
-# LOOP INDEX, which is what makes the blocks collide with the ordinary output
+# LOOP INDEX, which is what made the blocks collide with the ordinary output
 # they share a unit with.
-DIAGNOSTIC_BLOCK_CODES = {
-    "ndiaggp2d": lambda n: range(1, n + 1),
-    "ndiaggp3d": lambda n: range(21, 21 + n),
-    "ndiagsp2d": lambda n: range(51, 51 + n),
-    "ndiagsp3d": lambda n: range(61, 61 + n),
+#
+# THE BASES ARE READ FROM THE MODEL, NOT RESTATED HERE. They used to be four
+# literals, and the moment world-2v9z moved them into free code space this
+# table would have gone on reporting the old collision and missing the new one
+# -- a lint asserting a model that no longer exists, with nothing to say so.
+# `plasimmod.f90` declares them once as parameters and this derives from that
+# declaration, so moving a base moves this with it.
+DIAGNOSTIC_BLOCK_BASE_PARAMETERS = {
+    "ndiaggp2d": "NDIAGGP2D_CODE0",
+    "ndiaggp3d": "NDIAGGP3D_CODE0",
+    "ndiagsp2d": "NDIAGSP2D_CODE0",
+    "ndiagsp3d": "NDIAGSP3D_CODE0",
 }
+
+
+def _diagnostic_block_codes() -> dict:
+    """`{key: codes_for(n)}` off the bases plasimmod.f90 declares."""
+    module = (ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src"
+              / "plasimmod.f90")
+    text = module.read_text(encoding="latin-1") if module.is_file() else ""
+    declared = {m.group(1).upper(): int(m.group(2)) for m in re.finditer(
+        r"^\s*integer,\s*parameter\s*::\s*([A-Za-z_0-9]+)\s*=\s*(-?\d+)",
+        text, re.IGNORECASE | re.MULTILINE)}
+    out = {}
+    for key, name in DIAGNOSTIC_BLOCK_BASE_PARAMETERS.items():
+        if name not in declared:
+            raise RuntimeError(
+                f"{module} declares no {name}, so the code band "
+                f"{key} is numbered in is not readable and this lint cannot "
+                "say what a block would collide with")
+        base = declared[name]
+        out[key] = (lambda n, base=base: range(base + 1, base + n + 1))
+    return out
+
+
 # The files that may legitimately name one of those keys without setting it.
 # A mapping rather than a tuple, so every exemption says why it is one.
 DIAGNOSTIC_BLOCK_OWNER = {
     "scripts/smoke_test.py": "this lint",
     "exoplasim/scripts/verify_high_cadence_rescue.py":
         "holds the same collision against a raw pyburn has already read",
+    "exoplasim/scripts/lint_diag_arrays.py":
+        "holds the bands disjoint at the model-source end; its prose names the "
+        "count that produced the collision world-2v9z is about",
+    "config/pipeline.yaml":
+        "registers that lint, and its comment names the same count",
 }
 
 
@@ -2624,16 +2658,21 @@ def check_no_enabled_diagnostic_block_collides() -> list[str]:
     first record's dimensions per code and reshapes the joined array by them,
     so the second is read as more timestamps of the first.
 
-    ASKED OF WHAT IS ENABLED, NOT OF THE NUMBERING. The overlap is a
-    model-source defect and its repair is a Fortran renumber, which is a
-    separate row; the collision only exists when a block is switched on, and
-    nothing in this tree switches one on. So this passes today and fails the
-    moment a value is set whose codes reach a library row -- which is the
-    moment the decision has to be made rather than the moment a finished run
-    turns out to have written an unreadable raw.
+    ASKED OF WHAT IS ENABLED, NOT OF THE NUMBERING, and that is still the
+    right question after the renumber. `plasimmod.f90` now bases the four
+    blocks at 700, 800, 900 and 1000, clear of every code anything else writes,
+    so no reachable count lands on a library row and this is satisfied by
+    construction rather than by nothing enabling a block. It stays because the
+    bases are read from the model rather than restated: a base moved back into
+    the ordinary output's range makes this fail at the commit that moves it.
+    `exoplasim/scripts/lint_diag_arrays.py` is the other end of the same
+    question and fails on the move itself, whether or not anything enables a
+    block. world-2v9z.
 
     `pyburn.readallvariables` refuses a code carrying two record lengths, which
-    is the same defect caught at the far end. This is the near end.
+    is the same defect caught at the far end. This is the near end, and
+    `plasim.f90:check_diagnostic_blocks` is the model refusing at startup a
+    count that would run one block onto the next.
     """
     from exoplasim import pyburn
 
@@ -2649,7 +2688,7 @@ def check_no_enabled_diagnostic_block_collides() -> list[str]:
         if rel in DIAGNOSTIC_BLOCK_OWNER:
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
-        for key, codes_for in DIAGNOSTIC_BLOCK_CODES.items():
+        for key, codes_for in _diagnostic_block_codes().items():
             for setting in re.finditer(
                     rf'{key}\b["\']?\s*[=:,]\s*["\']?\s*(\d+)',
                     text, re.IGNORECASE):

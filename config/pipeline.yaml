@@ -2286,6 +2286,26 @@ checks:
   # the tree. Exit 1 on anything unanswered; smoke_test runs it.
   - id: lint_diag_writes
     script: exoplasim/scripts/lint_diag_writes.py
+  # Do the optional diagnostic blocks still have code bands of their own, and
+  # does the model still refuse to fill more arrays than it allocates? outdiag
+  # and snapshotdiag number four optional blocks off the LOOP INDEX into the
+  # same unit the ordinary output goes to; off the bases they carried,
+  # ndiagsp2d = 1 wrote code 51 twice per output step, once as the ecliptic
+  # longitude and once as a spectral array, and pyburn reshaped the joined
+  # array by the first header it saw. The bases moved into free space, which is
+  # a boundary only while the bands stay disjoint from each other and from
+  # every code anything else writes.
+  #
+  # It also holds the second pairing in the same block: ndiaggp and ndiagsp
+  # WRITE dgp3d and dsp3d, ndiaggp3d and ndiagsp3d ALLOCATE them, and nothing
+  # in the namelist ties the two together. The counts the model's own guard
+  # demands are derived here from the writes rather than remembered.
+  #
+  # A pure text parse, no build and no run, and it answers reduced fixtures on
+  # every invocation before it reports on the tree. Exit 1 on any problem.
+  # world-2v9z.
+  - id: lint_diag_arrays
+    script: exoplasim/scripts/lint_diag_arrays.py
   # Does anything uninitialised reach a stored value, at the optimisation level
   # this project ships? The trapping form of that question does not arm at -O2
   # -- world-5rs measured the positive control -- and `-finit-real=zero` was
