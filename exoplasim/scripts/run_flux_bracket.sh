@@ -86,6 +86,22 @@ relocate() {
     fi
     mv "$here" "$there" || return 1
     ln -s "$there" "$here" || return 1
+    # The prepare wrote its own absolute paths into the manifest before the move.
+    # They name the same files and would otherwise name a directory that no
+    # longer exists, which reads as a lost artifact rather than a moved one.
+    if [ -f "${there}/run_manifest.json" ]; then
+        "$PYTHON" - "$there" "$run_id" <<'PY' || return 1
+import json, sys
+from pathlib import Path
+there, run_id = sys.argv[1], sys.argv[2]
+path = Path(there) / "run_manifest.json"
+text = path.read_text(encoding="utf-8")
+old = str(Path.cwd() / "exoplasim" / "runs" / run_id)
+if old != there and old in text:
+    path.write_text(text.replace(old, there), encoding="utf-8")
+    print(f"    manifest paths repointed from {old}")
+PY
+    fi
     echo "    payload at ${there}, linked from ${here}" | tee -a "$LOG"
 }
 
