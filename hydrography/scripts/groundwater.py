@@ -1410,13 +1410,41 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # fill; algebraic multigrid earns its setup cost in 3D or at far larger
         # sizes, and neither applies here.
         #
-        # AND THE LINEAR SOLVE IS NOT THE COST. At 1.39 s against the ~20 passes
-        # a linear run takes, this is about 30 s inside a multi-minute run. What
-        # is expensive is the NUMBER of passes, which GW-15's nonlinearity
-        # multiplies. The one lever left is reuse: `splu` re-solves in 0.049 s
-        # against 1.3 s to refactorise, 27x, on any pass where the matrix repeats
-        # -- which needs the ET iteration restructured to hold the diagonal fixed
-        # across inner steps, not a faster library.
+        # THAT COMPARISON IS SIZED AT 400,000 UNKNOWNS AND THE ACTIVE BUILD IS
+        # NOT. It carried the conclusion that the linear solve is about 30 s
+        # inside a multi-minute run, which was true of the build it was measured
+        # on. A direct factorisation's cost is superlinear in the unknowns, so
+        # that conclusion does not travel: on canonical-10m-carve2 the free set
+        # opens at millions of cells rather than hundreds of thousands, and one
+        # confined solve ran past forty minutes at about 16 GB and was killed
+        # without writing a water table. The solve IS the cost there, and what
+        # the partition below is for.
+        #
+        # THE 27x REUSE LEVER, MEASURED RATHER THAN PROPOSED, AND IT IS A LOSS.
+        # The lever named here was to hold the evapotranspiration diagonal fixed
+        # across inner steps so the matrix repeats and `splu` can re-solve at a
+        # fraction of the cost of factorising. On the uniqueness case, which
+        # carries the sink and the imposed baselevels:
+        #
+        #                          passes   factorisations   reused   residual
+        #     Newton, as run           10               30        0   2.25e-13
+        #     diagonal held fixed     246               15      723   9.58e-13
+        #
+        # The reuse arrives -- the matrix repeats on 241 of 246 passes, which is
+        # the 98 per cent the lever promised -- and the iteration still loses,
+        # because it needs twenty-five times the passes and every pass pays an
+        # assembly, a partition and two water balances over the whole mesh
+        # whether or not it factorises. The head also lands 2.7e-07 m away
+        # rather than bit-identical.
+        #
+        # AND THE REASON IS THE ONE THIS FILE ALREADY RECORDS ELSEWHERE. The
+        # sink is exponential in depth at an e-folding of `et_lambda_m`, about a
+        # metre, so a linearisation of `E` about the current head is good only
+        # within about a metre of it, while a Newton step on this problem moves
+        # the head by tens of metres. Freezing the diagonal is a fixed-point
+        # iteration on an exponential outside its own e-folding length, which is
+        # exactly why Fan's exponential transmissivity limit-cycled. One
+        # exponential, two solvers, the same disqualification.
         # ORDERING, AND IT IS A NO-OP AT THIS SIZE. scipy's default for spsolve
         # is COLAMD, which orders for an unsymmetric pattern; this operator's
         # pattern IS symmetric, a graph Laplacian with Dirichlet rows, so
@@ -1446,25 +1474,20 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # SuperLU's working set. That arm needs `splu` with `SymmetricMode`
         # rather than this call, and it is the one lever WORLD-V3UR's memory
         # blocker has not been tried against.
-        # FACTORISE, OR REUSE THE FACTORISATION IF THE MATRIX HAS NOT MOVED.
-        # `splu(A, permc_spec=...).solve(b)` is BIT-IDENTICAL to
+        # `splu(A, permc_spec=...).solve(b)` IS BIT-IDENTICAL to
         # `spsolve(A, b, permc_spec=...)`: both drive the same SuperLU
         # factorisation and the same back-substitution. That equality is
         # ASSERTED by `--factorisation-test` rather than assumed, because it is
-        # what licenses the change at all. What `splu` adds is that the factor
-        # survives the call, so a pass whose matrix repeats pays the
-        # back-substitution alone.
+        # what licenses factorising a block on its own at all. What `splu` adds
+        # is that the factor survives the call.
         #
         # `SymmetricMode` is deliberately NOT set here. It halves the fill and
-        # it is measurably NOT bit-identical -- 7.9e-16 relative on a Laplacian
-        # of this operator's coefficient span -- which forfeits the one thing
-        # that makes a restructuring of this solve checkable. That lever belongs
-        # to world-v3ur's memory blocker, where an arm that changes the answer
-        # at round-off can be declared as such.
+        # it is measurably NOT bit-identical -- 2e-14 to 6e-14 relative on a
+        # Laplacian of this operator's coefficient span -- which forfeits the one
+        # thing that makes a restructuring of this solve checkable. That lever
+        # belongs to world-v3ur's memory blocker, where an arm that changes the
+        # answer at round-off can be declared as such.
         #
-        # THE OLD FACTOR IS DROPPED BEFORE THE NEW ONE IS BUILT. The fill of one
-        # of these runs to gigabytes at this mesh's size, so holding two at once
-        # doubles the peak on a host several agents share.
         # ONE FACTORISATION PER BLOCK, KEPT ONLY WHILE THAT BLOCK IS UNCHANGED.
         # The key is the block's own cells and its own numbers, so a block the
         # active set did not touch and whose sink did not move is recognised
