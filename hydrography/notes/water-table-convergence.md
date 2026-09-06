@@ -460,6 +460,22 @@ pays a superlinear cost on the sum of the blocks that a direct method never has
 to pay. `K` blocks of `n/K` cells cost `n^1.5 / sqrt(K)`, and the peak memory is
 one block rather than the whole.
 
+**Measured on `canonical-10m-carve2`, 2026-09-05**, over its 4,328,732 land
+regions, 4,268,074 of them conductive under the `exclude` policy, with 363,761
+river and lake cells at fixed head. The free set the solve opens on is 3,914,015
+cells and it is **13,094 blocks**. The largest holds 606,808 cells, which is
+15.5 per cent of it; fifty-one blocks of a thousand cells or more hold 96.3 per
+cent between them and the remaining thirteen thousand are small enough that what
+they cost is the per-block call and not the factorisation.
+
+What that is worth, in the units a direct factorisation charges in: the sum of
+`n^1.5` over the blocks is **0.280** of `(sum n)^1.5`, so the factorisation work
+is a bit over a quarter of what the union costs, and the largest single
+factorisation is a 606,808-cell problem rather than a 3,914,015-cell one. The
+count is a LOWER bound on the partition, because the solve also drops the cells
+that reach neither recharge nor the sea and any that the sink seeds at the
+surface, and dropping more cells can only cut further.
+
 It is exact rather than an approximation to the coupled solve. There are no
 entries between blocks, so there is no fill between them, and the elimination
 inside a block is the sequence of operations it would have been inside the whole
