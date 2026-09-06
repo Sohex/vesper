@@ -318,6 +318,46 @@ over the same whole number of forcing cycles, which is zero when the model
 conserves water. Both sides are read, neither is inferred, and the tolerance
 did not move: the floor stays 2.0 mm and the relative limit 0.005.
 
+### What the repaired water closure measures
+
+`lpj_ed9bb44ab2b746b09de4d695651a427d`, the same 1600 spin-up cycles, 30
+retained and 1617 gridcells, with `awater.out` retained and the residual taken
+stock against flux. Every window from one cycle to twenty-nine:
+
+| statistic | value |
+| --- | --- |
+| gridcells failing, at every window from 1 to 29 cycles | 0 of 1617 |
+| largest residual at the ten-cycle window | 0.0276 mm against a 5.88 mm limit |
+| written-precision resolution bound | 0.1806 mm |
+| population mean residual, one cycle | -0.00003 mm |
+| population mean residual, twenty-nine cycles | -0.00224 mm |
+
+The largest residual anywhere is an order of magnitude INSIDE the residual an
+exactly conserving model reports at the written precision of the columns
+differenced, and the mean drifts by -7.7e-5 mm per cycle against the 0.018 mm
+per cycle the thirty-six monthly columns' rounding allows. Carbon and nitrogen
+close on the same run at 3.2e-5 kgC/m2 and 0.00104 kgN/ha against floors of
+0.01 and 2.0, with no gridcell refused.
+
+So the model conserves water and the previous residual was the store, entire.
+
+### The snowpack reaches the model's own ceiling on 17 gridcells
+
+Reading the store made this visible; it is not a closure failure and it is not
+new. `soilwater.cpp:snow` caps the pack at `SNOWPACK_MAX`, 10000 mm of rainfall
+equivalent, by taking `melt = -min(prec, SNOWPACK_MAX - snowpack)`. At the cap
+that term is zero, the day's snowfall goes to `rain_melt` instead, and the soil
+receives it as liquid water: conserving, which is why the closure above passes,
+and unphysical, because the gridcell is below freezing.
+
+Measured: 17 of 1617 gridcells sit at the cap in all 30 retained cycles, and 27
+carry a pack over 1000 mm, spanning 58 degrees south to 80 degrees north. They
+are gridcells whose snow accumulation exceeds its melt every cycle -- permanent
+ice in everything but name -- and LPJ-GUESS has no ice sheet, so the pack
+saturates and the surplus is delivered to the soil column as rain. The pack is
+also what put the one gridcell-window in the previous section outside its soil
+column's saturation capacity.
+
 ## Whether the repaired checks still resolve their own tolerances
 
 Completing a stock or a loss adds every new column's written quantum to the
@@ -331,7 +371,7 @@ asked again of the wider form. Measured from
 | --- | --- | --- | --- | --- |
 | nitrogen | npool.out Total plus four soil_npool.out pools against nflux.out NEE | 0.001445 kgN/ha | 2.0 kgN/ha | 1384 |
 | carbon | cpool.out Total against cflux.out NEE | 4.6e-5 kgC/m2 | 0.01 kgC/m2 | 217 |
-| water | thirty-six monthly loss columns and tot_runoff.out Total | 0.1805 mm | 2.0 mm | 11.1 |
+| water | awater.out Total, thirty-six monthly loss columns and tot_runoff.out Total | 0.1806 mm | 2.0 mm | 11.07 |
 
 All three clear the contract's required tenfold margin. Water is the tight one,
 because its thirty-six columns are written at the three decimals mainline gives
