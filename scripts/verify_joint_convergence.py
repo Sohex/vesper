@@ -108,7 +108,7 @@ sys.path.insert(0, str(ROOT / "lib"))
 import yaml                                  # noqa: E402
 
 import rungs                                 # noqa: E402
-from paths import rel                        # noqa: E402
+from paths import declared_climatology, rel  # noqa: E402
 
 PASS, FAIL, NOT_EVALUABLE = "pass", "FAIL", "not evaluable"
 
@@ -836,7 +836,10 @@ def gather(args, root: Path = ROOT) -> list[Verdict]:
     except RuntimeError as exc:
         declared_route_error = str(exc)
 
-    declared_baseline = config.get("baseline_climatology")
+    # Read through lib/paths.py: the declaration takes a rung-to-path mapping
+    # beside the scalar form, and this wants the path config names for the
+    # configured rung.
+    declared_baseline = declared_climatology(config, "baseline_climatology")
     baseline = root / declared_baseline if declared_baseline else None
 
     # -- D first: everything else is a statement about the operating support,

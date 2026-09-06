@@ -2081,7 +2081,12 @@ def refuse_a_staged_field_the_config_ignores(config: dict, inputs_dir) -> None:
     if sidecar.is_file():
         built_under = json.loads(
             sidecar.read_text(encoding="utf-8")).get("climatology")
-    declared = config.get("bootstrap_climatology")
+    # The declaration takes a rung-to-path mapping beside the scalar form, so
+    # its shape is read in lib/paths.py rather than here: comparing a
+    # provenance string against a raw mapping would call every staged field
+    # another lineage's.
+    from paths import declared_climatology
+    declared = declared_climatology(config, "bootstrap_climatology")
     if built_under is not None and str(built_under) != str(declared):
         print(f"  {staged[0].name} was weathered under {built_under} and this "
               f"run declares {declared!r}, so it belongs to another lineage "

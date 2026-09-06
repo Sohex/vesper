@@ -11,6 +11,14 @@ depends on the climate state rather than on the calendar or the grid.
 sites to it. `require_clean_io` and `require_configured_grid` are what all three
 must survive.
 
+ALL THREE ARE ALSO PER RUNG, and that is a second axis rather than a fourth
+resolver. Each takes `rung` for a step that was told its grid on the command
+line; `_declared_climatology` reads the declaration for that rung, and
+`require_configured_grid` judges the file against it. The rung is not a stage:
+a climatology integrated on one rung's land mask and orography is a different
+world's climate, not an earlier stage of this one's, so nothing here lets one
+rung stand in for another.
+
 `Path.relative_to` RAISES when the path is not under the given root. Every script
 here prints "wrote <path>" relative to the project root, and that print happens
 *after* the artifact has been written. So passing `--output` to somewhere outside
@@ -129,7 +137,107 @@ def rel(path: Path | str, root: Path | None = None) -> str:
     return str(p)
 
 
-def bootstrap_climatology_path(root: Path | None = None) -> Path:
+def _rungs():
+    """`lib/rungs.py`, imported the way every module here anchors its siblings."""
+    import sys
+    lib = str(Path(__file__).resolve().parent)
+    if lib not in sys.path:
+        sys.path.insert(0, lib)
+    import rungs
+    return rungs
+
+
+def _declared_climatology(config: dict, key: str,
+                          rung: str | None) -> tuple[str | None, str]:
+    """What config declares under `key` AT A RUNG, and the rung that answered.
+
+    THE DECLARATION IS PER RUNG BECAUSE A CLIMATOLOGY IS PER RUNG. The file
+    carries its rung nowhere in its name -- `require_configured_grid` exists
+    precisely because nothing else can tell a T21 product from a T42 one -- and
+    the rung is not a stage: a climatology integrated on the T21 land mask and
+    the T21 orography is a different world's climate, not an earlier stage of
+    this one's, so `best_available_climatology`'s choice does not reach across
+    it and neither does a remap. A step that runs at a second rung therefore
+    WAITS for a run at that rung and reads what config declares for it.
+    `exoplasim/notes/route-step-criteria.md` and WORLD-512R carry the argument.
+
+    Two accepted forms, and the scalar is the older one kept because it is also
+    the honest one while a world has reached exactly one rung:
+
+        <key>: <path>                 the CONFIGURED rung's, and only that one
+        <key>: {T21: <path>, ...}     one per rung, keyed by ladder rung
+
+    Returns `(declared, rung)` with `declared` None when nothing is declared for
+    the rung asked for. The caller raises, because each of the three resolvers
+    says something different about what is missing.
+    """
+    ladder = _rungs()
+    declared = config.get(key)
+    configured = str(config.get("model", {}).get("resolution", "") or "").upper()
+    want = configured if rung is None else str(rung).upper()
+    if want:
+        ladder.geometry(want)                # refuses anything off the ladder
+    if isinstance(declared, dict):
+        by_rung = {}
+        for name, value in declared.items():
+            spelled = str(name).upper()
+            ladder.geometry(spelled)
+            by_rung[spelled] = value
+        return by_rung.get(want), want
+    if rung is not None and want != configured:
+        # A scalar declaration names the configured rung's climatology and
+        # cannot answer for another: it is one path and there is nothing in it
+        # to distinguish the rung it was integrated at.
+        return None, want
+    return declared, want
+
+
+def declared_climatology(config: dict, key: str,
+                         rung: str | None = None) -> str | None:
+    """The repo-relative path config declares under `key`, or None.
+
+    NOTHING DECLARED IS None RATHER THAN A REFUSAL, which is the whole
+    difference from the three resolvers: they raise, apply the grid guard and
+    return an absolute path, which is right for a step about to read a
+    climatology and wrong for the handful of callers that want the DECLARATION
+    itself -- a comparison against a provenance record, a report of what is
+    named, a caller that must fall back rather than fail. Those four read
+    `config.get(key)` and treated the answer as a string, which the mapping form
+    is not. A shape known in five places is a shape that goes out of step, so
+    THIS IS THE ONE PLACE THAT KNOWS IT and that is why it is public.
+
+    A rung that is not on the ladder still raises, here as everywhere: that is
+    an error about the question rather than an absence of an answer.
+
+    See `_declared_climatology` for the two accepted forms and why the rung is
+    part of the declaration.
+    """
+    return _declared_climatology(config, key, rung)[0]
+
+
+def _no_declaration(key: str, rung: str, config: dict, what: str) -> SystemExit:
+    """The refusal when nothing is declared for the rung a step is running at."""
+    declared = config.get(key)
+    configured = str(config.get("model", {}).get("resolution", "") or "").upper()
+    if declared is None:
+        return SystemExit(
+            f"config/planet.yaml has no `{key}`. Name one there or pass "
+            f"--climatology; there is deliberately no fallback. {what}")
+    return SystemExit(
+        f"config/planet.yaml declares no `{key}` at {rung}"
+        + (f"; what it declares is {configured}'s." if not isinstance(declared, dict)
+           else f"; it declares {', '.join(sorted(str(k).upper() for k in declared))}.")
+        + f"\n{what}\nA climatology is a property of the run that produced it "
+        f"and carries no rung in its name, so a soil, a driver or a surface "
+        f"field at {rung} waits for a run at {rung} rather than reading one "
+        f"remapped onto it. What that needs: build_climatology.py on an arm at "
+        f"{rung} whose staged surface family is the current one, then declare "
+        f"it here as `{key}: {{{rung}: <path>}}`. The scalar form names the "
+        f"configured rung only. See exoplasim/notes/route-step-criteria.md.")
+
+
+def bootstrap_climatology_path(root: Path | None = None,
+                               *, rung: str | None = None) -> Path:
     """The climatology taken on TERRAIN-ONLY surface fields.
 
     A SECOND KEY BECAUSE THERE ARE TWO CLIMATOLOGIES AND THE GRAPH HAS ALWAYS
@@ -159,25 +267,29 @@ def bootstrap_climatology_path(root: Path | None = None) -> Path:
     Same no-fallback rule as `climatology_path`, and for the same reason: a
     fallback returns a plausible number from a different world instead of an
     error. Same grid guard, applied here so callers inherit it.
+
+    `rung` names a ladder rung other than the configured one, for a step told
+    its grid on the command line. The declaration is then read for THAT rung and
+    the grid guard is applied against it; see `_declared_climatology`.
     """
     import yaml
     project = Path(root) if root is not None else Path(__file__).resolve().parents[1]
     config = yaml.safe_load(
         (project / "config" / "planet.yaml").read_text(encoding="utf-8"))
-    declared = config.get("bootstrap_climatology")
+    declared, at = _declared_climatology(config, "bootstrap_climatology", rung)
     if not declared:
-        raise SystemExit(
-            "config/planet.yaml has no `bootstrap_climatology`. Name one there "
-            "or pass --climatology; there is deliberately no fallback. This is "
-            "the TERRAIN-ONLY climatology the derived surface fields are built "
-            "from, and it is not `baseline_climatology`.")
+        raise _no_declaration(
+            "bootstrap_climatology", at, config,
+            "This is the TERRAIN-ONLY climatology the derived surface fields "
+            "are built from, and it is not `baseline_climatology`.")
     path = project / declared
     if path.is_file():
-        require_configured_grid(path, config)
+        require_configured_grid(path, config, rung=rung)
     return path
 
 
-def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
+def climatology_path(name: str | None = None, root: Path | None = None,
+                     *, rung: str | None = None) -> Path:
     """The climatology every downstream component is driven from.
 
     Read from `config/planet.yaml`'s `baseline_climatology`, with no fallback,
@@ -208,6 +320,10 @@ def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
     file and computed on whatever rung it happened to carry.
     `require_configured_grid` is what refuses that, and it is applied here so
     every caller inherits it instead of two builders having their own copy.
+
+    `rung` names a ladder rung other than the configured one; the declaration is
+    read for that rung and the grid guard applied against it. See
+    `_declared_climatology`.
     """
     import yaml
     project = Path(root) if root is not None else Path(__file__).resolve().parents[1]
@@ -217,34 +333,42 @@ def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
         path = (project / "exoplasim" / "analysis" / name
                 / "baseline_regular_climatology.nc")
     else:
-        declared = config.get("baseline_climatology")
+        declared, at = _declared_climatology(config, "baseline_climatology", rung)
         if not declared:
-            raise SystemExit(
-                "config/planet.yaml has no `baseline_climatology`. Name one "
-                "there or pass --climatology; there is deliberately no "
-                "fallback.")
+            raise _no_declaration(
+                "baseline_climatology", at, config,
+                "This is the climatology of the run on the DERIVED surface "
+                "fields, which every downstream component is driven from.")
         path = project / declared
     # Only when it is there: a file that does not exist is the caller's error to
     # report, and several of them say something more useful about it than this
     # could.
     if path.is_file():
-        require_configured_grid(path, config)
+        require_configured_grid(path, config, rung=rung)
     return path
 
 
-def climatology_path_for_state(state: str, root: Path | None = None) -> Path:
-    """Resolve one explicitly named climate state, without a fallback.
+def climatology_path_for_state(state: str, root: Path | None = None,
+                               *, rung: str | None = None) -> Path:
+    """Resolve one explicitly named climate state AT A RUNG, without a fallback.
 
     This is for mode-bearing iterative artifacts whose caller declares the
     state it is building.  Unlike :func:`best_available_climatology`, the
     answer must not depend on which keys happen to be populated: rebuilding a
     bootstrap artifact after a baseline exists still reads the bootstrap, and
     a baseline request with no named baseline still refuses.
+
+    THE STATE AND THE RUNG ARE TWO AXES AND NEITHER SUBSTITUTES FOR THE OTHER.
+    The state is the stage of determination this world has reached; the rung is
+    the grid a run was integrated on, and a climatology at another rung is
+    another world's rather than an earlier version of this one's. A caller told
+    its grid passes that grid's rung here, and gets the climatology declared for
+    it or a refusal naming what to declare.
     """
     if state == BOOTSTRAP:
-        return bootstrap_climatology_path(root=root)
+        return bootstrap_climatology_path(root=root, rung=rung)
     if state == BASELINE:
-        return climatology_path(root=root)
+        return climatology_path(root=root, rung=rung)
     raise ValueError(
         f"climatology state must be {BOOTSTRAP!r} or {BASELINE!r}, got {state!r}")
 
@@ -256,6 +380,13 @@ def climatology_stage(path: Path, root: Path | None = None) -> str:
     hand-typed `--climatology` is, and saying so is better than picking the
     nearer of the two. Compared by resolved path, because the config names are
     repo-relative and a caller's argument may be anything.
+
+    EVERY DECLARED RUNG COUNTS, not just the configured one. A declaration may
+    name one path per rung, and a T42 bootstrap declared there is the bootstrap:
+    the stage is what the file IS, and the rung is a separate question
+    `require_configured_grid` answers. Scanning only the configured rung would
+    label a declared climatology `unnamed` and put a stage a caller declared
+    beside a stage nothing recognised.
     """
     import yaml
     project = Path(root) if root is not None else PROJECT_ROOT
@@ -265,13 +396,17 @@ def climatology_stage(path: Path, root: Path | None = None) -> str:
     for stage, key in ((BASELINE, "baseline_climatology"),
                        (BOOTSTRAP, "bootstrap_climatology")):
         declared = config.get(key)
-        if declared and (project / declared).resolve() == resolved:
-            return stage
+        candidates = (list(declared.values()) if isinstance(declared, dict)
+                      else [declared])
+        for candidate in candidates:
+            if candidate and (project / candidate).resolve() == resolved:
+                return stage
     return UNNAMED
 
 
 def best_available_climatology(override: Path | None = None,
-                               root: Path | None = None) -> Climatology:
+                               root: Path | None = None,
+                               *, rung: str | None = None) -> Climatology:
     """The MOST DETERMINED climatology that exists, and which one that is.
 
     The baseline when `config/planet.yaml` names one, the bootstrap when it does
@@ -334,29 +469,35 @@ def best_available_climatology(override: Path | None = None,
         path = Path(override).resolve()
         stage = climatology_stage(path, project)
     else:
-        declared = config.get("baseline_climatology")
+        # THE CHOICE IS BETWEEN STAGES AT ONE RUNG. `rung` selects which rung's
+        # declaration is read; it never lets one rung stand in for another,
+        # because that is the fallback this resolver's whole docstring is about.
+        declared, at = _declared_climatology(config, "baseline_climatology", rung)
         stage = BASELINE
         if not declared:
-            declared = config.get("bootstrap_climatology")
+            declared, at = _declared_climatology(
+                config, "bootstrap_climatology", rung)
             stage = BOOTSTRAP
         if not declared:
             raise SystemExit(
-                "config/planet.yaml names neither `baseline_climatology` nor "
-                "`bootstrap_climatology`. This step reads the best available "
-                "of the two and there is deliberately no third option: name "
-                "one there or pass --climatology.")
+                f"config/planet.yaml names neither `baseline_climatology` nor "
+                f"`bootstrap_climatology` at {at or 'the configured rung'}. "
+                "This step reads the best available of the two and there is "
+                "deliberately no third option: name one there or pass "
+                "--climatology.")
         path = project / declared
     # Only when it is there, for the reason `climatology_path` gives: a file
     # that does not exist is the caller's error to report, and several callers
     # say something more useful about it than this could.
     if path.is_file():
-        require_configured_grid(path, config)
+        require_configured_grid(path, config, rung=rung)
     return Climatology(path, stage)
 
 
 def require_configured_grid(climatology: Path, cfg: dict | None = None,
-                            root: Path | None = None) -> None:
-    """Refuse a climatology whose grid is not the configured rung's.
+                            root: Path | None = None,
+                            *, rung: str | None = None) -> None:
+    """Refuse a climatology whose grid is not the rung the caller is at.
 
     The rung is a property of the run that produced the file and appears
     nowhere in its name, so nothing stopped a T21 climatology from driving a
@@ -369,27 +510,37 @@ def require_configured_grid(climatology: Path, cfg: dict | None = None,
     `resolution` paired with another grid's `latitudes` before this compares
     anything, so a stale config cannot be what the climatology is judged
     against.
+
+    `rung` is for a step that was TOLD its grid rather than reading it out of
+    config -- `pedology/scripts/build_soil.py --grid` is the case. The grid is
+    then the rung, the ladder supplies its dimensions, and config's own
+    `resolution` is not what the climatology is judged against; the check is the
+    same check and only its authority moves.
     """
     import yaml
     if cfg is None:
         project = Path(root) if root is not None else Path(__file__).resolve().parents[1]
         cfg = yaml.safe_load(
             (project / "config" / "planet.yaml").read_text(encoding="utf-8"))
-    import sys
-    lib = str(Path(__file__).resolve().parent)
-    if lib not in sys.path:
-        sys.path.insert(0, lib)
-    import rungs
-    rung, nlat, nlon = rungs.model_grid(cfg)
+    ladder = _rungs()
+    if rung is None:
+        rung, nlat, nlon = ladder.model_grid(cfg)
+        authority = "config/planet.yaml"
+        remedy = "move model.resolution to the rung this one is"
+    else:
+        rung = str(rung).upper()
+        nlat, nlon, _ = ladder.geometry(rung)
+        authority = "the grid this step was given"
+        remedy = "give this step the grid the climatology was integrated on"
     with Dataset(climatology) as ds:
         got = (len(ds.dimensions["lat"]), len(ds.dimensions["lon"]))
     if got != (nlat, nlon):
         raise SystemExit(
-            f"{rel(climatology)} is {got[0]}x{got[1]} and config/planet.yaml "
+            f"{rel(climatology)} is {got[0]}x{got[1]} and {authority} "
             f"is {rung}, {nlat}x{nlon}. A climatology carries no rung in its "
             "name, so this is the only thing between a run at one resolution "
             "and a product computed on another. Name a climatology built at "
-            f"{rung}, or move model.resolution to the rung this one is.")
+            f"{rung}, or {remedy}.")
 
 
 def require_clean_io(climatology: Path) -> None:

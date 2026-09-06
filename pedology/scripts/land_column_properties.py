@@ -1810,12 +1810,13 @@ def main(argv: list[str] | None = None) -> int:
     if not args.soil_map.is_file():
         raise SystemExit(
             f"{args.soil_map} does not exist. Run "
-            "pedology/scripts/build_soil.py, which weathers the lithology under "
-            "a CLIMATOLOGY and so builds at the rung config/planet.yaml is set "
-            "to. This script derives from that soil map alone and adds no "
-            "climate; see exoplasim/notes/route-step-criteria.md for why the "
-            "soil at a rung waits for a climate at that rung, and WORLD-CCX6 "
-            "for the --grid build_soil.py lacks.")
+            "pedology/scripts/build_soil.py --grid "
+            "source/<build>/exoplasim-<rung>, which weathers the lithology "
+            "under a CLIMATOLOGY and so builds at whatever rung one is "
+            "DECLARED at. This script derives from that soil map alone and "
+            "adds no climate; see exoplasim/notes/route-step-criteria.md for "
+            "why the soil at a rung waits for a climate at that rung rather "
+            "than being built on one remapped onto it.")
 
     decl = load()
     written: list[str] = []

@@ -1036,17 +1036,21 @@ steps:
       bound on a quantity this step derives, and soil carbon grows it through
       loop A, so the check fires on the iteration that outgrows the
       declaration.
-      THE RUNG IS CONFIG'S, AND IT IS THE CLIMATE THAT MAKES THAT A REAL EDGE
-      rather than a carrier defect to route around. This step reads a
-      climatology for temperature, precipitation, runoff, evaporation and
-      elevation -- content, not a grid -- so a soil at a rung needs a CLIMATE at
-      that rung, which is the `bootstrap_climatology` edge above. `--climatology`
-      is a cross-check pinned to the declared file and never an override, and
-      the two climatology keys carry no rung in their names, so building at a
-      second rung moves `model.resolution` and the climatology declaration
-      together. WORLD-CCX6 is the `--grid` this step lacks;
-      `exoplasim/notes/route-step-criteria.md` carries why the soil waits for a
-      climate at its rung instead of being built on one remapped onto it.
+      THE RUNG IS THE GRID'S, AND IT IS THE CLIMATE THAT MAKES THE EDGE REAL
+      rather than a carrier defect to route around. `--grid
+      source/<build>/exoplasim-<rung>` is the one decision: the soil map's name,
+      BIO-11's rootable fraction and the climatology declaration all follow it,
+      and an export of another build is refused. This step reads a climatology
+      for temperature, precipitation, runoff, evaporation and elevation --
+      content, not a grid -- so a soil at a rung needs a CLIMATE at that rung,
+      which is the `bootstrap_climatology` edge above. That declaration is per
+      rung: `config/planet.yaml` takes a mapping from rung to path beside the
+      scalar form, and a rung with nothing declared is REFUSED naming what to
+      build and declare rather than served a climatology remapped from another
+      rung. `--climatology` remains a cross-check pinned to the file declared
+      for the grid's rung and never an override, which is what keeps BIO-19's
+      mode pinning. `exoplasim/notes/route-step-criteria.md` carries why the
+      soil waits for a climate at its rung.
 
   - id: land_column_properties
     script: pedology/scripts/land_column_properties.py

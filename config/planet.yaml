@@ -62,6 +62,21 @@ source_build: canonical-10m-carve2
 # the wrong world here is a concrete one that existed an hour ago.
 # `best_available_climatology` is what a step reads when either stage will do,
 # and it names the stage it chose.
+#
+# THE DECLARATION IS PER RUNG, and both forms are accepted:
+#
+#     baseline_climatology: <path>                the CONFIGURED rung's, only
+#     baseline_climatology: {T21: <path>, ...}    one per rung
+#
+# The scalar is the honest form while this world has reached one rung, and it
+# answers only for `model.resolution`. A climatology carries its rung nowhere in
+# its name, and the rung is not a stage: a climatology integrated on one rung's
+# land mask and orography is another world's climate rather than an earlier
+# version of this one's. So a step told a grid -- `build_soil.py --grid` -- reads
+# what is declared for THAT rung and is refused when nothing is, rather than
+# reading one remapped onto it. `exoplasim/notes/route-step-criteria.md` and
+# WORLD-512R carry that decision; the mapping form is what a second rung's
+# climatology is declared through once an arm at that rung has one.
 baseline_climatology: exoplasim/analysis/climatology/baseline_regular_climatology.nc
 
 # THE OTHER CLIMATOLOGY, and it is a different artifact rather than an earlier
@@ -85,7 +100,8 @@ baseline_climatology: exoplasim/analysis/climatology/baseline_regular_climatolog
 # drift again and no enumeration here has to be maintained.
 #
 # Resolved by `lib/paths.py:bootstrap_climatology_path`, with the same
-# no-fallback rule and the same grid guard.
+# no-fallback rule, the same grid guard and the same per-rung declaration the
+# key above documents.
 bootstrap_climatology: exoplasim/analysis/climatology/bootstrap_regular_climatology.nc
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from

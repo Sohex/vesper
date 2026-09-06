@@ -358,7 +358,7 @@ rung transforms on, the check that config's `resolution`, `latitudes` and
 elsewhere in the tree agrees with it, and the THREE timestep quantities kept
 apart -- each rung's measured stability ceiling, the escalation route's step per
 rung, and what a commissioning-length run has shown about a pair),
-`paths.py` (repo-relative paths, the THREE climatology resolvers -- the baseline, the bootstrap, and the best available of the two with the stage it chose -- and its clean-I/O and configured-grid guards), `gridding.py` (mesh-to-grid, the one grid
+`paths.py` (repo-relative paths, the THREE climatology resolvers -- the baseline, the bootstrap, and the best available of the two with the stage it chose -- each of them PER RUNG, because the declaration takes a rung-to-path mapping beside the scalar form and a climatology at another rung is another world's climate rather than an earlier stage of this one's; the ONE reader of that declaration's shape, for the callers that want what is declared rather than a path to read and must not raise; and its clean-I/O and configured-grid guards), `gridding.py` (mesh-to-grid, the one grid
 convention, the reduction operators by field semantics: extensive,
 intensive, categorical, moments, expectation, and the DISTRIBUTION -- the
 area-weighted quantile table a sub-grid hypsometry is, with the share

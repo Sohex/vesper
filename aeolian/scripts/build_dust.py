@@ -88,8 +88,8 @@ from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
 import climatology  # noqa: E402  from lib/, via _paths
 from builds import component_data, grid_export, mesh_export, resolution_of, soilmap
 from gridding import (gaussian_area_weights, gaussian_grid,
-                      gaussian_row_weights, land_fraction_of_class,
-                      region_cells, require_gaussian_rows)
+                      gaussian_latitudes, gaussian_row_weights,
+                      land_fraction_of_class, region_cells, require_same_rows)
 from lapse import sigma_levels
 from orogen import LAND, Export
 import nc_geometry  # noqa: E402
@@ -568,15 +568,24 @@ def advect_to_steady_state(emission, u, v, loss_rate, lat, lon, cfg):
     The east-west cell width is a METRIC term rather than a label mapping, but
     it is still the grid's own geometry, so it is read off the spec
     `lib/gridding.py` constructs for this grid rather than rebuilt from `nlon`
-    here. `require_gaussian_rows` is what makes that a check: the spec is built
-    and the axis is read, and if the field handed in is not on the grid the
-    spec describes, every metre in `dx` is a metre of some other grid.
+    here. The comparison is what makes that a check: the spec is built and the
+    axis is read, and if the field handed in is not on the grid the spec
+    describes, every metre in `dx` is a metre of some other grid.
+
+    `require_same_rows` IS THE DOOR BECAUSE THE AXIS COMES OFF A CLIMATOLOGY.
+    netCDF stores it as float32, so the constructed Gauss-Legendre nodes and
+    the axis on disk agree to a few parts in a million and no closer;
+    `require_gaussian_rows` carries a float64 bar for an EXPORT's axis and
+    refuses a correct climatology axis for that reason alone. Its own docstring
+    says so, and `analysis/spatial_reduction_gap.py` states the distinction at
+    its call site. The looser bar still refuses an axis from another grid by
+    three orders of magnitude at every rung.
     """
     tr = cfg["transport"]
     nlat, nlon = emission.shape
     radius = nc_geometry.EARTH_RADIUS_M * float(cfg["_planet_radius_earth"])
     spec = gaussian_grid(nlat, nlon, name="dust-transport")
-    require_gaussian_rows(spec, lat, "the dust transport grid")
+    require_same_rows(gaussian_latitudes(nlat), lat, "the dust transport grid")
     dphi = np.abs(np.gradient(np.deg2rad(lat)))
     coslat = np.maximum(np.cos(np.deg2rad(lat)),
                         tr.get("polar_coslat_floor", 1e-3))

@@ -58,13 +58,18 @@ def bootstrap_climatology_path() -> Path:
     return _resolve(root=PROJECT_ROOT)
 
 
-def climatology_path_for_state(state: str) -> Path:
-    """Resolve the exact state named by a mode-bearing pedology product."""
+def climatology_path_for_state(state: str, *, rung: str | None = None) -> Path:
+    """Resolve the exact state named by a mode-bearing pedology product.
+
+    `rung` is for a caller told its grid on the command line: the declaration is
+    per rung, so a soil cut at a second rung reads the climatology declared for
+    that rung or is refused. `lib/paths.py` carries the argument.
+    """
     import sys as _sys
     if str(PROJECT_ROOT / "lib") not in _sys.path:
         _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
     from paths import climatology_path_for_state as _resolve
-    return _resolve(state, root=PROJECT_ROOT)
+    return _resolve(state, root=PROJECT_ROOT, rung=rung)
 
 
 def best_available_climatology(override: Path | None = None):

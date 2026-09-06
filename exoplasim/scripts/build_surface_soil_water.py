@@ -347,25 +347,24 @@ def main() -> None:
         # nothing says why. WORLD-512R decided the soil waits for the climate
         # rather than being built on a remapped one; the argument and the order
         # that unblocks it are in exoplasim/notes/route-step-criteria.md.
-        configured = str(config["model"]["resolution"]).upper()
+        # WORLD-CCX6 gave build_soil.py its own --grid, so the missing piece is
+        # now a DECLARED climatology at this rung and never a carrier.
         raise SystemExit(
             f"{rel(args.states)} does not exist. It is per build AND per rung, "
             "and it is written by pedology/scripts/land_column_properties.py "
             f"from pedology's soil map at {resolution}, which "
             "pedology/scripts/build_soil.py writes from a CLIMATOLOGY at that "
-            f"rung.\nconfig/planet.yaml is at {configured}, and neither "
-            "pedology script takes a --grid, so both would build at "
-            f"{configured} however this step is invoked."
-            + ("" if configured == resolution else
-               f" Running them now would write the {configured} states and "
-               "leave this refusal in place.")
-            + f"\nWhat this needs at {resolution}: a climatology of an arm at "
-            f"{resolution} on the current staged surface family, declared in "
-            "config/planet.yaml, then build_soil.py and "
-            "land_column_properties.py at that rung. See "
-            "exoplasim/notes/route-step-criteria.md, 'The order that unblocks "
-            "the route', and WORLD-CCX6 for the --grid the pedology scripts "
-            "lack.")
+            f"rung.\nWhat this needs at {resolution}, in order: a climatology "
+            f"of an arm at {resolution} on the current staged surface family; "
+            f"that climatology declared in config/planet.yaml under the rung, "
+            f"as `bootstrap_climatology: {{{resolution}: <path>}}`; then\n"
+            f"  build_soil.py --grid {rel(grid_dir)} --state bootstrap "
+            "--iteration 0\n"
+            f"  land_column_properties.py --soil-map <soilmap_{resolution}"
+            f".txt> --states {rel(args.states)}\n"
+            "The soil is not built on a climatology remapped from another "
+            "rung: see exoplasim/notes/route-step-criteria.md, 'The order that "
+            "unblocks the route'.")
 
     # WHICH CAPACITY THIS INSTALLS, and it is decided by the declared GEOMETRY
     # rather than by a switch of its own. The air-dry floor and the surface
