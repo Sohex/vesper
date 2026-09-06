@@ -95,6 +95,7 @@ import yaml
 from _paths import ANALYSIS, CONFIG, DATA          # noqa: F401  puts lib/ on the path
 import builds
 import gridding
+import nc_geometry
 from orogen import Export, LAND
 from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 
@@ -579,6 +580,12 @@ def main() -> int:
             "i1", ("lat", "lon"), "1",
             "1 where the cell holds enough land regions for the partition to "
             "mean anything, 0 where it holds land but too little of it")
+
+        # LAST in the block. The axis is constructed on the export's centres,
+        # the convention gridding.region_cells binned these cells on, and is
+        # named as such so it cannot be matched against a model-labelled one.
+        nc_geometry.declare_grid(ds, convention=nc_geometry.EXPORT_CENTRES,
+                                 what="the wetness classification")
 
     report = {
         "script": "hydrography/scripts/build_wetness.py",

@@ -64,6 +64,7 @@ import yaml
 from _paths import ANALYSIS, CONFIG, DATA          # noqa: F401  puts lib/ on the path
 import builds
 import gridding
+import nc_geometry
 from orogen import Export, LAND
 from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 
@@ -393,6 +394,13 @@ def main() -> int:
             "what makes it transportable where the absolute scale is not")
         var("land_regions", count.reshape(shape), "i4", ("lat", "lon"), "1",
             "land regions in the cell, the sample f_sat_max is computed from")
+
+        # LAST in the block, and the file had no lat or lon variable at all
+        # before it: the axis is CONSTRUCTED here on the export's centres,
+        # which is the convention gridding.region_cells binned these cells on.
+        # It is NOT the model's labels, and the name is what says so.
+        nc_geometry.declare_grid(ds, convention=nc_geometry.EXPORT_CENTRES,
+                                 what="the topographic index")
 
     report = {
         "script": "hydrography/scripts/build_topographic_index.py",

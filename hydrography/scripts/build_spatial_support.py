@@ -116,6 +116,7 @@ import yaml
 from _paths import ANALYSIS, CONFIG, PROJECT_ROOT   # noqa: F401  puts lib/ on the path
 import builds
 import gridding
+import nc_geometry
 import rungs
 from orogen import Export, LAND
 from write_door import refuse_a_write_through_a_symlink
@@ -944,6 +945,13 @@ def write_rung(path: Path, a: dict, mesh: Export, grid_dir: Path, rung: str,
             ("lat", "lon"), "km3",
             "integral of ocean depth over ocean area, EXTENSIVE. The water a "
             "cell holds above its bed, not a circulation quantity")
+
+        # LAST in the block. The lon variable above already carries Orogen's
+        # labelling of the columns; this states that convention BY NAME, so a
+        # consumer holding this beside a model-labelled climatology reads two
+        # different names rather than two axes it might try to match.
+        nc_geometry.declare_grid(ds, convention=nc_geometry.EXPORT_CENTRES,
+                                 what="the per-cell mesh support")
 
 
 def load_checkpoint(path: Path, identity: dict) -> dict:

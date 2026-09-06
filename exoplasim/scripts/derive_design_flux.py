@@ -270,6 +270,7 @@ from numpy.polynomial.legendre import leggauss
 from _paths import ANALYSIS, CONFIG, RUNS  # noqa: F401  (puts lib/ on sys.path)
 
 import climatology  # noqa: E402
+import nc_geometry  # noqa: E402
 import sensitivity  # noqa: E402
 from paths import best_available_climatology, rel  # noqa: E402
 
@@ -514,6 +515,10 @@ def tail_mean_fields(run_dir: Path, orbits: list[int]) -> Path:
         for name in ("tas", "lsm"):
             v = ds.createVariable(name, "f8", ("time", "lat", "lon"))
             v[...] = acc[name] / count
+        # LAST in the block. The tail mean lands outside the tree and is opened
+        # by hand, which is exactly the case where nothing else says what grid
+        # it is on. lib/nc_geometry.py.
+        nc_geometry.declare_grid(ds, what="the design-flux tail mean")
     return out
 
 

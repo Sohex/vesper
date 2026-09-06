@@ -92,6 +92,7 @@ from gridding import (gaussian_area_weights, gaussian_grid,
                       region_cells, require_gaussian_rows)
 from lapse import sigma_levels
 from orogen import LAND, Export
+import nc_geometry  # noqa: E402
 from paths import best_available_climatology, rel, require_clean_io, snapshot_beside
 from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 from provenance import require_build
@@ -573,7 +574,7 @@ def advect_to_steady_state(emission, u, v, loss_rate, lat, lon, cfg):
     """
     tr = cfg["transport"]
     nlat, nlon = emission.shape
-    radius = 6.371e6 * float(cfg["_planet_radius_earth"])  # from config/planet.yaml
+    radius = nc_geometry.EARTH_RADIUS_M * float(cfg["_planet_radius_earth"])
     spec = gaussian_grid(nlat, nlon, name="dust-transport")
     require_gaussian_rows(spec, lat, "the dust transport grid")
     dphi = np.abs(np.gradient(np.deg2rad(lat)))
@@ -961,8 +962,8 @@ def main() -> None:
     mee = 1000.0 * (f1 * band1["mass_extinction_efficiency_m2_g"]
                     + (1 - f1) * band2["mass_extinction_efficiency_m2_g"])
 
-    radius = 6.371e6 * float(config["planet"]["radius_earth"])
-    planet_area = 4 * np.pi * radius ** 2
+    radius = nc_geometry.planet_radius_m(config)
+    planet_area = nc_geometry.sphere_area_m2(config)
     outcomes, fields = {}, {}
     for shelter, z0a in ends:
         emission, load, converged = run_one(
@@ -1138,8 +1139,7 @@ def main() -> None:
         ds.climatology_stage = clim_stage
         ds.variant = args.variant
         for name, data in (("lat", lat), ("lon", lon)):
-            v = ds.createVariable(name, "f8", (name,))
-            v[:] = np.asarray(data)
+            ds.createVariable(name, "f8", (name,))[:] = np.asarray(data)
         v = ds.createVariable("erodible_fraction", "f8", ("lat", "lon"), zlib=True)
         v.units, v.long_name = "1", "fraction of the cell that is bare erodible soil"
         v[:] = np.asarray(erodible)
@@ -1155,6 +1155,8 @@ def main() -> None:
                                       zlib=True)
                 v.units, v.long_name = units, f"{note}, {shelter} end"
                 v[:] = np.asarray(data)
+        # LAST in the block. lib/nc_geometry.py.
+        nc_geometry.declare_grid(ds, what="the dust field")
 
     print(f"variant            {args.variant}")
     print(f"erodible land      "

@@ -49,6 +49,7 @@ from segments import low_io_orbits, non_production_orbits
 
 import climatology
 from gridding import gaussian_area_weights
+import nc_geometry
 
 
 COORDINATES = {"time", "lat", "lon", "lev", "levp", "fourier", "modes"}
@@ -170,6 +171,18 @@ def average_files(paths: list[Path], output: Path, product: str,
                                 f"Coordinate/orbital variable {name} differs in {path}"
                             )
                 target[:] = first
+
+        # LAST in the block, after every variable exists, so each is bound to
+        # the coordinate system and the area measure. The model writes its axes
+        # as `units = "deg"` and no coordinate system and no weight at all, so
+        # every climatology reaching a generic tool got an Earth sphere, an axis
+        # guessed from position and an unweighted global mean. This is the one
+        # place that is repaired, because every product below reads its axes
+        # from here. lib/nc_geometry.py, and the TIME axis is deliberately left
+        # as the model wrote it: no CF calendar expresses this orbital period
+        # and imposing one makes an Earth-calendar operator succeed silently
+        # where it now refuses.
+        nc_geometry.declare_grid(dst, what=f"the {product} climatology")
 
 
 # Quantities worth one number per orbit. Fluxes stay in their native units and

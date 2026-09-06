@@ -411,6 +411,18 @@ netCDF C++ interface, which this host does not have, so the target has to be
 `genie-main/finc.py` is Python 2 and fails under this host's `python`, so no
 `.d` files are written and a parallel make races on `.mod` files.
 
+**Python 2 also closes the shipped route from a flat `.config` file to a run,
+and nothing here wants that route.** `genie-main/configs` holds 635 flat
+`.config` base configurations, and the way upstream turns one into a run is
+`runmuffin.sh:395`, which invokes `./genie_example.job -O`; `-O` reaches
+`genie.job`'s `TRANSLATE_CONFIG`, which is `python ./translate_config.py`, and
+that converter is Python 2 and unavailable on this host. What the project
+reaches cGENIE through instead is `analysis/cgenie_cost.py`, which composes the
+XML configuration directly and includes the `world` parameter, so an arbitrary
+topography and grid are reachable without a converter. The 635 flat configs
+remain the format reference OCN-11 and OCN-18 read; they are not an entry
+point.
+
 A fourth thing appears only at larger grids. Every field cGENIE holds is in a
 named COMMON block sized from the grid macros, so all of it is static; past
 roughly a gigabyte of it the default `-mcmodel=small` cannot reach it and the
@@ -459,6 +471,11 @@ audit's own cost case, which is exact on a single-threaded process and is not a
 cost on a threaded one, since a thread waiting at a barrier retires
 instructions in proportion to how long it waits.
 `notes/audits/cgenie-embm-free-path-and-threading.md` is what it found.
+`notes/audits/cgenie-unreachable-code-dispositions.md` takes the three paths
+that audit left standing that no configuration reaches, and decides each one
+against the fact that this subtree is a MAINTAINED fork rather than a hard one:
+nothing here reaching a thing is only half the test, and whether upstream
+maintenance of it can still deliver value here is the half that decides.
 
 **Both of those two build from a `git archive` export outside the repository
 rather than in `vendor/cgenie`, and what they compile is the reason.** A profile

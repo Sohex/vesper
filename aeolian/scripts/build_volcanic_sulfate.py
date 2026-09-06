@@ -60,6 +60,7 @@ from build_dust import (advect_to_steady_state, flag_anomalous_bins,
                         settling_velocity, steering_wind)
 from builds import grid_export, mesh_export
 from gridding import gaussian_area_weights, land_fraction_of_class
+import nc_geometry  # noqa: E402
 from orogen import Export
 from paths import best_available_climatology, rel
 from aerosol_deposition import write_deposition
@@ -249,8 +250,7 @@ def main() -> None:
             f"invented geography")
     arc_area_fraction = float((arc * area).sum() / area.sum())
 
-    planet_area = 4.0 * np.pi * (
-        float(config["planet"]["radius_earth"]) * 6.371e6) ** 2
+    planet_area = nc_geometry.sphere_area_m2(config)
     b1 = band1_fraction()
     lam_s, f_s = stellar_weights()
 
@@ -429,10 +429,8 @@ def main() -> None:
     with Dataset(args.output_nc, "w") as out:
         out.createDimension("lat", lat.size)
         out.createDimension("lon", lon.size)
-        for name, data, units in (("lat", lat, "deg"), ("lon", lon, "deg")):
-            v = out.createVariable(name, "f8", (name,))
-            v.units = units
-            v[:] = data
+        for name, data in (("lat", lat), ("lon", lon)):
+            out.createVariable(name, "f8", (name,))[:] = data
         for name, data, units, long_name in (
                 ("burden", burden, "kg m-2", "sulfate column burden"),
                 ("aod", aod, "1", "sulfate optical depth, band combined"),
@@ -444,6 +442,8 @@ def main() -> None:
             v[:] = np.asarray(data)
         out.note = payload["note"]
         out.generated = payload["generated"]
+        # LAST in the block. lib/nc_geometry.py.
+        nc_geometry.declare_grid(out, what="the volcanic sulfate field")
     print(f"\nwrote {rel(args.output)} and {rel(args.output_nc)}")
 
     # -- the nutrient carrier, mass and only mass ----------------------------

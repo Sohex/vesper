@@ -375,6 +375,16 @@ REFUSES a label that is not on the axis rather than snapping it to the
 nearest column -- an export centre offered as a model label lands exactly
 half a column out, which matches every cell half a planet away instead of
 matching none, and is rule 3 in the form that does not announce itself),
+`nc_geometry.py` (the geometry a NetCDF product DECLARES about itself, so a
+reader cannot substitute Earth's without saying so: the one expression turning
+`config/planet.yaml`'s `radius_earth` into metres, the CF coordinate system
+carrying that sphere, the CF axis names and cell boundaries, the Gaussian
+quadrature weight an `ncwa -w` needs to find, and the LONGITUDE CONVENTION BY
+NAME -- the export's centres and the model's labels agree on every number a
+reader could compare and differ only in origin, so the file states which it is
+and the reader refuses one whose axis is not that. Two supports: a grid carries
+its own weight and area, and a mesh product NAMES the export its region areas
+live in rather than copying ten million of them),
 `remap.py` (grid-to-grid: the separable overlap weights between two grids
 that are not the same grid, normalisation by field semantics, the coverage
 that travels with the result, and where a coastal flux goes when the two

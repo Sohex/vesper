@@ -47,6 +47,7 @@ import carve_verdict as cv  # noqa: E402
 import groundwater as gw  # noqa: E402
 import lake_balance as lb  # noqa: E402
 import surface_water as sw  # noqa: E402
+import nc_geometry  # noqa: E402
 from orogen import LAND, Export  # noqa: E402
 from paths import best_available_climatology, rel  # noqa: E402
 
@@ -1038,6 +1039,13 @@ def main() -> int:
             if note:
                 v.long_name = note
             v[:] = dat
+        # LAST in the block. THE SUPPORT IS THE MESH AND NOT A GRID: the
+        # regions are unequal in area, so nothing derived from this file by
+        # a reduction over the region axis is an area quantity unless it
+        # carries the export's region areas. The declaration says so and
+        # names where they live. lib/nc_geometry.py.
+        nc_geometry.declare_region_mesh(
+            ds, n_regions=export.n_regions, terrain_hash=export.terrain_hash)
 
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     rp = report_path(args, out)

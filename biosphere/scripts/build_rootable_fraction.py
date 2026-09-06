@@ -25,6 +25,7 @@ from _paths import CONFIG, PROJECT_ROOT
 
 import builds
 import gridding
+import nc_geometry
 import rungs
 from orogen import Export, LAND
 from spatial_support import (grid_support_contract, validate_contract)
@@ -171,7 +172,7 @@ def main() -> None:
         builds.component_data("biosphere", config) / f"rootable_fraction_{rung}.nc")
     output.parent.mkdir(parents=True, exist_ok=True)
     shape = (nlat, nlon)
-    cell_area = spec.cell_area(float(config["planet"]["radius_earth"]) * 6371000.0)
+    cell_area = spec.cell_area(nc_geometry.planet_radius_m(config))
     with Dataset(output, "w", format="NETCDF4") as ds:
         ds.createDimension("lat", nlat)
         ds.createDimension("lon", nlon)
@@ -201,6 +202,10 @@ def main() -> None:
         ds.setncattr("vesper_terrain_hash", mesh.terrain_hash)
         ds.setncattr("vesper_spatial_contract", json.dumps(contract, sort_keys=True))
         ds.setncattr("vesper_spatial_contract_identity", contract_identity)
+        # LAST in the block: the file-level geometry beside the artifact-level
+        # contract above. The two are one identity for one grid, because both
+        # digests come from lib/spatial_support.py.
+        nc_geometry.declare_grid(ds, what="the rootable fraction")
 
     valid = ~no_land
     report = {
