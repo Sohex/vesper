@@ -284,3 +284,47 @@ one loop-coupled derivation and one standalone one.
 arm files and sixteen lines of `config/planet.yaml` name at least one of them.
 That is what a per-star re-derivation has to stay consistent across, and
 `check_consistency.py` is what holds it there.
+
+## What the cost per timestep is measured against
+
+`exoplasim/scripts/radiation_cost_per_column.py` -> `exoplasim/analysis/radiation_cost_per_column.json`.
+
+**The model side.** A T21 executable built from the tree's own source at the
+invocation, with `--no-publish` so it stays in its build directory and cannot
+become the binary a run picks up, and its sha recorded beside the number. The bed
+is cut by `make_profile_bed.py` from a settled T21 run, which PRUNES the keys the
+current `namelist` statements no longer declare and FORCES what
+`config/planet.yaml` says. That is not a convenience: a hand-copied bed carried
+`tswr3` in `radmod_namelist`, the key WORLD-F9IG removed when `swr` stopped
+reading three tuned coefficients, and the model aborted in `readnl` before its
+first step. An aborted model is 0.04 s of wall clock and a radiation share of
+ZERO, and a zero share divides into a whole-model slowdown of exactly one, which
+is an ordinary-looking answer with nothing behind it. The harness now refuses a
+non-zero exit and a long arm that costs no more than a short one.
+
+**The source it is against.** `radmod.f90` is byte-identical to the tree's
+canonical copy at the time of measurement, which is what the radiation number
+requires. The rest of the model is four commits behind -- a canopy snow store
+with interception and unloading, a glacier reference temperature, one specific
+heat of ice for both columns, and a comment on an optical conversion -- and none
+of them touches `swr`, `lwr` or `radstep`. They add land-surface work, so the
+radiation SHARE measured here is a slight over-estimate of the canonical tree's:
+the numerator is right and the denominator is a little small.
+
+**The candidate side.** SOCRATES ga7 through the `runes` interface, built by
+`exoplasim/scripts/socrates_cost_bench.sh` at `config/planet.yaml`'s own
+production flag line less `-ffpe-trap`, so what is compared is the code and not
+the compiler. The build is refused unless it reproduces SOCRATES's own
+`examples/runes` gfortran reference; it reproduces it to a worst relative
+1.14e-08 over 24 of about 400 printed values, which is a last digit at eight
+decimal places. ga7 is 6 shortwave bands over 22 (band, gas) entries at 97
+k-terms and 9 longwave bands over 51 entries at 166, counted out of the spectral
+files themselves.
+
+**The unit.** CPU-seconds per column per radiation call, from `perf stat`'s
+`task-clock` with `OMP_WAIT_POLICY=passive`, because the model is threaded and
+the candidate's driver is not and both schemes are embarrassingly parallel over
+columns. The per-step cost is the DIFFERENCE between an 8,000-step and a
+16,000-step arm, so the bed's own startup cancels rather than being assumed
+small; `where-the-time-goes.md` records a confident T42 number on a bed shorter
+than its startup that reversed sign when the bed was lengthened.
