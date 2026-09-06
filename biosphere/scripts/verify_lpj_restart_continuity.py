@@ -504,7 +504,13 @@ def compare(whole: Path, resumed: Path, first_year: int,
     return failures
 
 
-RUN_ID = re.compile(r"^(lpj_[0-9a-f]{32})$")
+RUN_ID = re.compile(r"lpj_[0-9a-f]{32}")
+
+# What `assess_lpj_run` says when a run completed and its RECORD is not
+# acceptable. That is a statement about equilibrium (world-qcse) and not about
+# whether the run resumed where it was told to, so `--runner` reads past it and
+# says so rather than reporting a plumbing failure it did not find.
+ACCEPTANCE_REFUSAL = "LPJ-GUESS output refused"
 
 
 def reduced_pfts(source: Path, target: Path, spinup: int) -> None:
@@ -547,13 +553,17 @@ def invoke_runner(bed: Path, driver: Path, pfts: Path, ranks: int,
         handle.write(f"$ {' '.join(command)}\n{output}\n")
     if expect_failure:
         return (None if result.returncode else "UNEXPECTED SUCCESS"), output
-    if result.returncode:
+    match = RUN_ID.search(output)
+    if match is None:
         return None, output
-    for line in output.splitlines():
-        match = RUN_ID.match(line.strip())
-        if match:
-            return match.group(1), output
-    return None, output
+    run_id = match.group(0)
+    if result.returncode and not (RUNS / run_id / "run_manifest.json").is_file():
+        return None, output
+    # A non-zero exit with a manifest on disk is the acceptance refusal above:
+    # the model integrated, the manifest and the state file exist, and what was
+    # refused is the record's equilibrium. Everything this mode tests is
+    # downstream of the manifest.
+    return run_id, output
 
 
 def runner_check(bed_root: Path, driver: Path, pfts_source: Path, ranks: int,
@@ -580,6 +590,13 @@ def runner_check(bed_root: Path, driver: Path, pfts_source: Path, ranks: int,
     pfts = bed_root / "runner_pfts.ins"
     reduced_pfts(pfts_source, pfts, spinup)
 
+    # WHAT THIS MODE DOES NOT TEST, stated before it starts. A bed short enough
+    # to run in seconds cannot satisfy the acceptance contract's equilibrium
+    # bound -- world-qcse says no LPJ run has, on a record thirty times this one
+    # -- so every arm here is refused by `assess_lpj_run` after it has written
+    # its manifest and its state file. That refusal is about the RECORD and this
+    # mode is about the state plumbing, so it reads past it. It does NOT read
+    # past a run that failed before its manifest existed.
     failures: list[str] = []
     parent, output = invoke_runner(bed_root, driver, pfts, ranks, 1, nyear,
                                    ["--save-state", "--label",
@@ -613,10 +630,41 @@ def runner_check(bed_root: Path, driver: Path, pfts_source: Path, ranks: int,
     if not continuation:
         failures.append(f"{child} continues {parent} and its manifest records "
                         "no continuation block, so the chain has no provenance")
-    elif continuation.get("parent") != parent:
-        failures.append(
-            f"{child}'s manifest names {continuation.get('parent')} as its "
-            f"parent and it continued {parent}")
+    else:
+        # THE WHOLE BLOCK, not just the parent's name. A consumer reading a
+        # record has to be able to see that the spin-up in front of it was
+        # INTEGRATED by a named run rather than assumed, and each of these is
+        # one of the things that says so.
+        if continuation.get("parent_run_id") != parent:
+            failures.append(
+                f"{child}'s manifest names "
+                f"{continuation.get('parent_run_id')} as its parent and it "
+                f"continued {parent}")
+        if continuation.get("resumed_at_year") != spinup + nyear:
+            failures.append(
+                f"{child}'s manifest says it resumed at year "
+                f"{continuation.get('resumed_at_year')}; its parent's state "
+                f"covers year {spinup + nyear - 1}, so it resumes at "
+                f"{spinup + nyear}")
+        if continuation.get("years_simulated_here") != nyear:
+            failures.append(
+                f"{child}'s manifest says it integrated "
+                f"{continuation.get('years_simulated_here')} simulated years "
+                f"here and it was asked for {nyear}")
+        if continuation.get("chain") != [parent]:
+            failures.append(
+                f"{child}'s lineage back to bare ground is "
+                f"{continuation.get('chain')} and its only ancestor is "
+                f"{parent}")
+        # The hashes the continuation recorded are the files it actually read.
+        recorded = continuation.get("parent_state_sha256") or {}
+        on_disk = {p.name: run_lpj_guess.sha256(p)
+                   for p in sorted((parent_dir / "state").iterdir())
+                   if p.is_file()}
+        if recorded != on_disk:
+            failures.append(
+                f"{child} recorded state-file hashes that are not the ones in "
+                f"{parent_dir / 'state'}")
 
     control, output = invoke_runner(bed_root, driver, pfts, ranks, 1,
                                     2 * nyear, ["--label",

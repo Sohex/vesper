@@ -108,6 +108,20 @@ def short(path: Path) -> str:
     return sha256(path)[:8]
 
 
+def repo_relative(path: Path) -> str:
+    """A path relative to the tree when it is in it, and absolute when it is not.
+
+    `biosphere/runs/` is a directory link into the main checkout, so a bed built
+    under it is OUTSIDE the worktree that built it and `relative_to` raises.
+    A provenance string is a label, and a label that crashes on a path it cannot
+    shorten is a label that decides where the caller may put its inputs.
+    """
+    try:
+        return str(Path(path).relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(Path(path).resolve())
+
+
 def require_soil_driver_climate(soilmap: Path, driver: Path) -> dict:
     """BIO-19: prove the soil and ecological forcing use one climate state."""
     driver_report = driver.with_name(driver.stem + "_provenance.json")
@@ -139,9 +153,9 @@ def require_soil_driver_climate(soilmap: Path, driver: Path) -> dict:
         "soil_state": soil.get("soil_state"),
         "climatology_stage": soil.get("climatology_stage"),
         "climatology_sha256": soil_climate,
-        "soil_report": str(SOIL_REPORT.relative_to(PROJECT_ROOT)),
+        "soil_report": repo_relative(SOIL_REPORT),
         "soil_report_sha256": sha256(SOIL_REPORT),
-        "driver_provenance": str(driver_report.relative_to(PROJECT_ROOT)),
+        "driver_provenance": repo_relative(driver_report),
         "driver_provenance_sha256": sha256(driver_report),
     }
 
