@@ -872,9 +872,29 @@ def stage_diagnostics(tag: Path, region: str, confinement: str | None,
         for form in ("confined", "unconfined"):
             base_m = (np.where(land, elev - D, np.nan)
                       if form == "unconfined" else None)
-            v = run(thickness_m=D, et_max_m_s=1500.0 / 1000.0 / YR,
-                    et_lambda_m=1.0, aquifer_base_m=base_m,
-                    min_saturated_m=min_saturated)
+            # A REFUSAL IS A RESULT OF THE SWEEP, NOT AN END TO IT. `gw.solve`
+            # raises rather than report a convergence it cannot certify: under
+            # the unconfined form the water balance is a difference of face
+            # fluxes formed from heads whose magnitude IS the aquifer thickness,
+            # so at the thick end of this sweep the round-off floor can exceed
+            # the closure bar and no result at that thickness could be trusted.
+            # That is the guard working. Letting it end the stage would throw
+            # away every thickness already solved and leave no artifact at all,
+            # and it would do so at the top of a sweep whose whole purpose is to
+            # find out where the form stops being usable.
+            #
+            # The declared criterion is untouched by this: a thickness whose arm
+            # was refused has not satisfied anything, and it is recorded as
+            # refused rather than scored.
+            try:
+                v = run(thickness_m=D, et_max_m_s=1500.0 / 1000.0 / YR,
+                        et_lambda_m=1.0, aquifer_base_m=base_m,
+                        min_saturated_m=min_saturated)
+            except SystemExit as exc:
+                out["transmissivity_sweep"].append(
+                    {"form": form, "thickness_m": D, "refused": str(exc)})
+                print(f"    {form:>11s}{D:8.0f}   REFUSED: {str(exc)[:90]}")
+                continue
             out["transmissivity_sweep"].append(
                 {"form": form, "thickness_m": D, "median_depth_m": v[0],
                  "sd_m": v[1], "pearson": v[2], "rho_recharge": v[3],
@@ -891,6 +911,15 @@ def stage_diagnostics(tag: Path, region: str, confinement: str | None,
     per_D = []
     for D in thicknesses:
         c, u = by[("confined", D)], by[("unconfined", D)]
+        if "refused" in c or "refused" in u:
+            # Not a miss of the three conditions but an absence of the arm they
+            # would be evaluated on. Recorded as its own outcome so a reader
+            # cannot mistake a thickness that was never solved for one that was
+            # solved and lost.
+            per_D.append({"thickness_m": D, "all_three": False,
+                          "refused": {"confined": c.get("refused"),
+                                      "unconfined": u.get("refused")}})
+            continue
         closer = lambda a, b, o: abs(a - o) < abs(b - o)  # noqa: E731
         conds = {
             "rho_elevation_closer_to_observed_than_confined":

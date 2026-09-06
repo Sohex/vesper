@@ -87,6 +87,23 @@ hydrography/data/*/regions.nc
 # tracked in hydrography/analysis/surface_water_report.json.
 hydrography/data/*/surface_water.nc
 
+# The steady-state water table, per region: head, depth, seepage,
+# transmissivity and the per-basin groundwater exchange, written by
+# hydrography/scripts/build_groundwater.py. Per region on a ten-million-region
+# mesh, so it is the largest thing this component writes after the support
+# files, and every aggregate a reader needs -- the closure, the depth
+# percentiles, the sink fraction, the basin exchange and the convergence trace
+# -- is small and IS tracked, in hydrography/analysis/groundwater_report.json.
+#
+# THE GLOB TAKES THE VARIANTS TOO, and that is the point of writing it this way
+# rather than as a flat name. GW-18's sourced thickness and GW-24's unconfined
+# transmissivity each write their arm beside the product under its own tag, and
+# an arm is by construction a thing that exists to be compared and then
+# discarded. This rule matched nothing until the first solve of a build ran to
+# completion, so the first product would have been a tracked file of hundreds of
+# megabytes that nothing had decided to track.
+hydrography/data/*/water_table*.nc
+
 # GW-26's compound topographic index, per region and so the same size as the
 # rasters above. Terrain only, rebuilt in seconds by
 # hydrography/scripts/build_topographic_index.py, and one file per grid. The

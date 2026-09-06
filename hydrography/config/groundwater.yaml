@@ -337,6 +337,35 @@ aquifer:
   # reaches the aquifer base, so which cells are connected to recharge or to the
   # sea would depend on the head, and the static dry set that makes the
   # uniqueness identity pass bit-identically would stop being static.
+  #
+  # THE ARGUMENT ABOVE ESTABLISHES "POSITIVE" AND NOT "ONE METRE", and the
+  # disposition of the value is DECIDED BY A MEASUREMENT this run reports rather
+  # than argued here. Niswonger, Panday and Ibaraki (2011) parameterise the same
+  # device -- what a groundwater model does with a cell whose saturated column
+  # has drained -- as a FRACTION of the cell thickness and never as a length.
+  # Written as a metre this floor is 1 per cent of the aquifer at Gleeson's
+  # 100 m and 0.03 per cent at this world's thickest cover, so it is one number
+  # meaning two things across the field GW-18 supplies.
+  #
+  # THE DECISION PROCEDURE, declared before the first unconfined solve of the
+  # real case. `at_transmissivity_floor` on the report is the count of cells
+  # sitting on this bound, whose depth is therefore a lower bound and not a
+  # value. If that count is zero the floor binds nothing, the choice of value
+  # cannot reach any result, and the disposition is IRREDUCIBLE with this
+  # argument. If it is not zero the floor is a live model-form parameter, the
+  # disposition is a BRACKET expressed as a fraction of the aquifer thickness,
+  # and it is swept.
+  #
+  # AND IT IS WHERE TO LOOK FIRST IF THE UNCONFINED SOLVE DOES NOT CONVERGE.
+  # Niswonger names arithmetic averaging of a dewatering cell's conductance as a
+  # cause of convergence failure -- water leaves a dry cell for a wetter
+  # neighbour, which flow continuity forbids -- and prescribes upstream
+  # weighting instead. `groundwater.py` uses the arithmetic mean of the two
+  # saturated columns at a face, deliberately: over a flat base that is what
+  # makes the discrete flux exactly linear in the Kirchhoff potential, which is
+  # the identity `--dupuit-test` certifies. Both choices are argued and they
+  # disagree, and the cells on this floor are the ones the disagreement is
+  # about.
   min_saturated_thickness_m: 1.0
 
 # ---------------------------------------------------------------------------

@@ -3,11 +3,14 @@
 This is worldbuilding. Vesper is a fictional super-Earth and this document is
 about a numerical solver for a groundwater model of it.
 
-Measured 2026-08-20 on `precarve-craton`, forced by the BOOTSTRAP climatology.
-This build has no `baseline_climatology` and `surface_water.nc` was forced the
-same way; by this project's vocabulary a bootstrap run's numbers are not the
-baseline, so every FIGURE here is provisional in that sense. The convergence
-findings are not, because they are properties of the discretised problem.
+Measured 2026-08-20 on `precarve-craton`, forced by the BOOTSTRAP climatology,
+except for the cost section at the end, which is measured 2026-09-05 on
+`canonical-10m-carve2` and names its build at every figure. Neither build has a
+`baseline_climatology` in play here and `surface_water.nc` was forced by the
+bootstrap either way; by this project's vocabulary a bootstrap run's numbers are
+not the baseline, so every FIGURE here is provisional in that sense. The
+convergence findings are not, because they are properties of the discretised
+problem.
 
 `hydrography/scripts/groundwater.py` is the code.
 
@@ -405,6 +408,159 @@ consumes is unchanged on this build.
 
 Nothing regenerates a carve list from this. The head field is uncertified until
 GW-3, and a carve list is loop A's input.
+
+## What the solve costs, and where the cost actually was
+
+Measured 2026-09-05. The earlier cost reasoning in `groundwater.py` was taken on
+a 400,000-unknown case and concluded that the linear solve is about 30 s inside a
+multi-minute run. On `canonical-10m-carve2` it is not: one confined solve ran
+past forty minutes at about 16 GB and was killed without writing a water table.
+A direct factorisation's work and fill are superlinear in the unknowns, so a
+conclusion drawn at 400,000 does not travel to a free set that opens at
+millions.
+
+### The lever that was named, and what it measures
+
+The proposal was to hold the evapotranspiration diagonal fixed across inner
+steps so the matrix repeats and `splu` re-solves at a fraction of the cost of
+factorising. Run on the uniqueness case, which carries GW-15's sink and GW-17's
+imposed baselevels:
+
+| | passes | block factorisations | reused | final residual |
+| --- | ---: | ---: | ---: | ---: |
+| Newton, as run | 10 | 30 | 0 | 2.25e-13 |
+| diagonal held fixed | 246 | 15 | 723 | 9.58e-13 |
+
+The reuse arrives. The matrix repeats on 241 of 246 passes, which is the 98 per
+cent the lever promised, and the factorisation count halves. The iteration loses
+anyway, because it needs twenty-five times the passes and every pass pays an
+assembly, a partition and two water balances over the whole mesh whether or not
+it factorises. The head lands 2.7e-07 m from the Newton answer rather than
+bit-identical, and the frozen arm needs a pass budget of 2,000 to converge at
+all against the 60 this component runs.
+
+**The reason is the one this document already gives for a different term.** The
+sink is exponential in depth at an e-folding of about a metre, so a
+linearisation of `E` about the current head is good only within about a metre of
+it, and a Newton step on this problem moves the head by tens of metres. Freezing
+the diagonal is a fixed-point iteration on an exponential outside its own
+e-folding length, which is the same disqualification Fan's exponential
+transmissivity earned above. One exponential, two solvers.
+
+The unfrozen count is worth reading beside it: the WHOLE matrix repeats on 0 of
+10 passes, while its PATTERN repeats on 5. The active set settles and the
+diagonal does not, so there is nothing for a factorisation to be reused on.
+
+### Where the cost was: the free set is not one problem
+
+What the solver was handed is not one problem and never was. Two things cut it,
+and only one of them is a modelling choice.
+
+**The coastlines, which is most of it.** A face conducts only where both its
+ends are in the conductive network, so the ocean separates the landmasses
+absolutely: the free set is at least one block per continent and one per island,
+plus whatever the cells with no assigned permeability isolate. On
+`canonical-10m-carve2` that alone is 7,564 blocks over 4,268,074 conductive land
+regions, and the largest is 641,611 cells -- 15.0 per cent of the conductive
+land. This world has no dominant continent, and that fact is worth more to the
+solve than anything the model does.
+
+**GW-17's fixed heads, which add fragments and not much else.** A river or lake
+cell carries an imposed head, so it is a boundary and not an unknown and a face
+touching one contributes to a diagonal and a right-hand side rather than an
+off-diagonal. Removing them nearly doubles the block count and barely touches
+the largest block:
+
+| what is removed from the free set | free | blocks | largest | share |
+| --- | ---: | ---: | ---: | ---: |
+| nothing: conductive land | 4,268,074 | 7,564 | 641,611 | 15.0% |
+| lakes | 4,187,420 | 8,882 | 631,270 | 15.1% |
+| rivers | 3,986,875 | 11,848 | 616,298 | 15.5% |
+| both, GW-17 as configured | 3,914,015 | 13,094 | 606,808 | 15.5% |
+
+That is what a channel network does to a planar graph and it should not be
+surprising: a drainage tree runs from the interior to a coast, and a path from
+the boundary to an interior point does not separate a disc. The rivers strand
+five and a half thousand small fragments and move the largest block by five per
+cent.
+
+**So the partition is worth having for the coastlines and it would be worth
+having with the baselevels off.** Assembling the union and factorising it whole
+pays a superlinear cost on the sum of the blocks that a direct method never has
+to pay, and it makes the peak the whole rather than one block. How superlinear
+decides how much that is worth, and the exponent is measured below rather than
+taken from the textbook.
+
+Of the 13,094, fifty-one blocks of a thousand cells or more hold 96.3 per cent
+of the free set between them; the remaining thirteen thousand are small enough
+that what they cost is the per-block call rather than the factorisation, which
+is 82 microseconds each and about a second per pass over all of them.
+
+The count is a LOWER bound on the partition, because the solve also drops the
+cells that reach neither recharge nor the sea and any that the sink seeds at the
+surface, and dropping more cells can only cut further.
+
+**And it is a property of the model rather than of this build.** The same count
+on the two other ten-million-region builds that carry a `surface_water.nc`:
+
+| build | free set | blocks | largest | largest as a share |
+| --- | ---: | ---: | ---: | ---: |
+| `canonical-10m-carve2` | 3,914,015 | 13,094 | 606,808 | 15.5% |
+| `canonical-10m-base` | 3,564,594 | 16,549 | 546,293 | 15.3% |
+| `precarve-craton-10m` | 3,493,929 | 15,387 | 480,175 | 13.7% |
+
+Thirteen to seventeen thousand blocks on every one of them, with the largest
+holding a seventh of the free set and fifty or so blocks holding all but four
+per cent. A carve iteration moves the count and does not move the shape, which
+is what says the partition belongs to the world's coastlines rather than to any
+one terrain.
+
+**What that is worth, and the exponent is measured rather than assumed.** The
+textbook figure for a planar direct solve is `n^1.5`, which would put the sum
+over the blocks at 0.280 of the union's. The exponent this file's own recorded
+`splu` table actually shows, over 399,424 to 1,999,396 unknowns, is **1.235**,
+and its fill grows as about `n (9.5 ln n - 53)` -- so both are nearly linear at
+these sizes and the textbook exponent overstates the saving. Extrapolating that
+table rather than the exponent:
+
+| | monolithic | partitioned | ratio |
+| --- | ---: | ---: | ---: |
+| factorisation time | 18.7 s | 10.0 s | 0.53 |
+| fill, all blocks held | 355 M | 247 M | 0.69 |
+| fill, largest block alone | 355 M | 44 M | 0.12 |
+
+That is an extrapolation from a synthetic at a fifth of the size and it is NOT a
+measurement of this solve; it is what sized the design. Two things follow from
+it that do not depend on its accuracy. The saving in TIME is about a factor of
+two rather than the factor of three and a half the textbook exponent promises,
+so the partition is worth having and is not the end of the cost. And the saving
+in PEAK is only available if the factors are not all held at once, which is why
+the cache is spent only after a zero-flip pass: during the passes where the free
+set is largest, nothing is kept and the peak is one block's fill.
+
+It is exact rather than an approximation to the coupled solve. There are no
+entries between blocks, so there is no fill between them, and the elimination
+inside a block is the sequence of operations it would have been inside the whole
+matrix -- provided the cells keep their relative order, which is why the
+partition sorts stably. `groundwater.py --factorisation-test` asserts that
+bitwise on five interleaved lattices under a scrambled global labelling, and
+carries `SymmetricMode` as the control it must reject: that ordering halves the
+fill and moves the answer by 2e-14 to 6e-14 relative, which is what says the
+equality is a property of this substitution and not of any two ways of solving
+the same system.
+
+**End to end against the code it replaces**, which is the bar the change is
+actually held to. The partitioned solver was run against the monolithic
+`spsolve` version on the uniqueness case at three sizes, 48x48, 96x96 and
+128x128, each carrying the sink, the imposed baselevels, an enclosed block and a
+pinned wet patch: the same pass count, an **identical converged active set**, and
+a **bit-identical head field**, `max|dh| = 0.000e+00` on all three. That is the
+whole of what a restructuring of this solve has to show, and it is not inferred
+from the algebra arm above but measured on the solver.
+
+`splu(A).solve(b)` replaces `spsolve(A, b)` for the same reason and at the same
+bar: at one column ordering the two drive the same factorisation and the same
+back-substitution, so they agree to the last bit, and the same check asserts it.
 
 ## What remains
 

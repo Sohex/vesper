@@ -32,6 +32,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import resource
 import subprocess
 import sys
 from pathlib import Path
@@ -775,6 +777,32 @@ def main() -> int:
                               "residual", "infeasible_pinned_cells"],
             "seepage_clipped_m3_s": res.get("seepage_clipped_m3_s"),
             "trace": res.get("residual_trace", []),
+        },
+        # world-wfge. WALL TIME PER PHASE OF THE OUTER LOOP, and the count of
+        # passes whose matrix repeated. A timing is only as meaningful as the
+        # load it was taken under, so read it beside `host_load_average` below
+        # and not on its own.
+        "cost": {
+            "phase_seconds": res.get("phase_seconds"),
+            "matrix_repeat": res.get("matrix_repeat"),
+            "host_load_average": list(os.getloadavg()),
+            # The peak this process reached, GB. It belongs on the artifact
+            # because the thing that decides whether a solve of this size can
+            # run beside anything else is its footprint and not its wall time,
+            # and because a run that swapped is one whose timing means nothing.
+            "peak_resident_gb": round(
+                resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1048576, 2),
+            "phase_note": ("wall seconds inside solve(), by phase. `setup` is "
+                           "everything before the first pass; `partition` cuts "
+                           "the free set into the blocks GW-17's fixed heads "
+                           "leave it in; `assembly` builds the matrix; "
+                           "`factor_solve` is the per-block factorisation and "
+                           "back-substitution; `release` and `residual` are the "
+                           "two water balances per pass; `transmissivity` is "
+                           "the unconfined form's reassembly of T from the head "
+                           "and is absent from a confined run. The load average "
+                           "is this host's at the moment the report was "
+                           "written"),
         },
         "outer_iterations": res.get("outer_iterations"),
         "water_table": {
