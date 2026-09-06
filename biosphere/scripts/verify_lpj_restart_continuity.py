@@ -237,20 +237,24 @@ def build_bed(bed: Path, paths: dict, settings: dict, state_dir: Path,
         if not (bed / extra.name).exists():
             shutil.copyfile(extra, bed / extra.name)
     instruction = bed / "run.ins"
+    state = {
+        "restart": bool(restart), "save_state": bool(save_state),
+        "state_year": state_year, "state_day": state_day,
+        "save_year": state_year if save_year is None else save_year,
+        "save_day": state_day if save_day is None else save_day,
+        "state_path": str(state_dir.resolve()),
+        "save_path": str((state_dir if save_dir is None
+                          else save_dir).resolve()),
+    }
     # The serialization block is `run_lpj_guess.serialization_block`, reached
     # through `build_instruction`, so this fixture and the production runner
     # cannot drift on what `state_year` means while both keep parsing.
-    instruction.write_text(run_lpj_guess.build_instruction(paths, {
-        **settings,
-        "state": {
-            "restart": bool(restart), "save_state": bool(save_state),
-            "state_year": state_year, "state_day": state_day,
-            "save_year": state_year if save_year is None else save_year,
-            "save_day": state_day if save_day is None else save_day,
-            "state_path": str(state_dir.resolve()),
-            "save_path": str((state_dir if save_dir is None
-                              else save_dir).resolve()),
-        }}))
+    instruction.write_text(run_lpj_guess.build_instruction(
+        paths, {**settings, "state": state}))
+    # What this arm ASKED FOR, beside the instruction that asks it. check_instants
+    # holds the model's own log against this rather than against a second copy
+    # of the arithmetic.
+    (bed / "asked_state.json").write_text(json.dumps(state, indent=2) + "\n")
     return instruction
 
 
@@ -304,6 +308,77 @@ def compare_states(left: Path, right: Path, label_left: str,
         failures.append(
             f"{a.name}: {differing} of {len(first)} bytes differ, first at "
             f"offset {offset}")
+    return failures
+
+
+def parsed_instants(bed: Path, ranks: int) -> dict:
+    """What the model says it parsed, read back off its own log.
+
+    THE DEFECT THIS EXISTS FOR. `state_day -1` and `save_day -1` are the year
+    boundary, and they are the only negative integers any instruction file in
+    this model declares. `libraries/plib` stored an integer as
+    `(int)(num + 0.5)`, which truncates toward zero, so both arrived as 0: every
+    restart taken here saved at the end of day 0 of `state_year` and resumed at
+    day 1 of it, an arbitrary-day restart, while the instruction file, this
+    fixture and the runner all said year boundary. Nothing refused it, because
+    0 is in range and every number downstream was computed from 0 consistently.
+
+    A fixture that only restates the rule cannot catch that: it would compute
+    -1 from its own arithmetic and agree with itself. So `framework.cpp` prints
+    what it PARSED and what it DERIVED, and this reads that back and compares it
+    with what the instruction file asked for. That is a check with a wrong
+    answer rather than one that can only differ.
+    """
+    instants: dict = {}
+    for rank in range(1, ranks + 1):
+        log = bed / f"run{rank}" / "guess.log"
+        if not log.is_file():
+            continue
+        text = log.read_text(errors="replace")
+        found: dict = {}
+        for line in text.splitlines():
+            head = line.strip()
+            if head.startswith("Restart instants:"):
+                parts = head.replace("Restart instants:", "").split()
+                found["state_day"] = int(parts[1])
+                found["save_day"] = int(parts[3])
+            elif head.startswith("resume: state covers year"):
+                parts = head.split()
+                found["resume"] = (int(parts[4]), int(parts[6]))
+            elif head.startswith("save: state written covers year"):
+                parts = head.split()
+                found["save"] = (int(parts[5]), int(parts[7]))
+        if found:
+            return found
+    return instants
+
+
+def check_instants(bed: Path, ranks: int, label: str,
+                   year_length: int) -> list[str]:
+    """Every way the model's restart instants differ from the ones asked for."""
+    asked = json.loads((bed / "asked_state.json").read_text())
+    if not (asked["restart"] or asked["save_state"]):
+        return []
+    seen = parsed_instants(bed, ranks)
+    if not seen:
+        return [f"{label}: the model logged no restart instants, so what it "
+                "parsed from the instruction file is not known. Rebuild: "
+                "framework.cpp prints them whenever a run restarts or saves."]
+    failures = []
+    for name in ("state_day", "save_day"):
+        if seen.get(name) != asked[name]:
+            failures.append(
+                f"{label}: the instruction file declares {name} "
+                f"{asked[name]} and the model parsed {seen.get(name)}")
+    wanted = resume_and_save_instants(asked, year_length)
+    if "resume" in seen and seen["resume"] != wanted["state_covers"]:
+        failures.append(
+            f"{label}: the model resumes from a state covering {seen['resume']} "
+            f"and the block asks for {wanted['state_covers']}")
+    if "save" in seen and seen["save"] != wanted["state_written_covers"]:
+        failures.append(
+            f"{label}: the model writes a state covering {seen['save']} and the "
+            f"block asks for {wanted['state_written_covers']}")
     return failures
 
 
@@ -734,8 +809,9 @@ def main() -> None:
     # any result is seen and for a stated reason: day 0 is where every annual
     # accumulator resets and the last day is where they flush, so both are days
     # on which a member that is lost the rest of the year looks carried.
+    year_length = model_year_days(yaml.safe_load(CONFIG.read_text()))
     split_day = (args.state_day if args.state_day is not None
-                 else model_year_days(yaml.safe_load(CONFIG.read_text())) // 2)
+                 else year_length // 2)
     mode = ("round-trip" if args.round_trip
             else "one-day" if args.one_day else "annual")
 
@@ -746,7 +822,11 @@ def main() -> None:
         run_bed(build_bed(resumed, paths_for(resumed),
                           {**settings, "title": "restart_continuity_resumed"},
                           state_dir, args.state_year, 0, 1), args.ranks, tables)
-        failures = compare(whole, resumed, args.state_year, tables)
+        failures = (check_instants(whole, args.ranks, "the uninterrupted arm",
+                                   year_length)
+                    + check_instants(resumed, args.ranks, "the resumed arm",
+                                     year_length)
+                    + compare(whole, resumed, args.state_year, tables))
         headline = (f"{args.nyear} simulated years whole against a resume at "
                     f"year {args.state_year}; {len(tables)} tables compared")
         verdict = ("The resumed run is not the run it continues. Every "
@@ -766,8 +846,12 @@ def main() -> None:
                           state_dir, args.state_year, 1, 1,
                           state_day=split_day,
                           save_dir=whole_state), args.ranks, tables)
-        failures = compare_states(state_dir, whole_state,
-                                  "written", "rewritten")
+        failures = (check_instants(whole, args.ranks, "the writing arm",
+                                   year_length)
+                    + check_instants(resumed, args.ranks, "the rewriting arm",
+                                     year_length)
+                    + compare_states(state_dir, whole_state,
+                                     "written", "rewritten"))
         headline = (f"restart round trip at year {args.state_year} day "
                     f"{split_day}: written against rewritten, no simulated day "
                     "in between")
@@ -800,8 +884,14 @@ def main() -> None:
                           save_year=args.state_year,
                           save_day=split_day + 1,
                           save_dir=continued_state), args.ranks, tables)
-        failures = compare_states(whole_state, continued_state,
-                                  "whole", "split")
+        failures = (check_instants(whole, args.ranks, "the uninterrupted arm",
+                                   year_length)
+                    + check_instants(resumed, args.ranks, "the splitting arm",
+                                     year_length)
+                    + check_instants(continued, args.ranks, "the continued arm",
+                                     year_length)
+                    + compare_states(whole_state, continued_state,
+                                     "whole", "split"))
         headline = (f"one simulated day either side of a restart at year "
                     f"{args.state_year} day {split_day}: state at the end of "
                     f"day {split_day + 1}, whole against split")
