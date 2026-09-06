@@ -1309,10 +1309,17 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # between them, which are a Dirichlet condition on both sides.
         #
         # A direct factorisation's work and fill are SUPERLINEAR in the
-        # unknowns, so a partition is not bookkeeping: K blocks of n/K cells
-        # cost `K (n/K)^1.5`, which is `n^1.5 / sqrt(K)`, and the PEAK is one
-        # block rather than the whole. That is what makes the difference between
-        # a solve that fits in this host's memory and one that swaps.
+        # unknowns, so a partition is not bookkeeping: the sum over the blocks
+        # is strictly less than the union, and the PEAK is one block rather than
+        # the whole. HOW superlinear decides how much that is worth, and it is
+        # not the textbook `n^1.5`: over the range this file's own recorded
+        # `splu` table covers, 399,424 to 1,999,396 unknowns, the time exponent
+        # measures 1.235 and the fill grows about as `n (9.5 ln n - 53)`.
+        # Extrapolated onto this build's 13,094 blocks that is roughly half the
+        # factorisation time and an eighth of the peak fill, which is the
+        # difference between a solve that fits in this host's memory and one
+        # that swaps. `notes/water-table-convergence.md` carries the table and
+        # labels it as the extrapolation it is.
         #
         # AND IT IS EXACT, not an approximation to the coupled solve. There is
         # no fill between blocks because there are no entries between them, so
