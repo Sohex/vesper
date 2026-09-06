@@ -1097,7 +1097,6 @@ def staged_surface_field(code: int, config: dict | None = None, *,
     """
     import builds as _builds
     import orogen as _orogen
-    from orogen import _KNOWN_TERRAIN_HASHES
     if config is None:
         import yaml
         config = yaml.safe_load(
@@ -1129,11 +1128,11 @@ def staged_surface_field(code: int, config: dict | None = None, *,
     wanted = _builds.terrain_hash(config)
     declared = for_build is not None
     if declared:
-        # orogen.py owns the registry and both its indexes. Rebuilding the
-        # inverse here took the LAST of a duplicate pair, where the index in
-        # orogen.py raises on one -- and a duplicate name is exactly the case
-        # that cannot be resolved downstream, because a name addresses both a
-        # source/ directory and a per-build data directory.
+        # orogen.py owns the registry and both its indexes, and the name index
+        # RAISES on a duplicate. A second inversion built here would take the
+        # last of a duplicate pair instead, which is the one case nothing
+        # downstream can resolve: a name addresses both a source/ directory and
+        # a per-build data directory.
         wanted = _orogen.terrain_hash_for_name(for_build)
         if wanted is None:
             raise SystemExit(
@@ -1141,8 +1140,8 @@ def staged_surface_field(code: int, config: dict | None = None, *,
                 f"registry; a cross-build read is declared by NAMING the build "
                 f"it means, so an unregistered name cannot declare anything")
     if staged != wanted:
-        who = (_KNOWN_TERRAIN_HASHES.get(staged) or {}).get("name", "an "
-                                                            "unregistered build")
+        who = (_orogen.registry_entry(staged) or {}).get("name",
+                                                         "an unregistered build")
         raise SystemExit(
             f"{rel(path, root)} was staged from {who} ({staged[:16]}), and this "
             f"read is against {for_build or active_build(config)} "
@@ -1171,7 +1170,7 @@ def staged_surface_field(code: int, config: dict | None = None, *,
         "path": rel(path, root),
         "sha256": digest,
         "terrain_hash": staged,
-        "build": (_KNOWN_TERRAIN_HASHES.get(staged) or {}).get("name"),
+        "build": (_orogen.registry_entry(staged) or {}).get("name"),
         "declared_cross_build": for_build,
         "paired_with_run": paired_with_run,
     }
