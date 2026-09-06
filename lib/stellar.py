@@ -653,6 +653,7 @@ def window_energy_fraction(window_um: tuple[float, float],
 
 
 def photon_conversion_identity(
+        name: str | None = None,
         tolerance: float = SOLAR_PHOTON_CONVERSION_TOLERANCE) -> dict:
     """Reproduce what the other side already knows about this conversion, or raise.
 
@@ -677,7 +678,7 @@ def photon_conversion_identity(
             f"{LPJ_GUESS_CQ_WAVELENGTH_NM} nm gives {monochromatic:.6e} mol/J "
             f"against canexch.h's {LPJ_GUESS_CQ_MOL_PER_J}. The shipped constant "
             "is not the monochromatic conversion this claims it is.")
-    solar = photon_conversion(EARTH_PHOTOSYSTEM_WINDOW_UM,
+    solar = photon_conversion(EARTH_PHOTOSYSTEM_WINDOW_UM, name=name,
                               temperature_k=SOLAR_EFFECTIVE_TEMPERATURE_K)
     if abs(solar - LPJ_GUESS_CQ_MOL_PER_J) > tolerance * LPJ_GUESS_CQ_MOL_PER_J:
         raise SystemExit(
@@ -700,10 +701,10 @@ def photosystem_photon_conversion(window_um: tuple[float, float],
     reference travels back with it because the distance from Earth's figure is
     the finding rather than the number alone.
     """
-    controls = photon_conversion_identity()
+    controls = photon_conversion_identity(name=name)
     star = photon_conversion(window_um, name=name)
     solar_same_window = photon_conversion(
-        window_um, temperature_k=SOLAR_EFFECTIVE_TEMPERATURE_K)
+        window_um, name=name, temperature_k=SOLAR_EFFECTIVE_TEMPERATURE_K)
     return {
         "window_um": [float(window_um[0]), float(window_um[1])],
         "star_mol_per_j": star,

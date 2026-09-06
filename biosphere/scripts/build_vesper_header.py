@@ -100,16 +100,21 @@ def derive_light_constants(config: dict,
     reader; a second integration of the same file is exactly what put three
     values of the band split into circulation at once.
     """
-    if not config.get("radiation", {}).get("stellar_spectrum"):
+    # THE NAME COMES FROM THE CONFIG THIS RUN PARSED, not from the one
+    # lib/stellar.py would read for itself. They are the same file in every
+    # ordinary invocation and are not under `--config`, which is exactly the
+    # invocation where a silent disagreement would matter.
+    name = config.get("radiation", {}).get("stellar_spectrum")
+    if not name:
         raise SystemExit(
             "radiation.stellar_spectrum is unset, so neither the PAR fraction "
             "nor the photon conversion can be measured. Set it.")
-    spectrum = stellar.spectrum_paths()[1]
-    star_energy = stellar.window_energy_fraction(window)
+    spectrum = stellar.spectrum_paths(name)[1]
+    star_energy = stellar.window_energy_fraction(window, name=name)
     solar_energy = stellar.window_energy_fraction(
-        EARTH_PAR_WINDOW_UM,
+        EARTH_PAR_WINDOW_UM, name=name,
         temperature_k=stellar.SOLAR_EFFECTIVE_TEMPERATURE_K)
-    photons = stellar.photosystem_photon_conversion(window)
+    photons = stellar.photosystem_photon_conversion(window, name=name)
     detail = {
         "spectrum": rel(spectrum),
         "spectrum_sha256": hashlib.sha256(spectrum.read_bytes()).hexdigest(),
