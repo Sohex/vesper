@@ -59,10 +59,49 @@ static const double FASTFRAC=0.985;
 static const double ATMFRAC=0.7;
 	// fraction of litter decomposition entering atmosphere
 
-// Corresponds to the amount of soil available nitrogen where SOM C:N ratio reach
-// their minimum (nitrogen saturation) (Parton et al 1993, Fig. 4)
-// Comment: NMASS_SAT is too high when considering BNF - Zaehle
-static const double NMASS_SAT = 0.002 * 0.05;
+// The mineral nitrogen at which the SOM C:N ramps reach their minimum, and the
+// level at which this model holds its own mineral nitrogen pool. Parton et al.
+// (1993) Fig. 4(a) and p. 791.
+//
+// The figure plots the C:N of the active, slow and passive SOM pools against
+// soil NO3 + NH4 in gN/m2. Read at 600 dpi against its own ticks at 0, 5, 10,
+// 15 and 20, its three lines break at 2.0 gN/m2 and are flat from there to the
+// axis end at 2.5. 2.0 gN/m2 is 0.002 kgN/m2, which is the value here, and
+// NH4_mass and NO3_mass are kgN/m2 in framework/guess.h.
+//
+// THIS MODEL'S OWN DOCUMENTATION STATES THE SAME NUMBER FOR THE SAME REASON,
+// and states it for BOTH the jobs the constant does. Smith et al. (2014)
+// Appendix C1: biological nitrogen fixation "is distributed equally throughout
+// the year and added directly to the soil-available mineral N pool, Navail,
+// which is capped at a saturation level of 2 g N m-2 following Parton et al.
+// (1993). BNF in excess of the saturation level is discarded (assumed not to
+// have occurred)", and deposition above the same level goes straight to
+// leaching. So the ramp threshold here and the ceiling soilnadd() tops fixation
+// up to are one documented quantity at one documented value, and the pin that
+// holds the pool at saturation while nitrogen is not limiting is the same
+// quantity again.
+//
+// DECLARED DIVERGENCE FROM MAINLINE: nmass_sat_saturation_point, owner
+// WORLD-LNZN, registered in biosphere/config/somdynam.yaml. Mainline LPJ-GUESS
+// 4.1.1 and the vendored CNP fork declare
+//     static const double NMASS_SAT = 0.002 * 0.05;
+// beside one attributed opinion, "NMASS_SAT is too high when considering BNF -
+// Zaehle", with no argument and no number behind it. The 0.002 is the figure's
+// own break point; the 0.05 has no derivation in either tree. What it did was
+// bring every ramp to its floor at a twentieth of the driver's documented
+// range, so SLOWSOM sat at 15 rather than ramping 30 to 15, SOILMICRO at 6
+// rather than 15 to 6, SURFHUMUS at 15 rather than 30 to 15 and PASSIVESOM at 7
+// rather than 10 to 7 -- four ramps declared, evaluated and inert -- and it
+// held the mineral nitrogen pool of a deliberately unlimited run at 0.1 gN/m2.
+//
+// THE FIXATION OBJECTION IS ANSWERED BY THE DOCUMENT THAT SUPPLIES THE NUMBER
+// rather than weighed against it. What the recorded comment fears is that a
+// 2 gN/m2 ceiling lets the Cleveland fixation term run undamped; Appendix C
+// says that ceiling is 2 gN/m2 and says what happens to the fixation above it.
+// A second mechanism reading this symbol does not change what the symbol means,
+// and a threshold that genuinely needed a different level would need its own
+// name and its own derivation rather than an undeclared scalar on this one.
+static const double NMASS_SAT = 0.002;
 // Corresponds to the nitrogen concentration in litter where SOM C:N ratio reach
 // their minimum (nitrogen saturation) (Parton et al 1993, Fig. 4)
 static const double NCONC_SAT = 0.02;
@@ -888,8 +927,29 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 
 	Soil& soil = patch.soil;
 
-	// mineral nitrogen mass available
-	const double nmin_mass = soil.nmass_avail(NH4);// + soil.NO3_mass;
+	// The mineral nitrogen the C:N ramps below are driven by. Parton et al.
+	// (1993) Fig. 4(a)'s abscissa is soil NO3 + NH4, so the driver is the whole
+	// mineral pool and not one of its two components.
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: cn_ramp_driver_is_total_mineral_n,
+	// owner WORLD-JUG1, registered in biosphere/config/somdynam.yaml. Mainline
+	// and the fork run
+	//     const double nmin_mass = soil.nmass_avail(NH4);// + soil.NO3_mass;
+	// with the second half commented out on the line itself. Soil::nmass_avail
+	// folds NO3 into NH4 before answering whenever ifntransform is 0, so that
+	// form returns the figure's quantity only in the configuration this project
+	// does NOT run; under the ifntransform 1 that data/ins/global_soiln.ins sets
+	// it returns ammonium alone and the nitrate the transformation operator
+	// keeps separate is invisible to every ramp. nmass_avail(NO) returns the sum
+	// under both settings, so the driver is the figure's whichever way the
+	// switch goes.
+	//
+	// THE CODE ALREADY TREATS NMASS_SAT AS A QUANTITY OF THE WHOLE POOL, which
+	// is what makes this a mismatch rather than a choice: the free-nitrogen pin
+	// below sets NH4_mass and NO3_mass to NMASS_SAT/2 each under ifntransform 1,
+	// so that their SUM is the saturation level. A threshold defined on the
+	// total and compared against one component is what this removes.
+	const double nmin_mass = soil.nmass_avail(NO);
 	// mineral phosphorus mass available
 	const double pmin_mass = soil.pmass_labile;
 	
@@ -989,14 +1049,15 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	// passive pool RECEIVES carbon, applied in transferdecomp() to the flows
 	// from SLOWSOM and from SOILMICRO, so it sets the nitrogen immobilised into
 	// the slowest pool this model has: K_MAX 1.9e-6/day, of order 1400 years.
-	// NMASS_SAT is 1.0e-4 kgN/m2 against the 2.0 gN/m2 at which Fig. 4(a)'s
-	// lines break, so on this fmax the ramp saturates at a twentieth of the
-	// driver the figure saturates at and the pool sits at 7 over almost the
-	// whole attainable range of nmin_mass. The change is therefore worth close
-	// to its endpoint: 9/7 = 1.29 times as much nitrogen locked per unit carbon
-	// entering the passive pool, and the steady-state mineral nitrogen after
-	// equilsom falls by whatever that costs. WORLD-LNZN owns the fmax, and the
-	// ramp is right whichever way that row goes.
+	// The ramp now spans, because NMASS_SAT is the figure's own break point
+	// under nmass_sat_saturation_point, so what the change is worth is a
+	// FUNCTION of the driver and not a single factor. Against mainline's fixed
+	// 9 the pool locks LESS nitrogen per unit carbon below 0.667 gN/m2 of
+	// mineral nitrogen and more above it, reaching 10/9 = 1.11 times less at an
+	// empty mineral pool and 9/7 = 1.29 times more at saturation. The sign of
+	// the effect on the steady-state mineral nitrogen after equilsom therefore
+	// depends on where the simulated pool sits, which is one distribution off
+	// the first run that reaches output and is not knowable from the source.
 	//
 	// PASSIVESOM IS RE-DERIVED HERE AND NEVER FLEXED. The N immobilisation
 	// branch below scales the ntoc of SLOWSOM, SOILMICRO and SURFHUMUS down and
@@ -2031,7 +2092,25 @@ void soilnadd(Patch& patch) {
 	// Nitrogen fixation
 	// If soil available nitrogen is above the value for minimum SOM C:N ratio, then
 	// nitrogen fixation is reduced (nitrogen rich soils)
-	const double nmin_avail = soil.nmass_avail(NH4);
+	// The whole mineral pool, for the reason cn_ramp_driver_is_total_mineral_n
+	// gives at the ramps: Smith et al. (2014) Appendix C1 caps Navail, which is
+	// that whole pool, and NMASS_SAT is the level it names.
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: nfix_ceiling_reads_total_mineral_n,
+	// owner WORLD-JUG1, registered in biosphere/config/somdynam.yaml. Mainline
+	// and the fork run
+	//     const double nmin_avail = soil.nmass_avail(NH4);
+	//     soil.anfix += NMASS_SAT - soil.NH4_mass;
+	// The first is the ammonium half of Navail under the ifntransform 1 this
+	// project runs, so fixation went on being added to a soil the nitrate pool
+	// had already saturated. The second is why both lines move together: what
+	// is ADDED to the soil and what is REPORTED as fixed have to be one number,
+	// and they are one number only while the threshold and the reported
+	// shortfall read the same pool. Under mainline's NH4-only threshold they
+	// coincide; with the threshold on the total they do not, so leaving the
+	// report alone would have made anfix a different quantity from the mass the
+	// line beside it adds.
+	const double nmin_avail = soil.nmass_avail(NO);
 
 	if (nmin_avail < NMASS_SAT) {
 		// anfix_calc is kgN/m2 per EARTH year (see below), so the absolute-day
@@ -2044,7 +2123,7 @@ void soilnadd(Patch& patch) {
 			soil.anfix += daily_nfix;
 		}
 		else {
-			soil.anfix += NMASS_SAT - soil.NH4_mass;
+			soil.anfix += NMASS_SAT - nmin_avail;
 			soil.NH4_mass += NMASS_SAT - nmin_avail;
 		}
 	}

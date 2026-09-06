@@ -26,8 +26,8 @@ behind it.
 | slow SOM | ramp 30 to 15 | Table C1: 15 to 30, citing Parton et al. (2010) | **unsourced.** Fig. 4(a) gives 20 to 12 in the figure and in the text alike, which is neither |
 | surface humus | ramp 30 to 15 | Table C1: 15 to 30, citing Parton et al. (2010) | **unsourced.** CENTURY has no surface humus pool; the pair is the slow pool's |
 | surface microbial | ramp 20 to 10 | Table C1: 10 to 20, citing Parton et al. (1993) | **sourced and correct.** Fig. 4(b) is exactly this line |
-| `NMASS_SAT`, the fmax of all five | `0.002 * 0.05` kgN/m2 | the saturation point of Fig. 4 | **the 0.002 is the figure's own break point and the 0.05 has no derivation.** WORLD-LNZN |
-| the driver of the four soil ramps | `nmass_avail(NH4)` | Fig. 4(a)'s abscissa is soil NO3 + NH4 | **mismatched under `ifntransform 1`, which is the configuration this project runs.** WORLD-JUG1 |
+| `NMASS_SAT`, the fmax of all five | `0.002` kgN/m2 | the saturation point of Fig. 4, and Appendix C1's own cap | **changed, SOURCED.** The 0.002 is the figure's break point; the removed 0.05 had no derivation. WORLD-LNZN |
+| the driver of the four soil ramps | `nmass_avail(NO)` | Fig. 4(a)'s abscissa is soil NO3 + NH4 | **changed, SOURCED.** `nmass_avail(NH4)` was the figure's quantity only under `ifntransform 0`, which this project does not run. WORLD-JUG1 |
 
 ## The citation that is empty, and it is the one the phosphorus side already found
 
@@ -63,7 +63,8 @@ it were the source of the passive pool's fixed value that value would be 11.
 
 **Parton et al. (1993) Fig. 4 is the source `setntoc` and `NMASS_SAT` cite, and
 it ramps three soil pools, not two.** Panel (a) plots the C:N ratio of the
-active, slow and passive SOM pools against soil NO3 + NH4 in gN/m2; panel (b)
+active, slow and passive SOM pools against soil NO3 + NH4 in gN/m2 -- the whole
+mineral pool, which is why the ramps read `nmass_avail(NO)`; panel (b)
 plots newly formed surface microbial biomass against surface litter N content.
 The passive pool is one of panel (a)'s three lines, and it is the one this model
 never called `setntoc` for. The fork's own comment at the initialiser asked why:
@@ -110,23 +111,32 @@ the longest residence time in the model: `K_MAX` 1.9e-6/day, of order 1400
 years. What is locked there is out of circulation on that timescale, so it sets
 the steady-state mineral nitrogen after `equilsom`.
 
-The ramp does not span, because its fmax does not reach. `NMASS_SAT` is
-1.0e-4 kgN/m2 = 0.1 gN/m2 against the 2.0 gN/m2 at which Fig. 4(a)'s lines
-break, so the ramp saturates at a twentieth of the driver the figure saturates
-at and the pool sits at its floor over almost the whole attainable range of
-`nmin_mass`. The change is worth close to its endpoint: 9/7 = 1.29 times as much
-nitrogen immobilised per unit carbon entering the passive pool.
+The ramp spans, and what the change is worth is therefore a function of the
+driver rather than a factor. Against the fixed 9 the passive pool locks
+10/9 = 1.11 times LESS nitrogen per unit carbon at an empty mineral pool and
+9/7 = 1.29 times more at saturation, crossing 9 at 0.667 gN/m2. Which side of
+that a cell sits on is one distribution off the first run that reaches output.
 
-That is also the whole of what is wrong with `NMASS_SAT`. The constant is
+It spans because `NMASS_SAT` is the figure's break point. The constant was
 written `0.002 * 0.05`. The 0.002 is Fig. 4's break point in the model's own
-units, and Smith et al. (2014) Appendix C states independently that the model's
+units, and Smith et al. (2014) Appendix C1 states independently that the model's
 mineral N pool "is capped at a saturation level of 2 g N m-2 following Parton et
-al. (1993)" -- the same number for the same reason. The 0.05 has no derivation
-anywhere in the tree; what stands beside it is one attributed opinion, "NMASS_SAT
-is too high when considering BNF - Zaehle", with no argument and no number
-behind it. On that fmax all five `setntoc` ramps are declared, evaluated, and
-effectively inert. WORLD-LNZN owns it, and the passive ramp is right whichever
-way that row goes.
+al. (1993)" -- the same number for the same reason, and stated for the fixation
+ceiling as well as for the ramps. The 0.05 had no derivation anywhere in the
+tree; what stood beside it was one attributed opinion, "NMASS_SAT is too high
+when considering BNF - Zaehle", with no argument and no number behind it. On
+that fmax all five `setntoc` ramps were declared, evaluated, and effectively
+inert.
+
+**The objection the scalar encoded is answered by the document that supplies the
+number.** Appendix C1 says BNF "is distributed equally throughout the year and
+added directly to the soil-available mineral N pool, Navail, which is capped at
+a saturation level of 2 g N m-2 following Parton et al. (1993). BNF in excess of
+the saturation level is discarded (assumed not to have occurred)", and that
+deposition above the same level goes to leaching. So the fixation ceiling the
+comment worried about is documented AT the ramp threshold's value, and
+`soilnadd()` is the code that implements it. A second mechanism reading the
+symbol does not change what the symbol means.
 
 ## What this did not establish
 
@@ -139,9 +149,12 @@ way that row goes.
   3.9e-6/day; `somdynam.cpp`'s `K_MAX` array gives 1.9e-6. A factor of two on
   the turnover time of the slowest pool in the model, which is the residence
   time every number above is weighed by.
-- **Whether the simulated `nmin_mass` ever approaches 2 gN/m2.** That is what
-  decides whether `NMASS_SAT` should be the figure's own break point or a
-  bracket, and it is one distribution off any run that reaches output.
+- **Where the simulated `nmin_mass` sits against 2 gN/m2.** That does not
+  decide `NMASS_SAT`, which is stated by the figure and by the model's own
+  documentation; it decides the SIGN and size of what these ramps are worth,
+  pool by pool, and it is one distribution off any run that reaches output.
+- **The nitrate share of the simulated mineral pool.** That is the size of the
+  driver change, and it is one reported quantity off the same run.
 - **The original CENTURY parameter values.** Parton, Schimel, Cole and Ojima
   (1987), `10.2136/sssaj1987.03615995005100050015x`, is what Parton et al.
   (1993) cites for the justification of its N submodel and is where the

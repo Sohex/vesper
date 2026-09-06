@@ -324,9 +324,43 @@ const double PFRAC_LEAFTOROOT = 1.16;
  *  concentrations over more than one region. Adopting 10.1 to 15.5 instead
  *  would import one Panamanian montane site's climate into every simulated
  *  plant type, and Yan's 3.4-fold latitudinal span of the same ratio is the
- *  measure of what that costs. P limitation is refused meanwhile, see
- *  parameters.cpp. BIO-34 is the row and the arithmetic is in
+ *  measure of what that costs. BIO-34 is the row and the arithmetic is in
  *  biosphere/notes/phosphorus-cycle-parameterisation.md.
+ *
+ *  THE SHAPE IS A SECOND DEFECT AND A SEPARATE ROW, WORLD-3E5N. This is ONE
+ *  scalar applied to every simulated plant type, and the quantity it stands for
+ *  is not one number. Yan's leaf P over twig stem P runs 0.77 at 18.7 N to 2.63
+ *  at 50.9 N with r2 = 0.31 against latitude and 0.30 against mean annual
+ *  temperature, both p < 0.001, and their exponent separates by functional
+ *  group as 1.26 evergreen broad-leaved, 0.96 deciduous broad-leaved and 0.70
+ *  coniferous. Both axes are ones this model's woody plant types already
+ *  distinguish, and Pft::init_ctop_limits gives every one of them this same
+ *  constant.
+ *
+ *  IT IS BIGGER THAN THE VARIATION THE MODEL DOES CARRY. Across plant types
+ *  leaf C:P varies only through sla, as sla^-0.80936, and the woody types'
+ *  calculated sla runs 9.300 to 26.03, so leaf C:P spans 2.30 and under a fixed
+ *  scalar sapwood C:P spans the same 2.30. Yan's own 3.4 between its warmest
+ *  and coldest sites is larger.
+ *
+ *  AND IT COMPOUNDS WITH THE EXPONENT RESIDUAL RATHER THAN CANCELLING IT. The
+ *  true ratio is LOWER in the tropics, so a fixed scalar over-states it there
+ *  and under-states the tropical types' sapwood P demand; it is higher toward
+ *  the pole, so the boreal types' demand is over-stated. That is the same sign
+ *  as the residual the proportional form leaves, which is stated above.
+ *
+ *  YAN DOES NOT LICENSE PER-TYPE VALUES, and the transfer that would use it is
+ *  refused on the size of its own assumption. Carrying Yan's ratios across as
+ *  relative positions -- one unknown bole-level scalar times each group's twig
+ *  ratio over the mean -- assumes the twig-to-bole tissue gradient is the same
+ *  in every climate and functional group, and that gradient is a factor of
+ *  twenty against the 3.4 the transfer would deliver. A 20 per cent difference
+ *  in the untested assumption swamps the whole signal, so the construction
+ *  cannot be checked by anything it would move. What would settle the shape is
+ *  the same measurement BIO-34 needs, RESOLVED BY CLIMATE OR BY FUNCTIONAL
+ *  GROUP: a single global mean leaves this row exactly where it is.
+ *
+ *  P limitation is refused meanwhile on BOTH defects, see parameters.cpp.
  */
 const double PFRAC_LEAFTOSAP = 6.9;
 

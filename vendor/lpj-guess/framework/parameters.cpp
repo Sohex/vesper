@@ -1306,8 +1306,9 @@ void plib_callback(int callback) {
 		// bracket in guess.h, and each is BRACKETED rather than measured, so a
 		// run that uses them has to say which end of each bracket it is on.
 		//
-		// ONE IS NOT SETTLED. The others were, and are recorded below with what
-		// settled them.
+		// TWO ARE NOT SETTLED, and they are the LEVEL and the SHAPE of one
+		// constant. The others were, and are recorded below with what settled
+		// them.
 		//
 		// PFRAC_LEAFTOSAP has no derivable scalar. Its 6.9 is the reciprocal of
 		// Friend et al. (1997) Table 4 p. 254, a NITROGEN ratio of foliage to
@@ -1326,7 +1327,10 @@ void plib_callback(int callback) {
 		// proportional form is the unbiased default and Heineman's 2.10 is that
 		// gradient's tropical extreme.
 		//
-		// WHAT BLOCKS IT IS THE LEVEL, and the number on it is a factor of
+		// TWO THINGS BLOCK IT, and settling either alone does not lift this
+		// refusal.
+		//
+		// THE FIRST IS THE LEVEL, and the number on it is a factor of
 		// twenty. The leaf-to-wood phosphorus ratio is a property of which wood:
 		// Yan's terminal twigs give 0.77 to 2.63 across their 12 sites, a factor
 		// of 3.4 for one tissue, where Heineman's outer 5 cm bole annulus
@@ -1340,7 +1344,28 @@ void plib_callback(int callback) {
 		// simulated plant type, and Yan's 3.4-fold span is the measure of what
 		// that costs. What would settle it is paired leaf and WHOLE-SAPWOOD
 		// phosphorus concentrations over more than one region, which is not in
-		// the accessible literature.
+		// the accessible literature. BIO-34.
+		//
+		// THE SECOND IS THE SHAPE, and it survives the measurement that would
+		// settle the level. This is ONE scalar applied to every simulated plant
+		// type, and Yan et al. (2016) put the quantity it stands for at 0.77 at
+		// 18.7 N and 2.63 at 50.9 N, r2 = 0.31 against latitude and 0.30 against
+		// mean annual temperature, both p < 0.001, with the exponent separating
+		// by functional group as 1.26 evergreen broad-leaved, 0.96 deciduous
+		// broad-leaved and 0.70 coniferous. Both axes are ones this model's
+		// woody plant types already distinguish, and the 3.4-fold spread is
+		// larger than the 2.30 those types' sapwood C:P spans under a fixed
+		// scalar. It runs the same way as the residual the proportional form
+		// leaves rather than against it, so the simulated tropical types'
+		// sapwood P demand is under-stated on both counts and the boreal ones'
+		// over-stated on both. A single global mean scalar, which is what
+		// BIO-34's measurement would deliver, leaves every bit of that in place;
+		// what would settle this is the same measurement RESOLVED BY CLIMATE OR
+		// BY FUNCTIONAL GROUP. Carrying Yan's own ratios across as relative
+		// positions is refused on the size of its own assumption: it would
+		// assume the twig-to-bole tissue gradient is the same in every climate
+		// and group, and that gradient is a factor of twenty against the 3.4 the
+		// transfer would deliver. WORLD-3E5N.
 		//
 		// Three stood here and are settled, and no longer hold this refusal up.
 		//
@@ -1379,23 +1404,29 @@ void plib_callback(int callback) {
 		// Fig. 3's slow line, under the identification of surface humus with
 		// the slow pool that this fork's own nitrogen ramp already makes.
 		//
-		// Running with ifplim 1 before the remaining one is settled produces a
-		// P-limited world whose woody phosphorus demand is nitrogen's, and it
-		// produces it silently, which is worse than not running. Sapwood is a
-		// large carbon pool and the shape of its C:P is worth a factor of 2.50
-		// in relative demand between the model's plant types, so this is not a
-		// residual that rounds away. Lift this refusal in the change that
-		// settles it, not before. BIO-34; the evidence is in
+		// Running with ifplim 1 before the remaining two are settled produces a
+		// P-limited world whose woody phosphorus demand is nitrogen's, at one
+		// level for every plant type, and it produces it silently, which is
+		// worse than not running. Sapwood is a large carbon pool and the shape
+		// of its C:P is worth a factor of 2.50 in relative demand between the
+		// model's plant types, so this is not a residual that rounds away. Lift
+		// this refusal in the change that settles BOTH, not in the one that
+		// settles either. BIO-34 and WORLD-3E5N; the evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
-			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h is a "
-				"nitrogen ratio for foliage against bark plus sapwood, and the 6.9 the "
+			sendmessage("Error", "ifplim 1 is refused on PFRAC_LEAFTOSAP in guess.h for "
+				"two reasons, and settling either alone does not lift it. The LEVEL: it is "
+				"a nitrogen ratio for foliage against bark plus sapwood, and the 6.9 the "
 				"model applies to every plant type's sapwood P demand sits below the 10.1 "
 				"to 15.5 the one paired leaf-and-bole-wood phosphorus dataset brackets a "
-				"scalar at. The proportional form is not the problem and no longer stands "
-				"here; the level is, and the leaf-to-wood P ratio spans a factor of twenty "
-				"between terminal twigs and bole wood. See "
-				"biosphere/notes/phosphorus-cycle-parameterisation.md and BIO-34.");
+				"scalar at, the leaf-to-wood P ratio spanning a factor of twenty between "
+				"terminal twigs and bole wood (BIO-34). The SHAPE: it is one scalar for "
+				"every plant type where that ratio runs 0.77 to 2.63 with mean annual "
+				"temperature and separates by functional group, over axes this model's "
+				"woody types already distinguish and by more than the 2.30 their sapwood "
+				"C:P spans, so a single global mean does not answer it (WORLD-3E5N). The "
+				"proportional form is not the problem and no longer stands here. See "
+				"biosphere/notes/phosphorus-cycle-parameterisation.md.");
 			plibabort();
 		}
 

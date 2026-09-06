@@ -357,7 +357,7 @@ mainline_divergences:
         - "setptoc(soil, litter_pmass / (litter_cmass * 2.0), SURFMICRO, 80.0, 30.0, 0.0, PCONC_SAT);"
         - "double litter_pmass = soil.sompool[SURFSTRUCT].pmass + soil.sompool[SURFMETA].pmass +"
       now_source_file: vendor/lpj-guess/modules/soil.cpp
-      now: "sompool[SURFMICRO].ptoc = 1.0 / 80.0;"
+      now: "sompool[SURFMICRO].ptoc = 1.0 / (20.0 * 7.0 * 14.007 / 30.974);"
       bites_under: ifplim_1
       settles: >
         That the surface microbial pool's C:P should not ramp against a litter
@@ -403,10 +403,86 @@ mainline_divergences:
         The litter phosphorus mass both call sites accumulated, which had no
         other reader, and soil.cpp's initialiser comment, which said setptoc
         overwrote all four C:P initialisers on the first call to somfluxes and
-        now says three. The 80 the surface microbial pool holds for the whole of
-        a run is Fig. 3's active soil line's ctop_max end applied to a pool that
-        paper does not have; that is the standing its three neighbours share, it
-        is not what PCONC_SAT was, and WORLD-634Q owns it.
+        now says three. What the surface microbial pool holds for the whole of a
+        run became load-bearing here and was Fig. 3's active soil line's
+        ctop_max end applied to a pool that paper does not have; it is derived
+        from the pool's own C:N and a measured decomposer N:P under
+        surfmicro_ptoc_own_stoichiometry, WORLD-634Q.
+    - id: surfmicro_ptoc_own_stoichiometry
+      owner: world-634q
+      measured_against: fork
+      execution: none
+      why_no_execution: >
+        The value is inert under the `ifplim 0` this project runs and
+        `framework/parameters.cpp` refuses `ifplim 1`, so there is no
+        configuration in which an arm could measure it today. It needs the
+        `ifplim 1` pair the comparison arm above describes.
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/soil.cpp
+      mainline_form: line
+      mainline: ["sompool[SURFMICRO].ptoc = 1.0 / 80.0;"]
+      live: "sompool[SURFMICRO].ptoc = 1.0 / (20.0 * 7.0 * 14.007 / 30.974);"
+      bites_under: ifplim_1
+      settles: >
+        What the 80 was, which was this block's convention and not a statement
+        about this pool. The four C:P initialisers are the ctop_max ends of
+        Fig. 3's lines, and the surface microbial pool is the one with no Fig. 3
+        line: 80 is the ACTIVE SOIL line's end, and Parton, Stewart and Cole
+        (1988) has no surface microbial pool. The fork's own methods say the
+        same from the other side -- Dantas de Paula et al. (2025) section 2.2
+        enumerates the pools it took CENTURY C:P values for as "the slow,
+        passive, and active (microbial)" ones, and this is not among them -- and
+        the fork's commented-out alternative initialisation puts the same pool
+        at 35, which is it disagreeing with itself for want of a source. Parton,
+        Schimel, Cole and Ojima (1987), 10.2136/sssaj1987.03615995005100050015x,
+        is where a CENTURY pool endpoint would be settled from outside and it
+        could not be fetched: no open-access route and no reachable PDF at the
+        publisher, on two attempts.
+        WHAT REPLACES IT IS AN IDENTITY, C:P = C:N * N:P, on the pool's own two
+        quantities. The C:N is this model's for THIS pool and is exactly
+        sourced: Parton et al. (1993) p. 791 says the C:N of newly formed
+        surface microbial biomass "increases from 10 to 20 as the N content
+        decreases from 2.0% to 0.01%", and 20 is what soil.cpp initialises it
+        at, so the two initialisers describe one pool at one moment. The N:P is
+        measured: Cleveland and Liptzin (2007) find soil microbial biomass
+        C:N:P "well-constrained at the global scale" at 60:7:1 by mole, which is
+        3.1655 by mass, and 20 * 3.1655 = 63.31.
+        THE N:P IS THE RATIO FOR WHICH THE CONCEPTUAL-POOL OFFSET CANCELS, which
+        is what refuses the direct substitution the row was blocked on. CENTURY's
+        pools carry more carbon than the biomass they are named for: this pool's
+        C:N of 20 is 2.72 times the same source's measured biomass C:N of 7.35
+        by mass. Substituting the measured C:P of 23.27 would have applied that
+        offset to nitrogen and not to phosphorus. Transferring the N:P carries
+        no carbon, so the offset lands on both elements identically -- 63.31
+        over 23.27 is the same 2.72 -- and the consistency between the elements
+        is preserved exactly rather than broken.
+        THE FORM STAYS A CONSTANT, on the measurement rather than on the absence
+        of one. Mooshammer et al. (2014) Table 2, on the Xu et al. (2013)
+        dataset, makes microbial C:P the most invariant of the three ratios:
+        66.5 to 67.3 by mole over a soil C:P of 156 to 1611 (n = 405,
+        P = 0.118), against microbial C:N 7.8 to 9.4 (n = 1023, P = 0.044) and
+        microbial N:P 6.9 to 9.1 (n = 294, P = 0.081). So a constant C:P is the
+        arm the data supports and strict N:P homeostasis is not; WORLD-GQIR
+        carries what that costs the derivation.
+      worth: >
+        The value moves from 80 to 63.31, which is 1.26 times more phosphorus
+        immobilised per unit carbon entering the surface microbial pool out of
+        SURFSTRUCT, SURFMETA, SURFFWD and SURFCWD. Inert under `ifplim 0`.
+        WHAT THE NUMBER IS NOW is derived rather than conventional, and that is
+        the change that survives whichever end of the bracket a run takes. The
+        bracket is the two global meta-analyses of decomposer stoichiometry:
+        molar N:P of 7 (Cleveland and Liptzin 2007) and 6 (Xu et al. 2013 on a
+        fourfold larger dataset, reported by Mooshammer et al. 2014), which are
+        63.31 and 54.27 here. 80 is outside it.
+        WHAT ONE CONSTANT DOES NOT RESOLVE is larger than the bracket and is a
+        missing dependence rather than an uncertainty: Xu et al. (2013) put
+        microbial N:P between 3.5 and 10.6 by mole across major biomes excluding
+        wetlands, which is 31.7 to 95.9 here. A single scalar over every
+        simulated cell is wrong in a direction this model could resolve, which
+        is the standing WORLD-3E5N records for the leaf-to-sapwood phosphorus
+        ratio.
+
     - id: passivesom_cton_ramp
       owner: world-xfif
       measured_against: release
@@ -452,18 +528,172 @@ mainline_divergences:
         overwrites the four C:P initialisers beside it, so the value is not
         load-bearing while the ramp runs. It was load-bearing for the whole of a
         run in mainline and in the fork, where nothing overwrote it. What the
-        PAIR is worth is at the ramp: 9 to 7 is 1.29 times as much nitrogen
-        immobilised per unit carbon entering the pool with the longest residence
-        time in the model.
+        PAIR is worth is at the ramp, and it is a function of the driver rather
+        than a factor: against the fixed 9 the pool locks 1.11 times less
+        nitrogen per unit carbon at an empty mineral pool and 1.29 times more at
+        saturation, crossing 9 at 0.667 gN/m2 of mineral nitrogen.
 
-# The two saturation constants, checked against the source that declares them.
+    - id: nmass_sat_saturation_point
+      owner: world-lnzn
+      measured_against: release
+      execution: none
+      why_no_execution: >
+        No LPJ-GUESS run this project has made has passed acceptance, so there
+        is no run whose soil nitrogen, fixation flux or mineral pool could carry
+        a comparison arm. `world-qcse` and `world-rnns` establish that none
+        could have. The divergence has not been run in either direction.
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/somdynam.cpp
+      mainline_form: line
+      mainline: ["static const double NMASS_SAT = 0.002 * 0.05;"]
+      live: "static const double NMASS_SAT = 0.002;"
+      bites_under: both
+      settles: >
+        What the 0.05 was, which was nothing a reader can inspect. The 0.002 is
+        Parton et al. (1993) Fig. 4(a)'s own break point in the model's units:
+        that figure plots the active, slow and passive C:N against soil NO3 +
+        NH4 in gN/m2, and read at 600 dpi against its ticks at 0, 5, 10, 15 and
+        20 all three lines break at 2.0 gN/m2 and are flat to the axis end at
+        2.5. Smith et al. (2014) Appendix C1, this model's own documentation of
+        the scheme, states the same number independently and for BOTH of the
+        jobs the constant does: biological nitrogen fixation is added to the
+        mineral N pool Navail, "which is capped at a saturation level of
+        2 g N m-2 following Parton et al. (1993). BNF in excess of the
+        saturation level is discarded", and deposition above that level is
+        routed to leaching. So the ramp threshold and the fixation ceiling are
+        one documented quantity at one documented value, and the free-nitrogen
+        pin that holds the pool at saturation is that quantity again.
+        WHAT STOOD AGAINST IT WAS ONE ATTRIBUTED OPINION, "NMASS_SAT is too high
+        when considering BNF - Zaehle", with no argument and no number behind
+        it. That is a tuned value in this project's sense: the constant IS the
+        residual of a judgement nobody can inspect, and the judgement is about a
+        DIFFERENT mechanism from the one the constant is named for. The
+        objection is answered by the document that supplies the number rather
+        than weighed against it, because Appendix C1 states the fixation ceiling
+        AS 2 gN/m2 and says what becomes of the fixation above it. A threshold
+        that genuinely needed a different level would need its own name and its
+        own derivation; an undeclared scalar on this one has neither.
+      worth: >
+        The four C:N ramps stop being inert. At 1.0e-4 kgN/m2 every setntoc call
+        reached its cton_min at a twentieth of the driver's documented range, so
+        SLOWSOM sat at 15 rather than ramping 30 to 15, SOILMICRO at 6 rather
+        than 15 to 6, SURFHUMUS at 15 rather than 30 to 15 and PASSIVESOM at 7
+        rather than 10 to 7. Each pool's C:N can now move over its whole
+        declared pair, so the nitrogen immobilised per unit carbon entering it
+        falls by up to a factor of 2 for SLOWSOM and SURFHUMUS, 2.5 for
+        SOILMICRO and 1.43 for PASSIVESOM as the mineral pool empties. The SIGN
+        at any cell depends on where the simulated mineral nitrogen sits against
+        0.002 kgN/m2, which is one distribution off the first run that reaches
+        output and is not knowable from the source.
+        Two other consumers move with it. soilnadd() tops fixation up to this
+        ceiling, so fixation is damped only as the mineral pool approaches the
+        level the model's own documentation names rather than a twentieth of it.
+        somfluxes() pins the pool to this level whenever nitrogen is not
+        limiting or the run is inside freenyears, so a deliberately
+        nitrogen-unlimited run is held at 2 gN/m2 instead of 0.1 gN/m2, which is
+        what "not limiting" was documented to mean.
+
+    - id: cn_ramp_driver_is_total_mineral_n
+      owner: world-jug1
+      measured_against: release
+      execution: none
+      why_no_execution: >
+        The same absence: no run of this model has passed acceptance, so the
+        nitrate share of the simulated mineral pool -- which is the size of what
+        this moves -- has never been reported. It is one output quantity off the
+        first run that reaches output.
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/somdynam.cpp
+      mainline_form: line
+      mainline: ["const double nmin_mass = soil.nmass_avail(NH4);// + soil.NO3_mass;"]
+      live: "const double nmin_mass = soil.nmass_avail(NO);"
+      bites_under: both
+      settles: >
+        Which quantity the C:N ramps are drawn against. Parton et al. (1993)
+        Fig. 4(a), the figure this block cites and NMASS_SAT is taken from, has
+        an abscissa labelled soil NO3 + NH4 in gN/m2, so its driver is the whole
+        mineral pool. Soil::nmass_avail folds NO3 into NH4 before answering
+        whenever ifntransform is 0, so mainline's nmass_avail(NH4) returns the
+        figure's quantity in that configuration and ammonium alone under the
+        ifntransform 1 that data/ins/global_soiln.ins sets, which is the
+        configuration this project runs. nmass_avail(NO) returns the sum under
+        both settings, so the driver matches the figure whichever way the switch
+        goes and the repair is not a second thing to keep in step with it.
+        THE CODE ALREADY TREATS NMASS_SAT AS A QUANTITY OF THE WHOLE POOL, which
+        is what makes this a mismatch rather than a modelling choice: the
+        free-nitrogen pin in somfluxes sets NH4_mass and NO3_mass to NMASS_SAT/2
+        each under ifntransform 1, so that their SUM is the saturation level. A
+        threshold defined on the total and compared against one of its two
+        components is one-signed, and its size is the nitrate share, which the
+        nitrogen transformation operator makes prognostic.
+        There IS a candidate argument for ammonium alone -- nitrate is mobile
+        and leaches where ammonium is held on exchange sites, so a stoichiometric
+        target might reasonably track the immobile fraction -- and nothing in
+        this tree makes it, Fig. 4(a) does not make it, and a commented-out half
+        of a line is not an argument.
+      worth: >
+        One-signed, and equal to the nitrate share of the simulated mineral
+        pool. Every ramp sees a driver at least as large as before, so every
+        ramped pool's C:N is at or below what it was and the nitrogen
+        immobilised per unit carbon entering it is at or above. Under
+        ifntransform 0 it moves nothing at all, because nmass_avail already
+        returned the sum. Its size has never been measured on this model and
+        cannot be bounded from the source: nitrification and denitrification
+        both run in ntransform.cpp, whose own declared divergences
+        (biosphere/config/ntransform.yaml) set what the nitrate pool does.
+
+    - id: nfix_ceiling_reads_total_mineral_n
+      owner: world-jug1
+      measured_against: release
+      execution: none
+      why_no_execution: >
+        The same absence, and the same missing quantity: no run has reported the
+        nitrate share, and the fixation flux this moves has never been simulated
+        on a run that passed acceptance.
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/somdynam.cpp
+      mainline_form: line
+      mainline: ["const double nmin_avail = soil.nmass_avail(NH4);", "soil.anfix += NMASS_SAT - soil.NH4_mass;"]
+      live: "const double nmin_avail = soil.nmass_avail(NO);"
+      bites_under: both
+      settles: >
+        The same driver mismatch at the second consumer of NMASS_SAT, and it is
+        the consumer this model's own documentation is most explicit about.
+        Smith et al. (2014) Appendix C1 caps Navail, the soil-available mineral
+        N pool, and discards fixation above that cap. Under ifntransform 1
+        mainline compared the cap against ammonium alone, so fixation went on
+        being added to a soil whose nitrate had already carried the mineral pool
+        past the saturation level.
+        THE SECOND LINE MOVES BECAUSE THE FIRST DOES. What the else-branch adds
+        to the soil and what it reports as fixed have to be one number, and they
+        are one number only while the shortfall to the ceiling and the reported
+        flux read the same pool. Under mainline's NH4-only threshold they
+        coincide; with the threshold on the total they do not, so leaving the
+        report alone would have made anfix a different quantity from the mass
+        added beside it. The invariant nfix_top_up_and_report_are_one_number
+        holds the pair.
+      worth: >
+        One-signed against fixation: the ceiling binds at least as early, so the
+        simulated fixation flux is at or below what it was, by the nitrate share
+        of the mineral pool. It runs the other way from
+        nmass_sat_saturation_point, which raises that ceiling twentyfold, so the
+        two are not additive and the net effect on the simulated nitrogen input
+        is derivable from neither. Under ifntransform 0 it moves nothing.
+        soil.anfix is what soil.anfix_mean accumulates over the solvesomcent
+        window, so a report that had drifted from the mass added beside it would
+        have reached the equilibrium solver and not only the output.
+
+# The saturation constants, checked against the source that declares them.
 # `declaration` is matched verbatim against modules/somdynam.cpp with comments
 # stripped, and `value` is re-derived by evaluating that line's own initialiser,
 # so neither this file nor the source can move the number without the other.
 #
-# `sourced` is whether a phosphorus source states the quantity. `--strict`
-# refuses while one is false, which is the same refusal
-# framework/parameters.cpp already makes on ifplim 1.
+# `sourced` is whether a source states the quantity. `--strict` refuses while
+# one is false, which is the same refusal framework/parameters.cpp already makes
+# on ifplim 1.
 constants:
   source_file: vendor/lpj-guess/modules/somdynam.cpp
   values:
@@ -478,6 +708,21 @@ constants:
         right-hand end, converted into this fork's Hedley-labile currency by
         6.6. Register entry pmass_sat_labile_currency.
       owner: world-z01o
+
+    - name: NMASS_SAT
+      declaration: "static const double NMASS_SAT = 0.002;"
+      value: 0.002
+      unit: kgN/m2 of mineral nitrogen, NO3 + NH4
+      sourced: true
+      source: >
+        Parton et al. (1993) Fig. 4(a), whose three C:N lines break at 2.0 gN/m2
+        of soil NO3 + NH4 and are flat from there to the axis end, read at
+        600 dpi against the figure's own ticks. Smith et al. (2014) Appendix C1
+        states the same 2 gN/m2 independently, as the saturation level at which
+        this model's own mineral N pool is capped and above which fixation is
+        discarded, citing the same paper. Register entry
+        nmass_sat_saturation_point.
+      owner: world-lnzn
 
 # Every C:P ramp the model runs, as a call the source has to contain and as a
 # function the gate re-derives.
@@ -587,19 +832,43 @@ invariants:
         and so below anything the material it stands for is measured at, where
         the text's 7 is not. The figure's own low ends are the part of it that
         is schematic.
-        WHAT THE RAMP IS WORTH is not what its endpoints span, because
-        NMASS_SAT is 1.0e-4 kgN/m2 against the 2.0 gN/m2 at which Fig. 4(a)'s
-        lines break: on this fmax the pool sits at 7 over almost the whole
-        attainable range of the driver, so the change is worth close to 9/7 =
-        1.29 times as much nitrogen immobilised per unit carbon entering the
-        pool with the longest residence time in the model. WORLD-LNZN owns the
-        fmax and the ramp is right whichever way that row goes.
+        WHAT THE RAMP IS WORTH IS WHAT ITS ENDPOINTS SPAN, now that NMASS_SAT
+        is Fig. 4(a)'s own break point under nmass_sat_saturation_point. Against
+        mainline's fixed 9 the pool locks 10/9 = 1.11 times LESS nitrogen per
+        unit carbon at an empty mineral pool and 9/7 = 1.29 times more at
+        saturation, crossing 9 at 0.667 gN/m2, so the sign of the effect on the
+        pool with the longest residence time in the model depends on where the
+        simulated mineral nitrogen sits.
         PASSIVESOM IS RE-DERIVED HERE AND NEVER FLEXED, which is the direction
         that cannot ratchet: the N immobilisation branch scales SLOWSOM,
         SOILMICRO and SURFHUMUS down and nothing else resets them, so adding
         this call makes the re-derived set a superset of the flexed set. That is
         the same asymmetry the phosphorus block records for this pool, and
         WORLD-16PB is what happens in the other direction.
+    - name: nfix_top_up_and_report_are_one_number
+      line: "soil.anfix += NMASS_SAT - nmin_avail;"
+      why: >
+        The other half of nfix_ceiling_reads_total_mineral_n, and the half that
+        is not a driver. soilnadd's else-branch adds NMASS_SAT - nmin_avail to
+        NH4_mass and reports the fixation that produced it; the two have to be
+        the same number. Mainline reported NMASS_SAT - soil.NH4_mass, which
+        coincides only while the threshold reads ammonium alone. With the
+        threshold on the whole mineral pool, that form reports more fixation
+        than the line beside it adds, by the nitrate mass, and soil.anfix_mean
+        accumulates it into the equilibrium solver's window.
+
+    - name: free_nitrogen_pin_splits_the_saturation_level
+      line: "soil.NH4_mass = NMASS_SAT / 2.0;"
+      why: >
+        cn_ramp_driver_is_total_mineral_n rests on NMASS_SAT being a quantity of
+        the WHOLE mineral pool rather than of ammonium, and this line is the
+        code's own statement that it is: under ifntransform 1 the pin sets
+        NH4_mass and NO3_mass to half the saturation level each, so that their
+        SUM is the saturation level. If this became a pin of NH4_mass alone to
+        NMASS_SAT, the driver argument would lose the internal evidence it
+        rests on and the two halves of the constant's meaning would have
+        drifted apart inside one file.
+
     - name: labile_p_pin_reads_the_threshold
       line: "soil.pmass_labile = PMASS_SAT;"
       why: >

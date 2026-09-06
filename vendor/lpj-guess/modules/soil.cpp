@@ -83,19 +83,17 @@ void Soil::init_states() {
 	// Set initial CENTURY pool P:C ratios.
 	//
 	// The citation on this block was Fig. 2 of Parton, Stewart and Cole (1988),
-	// which is the P submodel's flow diagram and carries no C:P values. All
-	// four are Fig. 3's, p. 115: 80, 200, 200 and 80 are the ctop_max ends of
-	// the active, slow, slow and active lines, so each pool starts at its most
-	// phosphorus-poor end.
+	// which is the P submodel's flow diagram and carries no C:P values. The
+	// three soil pools' values are Fig. 3's, p. 115: 80, 200 and 200 are the
+	// ctop_max ends of the active, slow and slow lines, so each starts at its
+	// most phosphorus-poor end, and setptoc() overwrites all three on the first
+	// call to somfluxes().
 	//
-	// THREE OF THE FOUR ARE OVERWRITTEN BY setptoc() ON THE FIRST CALL TO
-	// somfluxes() AND THE SURFACE MICROBIAL ONE IS NOT. That pool's C:P ramp is
+	// THE SURFACE MICROBIAL POOL IS THE ONE NOTHING OVERWRITES, so its value
+	// here is what that pool holds for the whole of a run. Its C:P ramp is
 	// removed under WORLD-PIDX, because a decomposer community's biomass C:P
-	// does not vary with its resource's phosphorus content, so the 80 below is
-	// what the surface microbial pool holds for the whole of a run. Its standing
-	// is the standing of the other three: Fig. 3's ACTIVE SOIL line's ctop_max
-	// end, applied here to a pool that paper does not have. That is not what
-	// PCONC_SAT was and the removal did not create it; WORLD-634Q owns it.
+	// does not vary with its resource's phosphorus content, and its value is
+	// derived below rather than taken from the block's convention.
 	//
 	// DECLARED DIVERGENCE FROM MAINLINE: surfhumus_ptoc_init, owner
 	// WORLD-SHCP, registered in biosphere/config/somdynam.yaml. The vendored
@@ -112,7 +110,72 @@ void Soil::init_states() {
 	sompool[SOILMICRO].ptoc = 1.0 / 80.0;
 	sompool[SURFHUMUS].ptoc = 1.0 / 200.0;
 	sompool[SLOWSOM].ptoc = 1.0 / 200.0;
-	sompool[SURFMICRO].ptoc = 1.0 / 80.0;
+
+	// The surface microbial pool's C:P, which nothing overwrites, so this line
+	// is the phosphorus content of every transfer out of the four surface
+	// litter pools for the whole of a run.
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: surfmicro_ptoc_own_stoichiometry,
+	// owner WORLD-634Q, registered in biosphere/config/somdynam.yaml. The
+	// vendored CNP fork has
+	//     sompool[SURFMICRO].ptoc = 1.0 / 80.0;
+	// which is this block's convention -- the ctop_max end of a Fig. 3 line --
+	// filling in the one pool that has no Fig. 3 line. 80 is the ACTIVE SOIL
+	// line's end and Parton, Stewart and Cole (1988) has no surface microbial
+	// pool at all. The fork's own methods say the same from the other side:
+	// Dantas de Paula et al. (2025) section 2.2 enumerates the pools it took
+	// CENTURY C:P values for as "the slow, passive, and active (microbial)"
+	// ones, and this is not among them. So the number carried no claim about
+	// this pool; the commented-out alternative block below, which puts the same
+	// pool at 35, is the fork disagreeing with itself for want of one.
+	//
+	// WHAT REPLACES IT IS THE POOL'S OWN STOICHIOMETRY, as an identity rather
+	// than a transfer: C:P = C:N * N:P.
+	//
+	// The C:N is this model's own for THIS pool, on the line four above and in
+	// somdynam.cpp's setntoc call, and it is exactly sourced. Parton et al.
+	// (1993) p. 791: the C:N of newly formed surface microbial biomass
+	// "increases from 10 to 20 as the N content decreases from 2.0% to 0.01%".
+	// 20 is what this block initialises the pool at, so the two initialisers
+	// describe one pool at one moment instead of being two free numbers.
+	//
+	// The N:P is measured, and it is the ratio for which "conceptual pool
+	// against measured biomass" cancels. Cleveland and Liptzin (2007) find soil
+	// microbial biomass C:N:P "well-constrained at the global scale" at 60:7:1
+	// by mole; the model's ratios are mass ratios, so N:P is
+	// 7 * 14.007 / 30.974 = 3.1655 and the pool's C:P is 20 * 3.1655 = 63.31.
+	//
+	// WHY THE CANCELLATION MATTERS, because the direct substitution is refused.
+	// CENTURY's pools carry more carbon than the biomass they are named for:
+	// this pool's C:N of 20 is 2.72 times the same source's measured biomass
+	// C:N of 60 * 12.011 / (7 * 14.007) = 7.35 by mass. Substituting the
+	// measured C:P of 60 * 12.011 / 30.974 = 23.27 would have put that offset
+	// on phosphorus and not on nitrogen. Transferring the N:P carries no carbon,
+	// so the offset lands on both elements identically -- 63.31 / 23.27 is the
+	// same 2.72 -- and the consistency between the two elements is preserved
+	// exactly rather than broken.
+	//
+	// BRACKETED, NOT MEASURED, and a run that uses it says which end it is on.
+	// The two global meta-analyses of decomposer stoichiometry give molar N:P
+	// of 7 (Cleveland and Liptzin 2007, above) and 6 (Xu et al. 2013 on a
+	// fourfold larger dataset, reported by Mooshammer et al. 2014), which are
+	// 63.31 and 54.27 here. 80 is outside that bracket.
+	//
+	// WHAT ONE CONSTANT DOES NOT RESOLVE is the across-biome spread, which is
+	// larger than the bracket and is a missing dependence rather than an
+	// uncertainty: Xu et al. (2013) put microbial N:P between 3.5 and 10.6 by
+	// mole across major biomes excluding wetlands, which is 31.7 to 95.9 here.
+	//
+	// WHAT THE MEASUREMENT SAYS ABOUT THE FORM, and it is why this stays a
+	// constant while the C:N above it ramps. Mooshammer et al. (2014) Table 2,
+	// on the Xu et al. (2013) dataset, makes microbial C:P the most invariant of
+	// the three ratios: it moves from 66.5 to 67.3 by mole over a soil C:P of
+	// 156 to 1611 (n = 405, P = 0.118), where microbial C:N moves 7.8 to 9.4
+	// (n = 1023, P = 0.044) and microbial N:P 6.9 to 9.1 (n = 294, P = 0.081).
+	// So a constant C:P is the arm the data supports, strict N:P homeostasis is
+	// not, and the N:P this line is derived through is a global mean of a ratio
+	// that itself drifts by up to 1.32 over the measured range. WORLD-GQIR.
+	sompool[SURFMICRO].ptoc = 1.0 / (20.0 * 7.0 * 14.007 / 30.974);
 	/*sompool[SOILMICRO].ptoc = 1.0 / 30.0;
 	sompool[SURFHUMUS].ptoc = 1.0 / 90.0;
 	sompool[SLOWSOM].ptoc = 1.0 / 90.0;
