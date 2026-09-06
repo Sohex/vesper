@@ -397,7 +397,7 @@ That also fixes what `dust-14` gets. The dust term changes the melt energy and
 therefore the equilibrium line, which is a statement the world can carry. It does
 not by itself say how much ice there is.
 
-## 8. The price, and the criteria that decide it
+## 8. The criteria that decide the adoption, and the question sections 1 to 7 do not ask
 
 Declared 2026-09-05, before the cost below was worked out. Sections 1 to 7 settle
 that SEMI is the candidate on its STRUCTURE. What CLIM-63 still owes is a price
