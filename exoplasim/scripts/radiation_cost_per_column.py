@@ -223,6 +223,65 @@ def socrates_arm(nprofile: int, nrep: int, nlayer: int, cloud: int,
     return parsed
 
 
+BLOCK_SWEEP = tuple(25 * 2 ** k for k in range(7))
+
+
+def socrates_working_set(blocks=BLOCK_SWEEP, nlayer=10, nrep=3) -> dict:
+    """The candidate's per-die state, and what blocking the columns costs.
+
+    A thread team's working set on one die targets 32 MB, so what matters is
+    not the driver's total but its MARGINAL state per column: the fixed part is
+    the spectral tables, one copy a process, and the marginal part is what a
+    thread multiplies by its own block. Both are read off a sweep in block size
+    rather than counted from declarations, because a count of declarations is
+    what missed 4.94 MB of threadprivate copies in the Legendre weight work.
+
+    The same sweep prices blocking, which is the disposition the criterion in
+    `radiation-scheme-price.md` names: if the per-column cost is flat in the
+    block size then the working set is a caller's choice at no cost in time.
+    """
+    if SOC_BENCH is None or not SOC_BENCH.is_file():
+        return dict(unavailable="SOCRATES_BENCH is not set to a built driver")
+    rows = []
+    for b in blocks:
+        e = dict(os.environ)
+        e.update(SB_NPROFILE=str(b), SB_NREP=str(nrep), SB_NLAYER=str(nlayer),
+                 SB_ZENITH="1", SB_CLOUD="0")
+        p = subprocess.run(["/usr/bin/time", "-f", "%M", str(SOC_BENCH)],
+                           cwd=str(SOC_BENCH.parent), env=e,
+                           capture_output=True, text=True)
+        rss = None
+        for line in p.stderr.strip().splitlines()[::-1]:
+            try:
+                rss = int(line.strip())
+                break
+            except ValueError:
+                continue
+        cost = None
+        for line in p.stdout.splitlines():
+            f = line.split()
+            if len(f) == 2 and f[0] == "both_s_per_col_call":
+                cost = float(f[1])
+        rows.append(dict(columns=b, max_rss_kb=rss,
+                         cpu_s_per_column_per_call=cost))
+    known = [r for r in rows if r["max_rss_kb"]]
+    marginal = fixed = None
+    if len(known) >= 2:
+        lo, hi = known[0], known[-1]
+        marginal = ((hi["max_rss_kb"] - lo["max_rss_kb"])
+                    / (hi["columns"] - lo["columns"]))
+        fixed = lo["max_rss_kb"] - marginal * lo["columns"]
+    # What block a team of eight on one die can carry inside 32 MB.
+    budget_kb = 32 * 1024
+    per_thread = (int((budget_kb - (fixed or 0)) / (8 * marginal))
+                  if marginal else None)
+    return dict(rows=rows, marginal_kb_per_column=marginal,
+                fixed_kb=fixed, die_budget_kb=budget_kb,
+                columns_per_thread_inside_the_budget=per_thread,
+                note="eight threads a die, one shared copy of the spectral "
+                     "tables; the marginal term is what a thread multiplies")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -283,6 +342,7 @@ def main() -> None:
     cpu_per_step_ms = (cpu_long - cpu_short) / d_steps if cpu_long else None
     startup_cpu_ms = (cpu_short - cpu_per_step_ms * short) if cpu_per_step_ms else None
 
+    working_set = socrates_working_set()
     shares = perf_record_shares(beds[long], exe, args.threads)
     rad = radiation_share(shares)
 
@@ -342,6 +402,7 @@ def main() -> None:
             spectral_files="ga7",
             arms=socr,
             by_arm=by_arm,
+            working_set=working_set,
             cpu_s_per_column_per_call=[cand_lo, cand_hi]),
         comparison=dict(
             candidate_over_present=[ratio_lo, ratio_hi],
