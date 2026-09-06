@@ -2318,9 +2318,11 @@ checks:
   #
   # It rebuilds the model's own linearised adiabatic step from
   # config/planet.yaml through initpm's, initsi's and makebm's arithmetic and
-  # takes the spectral radius of the one-step map. `--against <run>/plasim_diag`
-  # compares it with the amplification plasim.f90 prints at startup, which is
-  # the check with a right answer: two implementations of one map.
+  # takes the spectral radius of the one-step map exactly. The model cannot
+  # solve an eigenvalue problem at startup, so its own guard iterates and runs
+  # a control arm to measure the iteration's bias on a neutral map; this
+  # reproduces that too, and `--against <run>/plasim_diag` compares the two arm
+  # for arm, which is the check with a right answer.
   #
   # No build and no run of the model; it writes
   # exoplasim/analysis/conversion_time_stability.json with its provenance.

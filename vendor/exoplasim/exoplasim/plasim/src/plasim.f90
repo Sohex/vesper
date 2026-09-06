@@ -764,29 +764,47 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (nconvtime > 0) then
          zcgw  = sqrt(gascon * t0(NLEV) * ct / (1.0 - akap))
          zcgwd = plarad / (zcgw * sqrt(real(NTRU) * real(NTRU+1)))
-!        EVERY THREAD MEASURES, and they all get the same number: the routine
-!        reads `bm1`, `tau`, `g`, `c`, `t0`, `tkp`, `dsigma`, the four damping
-!        arrays and `pnu`, all of which are broadcast or built identically
-!        before this point, and it writes nothing shared. So the verdict below
-!        is the same on every thread without a broadcast of its own.
-         call conversion_time_amplification(zcgrow,jcworst)
+!        EVERY THREAD MEASURES BOTH ARMS, and they all get the same numbers:
+!        the routine reads `bm1`, `tau`, `g`, `c`, `t0`, `tkp`, `dsigma`, the
+!        four damping arrays and `pnu`, all of which are broadcast or built
+!        identically before this point, and it writes nothing shared. So the
+!        verdict below is the same on every thread without a broadcast.
+         call conversion_time_amplification(1,zcgrow,jcworst)
+         call conversion_time_amplification(0,zcctrl,jcctrl)
+!        THE INSTRUMENT'S OWN ERROR, MEASURED. The control arm's right answer
+!        is one: the semi-implicit scheme is neutrally stable, which is what
+!        every production run at every rung on the route rests on. What it
+!        actually returns is one plus this iteration's bias, so the distance
+!        from one is what this instrument can resolve on THIS configuration,
+!        and an effect smaller than that is noise however tidy it looks. The
+!        two arms share the bias to about 5e-8 on a stable configuration while
+!        the first unstable step separates them by 4.2e-3.
+         zcres = abs(zcctrl - 1.0)
          if (mypid == NROOT) then
-            write(nud,'(A,E16.8,A,I5,A,F8.1,A)')                        &
+            write(nud,'(A,E16.8,A,I5)')                                 &
      &         ' NCONVTIME: amplification ',zcgrow,                      &
-     &         ' per step at total wavenumber ',jcworst,                 &
-     &         ', this run runs at ',deltsec/60.0,' min'
+     &         ' per step at total wavenumber ',jcworst
+            write(nud,'(A,E16.8,A,I5)')                                 &
+     &         ' NCONVTIME: control arm    ',zcctrl,                     &
+     &         ' per step at total wavenumber ',jcctrl
+            write(nud,'(A,E16.8,A,E16.8,A,F8.1,A)')                     &
+     &         ' NCONVTIME: effect ',zcgrow-zcctrl,' against a resolution of ',&
+     &         zcres,', this run runs at ',deltsec/60.0,' min'
             write(nud,'(A,F8.1,A)')                                     &
      &         ' NCONVTIME: the explicit gravity-wave limit is ',        &
      &         zcgwd/60.0,' min, which is necessary and is not the boundary'
+            flush(nud)
          endif
-!        THE TOLERANCE IS THE ARITHMETIC'S AND NOT THE PHYSICS'. A neutral map
-!        returns exactly one up to double-precision roundoff accumulated over
-!        the measured span, which is about 1e-14; this is four orders above
-!        that and eight below the smallest growth that could matter over a run.
-         if (zcgrow > 1.0 + 1.0e-10) then
+!        EVERY THREAD WAITS FOR THAT REPORT TO REACH THE FILE. A bare Fortran
+!        `stop` on any thread ends the process, and without this the reason for
+!        a refusal is lost with it -- which is how the first form of this guard
+!        refused four configurations and explained none of them.
+!$omp barrier
+         if (zcgrow - zcctrl > zcres) then
             if (mypid == NROOT) then
                write(nud,*)                                             &
-     &            'NCONVTIME grows at this timestep, so the run would ', &
+     &            'NCONVTIME grows at this timestep by more than this ', &
+     &            'measurement can be wrong by, so the run would ',      &
      &            'integrate away from a solution rather than toward one.'
                write(nud,*)                                             &
      &            'The boundary depends on PNU as well as the rung and ',&
@@ -794,7 +812,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &            'exoplasim/scripts/conversion_time_stability.py ',     &
      &            'reports it without building or running the model. ',  &
      &            'see world-bt3b'
+               flush(nud)
             endif
+!$omp barrier
             stop 'nconvtime grows at this timestep'
          endif
       endif
@@ -2457,7 +2477,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     SUBROUTINE CONVERSION_TIME_AMPLIFICATION
 !     ========================================
 
-      subroutine conversion_time_amplification(pgrow,kworst)
+      subroutine conversion_time_amplification(kconv,pgrow,kworst)
       use pumamod
 
 !     THE ONE-STEP AMPLIFICATION OF THE MODEL'S OWN ADIABATIC STEP WITH
@@ -2490,10 +2510,31 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     IT WRITES NOTHING SHARED, so every thread may run it and they all reach
 !     the same number without a broadcast.
 !
+!     `kconv` SELECTS THE ARM, and there are two because a finite iteration
+!     cannot separate a growth of one from a growth of one plus a millionth.
+!     The neutral modes of this map sit exactly on the unit circle and the map
+!     is not normal, so the norm grows polynomially and the measured rate
+!     carries a positive bias that falls only as log(N)/N -- 1.8e-4 per step at
+!     N = 3000, which is enormous next to any growth worth refusing. Iterating
+!     longer does not reach it and a tolerance large enough to absorb it would
+!     pass configurations that blow up over a commissioning run.
+!
+!     WHAT SEPARATES THEM IS A CONTROL ARM. `kconv = 0` runs the SAME iteration
+!     on the SAME configuration with the term off, and that map's right answer
+!     is known: the semi-implicit scheme is neutrally stable, which is what
+!     every production run at every rung on the route rests on. Its measured
+!     departure from one is therefore this instrument's error, MEASURED on this
+!     configuration rather than assumed, and the two arms share it: on a stable
+!     configuration the two rates differ by about 5e-8 while each sits 1.8e-4
+!     above one, and at the first unstable step the difference is 4.2e-3. Five
+!     orders of magnitude separate the effect from the instrument's own scatter,
+!     which is what makes the comparison a verdict rather than a number.
+!
 !     `pgrow` is the growth per step of the fastest mode over every total
 !     wavenumber the truncation resolves and `kworst` is the wavenumber
-!     carrying it. One is neutral, which is what the unmodified scheme gives.
+!     carrying it.
 
+      integer, intent(in) :: kconv
       real, intent(out) :: pgrow
       integer, intent(out) :: kworst
 
@@ -2571,16 +2612,20 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             do jlev = 1 , NLEV
                zstt(jlev) = -dot_product(tau(:,jlev),zsdt)
             enddo
-!           3a. THE TERM. The reference conversion's divergence half read off
-!               the divergence at t rather than off `sdt`.
-            do jlev = 1 , NLEV
+!           3a. THE TERM, on the measured arm only. The reference conversion's
+!               divergence half read off the divergence at t rather than off
+!               `sdt`. `kconv = 0` is the control and leaves it where the model
+!               ordinarily has it.
+            if (kconv > 0) then
+             do jlev = 1 , NLEV
                zsum = 0.0
                do jlev2 = 1 , jlev
                   zsum = zsum + tkp(jlev) * c(jlev2,jlev)               &
      &                        * (zsdt(jlev2) - zd(jlev2))
                enddo
                zstt(jlev) = zstt(jlev) + zsum
-            enddo
+             enddo
+            endif
 !           4.a the time filter's first part, on the state at t
             do jlev = 1 , NLEV
                zdmn(jlev) = pnu21*zd(jlev) + pnu*zdm(jlev)

@@ -668,7 +668,11 @@ the rung. At `PNU = 0` there is no stable timestep at all.
 The model therefore measures rather than estimates: `plasim.f90`'s
 `conversion_time_amplification` iterates its own linearised adiabatic step at
 the configured rung, timestep, vertical grid, reference temperature, Robert
-coefficient and damping, and refuses a configuration whose fastest mode grows.
+coefficient and damping. It runs that iteration TWICE, once with the term and
+once without, because a finite iteration on a neutral map is biased high and no
+threshold can be set under the bias; the control arm's right answer is one, so
+its measured distance from one is what the instrument can resolve on that
+configuration, and the model refuses when the effect exceeds it.
 `exoplasim/scripts/conversion_time_stability.py` computes the same map without
 building or running the model, which is where a caller finds the boundary before
 buying a run.

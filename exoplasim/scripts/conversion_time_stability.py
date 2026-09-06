@@ -37,12 +37,19 @@ drag and Newtonian cooling. Every matrix is rebuilt from `config/planet.yaml`
 through the same arithmetic `initpm`, `initsi` and `makebm` use, so this is the
 model's map and not a model of it.
 
-WHAT IT IS FOR, now that `plasim.f90:conversion_time_amplification` computes the
-same thing at startup. Two implementations of one map, and `--against` compares
-them: the model prints its amplification and this recomputes it from the
-configuration, so a disagreement is a defect in one of them rather than a
-question about either. That is the check with a right answer here; the growth
-rate itself has no independent standard to be compared with.
+TWO ANSWERS, AND THEY ARE FOR DIFFERENT QUESTIONS. The BOUNDARY reported here
+is the exact spectral radius of the one-step map, solved rather than iterated,
+which is what a caller needs before buying a run. The MODEL cannot solve an
+eigenvalue problem at startup, so its guard iterates -- and a finite iteration
+on a neutral map is biased high by about 1.8e-4 per step, because the neutral
+modes sit exactly on the unit circle and the map is not normal. No threshold
+can be set under that bias, so the guard runs a CONTROL ARM instead: the same
+iteration with the term off, whose right answer is one, and whose measured
+distance from one is the instrument's own error on that configuration. It
+refuses when the effect exceeds that error. `verdict` reproduces exactly that,
+and `--against` compares it with what the model printed, arm for arm, so a
+disagreement is a defect in one implementation rather than a question about
+either.
 
 VALIDATION AGAINST THE MODEL'S OWN BEHAVIOUR is in
 `exoplasim/notes/convdecomp-reproducibility.md`, which carries the T21 arms and
@@ -85,10 +92,13 @@ SECONDS_PER_ABSOLUTE_DAY = 86400.0
 PNU_DEFAULT = 0.1
 # The measured span, matching `conversion_time_amplification` in the model.
 DISCARD, MEASURE = 1000, 3000
-# The noise floor a growth has to clear to be called growth. A neutral map
-# returns a mean log of zero up to double-precision roundoff, which accumulates
-# over MEASURE steps as about sqrt(MEASURE) * 1e-16; this is four orders above
-# that and eight below the smallest growth that could matter over a run.
+# The margin an EXACT spectral radius has to clear to be called growth. This is
+# for `boundary_minutes` and the ladder table, which solve the eigenvalue
+# problem rather than iterating it, so the only error is double-precision
+# roundoff on a 42x42 solve. The model's own guard cannot use a number like
+# this and does not: it iterates, and a finite iteration on a neutral map
+# carries a bias of about 1.8e-4 per step that no threshold can be set under.
+# `verdict` below is what the model does instead.
 NEUTRAL = 1.0e-10
 
 
@@ -278,6 +288,83 @@ class Column:
             a[:, k] = out
         return float(max(abs(np.linalg.eigvals(a))))
 
+    def iterated_growth(self, dt_minutes: float, jn: int,
+                        nconvtime: bool = True) -> float:
+        """The model's OWN estimator: the linearised step, iterated.
+
+        `plasim.f90:conversion_time_amplification` in Python, down to the start
+        vector and the span, so `--against` compares two implementations of one
+        procedure rather than an iteration against an eigenvalue solve. The two
+        differ on a NEUTRAL configuration -- the iteration is biased high by
+        about 1.8e-4 per step, because the neutral modes sit exactly on the unit
+        circle and the map is not normal -- and that difference is the whole
+        reason the model runs a control arm instead of testing a threshold.
+        """
+        n = self.nlev
+        delt = dt_minutes * 60.0 * self.ww
+        delt2 = 2.0 * delt
+        cn = jn * (jn + 1.0)
+        mf = np.zeros((n, n))
+        for j1 in range(n):
+            for j2 in range(n):
+                mf[j2, j1] = delt * delt * (self.t0[j1] * self.dsigma[j2]
+                                            + np.dot(self.g[:, j1], self.tau[j2, :]))
+        mf += np.eye(n) / cn
+        bm1 = np.linalg.inv(mf)
+        sak = self.sak(jn)
+        fd = 1.0 / (1.0 + delt2 * (self.tdissd * sak + self.tfrc))
+        ft = 1.0 / (1.0 + delt2 * (self.tdisst * sak))
+        pnu21, pnu = 1.0 - 2.0 * self.pnu, self.pnu
+        jl = np.arange(1, n + 1, dtype=float)
+        zd, zt = np.sin(1.0 * jl), np.cos(2.0 * jl)
+        zdm, ztm = np.cos(0.7 * jl), np.sin(1.3 * jl)
+        zp, zpm, zlog = 0.25, -0.125, 0.0
+        for step in range(1, DISCARD + MEASURE + 1):
+            zz = zdm / cn + delt * (self.g.T @ ztm + self.t0 * zpm)
+            sdt = zz @ bm1
+            spt = self.dsigma @ sdt
+            stt = -(self.tau.T @ sdt)
+            if nconvtime:
+                stt = stt + (self.tkc.T @ (sdt - zd))
+            zdmn = pnu21 * zd + pnu * zdm
+            ztmn = pnu21 * zt + pnu * ztm
+            zpmn = pnu21 * zp + pnu * zpm
+            zdn = (2.0 * sdt - zdm) * fd
+            ztn = (delt2 * stt + ztm) * ft
+            zpn = zpm - delt2 * spt
+            zdmn = zdmn + pnu * zdn
+            ztmn = ztmn + pnu * ztn
+            zpmn = zpmn + pnu * zpn
+            zd, zt, zp, zdm, ztm, zpm = zdn, ztn, zpn, zdmn, ztmn, zpmn
+            norm = math.sqrt(zd @ zd + zt @ zt + zdm @ zdm + ztm @ ztm
+                             + zp * zp + zpm * zpm)
+            if step > DISCARD:
+                zlog += math.log(norm)
+            zd, zt, zdm, ztm = zd / norm, zt / norm, zdm / norm, ztm / norm
+            zp, zpm = zp / norm, zpm / norm
+        return math.exp(zlog / MEASURE)
+
+    def verdict(self, dt_minutes: float) -> dict:
+        """The model's own two-arm test, recomputed here.
+
+        The measured arm against a CONTROL whose right answer is known -- the
+        unmodified semi-implicit scheme is neutrally stable, which is what every
+        production run rests on -- so the control's distance from one is what
+        this instrument can resolve on this configuration, measured rather than
+        assumed. An effect smaller than that is noise however tidy it looks.
+        """
+        on, jn_on, off, jn_off = 0.0, 0, 0.0, 0
+        for jn in range(1, self.ntru + 1):
+            g = self.iterated_growth(dt_minutes, jn, True)
+            if g > on:
+                on, jn_on = g, jn
+            g = self.iterated_growth(dt_minutes, jn, False)
+            if g > off:
+                off, jn_off = g, jn
+        return {"on": on, "on_wavenumber": jn_on, "off": off,
+                "off_wavenumber": jn_off, "effect": on - off,
+                "resolution": abs(off - 1.0), "refused": (on - off) > abs(off - 1.0)}
+
     def worst_growth(self, dt_minutes: float, nconvtime: bool = True):
         """`(growth, wavenumber)` over every total wavenumber the rung resolves."""
         best, at = 0.0, 0
@@ -306,18 +393,27 @@ class Column:
         return lo
 
 
+def _real(raw: str) -> float:
+    return float(raw.replace("D", "E").replace("d", "e"))
+
+
 def model_amplification(diag: Path):
-    """The amplification `plasim.f90` printed, as `(growth, wavenumber, dt)`."""
+    """What `plasim.f90`'s guard printed: both arms, the effect and the step."""
     text = diag.read_text(encoding="latin-1", errors="replace")
-    match = None
-    for match in re.finditer(
-            r"NCONVTIME: amplification\s+([0-9.EeDd+-]+)\s+per step at total "
-            r"wavenumber\s+(\d+).*?runs at\s+([0-9.]+)\s+min", text, re.S):
-        pass
-    if match is None:
+    on = off = dt = None
+    for m in re.finditer(r"NCONVTIME: amplification\s+([0-9.EeDd+-]+)\s+per "
+                         r"step at total wavenumber\s+(\d+)", text):
+        on = (_real(m.group(1)), int(m.group(2)))
+    for m in re.finditer(r"NCONVTIME: control arm\s+([0-9.EeDd+-]+)\s+per "
+                         r"step at total wavenumber\s+(\d+)", text):
+        off = (_real(m.group(1)), int(m.group(2)))
+    for m in re.finditer(r"NCONVTIME: effect .*?runs at\s+([0-9.]+)\s+min",
+                         text, re.S):
+        dt = float(m.group(1))
+    if on is None or off is None or dt is None:
         return None
-    return (float(match.group(1).replace("D", "E").replace("d", "e")),
-            int(match.group(2)), float(match.group(3)))
+    return {"on": on[0], "on_wavenumber": on[1], "off": off[0],
+            "off_wavenumber": off[1], "timestep_minutes": dt}
 
 
 def provenance(cfg_path: Path) -> dict:
@@ -379,27 +475,49 @@ def main() -> int:
     if args.against is not None:
         printed = model_amplification(args.against)
         if printed is None:
-            print(f"{args.against} carries no NCONVTIME amplification line; "
-                  "the run did not enable conversion_time_level, or it was "
-                  "made by a binary built before the guard")
+            print(f"{args.against} carries no NCONVTIME report; the run did "
+                  "not enable conversion_time_level, or it was made by a binary "
+                  "built before the guard")
             return 2
-        got, jn, dt = printed
+        dt = printed["timestep_minutes"]
         rung = args.rung or str(cfg["model"]["resolution"]).upper()
         column = Column(cfg, rung, pnu)
-        here, jn_here = column.worst_growth(dt)
-        # A CHECK WITH A RIGHT ANSWER. Two implementations of one map: the
-        # model's iteration approaches the spectral radius the eigenvalue solve
-        # here returns exactly, so they agree to the iteration's convergence or
-        # one of them is wrong. The tolerance is on the ITERATION and not on
-        # the physics.
-        agree = abs(got - here) <= 1e-6 * max(1.0, here) and jn == jn_here
+        here = column.verdict(dt)
+        # A CHECK WITH A RIGHT ANSWER, and BOTH ARMS ARE IN IT. The same
+        # iteration from the same start over the same span must return the same
+        # numbers here and in the model, arm for arm and wavenumber for
+        # wavenumber; a difference is a defect in one implementation and not a
+        # question about either. The tolerance is what two orderings of the
+        # same double-precision arithmetic can differ by over the span, and
+        # nothing about the physics.
+        problems = []
+        for key, label in (("on", "measured arm"), ("off", "control arm")):
+            if abs(printed[key] - here[key]) > 1e-9 * max(1.0, here[key]):
+                problems.append(f"the {label} differs: model {printed[key]!r}, "
+                                f"here {here[key]!r}")
+            if printed[key + "_wavenumber"] != here[key + "_wavenumber"]:
+                problems.append(
+                    f"the {label}'s worst wavenumber differs: model "
+                    f"{printed[key + '_wavenumber']}, here "
+                    f"{here[key + '_wavenumber']}")
         print(f"{rung} at dt {dt} min, PNU {pnu}")
-        print(f"  the model printed  {got:.10f} per step at wavenumber {jn}")
-        print(f"  recomputed here    {here:.10f} per step at wavenumber {jn_here}")
-        print("  they agree" if agree else
-              "  THEY DISAGREE: one of the two implementations of this map is "
-              "wrong, and the guard's refusals rest on the model's")
-        return 0 if agree else 1
+        print(f"  measured arm  model {printed['on']:.12f} at n="
+              f"{printed['on_wavenumber']}   here {here['on']:.12f} at n="
+              f"{here['on_wavenumber']}")
+        print(f"  control arm   model {printed['off']:.12f} at n="
+              f"{printed['off_wavenumber']}   here {here['off']:.12f} at n="
+              f"{here['off_wavenumber']}")
+        print(f"  effect {here['effect']:.3e} against a resolution of "
+              f"{here['resolution']:.3e}: "
+              f"{'refused' if here['refused'] else 'passed'}")
+        if problems:
+            print("  THEY DISAGREE, and the guard's refusals rest on the "
+                  "model's:")
+            for line in problems:
+                print("    " + line)
+            return 1
+        print("  they agree, arm for arm")
+        return 0
 
     if args.rung and args.sweep:
         wanted = [(args.rung.upper(), float(x))
@@ -433,6 +551,14 @@ def main() -> int:
             row["growth_per_step"] = round(grow, 8)
             row["worst_total_wavenumber"] = jn
             row["growth_per_step_nconvtime_off"] = round(control, 8)
+            # THE MODEL'S OWN TWO-ARM TEST, so the artifact carries both the
+            # exact answer and what the guard would actually decide.
+            v = column.verdict(dt)
+            row["guard"] = {
+                "measured_arm": v["on"], "measured_arm_wavenumber": v["on_wavenumber"],
+                "control_arm": v["off"], "control_arm_wavenumber": v["off_wavenumber"],
+                "effect": v["effect"], "resolution": v["resolution"],
+                "refused": v["refused"]}
         rows.append(row)
         print(f"{rung:<5} dt {str(dt):>6}  guard {guard:7.2f} min  "
               f"boundary "

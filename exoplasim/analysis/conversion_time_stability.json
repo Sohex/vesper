@@ -1,11 +1,11 @@
 {
   "what": "the one-step amplification of the model's linearised adiabatic step with NCONVTIME on, and the coarsest timestep at which it does not grow",
   "provenance": {
-    "generated_utc": "2026-09-06T05:20:54.863118+00:00",
+    "generated_utc": "2026-09-06T05:36:29.943549+00:00",
     "config": "config/planet.yaml",
     "config_sha256": "dc2b9280928be925a10ddd8b022773f8ebf90a2aa464d26582669abf4b471e06",
-    "model_source_sha256": "7fc55b34e9ec407e10c12ab159f36287e5d564c16ca82628ea870639a4995c5b",
-    "commit": "dcb74e176ebf8b7ff556dd88016eb20df21cf8b3",
+    "model_source_sha256": "4bd4389d5278c48c3c58c0ecbaee895c7132bc4515a20a08c290408ba59fb9d9",
+    "commit": "194437e7f9c89a6312f402cc2fb2ba04108e6e6b",
     "numpy": "2.5.2",
     "discard_steps": 1000,
     "measured_steps": 3000,
@@ -22,7 +22,16 @@
       "guard_over_boundary": 2.3008,
       "growth_per_step": 1.2801925,
       "worst_total_wavenumber": 17,
-      "growth_per_step_nconvtime_off": 1.0
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.2801925030410062,
+        "measured_arm_wavenumber": 17,
+        "control_arm": 1.000190014143761,
+        "control_arm_wavenumber": 3,
+        "effect": 0.2800024888972452,
+        "resolution": 0.0001900141437609637,
+        "refused": true
+      }
     },
     {
       "rung": "T42",
@@ -34,7 +43,16 @@
       "guard_over_boundary": 2.2997,
       "growth_per_step": 1.34494008,
       "worst_total_wavenumber": 29,
-      "growth_per_step_nconvtime_off": 1.0
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.3449400772584692,
+        "measured_arm_wavenumber": 29,
+        "control_arm": 1.000190014143761,
+        "control_arm_wavenumber": 3,
+        "effect": 0.34475006311470824,
+        "resolution": 0.0001900141437609637,
+        "refused": true
+      }
     },
     {
       "rung": "T85",
@@ -46,7 +64,16 @@
       "guard_over_boundary": 2.2991,
       "growth_per_step": 1.43101505,
       "worst_total_wavenumber": 51,
-      "growth_per_step_nconvtime_off": 1.0
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.4311054383776793,
+        "measured_arm_wavenumber": 51,
+        "control_arm": 1.000190014143761,
+        "control_arm_wavenumber": 3,
+        "effect": 0.4309154242339184,
+        "resolution": 0.0001900141437609637,
+        "refused": true
+      }
     },
     {
       "rung": "T127",
@@ -58,7 +85,16 @@
       "guard_over_boundary": 2.2988,
       "growth_per_step": 1.43091729,
       "worst_total_wavenumber": 76,
-      "growth_per_step_nconvtime_off": 1.0
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.4310982082070838,
+        "measured_arm_wavenumber": 75,
+        "control_arm": 1.000075670877995,
+        "control_arm_wavenumber": 20,
+        "effect": 0.4310225373290888,
+        "resolution": 7.567087799498218e-05,
+        "refused": true
+      }
     },
     {
       "rung": "T170",
@@ -70,7 +106,16 @@
       "guard_over_boundary": 2.299,
       "growth_per_step": 1.38272283,
       "worst_total_wavenumber": 115,
-      "growth_per_step_nconvtime_off": 1.0
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.3828123477626655,
+        "measured_arm_wavenumber": 114,
+        "control_arm": 1.0001921065157575,
+        "control_arm_wavenumber": 16,
+        "effect": 0.38262024124690797,
+        "resolution": 0.00019210651575751747,
+        "refused": true
+      }
     }
   ],
   "note": "guard_over_boundary is how much coarser a step the model's explicit gravity-wave limit admits than the scheme is stable at. A null boundary means the modification grows at every step down to 0.05 min, which is what PNU = 0 gives: the Robert-Asselin filter is the only thing damping the leapfrog computational mode the term feeds. gravity_wave_limit_from_structure_matrix_minutes is the same limit taken on the model's own fastest external mode rather than on a single-level estimate of it, and the two agreeing is what says the guard was aimed at the wrong mode rather than mis-derived. world-bt3b."
