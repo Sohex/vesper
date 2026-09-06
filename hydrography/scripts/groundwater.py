@@ -1996,15 +1996,17 @@ def dupuit_test(n_cells=200, dx_m=500.0, k_m_s=1e-5, recharge_m_s=2.5e-10,
 
 
 def factorisation_test(sizes=(40, 80, 160), verbose=True) -> dict:
-    """Does keeping the factor change the answer? It must not, and this can fail.
+    """Does factorising a block on its own change the answer? It must not.
 
-    world-wfge. `solve` reuses a SuperLU factorisation across passes whose
-    matrix has not moved, which is only licensed if `splu(A, ...).solve(b)` is
-    the same arithmetic as the `spsolve(A, b, ...)` it replaces -- not close to
-    it, the SAME. Both drive `dgstrf` and `dgstrs` at the same column ordering,
-    so the equality is exact and a difference in the last bit is a defect rather
-    than a tolerance to widen. The check is therefore `array_equal` and there is
-    no bar to choose.
+    world-wfge, and four arms with right answers rather than tolerances.
+
+    `solve` factorises the free set BLOCK BY BLOCK and keeps a factor across a
+    pass whose matrix has not moved. Both rest on the same equality:
+    `splu(A, ...).solve(b)` is the same arithmetic as the `spsolve(A, b, ...)`
+    it replaces -- not close to it, the SAME. Both drive `dgstrf` and `dgstrs`
+    at the same column ordering, so a difference in the last bit is a defect
+    rather than a tolerance to widen. The check is therefore `array_equal` and
+    there is no bar to choose.
 
     AND THE CONTROL, which is the half that makes this a test. SuperLU's
     `SymmetricMode` with `diag_pivot_thresh=0` is the ordering lever this file's
