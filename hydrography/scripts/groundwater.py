@@ -1363,6 +1363,15 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         bounds = np.searchsorted(blk[order], np.arange(n_blocks + 1))
         n_blocks_last = n_blocks
         largest_block_last = int(np.diff(bounds).max()) if n_blocks else 0
+        if verbose:
+            # `docs/src/reference/large-data.md` asks for progress per unit of
+            # work, and the unit here is a block. Thirteen thousand of them with
+            # no line between the start of a pass and its end is the same defect
+            # the flushed pass line fixed one level up: a solve whose progress is
+            # only knowable if it finishes cannot be diagnosed when it does not.
+            print(f"    partitioned into {n_blocks:,} blocks, largest "
+                  f"{largest_block_last:,} cells, at "
+                  f"{time.perf_counter() - _t_start:.1f}s", flush=True)
         pos = np.empty(m, dtype=np.int64)
         pos[order] = np.arange(m)
         unknown_ids = np.flatnonzero(unknown)
@@ -1531,6 +1540,9 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         x = np.empty(m)
         kept = {}
         pass_factorised = n_factorised
+        _t_blocks = time.perf_counter()
+        _t_say = _t_blocks
+        _done_cells = 0
         with phases("factor_solve"):
             # Sliced off the CSC arrays directly rather than through scipy's
             # indexing, because the block count runs to the number of
@@ -1562,6 +1574,12 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                     kept[key] = lu
                 x[b0:b1] = lu.solve(rhs[b0:b1])
                 lu = None
+                _done_cells += int(b1 - b0)
+                if verbose and time.perf_counter() - _t_say > 30.0:
+                    _t_say = time.perf_counter()
+                    print(f"      {_done_cells:,} of {m:,} free cells "
+                          f"factorised, {_t_say - _t_blocks:.0f}s in this pass, "
+                          f"{resident_gb():.2f} GB", flush=True)
         # The previous pass's factors are dropped here, not before the loop, so
         # a block that survived is never rebuilt to be immediately discarded.
         factors = kept
