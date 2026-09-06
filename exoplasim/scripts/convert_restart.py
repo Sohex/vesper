@@ -56,6 +56,7 @@ from pathlib import Path
 import numpy as np
 
 import _paths
+from write_door import refuse_a_write_through_a_symlink
 import restart_format as rf
 import restart_schema as rs
 import restart_transforms as rt
@@ -807,6 +808,22 @@ def main() -> int:
         ap.error("--target-template is required. A conversion without the "
                  "exact target's own record set, precision and static fields "
                  "is a guess at what the target expects.")
+
+    # BEFORE THE CONVERSION, and not left to `restart_format.write`. That
+    # writer refuses an existing path unless --force, which covers a per-file
+    # link only by accident and not at all under --force; and it renames a
+    # temporary over the output, so a write through a link REPLACES THE LINK
+    # rather than the target -- the main checkout keeps its bytes and the two
+    # trees diverge silently, with the linker thereafter reporting a real file
+    # where a link should be and refusing to touch it. The refusal by topology
+    # is a different question from the refusal by existence and both are here.
+    for _path, _what in ((args.output, "a converted restart a ladder arm runs from"),
+                         (args.report, "the record of a restart conversion")):
+        if _path is not None:
+            refuse_a_write_through_a_symlink(
+                _path, what=_what,
+                instead=("Pass --output and --report to paths inside this "
+                         "worktree, or convert in the main checkout."))
 
     src, tgt = load(args.source), load(args.target_template)
     inventory = rs.inventory_from_source(_paths.MODEL_SRC / "plasim" / "src")

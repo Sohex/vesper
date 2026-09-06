@@ -118,6 +118,7 @@ import builds
 import gridding
 import rungs
 from orogen import Export, LAND
+from write_door import refuse_a_write_through_a_symlink
 
 sys.path.insert(0, str(PROJECT_ROOT))
 from lib import provenance                          # noqa: E402
@@ -735,6 +736,11 @@ def build_rung(mesh: Export, grid_dir: Path, rung: str, ctx: dict) -> tuple[dict
 
 def write_rung(path: Path, a: dict, mesh: Export, grid_dir: Path, rung: str,
                ctx: dict, rung_report: dict) -> None:
+    # Again here, because `main` guards the whole batch up front and this is
+    # also the entry point a caller with its own path reaches.
+    refuse_a_write_through_a_symlink(
+        path, what="the per-cell mesh support a consumer of this build reads",
+        instead="Run the generator in the main checkout.")
     nlat, nlon = a["nlat"], a["nlon"]
     lat, lon, _ = gridding.grid_geometry(grid_dir)
     with Dataset(path, "w", format="NETCDF4") as ds:
@@ -1026,6 +1032,22 @@ def main() -> int:
     if not todo:
         print("nothing to do")
         return 0
+
+    # BEFORE THE FIRST RUNG, not per write. A rung is tens of minutes, and this
+    # step resumes from the checkpoint, so a refusal that arrived at the write
+    # would throw away the rung that had just been built as well as the one it
+    # refused to record.
+    refuse_a_write_through_a_symlink(
+        ckpt_path, what="the checkpoint this step resumes from",
+        instead="Run the generator in the main checkout.")
+    refuse_a_write_through_a_symlink(
+        REPORT, what="this component's record of the per-cell mesh support",
+        instead="Run the generator in the main checkout.")
+    for _rung in todo:
+        refuse_a_write_through_a_symlink(
+            data / f"support_exoplasim-{_rung}.nc",
+            what="the per-cell mesh support a consumer of this build reads",
+            instead="Run the generator in the main checkout.")
 
     # THE FOOTPRINT, ESTIMATED BEFORE ANYTHING STARTS rather than after. The
     # per-region cost is the fields held over the whole run plus what the

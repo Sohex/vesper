@@ -23,6 +23,7 @@ import numpy as np
 from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS  # noqa: F401  (puts lib/ on the path)
+from write_door import refuse_a_write_through_a_symlink
 import climatology
 import gridding
 
@@ -94,6 +95,14 @@ def panel(ax: plt.Axes, lon: np.ndarray, lat: np.ndarray, field: np.ndarray,
 
 
 def save_map(fig: plt.Figure, path: Path) -> None:
+    # The one door the nine maps share. They are cheap to redraw and no
+    # component reads them, but they sit in the same directory as the
+    # classification, so a worktree that runs this script writes through nine
+    # links before it reaches the artifact that matters.
+    refuse_a_write_through_a_symlink(
+        path, what="a climatology map beside the classification",
+        instead=("Pass --output to a directory inside this worktree, or run "
+                 "the generator in the main checkout."))
     fig.savefig(path, dpi=180, bbox_inches="tight")
     plt.close(fig)
 
@@ -397,6 +406,11 @@ def main() -> None:
     # when there was only ever one, and a run labelled `baseline` produced
     # `baseline_baseline_classification.nc`.
     classification_nc = output / f"{args.label}_classification.nc"
+    refuse_a_write_through_a_symlink(
+        classification_nc,
+        what="the surface classification downstream components read",
+        instead=("Pass --output to a directory inside this worktree, or run "
+                 "the generator in the main checkout."))
     # netCDF4 1.7.4 emits a harmless NumPy 2.5 deprecation from assignment internals.
     with warnings.catch_warnings(), Dataset(classification_nc, "w", format="NETCDF4") as nc:
         warnings.filterwarnings(
@@ -461,9 +475,12 @@ def main() -> None:
     # filename meant each run silently overwrote the previous one's report, so
     # two climatologies could never coexist and the file's name told you nothing
     # about which world it described.
-    (output / f"{args.label}_climate_report.json").write_text(
-        json.dumps(report, indent=2) + "\n", encoding="utf-8"
-    )
+    report_path = output / f"{args.label}_climate_report.json"
+    refuse_a_write_through_a_symlink(
+        report_path, what="this run's climate report",
+        instead=("Pass --output to a directory inside this worktree, or run "
+                 "the generator in the main checkout."))
+    report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report["global_metrics"], indent=2))
 
 

@@ -302,6 +302,85 @@ def worktree_links_self_test(verbose: bool) -> list[str]:
         + (r.stderr.strip().splitlines() or ["(no output)"])[-1]]
 
 
+def export_refuses_an_existing_build(verbose: bool) -> list[str]:
+    """`vendor/orogen/tools/export-planet.mjs` refuses to overwrite an export.
+
+    Rule 7's one enforcement point. `source/` is what the world is
+    reconstructed from, git tracks none of its payload, and the writer is the
+    vendored Node exporter -- so the refusal lives in the exporter, where it
+    fires in the main checkout and in a worktree alike, before the generation
+    that is almost all of what an export costs. A guard that fired only through
+    a Python wrapper would be bypassed by the invocation `source/README.md`
+    documents, which is the exporter itself.
+
+    HERE RATHER THAN IN `smoke_test.py` because it spawns Node and, in the
+    negative arm, generates a planet: that is rule 8's line between the tiers.
+    It is also the tier that matters, since the thing it protects is paid for
+    just before a build.
+
+    BOTH ARMS, and each decides by an observable that answers the question
+    asked rather than by an exit status. The positive arm requires the refusal
+    to name the directory it refused; the negative arm requires an ordinary
+    export into an empty directory to COMPLETE and leave a manifest, because a
+    guard that refused every path would pass the positive arm alone and would
+    stop every export in the project. 2,000 regions and one T21 grid put the
+    pair at about a second.
+    """
+    import shutil
+
+    exporter = ROOT / "vendor" / "orogen" / "tools" / "export-planet.mjs"
+    if not exporter.is_file():
+        return [f"{exporter.relative_to(ROOT)} is missing, and it is the only "
+                "thing that refuses an overwrite of an existing source/ build"]
+    node = shutil.which("node")
+    if node is None:
+        return ["node is not on this host, so the one refusal that enforces "
+                "rule 7 at the writer cannot be exercised. See "
+                "docs/src/reference/environment.md"]
+    # Named separately, because without it the negative arm below fails on a
+    # missing import and reads as a broken refusal. `link_worktree.py` links it
+    # -- it is an install and not a build of tracked source -- so its absence
+    # means an unlinked worktree rather than a defect in the exporter.
+    if not (exporter.parent.parent / "node_modules").exists():
+        return ["vendor/orogen/node_modules is absent, so the exporter cannot "
+                "run and its refusal cannot be exercised. Run "
+                "`python scripts/link_worktree.py` in a worktree, or "
+                "`npm i delaunator` under vendor/orogen"]
+
+    cwd = exporter.parent.parent
+    bad: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        held = Path(tmp) / "already-a-build"
+        held.mkdir()
+        (held / "manifest.json").write_text("{}", encoding="utf-8")
+        r = subprocess.run(
+            [node, "tools/export-planet.mjs", "--seed", "1", "--regions", "2000",
+             "--grid", "T21", "--no-raw", "--quiet", "--out", str(held)],
+            cwd=cwd, capture_output=True, text=True, timeout=300, env=PROBE_ENV)
+        if verbose:
+            print(f"  refusal arm: exit {r.returncode}")
+        if str(held) not in r.stderr or "already holds an export" not in r.stderr:
+            bad.append("export-planet.mjs did not refuse an --out directory "
+                       "that already holds a manifest, so nothing stops an "
+                       f"existing source/ build being overwritten: {r.stderr.strip()[-200:]}")
+        elif (held / "README.txt").exists() or (held / "grid").exists():
+            bad.append("export-planet.mjs refused and wrote into the directory "
+                       "anyway")
+
+        fresh = Path(tmp) / "new-build"
+        r = subprocess.run(
+            [node, "tools/export-planet.mjs", "--seed", "1", "--regions", "2000",
+             "--grid", "T21", "--no-raw", "--quiet", "--out", str(fresh)],
+            cwd=cwd, capture_output=True, text=True, timeout=300, env=PROBE_ENV)
+        if verbose:
+            print(f"  ordinary arm: exit {r.returncode}")
+        if not (fresh / "manifest.json").is_file():
+            bad.append("an ordinary export into an empty directory did not "
+                       "write a manifest, so the refusal above is refusing "
+                       f"everything: {(r.stderr.strip() or '(no output)')[-200:]}")
+    return [f"export-planet.mjs: {b}" for b in bad]
+
+
 def verify(roots: list[Path], jobs: int, verbose: bool) -> tuple[list[str], list[str]]:
     """Start every entry point under `roots`. Returns (failures, refusals)."""
     files = entry_points(roots)
@@ -540,6 +619,7 @@ def main() -> None:
         problems += self_test(a.verbose)
         problems += lock_wrapper(a.verbose)
         problems += worktree_links_self_test(a.verbose)
+        problems += export_refuses_an_existing_build(a.verbose)
     if refusals:
         print(f"\n{len(refusals)} entry points started and refused, which is "
               f"not this gate's business:")

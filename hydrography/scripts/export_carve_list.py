@@ -115,6 +115,7 @@ from orbit import orbital_year_days
 from paths import climatology_path, rel, require_configured_grid
 from provenance import staged_surface_field
 from orogen import Export, LAND
+from write_door import refuse_a_write_through_a_symlink
 import lake_balance as lb
 from lake_balance import BasinSet
 
@@ -1576,6 +1577,15 @@ def main() -> None:
         args.out_list = _bd / "carve_list.txt"
     if args.out_json is None:
         args.out_json = _bd / "carve_list.json"
+    # BEFORE THE VERDICT IS COMPUTED. The carve list is the instruction Orogen
+    # consumes, so a write through the link would hand the next generation in
+    # the main checkout a list this tree produced, at a moment nobody chose.
+    for _path, _what in ((args.out_list, "the carve list Orogen consumes"),
+                         (args.out_json, "the carve verdict's evidence sidecar")):
+        refuse_a_write_through_a_symlink(
+            _path, what=_what,
+            instead=("Pass --out-list and --out-json to paths inside this "
+                     "worktree, or run the generator in the main checkout."))
     if args.climatology is None:
         args.climatology = climatology_path()
     # THE RUNG GUARD RUNS WHATEVER THE CLIMATOLOGY CAME FROM. It used to be

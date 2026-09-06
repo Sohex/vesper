@@ -71,6 +71,7 @@ from netCDF4 import Dataset
 
 import _paths  # noqa: F401  -- puts lib and this directory on the path
 from _paths import ANALYSIS
+from write_door import refuse_a_write_through_a_symlink
 from segments import production_window, non_production_orbits
 # CLAUDE.md names lib/autocorrelation.py as the one place a standard error is
 # taken over a series with memory. The defect this script carried was a second,
@@ -303,7 +304,12 @@ def main() -> int:
     }
     args.output.mkdir(parents=True, exist_ok=True)
     name = f"{args.run_a.name}__vs__{args.run_b.name}.json"
-    (args.output / name).write_text(json.dumps(report, indent=2) + "\n")
+    out = args.output / name
+    refuse_a_write_through_a_symlink(
+        out, what="a ladder comparison the escalation route is argued from",
+        instead=("Pass --output to a directory inside this worktree, or run "
+                 "the comparison in the main checkout."))
+    out.write_text(json.dumps(report, indent=2) + "\n")
 
     print(f"{'metric':24s} {'A':>12s} {'B':>12s} {'B-A':>11s} {'bound':>11s} "
           f"{'sigma':>7s} {'tau':>6s} {'n_eff':>6s}")
