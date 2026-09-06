@@ -799,10 +799,17 @@ units. Four extra spectral transforms a timestep, for a diagnostic arm.
 `model.conversion_time_level` takes that conversion's divergence half back to
 time t, so the two halves meet. It CHANGES WHAT THE MODEL INTEGRATES, and it
 takes that half out of the semi-implicit treatment in the temperature equation,
-so the timestep it is stable at is the explicit gravity-wave one -- 9.5 minutes
-at T42 on this planet against a configured 22.5 -- and the model refuses the
-setting above that limit rather than integrating something that is not a
-solution. `world-0ov`.
+so the timestep it is stable at is its own question. `world-0ov`.
+
+That timestep is NOT the explicit gravity-wave one, which is what the model used
+to refuse above. The mode this term destabilises is the leapfrog computational
+mode -- `sdt - sd` is the second time difference, and for a mode that alternates
+sign every step it is exactly `-2 sd` -- so the Robert-Asselin filter is the
+only thing damping it and the boundary depends on `PNU` as well as on the rung.
+`plasim.f90:conversion_time_amplification` iterates the model's own linearised
+adiabatic step and refuses a configuration whose fastest mode grows;
+`conversion_time_stability.py` computes the same map with no build and no run.
+`world-bt3b`.
 
 `model.robert_filter` sets PNU, the leapfrog time filter's coefficient. Absent
 leaves the value ExoPlaSim's own namelist carries. It is here because the filter

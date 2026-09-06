@@ -651,14 +651,28 @@ the two halves meet, and it is world-0ov's first repair route.
 
 IT CHANGES WHAT THE MODEL INTEGRATES. It leaves that half out of the
 semi-implicit treatment in the temperature equation while the divergence solve
-still treats the temperature implicitly, so what it is stable at is the explicit
-gravity-wave timestep, `dt < a / (c sqrt(N(N+1)))` with
-`c = sqrt(R T0 / (1 - kappa))` -- 9.5 minutes at T42 on this planet against a
-configured 22.5. It blew up inside ten model days at 22.5 and the model refuses
-the setting above the limit rather than integrating something that is not a
-solution.
+still treats the temperature implicitly, so the timestep it is stable at is its
+own question.
 
-OFF, because the price is a timestep 2.4 times shorter at every rung and the
+AND THE ANSWER IS NOT THE EXPLICIT GRAVITY-WAVE TIMESTEP. That limit,
+`dt < a / (c sqrt(N(N+1)))` with `c = sqrt(R T0 / (1 - kappa))`, is a necessary
+condition; the speed in it is within 2 percent of the largest eigenvalue of the
+model's own semi-implicit vertical structure matrix, so it is not mis-derived.
+The mode this term destabilises is not a gravity wave: `sdt - sd` is the second
+time difference, O(dt^2) for a smooth mode and exactly `-2 sd` for the leapfrog
+computational mode, so the term feeds that mode, the Robert-Asselin filter is
+the only thing damping it, and the boundary is a function of `PNU` as well as of
+the rung. At `PNU = 0` there is no stable timestep at all.
+
+The model therefore measures rather than estimates: `plasim.f90`'s
+`conversion_time_amplification` iterates its own linearised adiabatic step at
+the configured rung, timestep, vertical grid, reference temperature, Robert
+coefficient and damping, and refuses a configuration whose fastest mode grows.
+`exoplasim/scripts/conversion_time_stability.py` computes the same map without
+building or running the model, which is where a caller finds the boundary before
+buying a run.
+
+OFF, because the price is a much shorter timestep at every rung and the
 operation the sink actually comes from is not yet named (world-pkf).
 
 ## `robert_filter`

@@ -724,16 +724,32 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call makebm
 !
 !     NCONVTIME TAKES THE TEMPERATURE EQUATION'S REFERENCE CONVERSION OUT OF THE
-!     SEMI-IMPLICIT TREATMENT, so the timestep it is stable at is the EXPLICIT
-!     gravity-wave one and not the rung table's. For a spectral model the fastest
-!     resolved external mode gives
+!     SEMI-IMPLICIT TREATMENT, so the timestep it is stable at is its own
+!     question and not the rung table's. world-0ov.
+!
+!     WHAT IT IS NOT IS THE EXPLICIT GRAVITY-WAVE TIMESTEP, which is what this
+!     used to refuse above:
 !
 !         dt  <  a / (c sqrt(N (N+1))),    c = sqrt(R T0 / (1 - kappa))
 !
-!     which at T42 on this planet is 9.5 minutes against a configured 22.5. Run
-!     above it and the model blows up inside ten model days, which is what
-!     happened. This refuses rather than letting a declared setting integrate
-!     something that is not a solution. world-0ov.
+!     That speed is right -- it is within 2 percent of the largest eigenvalue of
+!     the vertical structure matrix `makebm` inverts -- and the limit is still
+!     not where the term becomes usable, because the mode the term destabilises
+!     is not a gravity wave. `sdt - sd` is the second time difference: O(dt^2)
+!     for a smooth mode and, for the LEAPFROG COMPUTATIONAL MODE, which
+!     alternates sign every step, exactly `-2 sd`. So the term feeds the
+!     computational mode, the only thing that damps that mode is the
+!     Robert-Asselin filter, and the boundary is a function of PNU: at PNU = 0
+!     there is no stable timestep at all. A gravity-wave CFL cannot say that,
+!     and at T21 it admitted 19 minutes where the scheme grows above 8.
+!
+!     So this MEASURES instead. `conversion_time_amplification` iterates the
+!     model's own linearised adiabatic step at this configuration and returns
+!     the growth per step of the fastest mode; a growth above one is a
+!     configuration this integrates away from a solution rather than toward
+!     one, and that is what is refused. The gravity-wave limit is still
+!     reported, because it is a necessary condition and a familiar number, but
+!     it decides nothing. world-bt3b.
 !
 !     NDEALIAS USES THE LEGENDRE PATH'S DECOMPOSITION -- a per-process partial
 !     from fc2sp_t, reduce-scattered and gathered back -- and SHTns integrates
@@ -748,16 +764,38 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (nconvtime > 0) then
          zcgw  = sqrt(gascon * t0(NLEV) * ct / (1.0 - akap))
          zcgwd = plarad / (zcgw * sqrt(real(NTRU) * real(NTRU+1)))
+!        EVERY THREAD MEASURES, and they all get the same number: the routine
+!        reads `bm1`, `tau`, `g`, `c`, `t0`, `tkp`, `dsigma`, the four damping
+!        arrays and `pnu`, all of which are broadcast or built identically
+!        before this point, and it writes nothing shared. So the verdict below
+!        is the same on every thread without a broadcast of its own.
+         call conversion_time_amplification(zcgrow,jcworst)
          if (mypid == NROOT) then
-            write(nud,'(A,F8.1,A,F8.1,A)')                              &
-     &         ' NCONVTIME: explicit gravity-wave timestep limit ',      &
-     &         zcgwd/60.0,' min, this run runs at ',deltsec/60.0,' min'
+            write(nud,'(A,E16.8,A,I5,A,F8.1,A)')                        &
+     &         ' NCONVTIME: amplification ',zcgrow,                      &
+     &         ' per step at total wavenumber ',jcworst,                 &
+     &         ', this run runs at ',deltsec/60.0,' min'
+            write(nud,'(A,F8.1,A)')                                     &
+     &         ' NCONVTIME: the explicit gravity-wave limit is ',        &
+     &         zcgwd/60.0,' min, which is necessary and is not the boundary'
          endif
-         if (deltsec > zcgwd) then
-            if (mypid == NROOT) write(nud,*)                            &
-     &         'NCONVTIME needs a timestep at or below the explicit ',   &
-     &         'gravity-wave limit; see world-0ov'
-            stop 'nconvtime above the explicit gravity-wave timestep'
+!        THE TOLERANCE IS THE ARITHMETIC'S AND NOT THE PHYSICS'. A neutral map
+!        returns exactly one up to double-precision roundoff accumulated over
+!        the measured span, which is about 1e-14; this is four orders above
+!        that and eight below the smallest growth that could matter over a run.
+         if (zcgrow > 1.0 + 1.0e-10) then
+            if (mypid == NROOT) then
+               write(nud,*)                                             &
+     &            'NCONVTIME grows at this timestep, so the run would ', &
+     &            'integrate away from a solution rather than toward one.'
+               write(nud,*)                                             &
+     &            'The boundary depends on PNU as well as the rung and ',&
+     &            'is not the gravity-wave limit; ',                     &
+     &            'exoplasim/scripts/conversion_time_stability.py ',     &
+     &            'reports it without building or running the model. ',  &
+     &            'see world-bt3b'
+            endif
+            stop 'nconvtime grows at this timestep'
          endif
       endif
 
@@ -2411,6 +2449,204 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          endif
          stop 'ndiagsp fills more arrays than ndiagsp3d allocates'
       endif
+
+      return
+      end
+
+!     ========================================
+!     SUBROUTINE CONVERSION_TIME_AMPLIFICATION
+!     ========================================
+
+      subroutine conversion_time_amplification(pgrow,kworst)
+      use pumamod
+
+!     THE ONE-STEP AMPLIFICATION OF THE MODEL'S OWN ADIABATIC STEP WITH
+!     NCONVTIME ON, at this rung, this timestep, this vertical grid, this
+!     reference temperature, this Robert coefficient and this damping.
+!     world-bt3b.
+!
+!     WHY A MEASUREMENT AND NOT A FORMULA. The guard this replaced tested the
+!     explicit gravity-wave limit, which is a NECESSARY condition and not the
+!     boundary. What the modification does is take the reference conversion's
+!     divergence half off `sdt` -- the centred mean of t-dt and t+dt -- and put
+!     it on the divergence at t, and `sdt - sd` is the second time difference:
+!     O(dt^2) for a smooth mode and, for the LEAPFROG COMPUTATIONAL MODE, which
+!     alternates sign every step, exactly `-2 sd`. So the term feeds the
+!     computational mode, the only thing that damps that mode is the
+!     Robert-Asselin filter, and the boundary is a function of PNU. At PNU = 0
+!     there is no stable timestep at all, which no gravity-wave CFL can say.
+!
+!     So this iterates the linearised step instead. Everything it needs is
+!     already built: `bm1` from `makebm` for every total wavenumber, `tau`, `g`,
+!     `c`, `t0`, `tkp` and `dsigma` from `initsi` and `initpm`, `tdissd`,
+!     `tdisst`, `tfrc`, `damp`, `ndel` and `nhdiff` from `readnl`, and `pnu`
+!     and `pnu21` from the planet namelist. The state it carries is one
+!     spectral mode's (D, T, ln ps) at t and the FILTERED ones at t-dt, which
+!     is exactly what `spectrala` reads. There is no tuned constant in it and
+!     no number to keep in step with the model: it IS the model's arithmetic,
+!     and `exoplasim/scripts/conversion_time_stability.py` is the second
+!     implementation this one is checked against.
+!
+!     IT WRITES NOTHING SHARED, so every thread may run it and they all reach
+!     the same number without a broadcast.
+!
+!     `pgrow` is the growth per step of the fastest mode over every total
+!     wavenumber the truncation resolves and `kworst` is the wavenumber
+!     carrying it. One is neutral, which is what the unmodified scheme gives.
+
+      real, intent(out) :: pgrow
+      integer, intent(out) :: kworst
+
+      real :: zd(NLEV),zt(NLEV),zp
+      real :: zdm(NLEV),ztm(NLEV),zpm
+      real :: zdn(NLEV),ztn(NLEV),zpn
+      real :: zdmn(NLEV),ztmn(NLEV),zpmn
+      real :: zz(NLEV),zsdt(NLEV),zstt(NLEV)
+      real :: zfd(NLEV),zft(NLEV),zsak(NLEV)
+      real :: zspt,zsum,zq,znorm,zlog,zakk,zsq,zg
+      integer :: jn,jlev,jlev2,jit
+
+!     THE SPAN. 1000 steps are discarded and 3000 measured, which is long
+!     enough for the iterate to lose its start on any growth worth refusing.
+!     Iterating a 21-number state 4000 times for each of NTRU wavenumbers is
+!     microseconds, once, at startup.
+      integer, parameter :: JDISCARD = 1000
+      integer, parameter :: JMEASURE = 3000
+
+      pgrow = 0.0
+      kworst = 0
+
+      do jn = 1 , NTRU
+         zq = 1.0 / (real(jn) * real(jn+1))
+!        The hyperdiffusion shape at this wavenumber, per level and exactly as
+!        `readnl` builds `sak`: zero below the cut-off, normalised to one at
+!        the truncation, and with that level's own `ndel`.
+         do jlev = 1 , NLEV
+            zakk = 1.0 / (real(NTRU-nhdiff)**ndel(jlev))
+            zsq  = real(jn - nhdiff)
+            if (jn >= nhdiff) then
+               zsak(jlev) = zakk * zsq**ndel(jlev)
+            else
+               zsak(jlev) = 0.0
+            endif
+            zfd(jlev) = 1.0 / (1.0 + delt2                              &
+     &                * (tdissd(jlev)*zsak(jlev) + tfrc(jlev)))
+            zft(jlev) = 1.0 / (1.0 + delt2                              &
+     &                * (tdisst(jlev)*zsak(jlev) + damp(jlev)))
+         enddo
+
+!        A DETERMINISTIC START THAT IS NOT SPECIAL. A vector of ones can be
+!        orthogonal to the mode being looked for; this is the same generic
+!        direction on every run and every host, so the verdict is reproducible
+!        without being a lucky or an unlucky one.
+         do jlev = 1 , NLEV
+            zd(jlev)  = sin(1.0 * real(jlev))
+            zt(jlev)  = cos(2.0 * real(jlev))
+            zdm(jlev) = cos(0.7 * real(jlev))
+            ztm(jlev) = sin(1.3 * real(jlev))
+         enddo
+         zp   =  0.25
+         zpm  = -0.125
+         zlog =  0.0
+
+         do jit = 1 , JDISCARD + JMEASURE
+!           1. the divergence solve, `spectrala` step 1 with the nonlinear
+!              tendencies zero
+            do jlev2 = 1 , NLEV
+               zz(jlev2) = zdm(jlev2)*zq + delt                         &
+     &                   * (dot_product(g(:,jlev2),ztm) + t0(jlev2)*zpm)
+            enddo
+            do jlev = 1 , NLEV
+               zsum = 0.0
+               do jlev2 = 1 , NLEV
+                  zsum = zsum + zz(jlev2) * bm1(jlev2,jlev,jn)
+               enddo
+               zsdt(jlev) = zsum
+            enddo
+!           2. and 3., the pressure and temperature tendencies
+            zspt = 0.0
+            do jlev = 1 , NLEV
+               zspt = zspt + dsigma(jlev) * zsdt(jlev)
+            enddo
+            do jlev = 1 , NLEV
+               zstt(jlev) = -dot_product(tau(:,jlev),zsdt)
+            enddo
+!           3a. THE TERM. The reference conversion's divergence half read off
+!               the divergence at t rather than off `sdt`.
+            do jlev = 1 , NLEV
+               zsum = 0.0
+               do jlev2 = 1 , jlev
+                  zsum = zsum + tkp(jlev) * c(jlev2,jlev)               &
+     &                        * (zsdt(jlev2) - zd(jlev2))
+               enddo
+               zstt(jlev) = zstt(jlev) + zsum
+            enddo
+!           4.a the time filter's first part, on the state at t
+            do jlev = 1 , NLEV
+               zdmn(jlev) = pnu21*zd(jlev) + pnu*zdm(jlev)
+               ztmn(jlev) = pnu21*zt(jlev) + pnu*ztm(jlev)
+            enddo
+            zpmn = pnu21*zp + pnu*zpm
+!           4.b the leapfrog advance
+            do jlev = 1 , NLEV
+               zdn(jlev) = 2.0*zsdt(jlev) - zdm(jlev)
+               ztn(jlev) = delt2*zstt(jlev) + ztm(jlev)
+            enddo
+            zpn = zpm - delt2*zspt
+!           `spectrald`'s implicit hyperdiffusion, Rayleigh drag and Newtonian
+!           cooling, which act on the advanced state before the filter's second
+!           part reads it.
+            do jlev = 1 , NLEV
+               zdn(jlev) = zdn(jlev) * zfd(jlev)
+               ztn(jlev) = ztn(jlev) * zft(jlev)
+            enddo
+!           the time filter's second part
+            do jlev = 1 , NLEV
+               zdmn(jlev) = zdmn(jlev) + pnu*zdn(jlev)
+               ztmn(jlev) = ztmn(jlev) + pnu*ztn(jlev)
+            enddo
+            zpmn = zpmn + pnu*zpn
+
+            do jlev = 1 , NLEV
+               zd(jlev)  = zdn(jlev)
+               zt(jlev)  = ztn(jlev)
+               zdm(jlev) = zdmn(jlev)
+               ztm(jlev) = ztmn(jlev)
+            enddo
+            zp  = zpn
+            zpm = zpmn
+
+            znorm = sqrt(dot_product(zd,zd) + dot_product(zt,zt)        &
+     &                 + dot_product(zdm,zdm) + dot_product(ztm,ztm)    &
+     &                 + zp*zp + zpm*zpm)
+!           A state that reached zero carries no rate. It cannot happen for a
+!           map with a neutral mode, which every configuration of this one has,
+!           so this is a refusal rather than a fallback.
+            if (znorm <= 0.0) then
+               pgrow = huge(pgrow)
+               kworst = jn
+               return
+            endif
+!           RENORMALISED EVERY STEP, which is what keeps a growing mode inside
+!           the range the declared -ffpe-trap=overflow permits: the amplitude
+!           is O(1) throughout and only its logarithm accumulates.
+            if (jit > JDISCARD) zlog = zlog + log(znorm)
+            do jlev = 1 , NLEV
+               zd(jlev)  = zd(jlev)  / znorm
+               zt(jlev)  = zt(jlev)  / znorm
+               zdm(jlev) = zdm(jlev) / znorm
+               ztm(jlev) = ztm(jlev) / znorm
+            enddo
+            zp  = zp  / znorm
+            zpm = zpm / znorm
+         enddo
+
+         zg = exp(zlog / real(JMEASURE))
+         if (zg > pgrow) then
+            pgrow = zg
+            kworst = jn
+         endif
+      enddo
 
       return
       end
