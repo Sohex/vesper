@@ -156,6 +156,23 @@ CONVERGENCE_REPORTS = PROJECT_ROOT / "exoplasim" / "analysis" / "convergence"
 # THIS IS NOT the stellar sweep's sensitivity. The 0.85-to-0.95 sweep spans 21
 # W/m2 absorbed and 33 K, which is 330 K per unit flux ratio: 2.1x this, because
 # it crosses the ice transition proper. Do not use one for the other.
+#
+# THE REPLACEMENT PAIR IS BOUGHT AND THIS DECLARATION HAS NOT MOVED ONTO IT.
+# `run_c919391cf715` at f = 0.945 and `run_9d5dbf9bd3d9` at f = 1.000 are on the
+# configured build, matched in geography, executable, window and I/O regime, and
+# they measure 173.8 K per unit flux ratio with three estimators agreeing to
+# 0.73 -- two of which use no fit at all. So the value below is 8 per cent low
+# and every consumer of it is, until the move is made.
+#
+# What holds the move off is world-jejw, not a missing run. `_verify_bracket`
+# requires each arm's report to carry
+# `sufficiently_equilibrated_for_worldbuilding`; the cold arm's does not, and it
+# fails on the fitted asymptote's own standard error rather than on any drift.
+# Neither arm RESOLVES that criterion and both reports say so, so the verdict
+# separating them is the estimator's noise. Moving this declaration onto a pair
+# one arm of which the assessor declines to certify would put that noise under
+# every kelvin the project converts. `notes/audits/flux-slope-bracket.md` has
+# the numbers, the cost and what re-buying the pair would now take.
 SLOPE_K_PER_FLUX_RATIO = 159.7
 SLOPE_SPREAD_K_PER_FLUX_RATIO = (155.3, 160.6)
 
