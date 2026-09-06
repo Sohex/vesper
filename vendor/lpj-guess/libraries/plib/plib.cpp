@@ -732,7 +732,16 @@ Plibword* parse_plib_script(int id,xtring setname,errortype& err,Plibword* pfirs
 						killpliblist(&pliblist);
 						return pword;
 					}
-					*((int*)(pitem->param)+i)=(int)(pword->num+0.5);
+					// Round away from zero, not toward positive infinity. A cast
+					// truncates toward zero, so `num + 0.5` rounds -1 to 0: every
+					// NEGATIVE integer an instruction file declares used to arrive
+					// one closer to zero than it was written, silently and in
+					// range. `state_day -1` and `save_day -1` are the year-boundary
+					// sentinel this model's restart is expressed in, so every restart
+					// taken here was an arbitrary-day restart at day 0 of state_year
+					// while reporting a year boundary. Unchanged for num >= 0.
+					*((int*)(pitem->param)+i)=(int)(pword->num<0.0 ? pword->num-0.5
+					                                              : pword->num+0.5);
 				}
 				pitem->called=true;
 				break;

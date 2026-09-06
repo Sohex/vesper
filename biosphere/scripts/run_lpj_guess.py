@@ -108,6 +108,20 @@ def short(path: Path) -> str:
     return sha256(path)[:8]
 
 
+def repo_relative(path: Path) -> str:
+    """A path relative to the tree when it is in it, and absolute when it is not.
+
+    `biosphere/runs/` is a directory link into the main checkout, so a bed built
+    under it is OUTSIDE the worktree that built it and `relative_to` raises.
+    A provenance string is a label, and a label that crashes on a path it cannot
+    shorten is a label that decides where the caller may put its inputs.
+    """
+    try:
+        return str(Path(path).relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(Path(path).resolve())
+
+
 def require_soil_driver_climate(soilmap: Path, driver: Path) -> dict:
     """BIO-19: prove the soil and ecological forcing use one climate state."""
     driver_report = driver.with_name(driver.stem + "_provenance.json")
@@ -139,9 +153,9 @@ def require_soil_driver_climate(soilmap: Path, driver: Path) -> dict:
         "soil_state": soil.get("soil_state"),
         "climatology_stage": soil.get("climatology_stage"),
         "climatology_sha256": soil_climate,
-        "soil_report": str(SOIL_REPORT.relative_to(PROJECT_ROOT)),
+        "soil_report": repo_relative(SOIL_REPORT),
         "soil_report_sha256": sha256(SOIL_REPORT),
-        "driver_provenance": str(driver_report.relative_to(PROJECT_ROOT)),
+        "driver_provenance": repo_relative(driver_report),
         "driver_provenance_sha256": sha256(driver_report),
     }
 
@@ -340,6 +354,48 @@ def continuity_verdict(binary: Path) -> None:
             f"{report.get('nyear_spinup')}, split at simulated year "
             f"{report.get('state_year')}. A continuation taken now would "
             "report a spin-up it did not integrate. world-glu7.")
+
+
+def state_sentinels_refusals(run_dir: Path, ranks: int,
+                             state: dict | None) -> list[str]:
+    """Did the model read the two restart integers this run declared?
+
+    `state_day` and `save_day` are the only integer parameters LPJ-GUESS
+    declares whose minimum is negative, and -1 in either is a SENTINEL: it means
+    the year boundary, not a day. `libraries/plib` stored an integer as
+    `(int)(num + 0.5)`, which truncates toward zero, so -1 arrived as 0 and
+    every restart taken here saved at the end of day 0 of `state_year` and
+    resumed at day 1 of it while every document said year boundary. Nothing
+    refused it, because 0 is in range and everything downstream was computed
+    from 0 consistently, and no check could have: the instruction file, this
+    runner and the fixture all held copies of the rule and all agreed with each
+    other. world-glu7.
+
+    So `framework/framework.cpp` prints what it PARSED and this reads it back.
+    It is checked after the run rather than before because that is when the log
+    exists, and what it protects is the MANIFEST: a run whose state file covers
+    an instant other than the one recorded beside it is a state file no later
+    run can safely continue from.
+    """
+    if not state:
+        return []
+    for rank in range(1, ranks + 1):
+        log = run_dir / f"run{rank}" / "guess.log"
+        if not log.is_file():
+            continue
+        for line in log.read_text(errors="replace").splitlines():
+            head = line.strip()
+            if not head.startswith("Restart instants:"):
+                continue
+            parts = head.replace("Restart instants:", "").split()
+            seen = {"state_day": int(parts[1]), "save_day": int(parts[3])}
+            return [f"the instruction file declares {name} {state[name]} and "
+                    f"the model parsed {seen[name]}"
+                    for name in ("state_day", "save_day")
+                    if seen[name] != state[name]]
+    return ["the model logged no restart instants, so which instant its state "
+            "file covers is not known. Rebuild: framework.cpp prints them "
+            "whenever a run restarts or saves."]
 
 
 def state_block(spinup: int, nyear: int, run_dir: Path,
@@ -938,6 +994,17 @@ def main() -> None:
         rows = (run_dir / "anpp.out").read_text().splitlines()[1:]
         cells = len({(r.split()[0], r.split()[1]) for r in rows if r.split()})
 
+    # WHAT THE MODEL ACTUALLY READ. Checked before the manifest is written,
+    # because the manifest is what a later continuation trusts.
+    sentinels = state_sentinels_refusals(run_dir, args.ranks, state)
+    if sentinels:
+        raise SystemExit(
+            "Refusing to record this run:\n  " + "\n  ".join(sentinels)
+            + f"\n\nThe state file in {run_dir / 'state'} covers a different "
+            "simulated instant from the one this run asked for, and a manifest "
+            "recording the asked-for instant would make it continuable from the "
+            "wrong day. world-glu7.")
+
     manifest = {
         "run_id": run_id,
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -952,8 +1019,15 @@ def main() -> None:
         "continuation": continuation,
         "saved_state": ({
             "dir": str(Path(state["save_path"])),
-            "covers_year": state["save_year"] - 1,
-            "covers_day": "year boundary",
+            # The same arithmetic `framework/framework.cpp` performs on the same
+            # two numbers, derived rather than assumed: -1 is the year-boundary
+            # sentinel and any other value is a day within `save_year`. Writing
+            # "year boundary" unconditionally would be a fourth copy of a rule
+            # that has already been wrong once (world-glu7).
+            "covers_year": (state["save_year"] - 1 if state["save_day"] < 0
+                            else state["save_year"]),
+            "covers_day": ("year boundary" if state["save_day"] < 0
+                           else state["save_day"]),
             "sha256": {p.name: sha256(p)
                        for p in sorted(Path(state["save_path"]).iterdir())
                        if p.is_file()},

@@ -24,7 +24,8 @@ surface and no pore ice, whatever the run it continued had ended with.
 reads the serializer statically; this is the other half, and it is the half that
 can fail on behaviour.
 
-THREE MODES, and the last two localise what the first only detects.
+FOUR MODES. The middle two localise what the first only detects, and the last
+one tests a different subject: the RUNNER rather than the model.
 
   default       two runs of `--nyear` years, one whole and one split at the
                 year boundary before `--state-year`, compared over their OUTPUT
@@ -41,6 +42,30 @@ THREE MODES, and the last two localise what the first only detects.
                 simulated day in between. Nothing integrates between the two
                 files, so every difference is something the write-and-read of a
                 state file does not carry.
+  --runner      the PRODUCTION runner end to end: a parent that saves, a
+                continuation from it, an uninterrupted control twice as long,
+                and a continuation at a patch count the parent never ran, which
+                has to be refused. The three above test the MODEL's serializer;
+                this tests `run_lpj_guess.py`'s plumbing, and neither covers the
+                other.
+
+`--cells` slices the driver to named lon,lat pairs and both arms read the slice.
+Cells are independent in LPJ-GUESS and this project's stochastic streams are
+keyed by coordinate rather than by traversal order or rank, so a cell integrates
+the same trajectory either way; what a subset loses is REACH, and a subsetted
+run's verdict is written to a separate report that does not gate a continuation.
+The whole grid at the spin-up floor this fixture needs costs about thirteen
+minutes per arm on the shared host and two cells cost six seconds, which is the
+difference between a measurement taken once and a member-by-member search.
+
+EVERY MODE ALSO ASKS THE MODEL WHICH INSTANTS IT PARSED. `state_day -1` and
+`save_day -1` are the year-boundary sentinel, and `libraries/plib` delivered 0
+for both: every restart taken here was an arbitrary-day restart at day 0 of
+`state_year` while the instruction file, the runner, this fixture and
+`--self-test` all said year boundary and all agreed with each other, because all
+four held copies of the rule rather than the model's answer. `framework.cpp`
+prints what it parsed and every mode refuses when that differs from what the arm
+asked for. world-glu7.
 
 `--self-test` is a fourth thing and needs neither model nor forcing: it checks
 the two integers `run_lpj_guess.py --save-state` and `--continue-from` decide
@@ -76,9 +101,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
+import struct
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -93,6 +121,131 @@ from orbit import model_year_days  # lib/orbit.py, the year length  # noqa: E402
 
 import run_lpj_guess  # noqa: E402
 import wetland_gate  # noqa: E402
+
+
+# The VESPDRV8 driver layout, as `build_lpj_driver.py` writes it and
+# `vendor/lpj-guess/modules/vesperinput.cpp` reads it. Restated here for one
+# purpose only -- taking a subset of the cells out of a driver file -- and the
+# two consumers of the layout are checked against each other by
+# `slice_driver`, which refuses a file whose length the layout does not
+# explain.
+DRIVER_MAGIC = b"VESPDRV8"
+DRIVER_HEADER = "<6i2d"          # cells, intervals, year length, years, subdaily, pad, CO2, Ndep
+DRIVER_PROVENANCE_BYTES = 64
+DRIVER_INTERVAL_BYTES = 4 * 8    # start, end, duration, and the fourth double
+
+
+def slice_driver(driver: Path, wanted: list[tuple[float, float]],
+                 out: Path) -> list[tuple[float, float]]:
+    """Write a driver file holding only the named cells, and say which it took.
+
+    WHY A SUBSET IS A LEGITIMATE BED HERE, and it is worth stating because a
+    subset of a coupled model would not be. LPJ-GUESS simulates each gridcell
+    independently: no cell reads another cell's state, and this project's
+    stochastic streams are keyed by COORDINATE rather than by traversal order
+    or rank (`derive_stochastic_seed`, DEMO-5). So a cell in a two-cell driver
+    integrates the same trajectory it integrates in a sixteen-hundred-cell one,
+    and a restart defect that reaches that cell reaches it either way.
+
+    WHAT IT BUYS. The whole grid at the spin-up floor this fixture needs costs
+    about thirteen minutes per arm on the shared host; four cells cost seconds.
+    That is the difference between a measurement taken once and a member-by-
+    member search, which is what naming lost state actually takes.
+
+    WHAT IT COSTS, and why the verdict is written elsewhere. A subset is a
+    weaker statement than the grid: a defect confined to cells it does not hold
+    is invisible to it. `main` therefore writes a subsetted run's report to a
+    different path, and the production gate in `run_lpj_guess.py` keeps reading
+    only the whole-grid one.
+    """
+    raw = driver.read_bytes()
+    if raw[:8] != DRIVER_MAGIC:
+        raise SystemExit(
+            f"{rel(driver)} does not carry the {DRIVER_MAGIC.decode()} magic, "
+            "so this is not a driver file this fixture can subset.")
+    head = struct.calcsize(DRIVER_HEADER)
+    (ncells, nintervals, year_length, nyears, subdaily,
+     _pad, co2, ndep) = struct.unpack(DRIVER_HEADER, raw[8:8 + head])
+    offset = 8 + head + DRIVER_PROVENANCE_BYTES
+    provenance = raw[8 + head:offset]
+    offset += nyears * nintervals * DRIVER_INTERVAL_BYTES
+    span = nintervals * nyears
+    body = len(raw) - offset
+    if ncells < 1 or body % ncells:
+        raise SystemExit(
+            f"{rel(driver)} has {body} bytes of cell records for {ncells} "
+            "cells, which is not a whole number of records. The layout this "
+            "script restates does not describe this file; re-read "
+            "build_lpj_driver.py.")
+    cell_bytes = body // ncells
+    # lon, lat, soilcode+pad, four retention numbers, one usable share per soil
+    # layer, then the four forcing arrays.
+    layers = (cell_bytes - 2 * 8 - 2 * 4 - 4 * 8 - 4 * span * 8) // 8
+    if layers < 1:
+        raise SystemExit(
+            f"{rel(driver)} has {cell_bytes}-byte cell records, too short for "
+            f"{span} forcing samples. The layout does not describe this file.")
+
+    coords = []
+    for index in range(ncells):
+        at = offset + index * cell_bytes
+        lon, lat = struct.unpack("<dd", raw[at:at + 16])
+        coords.append((lon, lat))
+
+    chosen: list[int] = []
+    taken: list[tuple[float, float]] = []
+    for lon, lat in wanted:
+        best = min(range(ncells),
+                   key=lambda i: (coords[i][0] - lon) ** 2 + (coords[i][1] - lat) ** 2)
+        if (abs(coords[best][0] - lon) > 0.5 or abs(coords[best][1] - lat) > 0.5):
+            raise SystemExit(
+                f"no cell in {rel(driver)} is within half a degree of "
+                f"{lon},{lat}; the nearest is {coords[best][0]},{coords[best][1]}")
+        if best in chosen:
+            raise SystemExit(
+                f"{lon},{lat} names the same cell as one already asked for, "
+                f"{coords[best][0]},{coords[best][1]}")
+        chosen.append(best)
+        taken.append(coords[best])
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("wb") as handle:
+        handle.write(DRIVER_MAGIC)
+        handle.write(struct.pack(DRIVER_HEADER, len(chosen), nintervals,
+                                 year_length, nyears, subdaily, 0, co2, ndep))
+        handle.write(provenance)
+        handle.write(raw[8 + head + DRIVER_PROVENANCE_BYTES:offset])
+        for index in chosen:
+            at = offset + index * cell_bytes
+            handle.write(raw[at:at + cell_bytes])
+    # THE BUILD IDENTITY TRAVELS WITH THE SLICE. A subset of a build's driver is
+    # that build's forcing over fewer cells, and `provenance.require_build`
+    # refuses an unstamped driver outright where the pairing matters. Copying
+    # the sidecar is what makes a sliced bed usable by run_lpj_guess.py at all.
+    sidecar = driver.with_name(driver.stem + "_provenance.json")
+    if sidecar.is_file():
+        shutil.copyfile(sidecar, out.with_name(out.stem + "_provenance.json"))
+    return taken
+
+
+def parse_cells(text: str) -> list[tuple[float, float]]:
+    """`lon,lat` pairs separated by semicolons, as the output tables print them."""
+    cells = []
+    for piece in text.split(";"):
+        piece = piece.strip()
+        if not piece:
+            continue
+        parts = piece.split(",")
+        if len(parts) != 2:
+            raise SystemExit(
+                f"--cells takes lon,lat pairs separated by ';', not {piece!r}")
+        try:
+            cells.append((float(parts[0]), float(parts[1])))
+        except ValueError:
+            raise SystemExit(f"--cells: {piece!r} is not a lon,lat pair")
+    if not cells:
+        raise SystemExit("--cells was given no cells")
+    return cells
 
 
 def rel(path: Path) -> Path:
@@ -118,20 +271,24 @@ def build_bed(bed: Path, paths: dict, settings: dict, state_dir: Path,
         if not (bed / extra.name).exists():
             shutil.copyfile(extra, bed / extra.name)
     instruction = bed / "run.ins"
+    state = {
+        "restart": bool(restart), "save_state": bool(save_state),
+        "state_year": state_year, "state_day": state_day,
+        "save_year": state_year if save_year is None else save_year,
+        "save_day": state_day if save_day is None else save_day,
+        "state_path": str(state_dir.resolve()),
+        "save_path": str((state_dir if save_dir is None
+                          else save_dir).resolve()),
+    }
     # The serialization block is `run_lpj_guess.serialization_block`, reached
     # through `build_instruction`, so this fixture and the production runner
     # cannot drift on what `state_year` means while both keep parsing.
-    instruction.write_text(run_lpj_guess.build_instruction(paths, {
-        **settings,
-        "state": {
-            "restart": bool(restart), "save_state": bool(save_state),
-            "state_year": state_year, "state_day": state_day,
-            "save_year": state_year if save_year is None else save_year,
-            "save_day": state_day if save_day is None else save_day,
-            "state_path": str(state_dir.resolve()),
-            "save_path": str((state_dir if save_dir is None
-                              else save_dir).resolve()),
-        }}))
+    instruction.write_text(run_lpj_guess.build_instruction(
+        paths, {**settings, "state": state}))
+    # What this arm ASKED FOR, beside the instruction that asks it. check_instants
+    # holds the model's own log against this rather than against a second copy
+    # of the arithmetic.
+    (bed / "asked_state.json").write_text(json.dumps(state, indent=2) + "\n")
     return instruction
 
 
@@ -185,6 +342,77 @@ def compare_states(left: Path, right: Path, label_left: str,
         failures.append(
             f"{a.name}: {differing} of {len(first)} bytes differ, first at "
             f"offset {offset}")
+    return failures
+
+
+def parsed_instants(bed: Path, ranks: int) -> dict:
+    """What the model says it parsed, read back off its own log.
+
+    THE DEFECT THIS EXISTS FOR. `state_day -1` and `save_day -1` are the year
+    boundary, and they are the only negative integers any instruction file in
+    this model declares. `libraries/plib` stored an integer as
+    `(int)(num + 0.5)`, which truncates toward zero, so both arrived as 0: every
+    restart taken here saved at the end of day 0 of `state_year` and resumed at
+    day 1 of it, an arbitrary-day restart, while the instruction file, this
+    fixture and the runner all said year boundary. Nothing refused it, because
+    0 is in range and every number downstream was computed from 0 consistently.
+
+    A fixture that only restates the rule cannot catch that: it would compute
+    -1 from its own arithmetic and agree with itself. So `framework.cpp` prints
+    what it PARSED and what it DERIVED, and this reads that back and compares it
+    with what the instruction file asked for. That is a check with a wrong
+    answer rather than one that can only differ.
+    """
+    instants: dict = {}
+    for rank in range(1, ranks + 1):
+        log = bed / f"run{rank}" / "guess.log"
+        if not log.is_file():
+            continue
+        text = log.read_text(errors="replace")
+        found: dict = {}
+        for line in text.splitlines():
+            head = line.strip()
+            if head.startswith("Restart instants:"):
+                parts = head.replace("Restart instants:", "").split()
+                found["state_day"] = int(parts[1])
+                found["save_day"] = int(parts[3])
+            elif head.startswith("resume: state covers year"):
+                parts = head.split()
+                found["resume"] = (int(parts[4]), int(parts[6]))
+            elif head.startswith("save: state written covers year"):
+                parts = head.split()
+                found["save"] = (int(parts[5]), int(parts[7]))
+        if found:
+            return found
+    return instants
+
+
+def check_instants(bed: Path, ranks: int, label: str,
+                   year_length: int) -> list[str]:
+    """Every way the model's restart instants differ from the ones asked for."""
+    asked = json.loads((bed / "asked_state.json").read_text())
+    if not (asked["restart"] or asked["save_state"]):
+        return []
+    seen = parsed_instants(bed, ranks)
+    if not seen:
+        return [f"{label}: the model logged no restart instants, so what it "
+                "parsed from the instruction file is not known. Rebuild: "
+                "framework.cpp prints them whenever a run restarts or saves."]
+    failures = []
+    for name in ("state_day", "save_day"):
+        if seen.get(name) != asked[name]:
+            failures.append(
+                f"{label}: the instruction file declares {name} "
+                f"{asked[name]} and the model parsed {seen.get(name)}")
+    wanted = resume_and_save_instants(asked, year_length)
+    if "resume" in seen and seen["resume"] != wanted["state_covers"]:
+        failures.append(
+            f"{label}: the model resumes from a state covering {seen['resume']} "
+            f"and the block asks for {wanted['state_covers']}")
+    if "save" in seen and seen["save"] != wanted["state_written_covers"]:
+        failures.append(
+            f"{label}: the model writes a state covering {seen['save']} and the "
+            f"block asks for {wanted['state_written_covers']}")
     return failures
 
 
@@ -276,6 +504,198 @@ def compare(whole: Path, resumed: Path, first_year: int,
     return failures
 
 
+RUN_ID = re.compile(r"lpj_[0-9a-f]{32}")
+
+# What `assess_lpj_run` says when a run completed and its RECORD is not
+# acceptable. That is a statement about equilibrium (world-qcse) and not about
+# whether the run resumed where it was told to, so `--runner` reads past it and
+# says so rather than reporting a plumbing failure it did not find.
+ACCEPTANCE_REFUSAL = "LPJ-GUESS output refused"
+
+
+def reduced_pfts(source: Path, target: Path, spinup: int) -> None:
+    """A copy of the PFT file with the derived spin-up replaced by a short one.
+
+    The runner reads `nyear_spinup` out of the PFT file it imports, and the
+    generated one declares the DERIVED floor: thousands of simulated years, and
+    the whole grid behind them. That is the right number for a run that buys a
+    record and the wrong one for a check on the runner's PLUMBING, which is what
+    this mode tests -- state directory creation, the continuation block in the
+    manifest, the refusals, and whether a continuation's rows are the rows the
+    uninterrupted run has. None of that is a function of the spin-up length.
+
+    The floor stays where it is; this writes a copy into the bed. The copy is a
+    bed, not a run: nothing it produces is a result about this world.
+    """
+    text = source.read_text(encoding="utf-8")
+    replaced, count = re.subn(r"(?m)^nyear_spinup\s+\d+",
+                             f"nyear_spinup {spinup}", text)
+    if count != 1:
+        raise SystemExit(
+            f"{rel(source)} declares nyear_spinup {count} times and this needs "
+            "exactly one to replace")
+    target.write_text(replaced, encoding="utf-8")
+
+
+def invoke_runner(bed: Path, driver: Path, pfts: Path, ranks: int,
+                  npatch: int, nyear: int, extra: list[str],
+                  expect_failure: bool = False) -> tuple[str | None, str]:
+    """One `run_lpj_guess.py` invocation, and the run id it made."""
+    command = [sys.executable,
+               str(PROJECT_ROOT / "biosphere" / "scripts" / "run_lpj_guess.py"),
+               "--nyear", str(nyear), "--npatch", str(npatch),
+               "--ranks", str(ranks), "--driver", str(driver),
+               "--pfts", str(pfts)] + extra
+    result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True,
+                            text=True)
+    output = result.stdout + result.stderr
+    with (bed / "runner.log").open("a") as handle:
+        handle.write(f"$ {' '.join(command)}\n{output}\n")
+    if expect_failure:
+        return (None if result.returncode else "UNEXPECTED SUCCESS"), output
+    match = RUN_ID.search(output)
+    if match is None:
+        return None, output
+    run_id = match.group(0)
+    if result.returncode and not (RUNS / run_id / "run_manifest.json").is_file():
+        return None, output
+    # A non-zero exit with a manifest on disk is the acceptance refusal above:
+    # the model integrated, the manifest and the state file exist, and what was
+    # refused is the record's equilibrium. Everything this mode tests is
+    # downstream of the manifest.
+    return run_id, output
+
+
+def runner_check(bed_root: Path, driver: Path, pfts_source: Path, ranks: int,
+                 nyear: int, spinup: int, tables: tuple[str, ...]) -> list[str]:
+    """Does the PRODUCTION runner continue a run, against a running model?
+
+    THE PART OF WORLD-GQYP THAT WAS NEVER MEASURED. `--save-state` and
+    `--continue-from` are wired through `run_lpj_guess.py`, the instruction file
+    it derives, the run manifest and five refusals, and `--self-test` holds the
+    ARITHMETIC against `framework/framework.cpp`. None of the PLUMBING had ever
+    been exercised against a running model: whether the state directory is
+    created where the manifest says it is, whether a continuation's manifest
+    names its parent, whether the recorded state hashes match the files on disk
+    at the moment of the continuation, and whether the continued record is the
+    record the uninterrupted run has.
+
+    Three runs, all on the same bed: a PARENT that saves, a CONTINUATION from
+    it, and an uninterrupted CONTROL twice as long. The continuation's years
+    have to be the control's years, exactly, row for row. Then a fourth run that
+    has to be REFUSED: a continuation at a patch count the parent never ran is
+    a different experiment resumed from someone else's state.
+    """
+    bed_root.mkdir(parents=True, exist_ok=True)
+    pfts = bed_root / "runner_pfts.ins"
+    reduced_pfts(pfts_source, pfts, spinup)
+
+    # WHAT THIS MODE DOES NOT TEST, stated before it starts. A bed short enough
+    # to run in seconds cannot satisfy the acceptance contract's equilibrium
+    # bound -- world-qcse says no LPJ run has, on a record thirty times this one
+    # -- so every arm here is refused by `assess_lpj_run` after it has written
+    # its manifest and its state file. That refusal is about the RECORD and this
+    # mode is about the state plumbing, so it reads past it. It does NOT read
+    # past a run that failed before its manifest existed.
+    failures: list[str] = []
+    parent, output = invoke_runner(bed_root, driver, pfts, ranks, 1, nyear,
+                                   ["--save-state", "--label",
+                                    "runner_check_parent"])
+    if parent is None:
+        return [f"the parent run failed:\n{output[-2000:]}"]
+    parent_dir = RUNS / parent
+    manifest = json.loads((parent_dir / "run_manifest.json").read_text())
+    saved = manifest.get("saved_state")
+    if not saved:
+        failures.append(
+            f"{parent} was asked for --save-state and its manifest records no "
+            "saved_state block")
+    elif not (Path(saved["dir"]) / "meta.bin").is_file():
+        failures.append(
+            f"{parent}'s manifest names {saved['dir']} as its state directory "
+            "and there is no state file in it")
+    elif saved["covers_year"] != spinup + nyear - 1:
+        failures.append(
+            f"{parent}'s manifest says its state covers year "
+            f"{saved['covers_year']}; a run of {nyear} retained years behind a "
+            f"{spinup}-year spin-up ends at {spinup + nyear - 1}")
+
+    child, output = invoke_runner(bed_root, driver, pfts, ranks, 1, nyear,
+                                  ["--continue-from", parent, "--label",
+                                   "runner_check_child"])
+    if child is None:
+        return failures + [f"the continuation failed:\n{output[-2000:]}"]
+    child_manifest = json.loads((RUNS / child / "run_manifest.json").read_text())
+    continuation = child_manifest.get("continuation")
+    if not continuation:
+        failures.append(f"{child} continues {parent} and its manifest records "
+                        "no continuation block, so the chain has no provenance")
+    else:
+        # THE WHOLE BLOCK, not just the parent's name. A consumer reading a
+        # record has to be able to see that the spin-up in front of it was
+        # INTEGRATED by a named run rather than assumed, and each of these is
+        # one of the things that says so.
+        if continuation.get("parent_run_id") != parent:
+            failures.append(
+                f"{child}'s manifest names "
+                f"{continuation.get('parent_run_id')} as its parent and it "
+                f"continued {parent}")
+        if continuation.get("resumed_at_year") != spinup + nyear:
+            failures.append(
+                f"{child}'s manifest says it resumed at year "
+                f"{continuation.get('resumed_at_year')}; its parent's state "
+                f"covers year {spinup + nyear - 1}, so it resumes at "
+                f"{spinup + nyear}")
+        if continuation.get("years_simulated_here") != nyear:
+            failures.append(
+                f"{child}'s manifest says it integrated "
+                f"{continuation.get('years_simulated_here')} simulated years "
+                f"here and it was asked for {nyear}")
+        if continuation.get("chain") != [parent]:
+            failures.append(
+                f"{child}'s lineage back to bare ground is "
+                f"{continuation.get('chain')} and its only ancestor is "
+                f"{parent}")
+        # The hashes the continuation recorded are the files it actually read.
+        recorded = continuation.get("parent_state_sha256") or {}
+        on_disk = {p.name: run_lpj_guess.sha256(p)
+                   for p in sorted((parent_dir / "state").iterdir())
+                   if p.is_file()}
+        if recorded != on_disk:
+            failures.append(
+                f"{child} recorded state-file hashes that are not the ones in "
+                f"{parent_dir / 'state'}")
+
+    control, output = invoke_runner(bed_root, driver, pfts, ranks, 1,
+                                    2 * nyear, ["--label",
+                                               "runner_check_control"])
+    if control is None:
+        return failures + [f"the uninterrupted control failed:\n{output[-2000:]}"]
+
+    # The years the continuation is responsible for, in the control's own
+    # numbering: it resumes where the parent stopped and adds its own record.
+    first_year = spinup + nyear
+    failures += compare(RUNS / control, RUNS / child, first_year, tables)
+
+    # THE REFUSAL. A continuation at a patch count the parent never ran resumes
+    # a different experiment from someone else's state, and the guard exists to
+    # stop it. A guard that has never refused anything is not known to refuse.
+    refused, output = invoke_runner(bed_root, driver, pfts, ranks, 3, nyear,
+                                    ["--continue-from", parent, "--label",
+                                     "runner_check_refusal"],
+                                    expect_failure=True)
+    if refused is not None:
+        failures.append(
+            "a continuation at npatch 3 from an npatch 1 parent was NOT "
+            "refused")
+    elif "npatch" not in output:
+        failures.append(
+            "the continuation at npatch 3 was refused and the refusal does not "
+            f"name npatch, so it may have been refused for another reason:\n"
+            f"{output[-1000:]}")
+    return failures
+
+
 def resume_and_save_instants(state: dict, year_length: int) -> dict:
     """The two instants `framework/framework.cpp` computes from a state block.
 
@@ -293,6 +713,46 @@ def resume_and_save_instants(state: dict, year_length: int) -> dict:
     return {"state_covers": (resume_year, resume_day),
             "first_simulated": (first_year, first_day),
             "state_written_covers": (save_year, save_day)}
+
+
+def instant_fixtures(year_length: int) -> list[str]:
+    """The parsed-instant gate against cases whose verdict is known in advance.
+
+    NO MODEL AND NO FORCING. Three are built to be wrong in a named way and one
+    is the case that has to be GRANTED: a gate nothing can satisfy is a wall and
+    a gate nothing can fail is decoration. The second case is the defect itself,
+    written down -- a model that parsed 0 where the instruction file declared -1
+    -- so a repair that stops catching it stops being a repair.
+    """
+    failures: list[str] = []
+    with tempfile.TemporaryDirectory() as scratch:
+        bed = Path(scratch) / "arm"
+        (bed / "run1").mkdir(parents=True)
+        asked = {"restart": True, "save_state": False, "state_year": 211,
+                 "state_day": -1, "save_year": 211, "save_day": -1,
+                 "state_path": "/x", "save_path": "/x"}
+
+        def case(name: str, state: dict, log: str, wanted: int) -> None:
+            (bed / "asked_state.json").write_text(json.dumps(state))
+            (bed / "run1" / "guess.log").write_text(log)
+            got = check_instants(bed, 1, "arm", year_length)
+            if len(got) != wanted:
+                failures.append(
+                    f"the instant gate reports {len(got)} refusals for the "
+                    f"{name} case and {wanted} is right: {got}")
+
+        case("agreeing", asked,
+             "Restart instants: state_day -1 save_day -1\n"
+             "  resume: state covers year 210 day 182\n", 0)
+        case("sentinel rounded to zero", asked,
+             "Restart instants: state_day 0 save_day 0\n"
+             "  resume: state covers year 211 day 0\n", 3)
+        case("silent model", asked, "no instants here\n", 1)
+        case("saving arm at the wrong instant",
+             {**asked, "restart": False, "save_state": True},
+             "Restart instants: state_day -1 save_day -1\n"
+             "  save: state written covers year 211 day 0\n", 1)
+    return failures
 
 
 def self_test() -> None:
@@ -427,6 +887,12 @@ def self_test() -> None:
         failures.append("a run that neither saves nor restarts declares a "
                         "state_path, so the model would look for a state file")
 
+    # THE PARSED-INSTANT GATE, on cases whose verdict is known in advance. It is
+    # the check that would have caught the sentinel plib rounded away, and it is
+    # the one check here that does not hold a copy of the rule, so it is the one
+    # worth exercising without a model.
+    failures += instant_fixtures(year_length)
+
     for failure in failures:
         print(f"  {failure}")
     if failures:
@@ -434,6 +900,9 @@ def self_test() -> None:
             f"\n{len(failures)} failures. A continuation that resumes at the "
             "wrong simulated year reports the spin-up it was asked for and "
             "integrates a different one.")
+    print("the parsed-instant gate grants an agreeing arm and refuses a model "
+          "that read 0 where the instruction file declared -1, a model that "
+          "logged nothing, and a saving arm at the wrong instant")
     print(f"restart instants agree over a {year_length}-day simulation year "
           f"and the {spinup}-year spin-up {rel(pfts)} declares: a run of "
           f"{parent_nyear} retained years writes a state covering year "
@@ -475,6 +944,24 @@ def main() -> None:
                              "the CENTURY accelerator window empty, so this "
                              "fixture does not exercise the accelerator's own "
                              "restart state.")
+    parser.add_argument("--runner", action="store_true",
+                        help="instead: exercise the PRODUCTION runner's state "
+                             "plumbing end to end -- a parent that saves, a "
+                             "continuation from it, an uninterrupted control "
+                             "twice as long, and a continuation at a patch "
+                             "count the parent never ran, which has to be "
+                             "refused. Needs --cells: it runs run_lpj_guess.py, "
+                             "which runs the whole driver it is given.")
+    parser.add_argument("--cells", type=str, default=None,
+                        help="run only these cells, as lon,lat pairs separated "
+                             "by ';' -- the coordinates the output tables "
+                             "print. The driver is sliced into the bed and both "
+                             "arms read the slice. Cells are independent in "
+                             "LPJ-GUESS and this project's stochastic streams "
+                             "are keyed by coordinate, so a cell integrates the "
+                             "same trajectory either way; what a subset loses is "
+                             "reach, so its verdict is written to a separate "
+                             "report and does not gate a continuation.")
     parser.add_argument("--ranks", type=int, default=4)
     parser.add_argument("--npatch", type=int, default=5)
     parser.add_argument("--bed", type=Path, default=None,
@@ -504,6 +991,13 @@ def main() -> None:
             f"{last_year} and writes output from {args.nyear_spinup}. A "
             "restart at the first output year continues nothing and one after "
             "the last compares nothing.")
+
+    if sum((args.one_day, args.round_trip, args.runner)) > 1:
+        raise SystemExit(
+            "--one-day, --round-trip and --runner are different questions: what "
+            "a simulated day did differently either side of a restart, what the "
+            "write and read of a state file does not carry, and whether the "
+            "production runner continues a run at all. Ask one.")
 
     if args.one_day and args.round_trip:
         raise SystemExit(
@@ -567,6 +1061,7 @@ def main() -> None:
         tuple(declaration["acceptance"]["retained_outputs"]) if active else ())
 
     bed_root = args.bed or (RUNS / "restart_continuity")
+    bed_root.mkdir(parents=True, exist_ok=True)
     whole, resumed = bed_root / "whole", bed_root / "resumed"
     state_dir = bed_root / "state"
     whole_state = bed_root / "state_whole"
@@ -574,6 +1069,19 @@ def main() -> None:
         if path.exists():
             raise SystemExit(f"{path} exists; remove it before re-running")
     state_dir.mkdir(parents=True, exist_ok=True)
+
+    cells = parse_cells(args.cells) if args.cells else None
+    if cells is not None:
+        if args.ranks > len(cells):
+            raise SystemExit(
+                f"--ranks {args.ranks} against {len(cells)} cells: a rank with "
+                "no cells writes no output and the merge would be short. Ask "
+                f"for at most {len(cells)} ranks.")
+        sliced = bed_root / "driver_subset.bin"
+        taken = slice_driver(Path(args.driver), cells, sliced)
+        print(f"driver sliced to {len(taken)} cells: "
+              + "; ".join(f"{lon},{lat}" for lon, lat in taken))
+        args.driver = sliced
 
     def paths_for(bed: Path) -> dict:
         return {"driver": Path(args.driver).resolve(),
@@ -591,10 +1099,54 @@ def main() -> None:
     # any result is seen and for a stated reason: day 0 is where every annual
     # accumulator resets and the last day is where they flush, so both are days
     # on which a member that is lost the rest of the year looks carried.
+    year_length = model_year_days(yaml.safe_load(CONFIG.read_text()))
     split_day = (args.state_day if args.state_day is not None
-                 else model_year_days(yaml.safe_load(CONFIG.read_text())) // 2)
-    mode = ("round-trip" if args.round_trip
+                 else year_length // 2)
+    mode = ("runner" if args.runner
+            else "round-trip" if args.round_trip
             else "one-day" if args.one_day else "annual")
+
+    if mode == "runner":
+        if cells is None:
+            raise SystemExit(
+                "--runner needs --cells. It invokes run_lpj_guess.py, which "
+                "simulates every cell in the driver it is handed, and the "
+                "runner's plumbing is not a function of how many cells ran.")
+        # args.driver is the SLICE by now; args.pfts is still the source the
+        # bed's reduced copy is made from.
+        failures = runner_check(bed_root, Path(args.driver).resolve(),
+                                Path(args.pfts).resolve(),
+                                args.ranks, args.nyear, args.nyear_spinup,
+                                run_lpj_guess.OUTPUTS)
+        report = {
+            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "generator": "biosphere/scripts/verify_lpj_restart_continuity.py",
+            "mode": mode, "nyear": args.nyear,
+            "nyear_spinup": args.nyear_spinup,
+            "state_year": None, "state_day": None,
+            "ranks": args.ranks, "npatch": 1,
+            "wetlands_active": active,
+            "tables_compared": list(run_lpj_guess.OUTPUTS),
+            "binary_sha256": run_lpj_guess.sha256(GUESS_BINARY),
+            "cells": [[lon, lat] for lon, lat in taken],
+            "continuous": not failures,
+            "failures": failures,
+        }
+        out = GENERATED / "lpj_runner_continuation.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=2) + "\n")
+        print(f"production runner end to end: a parent of {args.nyear} retained "
+              f"years behind a {args.nyear_spinup}-year spin-up, a continuation "
+              f"of {args.nyear} more, and a {2 * args.nyear}-year control")
+        for failure in failures:
+            print(f"  {failure}")
+        print(f"\nwrote {rel(out)}")
+        if failures:
+            print("\nThe production runner does not continue a run. "
+                  "--continue-from must not be used to buy a record.")
+            sys.exit(1)
+        return
+
 
     if mode == "annual":
         run_bed(build_bed(whole, paths_for(whole),
@@ -603,7 +1155,11 @@ def main() -> None:
         run_bed(build_bed(resumed, paths_for(resumed),
                           {**settings, "title": "restart_continuity_resumed"},
                           state_dir, args.state_year, 0, 1), args.ranks, tables)
-        failures = compare(whole, resumed, args.state_year, tables)
+        failures = (check_instants(whole, args.ranks, "the uninterrupted arm",
+                                   year_length)
+                    + check_instants(resumed, args.ranks, "the resumed arm",
+                                     year_length)
+                    + compare(whole, resumed, args.state_year, tables))
         headline = (f"{args.nyear} simulated years whole against a resume at "
                     f"year {args.state_year}; {len(tables)} tables compared")
         verdict = ("The resumed run is not the run it continues. Every "
@@ -623,8 +1179,12 @@ def main() -> None:
                           state_dir, args.state_year, 1, 1,
                           state_day=split_day,
                           save_dir=whole_state), args.ranks, tables)
-        failures = compare_states(state_dir, whole_state,
-                                  "written", "rewritten")
+        failures = (check_instants(whole, args.ranks, "the writing arm",
+                                   year_length)
+                    + check_instants(resumed, args.ranks, "the rewriting arm",
+                                     year_length)
+                    + compare_states(state_dir, whole_state,
+                                     "written", "rewritten"))
         headline = (f"restart round trip at year {args.state_year} day "
                     f"{split_day}: written against rewritten, no simulated day "
                     "in between")
@@ -657,8 +1217,14 @@ def main() -> None:
                           save_year=args.state_year,
                           save_day=split_day + 1,
                           save_dir=continued_state), args.ranks, tables)
-        failures = compare_states(whole_state, continued_state,
-                                  "whole", "split")
+        failures = (check_instants(whole, args.ranks, "the uninterrupted arm",
+                                   year_length)
+                    + check_instants(resumed, args.ranks, "the splitting arm",
+                                     year_length)
+                    + check_instants(continued, args.ranks, "the continued arm",
+                                     year_length)
+                    + compare_states(whole_state, continued_state,
+                                     "whole", "split"))
         headline = (f"one simulated day either side of a restart at year "
                     f"{args.state_year} day {split_day}: state at the end of "
                     f"day {split_day + 1}, whole against split")
@@ -683,10 +1249,17 @@ def main() -> None:
         # that ran it; `run_lpj_guess.py` refuses --continue-from unless a
         # verdict here says `continuous` for the binary it is about to run.
         "binary_sha256": run_lpj_guess.sha256(GUESS_BINARY),
+        # WHICH CELLS THIS VERDICT IS ABOUT. Null is the whole driver, which is
+        # the only thing the production gate accepts; a list is a subset bed
+        # built to localise a defect and its report is written elsewhere, so a
+        # cheap pass over four cells can never be read as a pass over the grid.
+        "cells": ([[lon, lat] for lon, lat in taken]
+                  if cells is not None else None),
         "continuous": not failures,
         "failures": failures,
     }
-    out = GENERATED / "lpj_restart_continuity.json"
+    out = (GENERATED / ("lpj_restart_continuity_subset.json" if cells is not None
+                        else "lpj_restart_continuity.json"))
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2) + "\n")
 

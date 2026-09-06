@@ -1534,3 +1534,51 @@ reports their write-through after it has landed rather than preventing it. Until
 each has a door, the property is carried by agents remembering it -- and a
 convention that only holds while everyone remembers is the thing a guard
 replaces. `notes/audits/worktree-write-through.md` enumerates which.
+
+## 40. A sentinel altered as it crosses into the model, with every check on the near side
+
+A configuration value that means something other than its face value -- a
+sentinel -- is declared in one language and consumed in another. Every check
+sits on the DECLARING side: the generator writes the sentinel, the runner
+computes with it, a self-test holds the runner's arithmetic against the
+consumer's. All of them agree, because all of them hold copies of the same rule.
+None of them asks the consumer what it received.
+
+`state_day -1` and `save_day -1` are LPJ-GUESS's year-boundary sentinel: minus
+one means the whole of the preceding simulated year rather than a day within one.
+`libraries/plib` stored an integer instruction-file parameter as
+`(int)(num + 0.5)`, and a cast truncates toward zero, so minus one arrived as
+zero. Zero is inside the declared range, so the parser did not object; every
+instant downstream was then derived from zero consistently, so nothing was
+internally inconsistent either. Every restart the project took wrote its state
+at the end of day 0 of `state_year` and resumed at day 1 of it -- an
+arbitrary-day restart, the one path a filed row already said was unsound --
+while the instruction file, the runner, the fixture and the fixture's own
+`--self-test` all reported a year boundary. Four documents, four copies of the
+rule, four agreements.
+
+**The tell is that the symptom sits exactly on the boundary the sentinel
+crosses.** A resumed run reproduced its parent bit for bit in every pool and
+differed only in the quantities that are reset on day 0 and not carried in the
+state file. That is not "a pool is lost"; it is "the run started on a different
+day", and the difference between those two readings is a week of looking in the
+serializer.
+
+**The check is to make the consumer say what it read.** The model now prints the
+two integers it parsed and the two instants it derived, before it integrates a
+day, and the fixture and the production runner both hold that line against what
+they asked for. A refusal there has a right answer. Three checks agreeing with a
+copy of the rule have only a consistent one.
+
+**It is not class 17.** There a check could not fail because it asserted nothing
+falsifiable. Here every check could fail and none of them was pointed at the
+place the value changed. And it is not class 22: the copies were not
+unmaintained, they were correct, and correctness on the near side of a boundary
+says nothing about what crossed it.
+
+**The general form.** Wherever a value is declared in one artifact and consumed
+by another process -- an instruction file, a namelist, an environment variable,
+a JSON contract -- a value whose MEANING is not its face value needs the
+consumer to report what it holds. Range checks do not catch it, because the
+altered value is usually in range. Round trips through the same library do not
+catch it, because both directions share the defect.

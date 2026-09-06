@@ -216,6 +216,28 @@ int framework(const CommandLineArguments& args) {
 	const int save_point_year = save_day < 0 ? save_year - 1 : save_year;
 	const int save_point_day  = save_day < 0 ? Date::MAX_YEAR_LENGTH - 1 : save_day;
 
+	// WHAT THE MODEL ACTUALLY PARSED, on the log, before a day is integrated.
+	// The two instants above are derived from `state_day` and `save_day`, and
+	// -1 in either is a SENTINEL rather than a day: it means the year boundary.
+	// A parser that delivers 0 where the instruction file wrote -1 therefore
+	// moves the save point into the middle of a year without moving anything a
+	// reader can see, and that is not hypothetical -- `libraries/plib` did
+	// exactly that until it was repaired, and every restart taken here was an
+	// arbitrary-day restart reporting a year boundary. Printing the parsed
+	// values is what lets a fixture check the model's arithmetic against its
+	// own instead of against a second copy of the rule.
+	if (restart || save_state) {
+		dprintf("Restart instants: state_day %d save_day %d\n", state_day, save_day);
+		if (restart) {
+			dprintf("  resume: state covers year %d day %d\n",
+			        resume_year, resume_day);
+		}
+		if (save_state) {
+			dprintf("  save: state written covers year %d day %d\n",
+			        save_point_year, save_point_day);
+		}
+	}
+
 	// A run that resumes and saves at the SAME instant simulates no days between
 	// reading the state and writing it. That is the round trip: every difference
 	// between the two files is something the write-and-read of a state file does
