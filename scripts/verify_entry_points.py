@@ -337,6 +337,15 @@ def export_refuses_an_existing_build(verbose: bool) -> list[str]:
         return ["node is not on this host, so the one refusal that enforces "
                 "rule 7 at the writer cannot be exercised. See "
                 "docs/src/reference/environment.md"]
+    # Named separately, because without it the negative arm below fails on a
+    # missing import and reads as a broken refusal. `link_worktree.py` links it
+    # -- it is an install and not a build of tracked source -- so its absence
+    # means an unlinked worktree rather than a defect in the exporter.
+    if not (exporter.parent.parent / "node_modules").exists():
+        return ["vendor/orogen/node_modules is absent, so the exporter cannot "
+                "run and its refusal cannot be exercised. Run "
+                "`python scripts/link_worktree.py` in a worktree, or "
+                "`npm i delaunator` under vendor/orogen"]
 
     cwd = exporter.parent.parent
     bad: list[str] = []
