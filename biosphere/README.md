@@ -524,14 +524,17 @@ state directory for a cell's coordinates, and the stochastic substreams are
 derived from the cell rather than from the rank.
 
 **A continuation is refused until the model is shown to reproduce the run it
-continues.** That is a separate question from the mechanism, it has a right
-answer, and the answer today is NO: measured over 30 retained years behind a
-201-year spin-up at npatch 5, split at simulated year 211, all 22 retained
-tables differ. `tot_runoff.out` has its three components grossly wrong for
-exactly the first resumed year while their Total matches, which is world-lus4's
-unserialized annual accumulators; separately every pool differs by around 1e-04
-relative from the first resumed year, which is world-glu7 and is not a lost pool
-but is not identity either. `run_lpj_guess.py:continuity_verdict` reads the
+continues.** That is a separate question from the mechanism and it has a right
+answer. The first measurement said NO -- every retained table differed, over 30
+retained years behind a 201-year spin-up at npatch 5 split at simulated year
+211 -- and the cause was not in the serializer at all: `libraries/plib` rounded
+the year-boundary sentinel `state_day -1` to 0, so every restart taken here was
+an arbitrary-day restart at day 0 of `state_year` and lost the annual
+accumulators outside Soil that day 0 resets. Both are repaired, and the same
+measurement now finds no differing row.
+`biosphere/notes/restart-state-outside-soil.md` has the finding, and every mode
+of the fixture now asks the model which restart instants it PARSED rather than
+restating them. `run_lpj_guess.py:continuity_verdict` reads the
 fixture's report, checks it was taken against the binary about to run, and
 refuses `--continue-from` while it says otherwise or is absent -- an absent
 measurement is not a pass. `--save-state` is deliberately not gated: writing a
@@ -539,10 +542,10 @@ state file changes no number in the run that writes it, and only reading one
 can.
 
 `verify_lpj_restart_continuity.py` is where that question is asked. Its
-three model modes and what each can see are below, under what a restarted soil
-column inherits; `--self-test` is the fourth and needs no model, holding the two
-integers the runner decides against the arithmetic `framework/framework.cpp`
-performs on them. That test exists because the first version of `--save-state`
+model modes and what each can see are below, under what a restarted soil
+column inherits; `--self-test` needs no model, holding the two integers the
+runner decides against the arithmetic `framework/framework.cpp` performs on
+them and exercising the parsed-instant gate on cases whose verdict is known. That test exists because the first version of `--save-state`
 computed its save point from `nyear` alone and named a simulated year thousands
 of years before the end of the run, so it reads the spin-up out of the PFT file
 the runs import rather than carrying a copy of the number.
