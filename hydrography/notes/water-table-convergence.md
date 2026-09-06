@@ -406,6 +406,75 @@ consumes is unchanged on this build.
 Nothing regenerates a carve list from this. The head field is uncertified until
 GW-3, and a carve list is loop A's input.
 
+## What the solve costs, and where the cost actually was
+
+Measured 2026-09-05. The earlier cost reasoning in `groundwater.py` was taken on
+a 400,000-unknown case and concluded that the linear solve is about 30 s inside a
+multi-minute run. On `canonical-10m-carve2` it is not: one confined solve ran
+past forty minutes at about 16 GB and was killed without writing a water table.
+A direct factorisation's work and fill are superlinear in the unknowns, so a
+conclusion drawn at 400,000 does not travel to a free set that opens at
+millions.
+
+### The lever that was named, and what it measures
+
+The proposal was to hold the evapotranspiration diagonal fixed across inner
+steps so the matrix repeats and `splu` re-solves at a fraction of the cost of
+factorising. Run on the uniqueness case, which carries GW-15's sink and GW-17's
+imposed baselevels:
+
+| | passes | block factorisations | reused | final residual |
+| --- | ---: | ---: | ---: | ---: |
+| Newton, as run | 10 | 30 | 0 | 2.25e-13 |
+| diagonal held fixed | 246 | 15 | 723 | 9.58e-13 |
+
+The reuse arrives. The matrix repeats on 241 of 246 passes, which is the 98 per
+cent the lever promised, and the factorisation count halves. The iteration loses
+anyway, because it needs twenty-five times the passes and every pass pays an
+assembly, a partition and two water balances over the whole mesh whether or not
+it factorises. The head lands 2.7e-07 m from the Newton answer rather than
+bit-identical, and the frozen arm needs a pass budget of 2,000 to converge at
+all against the 60 this component runs.
+
+**The reason is the one this document already gives for a different term.** The
+sink is exponential in depth at an e-folding of about a metre, so a
+linearisation of `E` about the current head is good only within about a metre of
+it, and a Newton step on this problem moves the head by tens of metres. Freezing
+the diagonal is a fixed-point iteration on an exponential outside its own
+e-folding length, which is the same disqualification Fan's exponential
+transmissivity earned above. One exponential, two solvers.
+
+The unfrozen count is worth reading beside it: the WHOLE matrix repeats on 0 of
+10 passes, while its PATTERN repeats on 5. The active set settles and the
+diagonal does not, so there is nothing for a factorisation to be reused on.
+
+### Where the cost was: the free set is not one problem
+
+GW-17's river and lake cells carry a fixed head, so they are a boundary and not
+an unknown, and a face touching one contributes to a diagonal and a right-hand
+side rather than to an off-diagonal. The channel network therefore CUTS the free
+set: what the solver is handed is one block per interfluve plus one per island,
+and the blocks exchange water only through the rivers between them, which are a
+Dirichlet condition on both sides. Assembling the union and factorising it whole
+pays a superlinear cost on the sum of the blocks that a direct method never has
+to pay. `K` blocks of `n/K` cells cost `n^1.5 / sqrt(K)`, and the peak memory is
+one block rather than the whole.
+
+It is exact rather than an approximation to the coupled solve. There are no
+entries between blocks, so there is no fill between them, and the elimination
+inside a block is the sequence of operations it would have been inside the whole
+matrix -- provided the cells keep their relative order, which is why the
+partition sorts stably. `groundwater.py --factorisation-test` asserts that
+bitwise on five interleaved lattices under a scrambled global labelling, and
+carries `SymmetricMode` as the control it must reject: that ordering halves the
+fill and moves the answer by 2e-14 to 6e-14 relative, which is what says the
+equality is a property of this substitution and not of any two ways of solving
+the same system.
+
+`splu(A).solve(b)` replaces `spsolve(A, b)` for the same reason and at the same
+bar: at one column ordering the two drive the same factorisation and the same
+back-substitution, so they agree to the last bit, and the same check asserts it.
+
 ## What remains
 
 **The external test.** GW-3, the same code on Earth topography, Earth recharge
