@@ -1,0 +1,110 @@
+{
+  "measured_on": "2026-09-05",
+  "climatology": "/home/cfutro/docs/world/.claude/worktrees/fan2-climprice/exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "run_id": "run_67323a923013",
+  "source_build": "canonical-10m-carve2",
+  "band_1_flux_fraction": 0.3823719935950933,
+  "cloud_absorption_scale": 1.192,
+  "reconstruction_check": {
+    "what": "stratiform-only cloud fraction reconstruction, REFUSED",
+    "reconstructed_over_emitted_median": 0.0,
+    "reconstructed_over_emitted_p90": 0.779543407700598,
+    "cells_compared": 24575,
+    "why_refused": "mkclouds adds a convective branch keyed on icclev, which is not an output; the stratiform half alone is not the model's cloud"
+  },
+  "results": [
+    {
+      "vertical_shape": "liquid water profile",
+      "surface_underneath": false,
+      "overlap_identity_max_error": 2.980232283178452e-08,
+      "droplet_number_factor": 2.0,
+      "optical_depth_factor": 1.2599210498948732,
+      "insolation_weighted_planetary_albedo_change": 0.012542461042660219,
+      "global_mean_shortwave_forcing_w_m2": 4.267572369765139,
+      "kelvin": -2.9182836991794696
+    },
+    {
+      "vertical_shape": "liquid water profile",
+      "surface_underneath": false,
+      "overlap_identity_max_error": 2.980232283178452e-08,
+      "droplet_number_factor": 4.0,
+      "optical_depth_factor": 1.5874010519681994,
+      "insolation_weighted_planetary_albedo_change": 0.0241330999018055,
+      "global_mean_shortwave_forcing_w_m2": 8.211287241589321,
+      "kelvin": -5.61510470828389
+    },
+    {
+      "vertical_shape": "liquid water profile",
+      "surface_underneath": true,
+      "overlap_identity_max_error": 2.980232283178452e-08,
+      "droplet_number_factor": 2.0,
+      "optical_depth_factor": 1.2599210498948732,
+      "insolation_weighted_planetary_albedo_change": 0.010632205275526937,
+      "global_mean_shortwave_forcing_w_m2": 3.61760784499804,
+      "kelvin": -2.4738200291287744
+    },
+    {
+      "vertical_shape": "liquid water profile",
+      "surface_underneath": true,
+      "overlap_identity_max_error": 2.980232283178452e-08,
+      "droplet_number_factor": 4.0,
+      "optical_depth_factor": 1.5874010519681994,
+      "insolation_weighted_planetary_albedo_change": 0.02060584955473373,
+      "global_mean_shortwave_forcing_w_m2": 7.011140310998152,
+      "kelvin": -4.794411133412602
+    },
+    {
+      "vertical_shape": "uniform over levels",
+      "surface_underneath": false,
+      "overlap_identity_max_error": 2.980232316485143e-08,
+      "droplet_number_factor": 2.0,
+      "optical_depth_factor": 1.2599210498948732,
+      "insolation_weighted_planetary_albedo_change": 0.013635306223142407,
+      "global_mean_shortwave_forcing_w_m2": 4.6394129424242045,
+      "kelvin": -3.1725585392671207
+    },
+    {
+      "vertical_shape": "uniform over levels",
+      "surface_underneath": false,
+      "overlap_identity_max_error": 2.980232316485143e-08,
+      "droplet_number_factor": 4.0,
+      "optical_depth_factor": 1.5874010519681994,
+      "insolation_weighted_planetary_albedo_change": 0.026754715496889788,
+      "global_mean_shortwave_forcing_w_m2": 9.10329194781675,
+      "kelvin": -6.225082130627669
+    },
+    {
+      "vertical_shape": "uniform over levels",
+      "surface_underneath": true,
+      "overlap_identity_max_error": 2.980232316485143e-08,
+      "droplet_number_factor": 2.0,
+      "optical_depth_factor": 1.2599210498948732,
+      "insolation_weighted_planetary_albedo_change": 0.01122927581761555,
+      "global_mean_shortwave_forcing_w_m2": 3.8207610969436905,
+      "kelvin": -2.6127418263989446
+    },
+    {
+      "vertical_shape": "uniform over levels",
+      "surface_underneath": true,
+      "overlap_identity_max_error": 2.980232316485143e-08,
+      "droplet_number_factor": 4.0,
+      "optical_depth_factor": 1.5874010519681994,
+      "insolation_weighted_planetary_albedo_change": 0.022146419571216585,
+      "global_mean_shortwave_forcing_w_m2": 7.535319259106442,
+      "kelvin": -5.152859156592031
+    }
+  ],
+  "closed_form_cross_check": {
+    "note": "band-1 layer reflectance, tabled difference against Twomey A(1-A)ln2/3, elementwise on layers with tau > 1 and mu0 > 0.05",
+    "layers": 114371,
+    "median_relative_gap": 0.21840973237020428,
+    "p90_relative_gap": 0.385049484555342
+  },
+  "droplet_number_factor_reaching_threshold": {
+    "note": "the factor in droplet number whose shortwave forcing reaches the 1.5 W/m2 reopening threshold, read off the doubling on the assumption of linearity in ln(N) over this range",
+    "low": 1.2512037732026535,
+    "high": 1.3329647608298771
+  },
+  "threshold_w_m2": 1.5,
+  "threshold_source": "notes/dust.md reopening test, aeolian/config/dust.yaml"
+}

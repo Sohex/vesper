@@ -53,3 +53,83 @@ puts cloud.
 
 **Rule 7.** Nothing is commissioned. Adding this term costs what the next cycle
 runs, and no existing run is charged against it.
+
+## What the term is worth: measured 2026-09-05
+
+`analysis/aerosol_indirect_sensitivity.py` -> `analysis/aerosol_indirect_sensitivity.json`,
+on `run_67323a923013`'s baseline climatology on build `canonical-10m-carve2`. The
+computation is offline arithmetic over a climatology and takes seconds, so no
+host load is quoted: nothing here is a timing.
+
+**A doubling of droplet number is worth 3.6 to 4.6 W/m2 in the global mean, 2.5
+to 3.2 K.** A quadrupling is 7.0 to 9.1 W/m2 and 4.8 to 6.2 K. The bracket is
+the product of two arms, both reported because neither is a refinement of the
+other:
+
+| vertical shape of the cover | surface underneath | x2 in N | x4 in N |
+| --- | --- | ---: | ---: |
+| the liquid water profile | no | 4.27 W/m2 | 8.21 W/m2 |
+| the liquid water profile | yes | 3.62 W/m2 | 7.01 W/m2 |
+| uniform over levels | no | 4.64 W/m2 | 9.10 W/m2 |
+| uniform over levels | yes | 3.82 W/m2 | 7.54 W/m2 |
+
+The surface arm is the one that matters for the size: a cloud over a bright
+surface adds less at the top of the atmosphere than the same cloud over a dark
+one, because the surface was already reflecting what the cloud now reflects. It
+takes about 15 per cent off. The vertical shape is worth about 9 per cent and is
+the assumption, since the model emits only the column total `clt` and its
+per-level cover cannot be rebuilt from a climatology.
+
+**The verdict against the criterion fixed above: WORTH BUYING, by a factor of
+2.4 to 3.1.** Every corner of the bracket clears 1.5 W/m2, so the answer does not
+turn on either arm.
+
+**And the inversion is the number to carry away. A change of 25 to 33 per cent
+in droplet number already reaches the reopening threshold.** That is what makes
+this decidable without a droplet number: the threshold is not at some large
+aerosol perturbation this world might or might not produce, it is at a third of
+one doubling. Any indirect effect this model could have that is not
+approximately zero is material.
+
+## Why the instrument can carry that, and where it cannot
+
+**The chain is the model's own at every step.** The cloud water is `rainmod`'s
+CCM3 diagnostic reconstructed from the climatology's `prw`, `ta` and `ps`; the
+optical depth is `radmod`'s two Stephens (1978) fits; the reflectance is the
+Stephens, Ackerman and Smith (1984) tables that `world-f9ig` put into `swr`, read
+back out of `exoplasim/scripts/stephens_tables_vs_fits.py`, which already checks
+that transcription against the model source entry for entry. Nothing here is a
+textbook parameterisation standing in for the model.
+
+**The cloud fraction is an identity rather than a reconstruction, and the
+reconstruction is what refused it.** Distributing the emitted `clt` over levels
+as `dcc_k = 1 - (1-clt)^s_k` reproduces the model's own random-overlap total
+exactly for any shape `s`, and it does: the maximum error over the whole field
+is 3.0e-08, which is `clt`'s own float32 spacing. The alternative was to rebuild
+the per-level cover from relative humidity, and that arm was run and REFUSED --
+the median ratio of the reconstructed total to the emitted `clt` came out at 0.0
+over 24,575 cells carrying cloud, because `mkclouds`'s convective branch is keyed
+on `icclev`, which is not an output. The stratiform half alone is not this
+model's cloud.
+
+**The closed form and the tables agree to the term the closed form omits.**
+`radmod`'s band-1 branch is `A = x/(1+x)`, whose derivative in `ln(tau)` is
+`A(1-A)` -- Twomey's sensitivity exactly. Over 114,371 layers with optical depth
+above 1 and a zenith cosine above 0.05, the tabled difference and
+`A(1-A) ln2 / 3` differ by a median of 22 per cent and 39 per cent at the ninth
+decile. That gap is `d ln beta / d ln tau`: the backscatter fraction is itself
+tabulated against optical depth and the closed form holds it fixed. The tabled
+path is the one quoted, because it is the one the model runs.
+
+**Three things this measurement does not include, and their signs.** It stops at
+the SHORTWAVE, so the longwave cloud response -- opposite in sign and smaller,
+since `radmod`'s longwave cloud absorption is grey in liquid water path -- is
+absent. It uses monthly-mean zenith cosines in a function that is not linear in
+them. And it takes no account of what the atmosphere above the cloud absorbs. The
+first is the only one that could move the answer toward the threshold, and it
+would have to remove three quarters of the term to reach it.
+
+**What it deliberately does not do is compute a droplet number.** The factor of
+two is a unit of the derivative and not a prediction. Whether this world's
+aerosol can move droplet number by a third is the aerosol side's question, and
+the answer to it does not exist yet.

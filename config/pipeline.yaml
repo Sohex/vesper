@@ -1260,6 +1260,20 @@ steps:
       set, so it moves when the spectrum does. `notes/audits/snow-albedo-zenith.md`
       is the finding and world-spd the row.
 
+  - id: aerosol_indirect_sensitivity
+    script: analysis/aerosol_indirect_sensitivity.py
+    cost: seconds
+    needs: [stellar_spectrum, baseline_climatology]
+    writes: [analysis/aerosol_indirect_sensitivity.json]
+    gate: >
+      What a droplet number would be worth to this model's cloud albedo, through
+      the model's own Stephens optical depth fits and its own 1984 backscatter
+      tables. EXPLORATION: nothing consumes it and no model term rests on it,
+      because the aerosol indirect effect is ABSENT from the model rather than
+      wrong. It exists to price that absence against the 1.5 W/m2 reopening
+      threshold `notes/dust.md` fixed. `notes/audits/aerosol-indirect-effect-cost.md`
+      is the finding and CLIM-64 the row.
+
   - id: rock_emissivity
     script: analysis/rock_emissivity.py
     cost: seconds
