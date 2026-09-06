@@ -375,7 +375,8 @@ Removing it changes the block's layout in every file that includes the header,
 which is safe because `/ocn_vars/` is declared in exactly one place and no
 routine writes the block as a unit;
 `notes/audits/cgenie-unreachable-code-dispositions.md` section 2 carries the
-check and the acceptance.
+check and the acceptance, which both regression cases pass bit-for-bit at one
+thread and at sixteen.
 
 ## 4c. What the acceptance test actually ran
 

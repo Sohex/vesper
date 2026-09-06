@@ -130,11 +130,23 @@ together. No `EQUIVALENCE` statement appears anywhere in `genie-goldstein` or
 `genie-embm`, and no routine writes the block as a unit: every restart and
 netCDF write in the component names its arrays individually.
 
-**Acceptance, and it is the bar the threading was held to.** Every float variable
-of both shipped regression cases must be BIT-FOR-BIT what the tree at `e462b20e4`
-writes: all 28 variables of `eb_go_gs`'s GOLDSTEIN year-20 annual average at one
-thread and at sixteen, and all 88 of `eb_go_gs_ac_bg`'s BIOGEM three-dimensional
-fields. `analysis/cgenie_omp.py` is the driver.
+**Acceptance, and it is the bar the threading was held to. It passes.** Every
+float variable of both shipped regression cases is BIT-FOR-BIT what the tree at
+`e462b20e4` writes, at `worst_relative` 0.0 with no variable differing: all 28
+variables of `eb_go_gs`'s GOLDSTEIN year-20 annual average at one thread AND at
+sixteen, and all 88 of `eb_go_gs_ac_bg`'s BIOGEM three-dimensional fields.
+`analysis/cgenie_omp.py` is the driver, the reference arm is the `base` arm built
+from `e462b20e4` rather than the shipped netCDF, and both arms are built in an
+exported tree outside the repository.
+
+Against the shipped `genie-knowngood/` netCDF the removal reproduces the two
+differences the unedited tree already has and no others: two cells of `uvel` at
+6.86e-27 of the field range, and `bio_fpart_CaCO3_13C` and `phys_u` at
+2.99e-45. Those are the same two the threading note records, so the comparison
+against the shipped reference is unchanged as well.
+
+The bar is bit-for-bit, so it does not move with what else the host is doing,
+and no wall clock from these arms is kept.
 
 **Also checked, and deliberately left in place.** `genie-embm/src/fortran/embm.cmn`
 declares its own `dzu(2,maxk)` in `/embm_vars/`, a different COMMON block, and it
