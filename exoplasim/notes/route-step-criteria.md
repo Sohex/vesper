@@ -192,13 +192,14 @@ rather than a carrier.** The states file is per build and per rung.
 `pedology/scripts/land_column_properties.py` derives it from `soilmap_<res>.txt`
 alone, but `pedology/scripts/build_soil.py` reads a climatology for temperature,
 precipitation, runoff, evaporation and elevation -- content, not a grid -- and
-refuses one whose shape is not its grid export's. Neither takes a `--grid`, so
-their rung is `config/planet.yaml`'s. So a soil at a rung needs a CLIMATE at
-that rung, and no climatology above T21 exists anywhere in this tree.
+refuses one whose shape is not its grid export's. Both now take their rung from
+a `--grid` and the climatology declaration is per rung, so what is left is not a
+carrier at all: a soil at a rung needs a CLIMATE at that rung, and no
+climatology above T21 exists anywhere in this tree.
 
-That leaves the field's carrier fixed and its content still at one rung, and the
-route's consequence below unchanged until a T42 climate reaches pedology.
-WORLD-QGB6 carries the measurement.
+That leaves every carrier in the chain fixed and its content still at one rung,
+and the route's consequence below unchanged until a T42 climate reaches
+pedology. WORLD-QGB6 and WORLD-CCX6 carry the measurements.
 
 #### The soil waits for a climate at the rung, and is not remapped onto it
 
@@ -250,23 +251,33 @@ the order is fixed:
 
 1. `build_climatology.py` on an arm of the target rung whose staged surface
    family is the current one, and DECLARE it -- pointing a component at another
-   component's output is deliberate, never defaulted.
-2. `soil` at that rung, then `land_column_properties` at that rung.
+   component's output is deliberate, never defaulted. The declaration is PER
+   RUNG: `config/planet.yaml`'s two climatology keys take a rung-to-path
+   mapping beside the scalar form, and the scalar answers for `model.resolution`
+   alone. `build_climatology.py --output` has to name a directory of its own at
+   the new rung, because the product's filename is `<label>_regular_climatology
+   .nc` and carries no rung.
+2. `soil --grid source/<build>/exoplasim-<rung>` at that rung, then
+   `land_column_properties --soil-map soilmap_<rung>.txt --states
+   land_column_states_<rung>.txt`, which refuses a pair naming two rungs.
 3. `surface_soil_water --grid source/<build>/exoplasim-<rung>`, which stages
    codes 0229 and 2290 there.
 4. From then on every arm at that rung, cold or converted, carries the pedology
    capacity: a cold one reads the staged field, a converted one takes `dwmax`
    from a template cut at that rung after step 3.
 
-**Step 2 sits behind a carrier defect that is real and is not this one.**
-`build_soil.py` takes no `--grid`: its grid export comes from
-`config/planet.yaml`'s `model.resolution` and its climatology from the single
-unrunged `bootstrap_climatology` key, whose `--climatology` is a cross-check
-pinned by sha to the declared file and so cannot name another. Running the soil at a
-second rung therefore means moving both config keys together, which is a
-configuration change `continue_exoplasim.py` refuses to resume across and which
-blocks every run in flight. WORLD-QGB6 fixed this shape one level down;
-WORLD-CCX6 is the same fix here.
+**Step 2 needs nothing but step 1.** `build_soil.py --grid` is the whole rung
+decision: the grid export it integrates the lithology onto, the soil map's
+name, BIO-11's rootable fraction and which climatology is resolved all follow
+it, and an export of a build other than the configured one is refused. The two
+climatology keys are declared per rung, so a rung with nothing declared is
+REFUSED naming what to build and declare rather than served the configured
+rung's file. `--climatology` remains a cross-check pinned by sha to the file
+declared for the grid's rung, which is what keeps BIO-19's mode pinning: a
+rebuild of iteration 0 after a baseline exists still reproduces the bootstrap
+soil. WORLD-CCX6 measured the carrier at T21 -- the soil map and the land
+column states both reproduce bit for bit through the new path -- and
+WORLD-QGB6 is the same fix one level down.
 
 `config/pipeline.yaml`'s `surface_soil_water` needs `boundary_conditions` and
 `land_column_properties`, which is what it reads. The DETERMINATION argument the
