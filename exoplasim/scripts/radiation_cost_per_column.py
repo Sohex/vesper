@@ -134,20 +134,31 @@ def run_perf_stat(cmd, cwd, env=None):
     return out
 
 
-def make_bed(steps: int) -> Path:
-    """A private copy of the T21 profiling bed at a given step count.
+def make_bed(steps: int, from_run: Path, exe: Path) -> Path:
+    """A bed at a given step count, built by `make_profile_bed.py`.
 
-    Copied rather than edited in place: `exoplasim/bench/43rk` belongs to
-    WORLD-43RK's measurement and a gate there deletes its own subdirectory.
+    NOT a hand copy of an existing bed, and the difference is the whole
+    measurement. Every run directory and every bed on disk was written by an
+    older model and carries keys the current `namelist` statements no longer
+    declare; `make_profile_bed.py` PRUNES those against `plasim/src` itself and
+    FORCES what `config/planet.yaml` declares. Copying a bed instead leaves the
+    old keys in place and the model aborts in `readnl` before its first step --
+    which it did here, on `tswr3`, a key WORLD-F9IG removed when `swr` stopped
+    reading three tuned coefficients. An aborted model is 0.04 s of wall clock
+    and a radiation share of zero, and a zero share divides into an
+    ordinary-looking slowdown of one.
     """
     dest = WORK / f"bed_{RUNG.lower()}_{steps}"
     if dest.exists():
         shutil.rmtree(dest)
-    shutil.copytree(SOURCE_BED, dest, symlinks=True)
-    nl = dest / "plasim_namelist"
-    text = nl.read_text()
-    text = re.sub(r"N_RUN_STEPS\s*=\s*\d+", f"N_RUN_STEPS = {steps}", text)
-    nl.write_text(text)
+    cmd = [sys.executable, str(ROOT / "exoplasim/scripts/make_profile_bed.py"),
+           "--from-run", str(from_run), "--dest", str(dest),
+           "--steps", str(steps), "--binary", exe.name,
+           "--binary-dir", str(exe.parent), "--allow-unregistered"]
+    p = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
+    if p.returncode != 0:
+        raise SystemExit("make_profile_bed.py failed:\n" + p.stdout[-3000:]
+                         + "\n" + p.stderr[-3000:])
     return dest
 
 
@@ -159,7 +170,8 @@ def build_current_model(threads: int, verbose: bool = False) -> Path:
     which is what that flag exists to prevent.
     """
     cmd = [sys.executable, str(ROOT / "exoplasim/scripts/build_model.py"),
-           "--res", RUNG, "--ranks", str(threads), "--print-path"]
+           "--res", RUNG, "--ranks", str(threads),
+           "--no-publish", "--print-path"]
     p = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
     if p.returncode != 0:
         raise SystemExit("build_model.py failed:\n" + p.stdout[-3000:]
@@ -352,11 +364,12 @@ def main() -> None:
                          "13.4 s between them carries 2 per cent scatter rather "
                          "than 6")
     ap.add_argument("--rounds", type=int, default=3)
-    ap.add_argument("--bed-binary", action="store_true",
-                    help="measure the executable the bed already carries rather "
-                         "than building one. The bed's is WORLD-43RK's and "
-                         "radmod has moved since, so this is for reproducing "
-                         "that measurement and not for taking a new one")
+    ap.add_argument("--from-run", type=Path,
+                    default=ROOT / "exoplasim/runs/run_0d41aa82c287",
+                    help="the run directory the bed is cut from. Its namelists "
+                         "are pruned and forced against the current model "
+                         "source, so an older run is fine; what it supplies is "
+                         "a state and a set of inputs")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--threads", type=int, default=16)
     ap.add_argument("--nlon", type=int, default=NLON)
@@ -369,12 +382,10 @@ def main() -> None:
 
     WORK.mkdir(parents=True, exist_ok=True)
     short, long = sorted(args.steps)
-    beds = {n: make_bed(n) for n in (short, long)}
-    if args.bed_binary:
-        exe = model_exe(beds[short])
-    else:
-        exe = build_current_model(args.threads, args.verbose)
+    exe = build_current_model(args.threads, args.verbose)
     exe_sha = __import__("hashlib").sha256(exe.read_bytes()).hexdigest()
+    beds = {n: make_bed(n, args.from_run, exe) for n in (short, long)}
+    exe = model_exe(beds[short])
     env = dict(OMP_NUM_THREADS=str(args.threads), OMP_WAIT_POLICY="passive")
 
     loads = [load()[0]]
@@ -403,7 +414,19 @@ def main() -> None:
     wall_long = med(model[long], "wall_s")
 
     d_steps = long - short
+    bad = [r for arm in model.values() for r in arm if r.get("returncode")]
+    if bad:
+        raise SystemExit(
+            "a model arm exited non-zero, so there is no per-step cost to "
+            "report. The first failure's stderr:\n"
+            + str(bad[0].get("stderr_tail", ""))[-2000:])
     cpu_per_step_ms = (cpu_long - cpu_short) / d_steps if cpu_long else None
+    if not cpu_per_step_ms or cpu_per_step_ms <= 0:
+        raise SystemExit(
+            f"the long arm cost {cpu_long} ms against the short arm's "
+            f"{cpu_short} over {d_steps} more steps, which is a per-step cost "
+            "of {cpu_per_step_ms}. A model that does not cost more for running "
+            "longer did not run; refusing rather than reporting it.")
     startup_cpu_ms = (cpu_short - cpu_per_step_ms * short) if cpu_per_step_ms else None
 
     working_set = socrates_working_set()
