@@ -1139,6 +1139,15 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     factors = {}
     n_factorised = n_reused = 0
     n_blocks_last = largest_block_last = 0
+    # THE CACHE IS A PROBE THAT TURNS ITSELF OFF, and it has to be, because
+    # holding every block's factor costs the fill of the whole free set for a
+    # reuse that may never come. It is on for the first pass that assembles a
+    # matrix; if that pass and the next one between them reuse nothing, the
+    # active set or the sink is moving everywhere and no factor will ever be
+    # recognised again, so the table is dropped and the peak falls back to one
+    # block's fill. The count of reuses is reported either way, which is what
+    # world-wfge asks to have STATED rather than assumed.
+    caching = True
     for outer in range(max_outer):
         phases("active_set")
         # A cell with no conducting face has no LATERAL equation: nothing can
@@ -1525,13 +1534,18 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                     n_factorised += 1
                 else:
                     n_reused += 1
-                kept[key] = lu
+                if caching:
+                    kept[key] = lu
                 x[b0:b1] = lu.solve(rhs[b0:b1])
+                lu = None
         # The previous pass's factors are dropped here, not before the loop, so
         # a block that survived is never rebuilt to be immediately discarded.
         factors = kept
-        del kept, lu
+        del kept
         pass_factorised = n_factorised - pass_factorised
+        if caching and outer >= 1 and n_reused == 0:
+            caching = False
+            factors = {}
         if not np.all(np.isfinite(x)):
             raise SystemExit(
                 f"the direct solve returned {int((~np.isfinite(x)).sum()):,} "
