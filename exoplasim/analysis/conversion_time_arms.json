@@ -1,0 +1,182 @@
+{
+  "what": "where model.conversion_time_level is stable, measured against the full model rather than its linearisation",
+  "bed": {
+    "rung": "T21",
+    "ranks": 8,
+    "binary": "most_plasim_t21_l10_p8.x",
+    "parent_run": "/home/cfutro/docs/world/exoplasim/runs/run_0d41aa82c287",
+    "steps_requested": 4000,
+    "ndiag": 200,
+    "dry_adiabatic": true,
+    "nenergy": 1,
+    "energy_fixer": false
+  },
+  "how_termination_is_read": "Abort_Message and the exit status separately, never the exit status alone: plasim.f90:stability_check writes that file and executes a bare Fortran stop, which exits 0. A negative returncode is a signal, which under the declared -ffpe-trap=invalid,zero,overflow is the trap.",
+  "controls_held": true,
+  "refused_by_guard_minutes": [
+    15.0,
+    12.0,
+    10.0
+  ],
+  "refused_by_guard_note": "plasim.f90 measures its own amplification at startup and stops before integrating a configuration that grows, so an arm above the boundary does not run on a current binary. That is a third outcome and neither a completion nor a death; the guard's stop exits 0, so the exit status alone cannot tell it from a completed run.",
+  "shared_amplification": null,
+  "shared_amplification_note": "The interval every dying arm's bracket is consistent with. A non-null value says ONE exponential, at the rates conversion_time_stability.py predicts, accounts for every death; null says the deaths do not share a rate and the prediction is wrong about the size of the effect even where it is right about its sign.",
+  "provenance": {
+    "generated_utc": "2026-09-06T22:03:06.713265+00:00",
+    "sweep": "exoplasim/analysis/conversion_time_stability_sweep.json",
+    "config": "config/planet.yaml"
+  },
+  "arms": [
+    {
+      "timestep_minutes": 15.0,
+      "conversion_time_level": true,
+      "steps_requested": 4000,
+      "ndiag": 200,
+      "returncode": 0,
+      "signalled": false,
+      "wall_s": 0.0,
+      "abort_message": false,
+      "abort_message_step": null,
+      "refused_by_guard": true,
+      "diagnostic_reports": 0,
+      "guard": {
+        "measured_arm": 1.104680820003913,
+        "measured_arm_wavenumber": 21,
+        "control_arm": 1.000123266616009,
+        "control_arm_wavenumber": 10
+      },
+      "completed": false,
+      "died_after_step": null,
+      "died_before_step": null,
+      "predicted_growth_per_step": 1.10468796
+    },
+    {
+      "timestep_minutes": 12.0,
+      "conversion_time_level": true,
+      "steps_requested": 4000,
+      "ndiag": 200,
+      "returncode": 0,
+      "signalled": false,
+      "wall_s": 0.0,
+      "abort_message": false,
+      "abort_message_step": null,
+      "refused_by_guard": true,
+      "diagnostic_reports": 0,
+      "guard": {
+        "measured_arm": 1.063490856176427,
+        "measured_arm_wavenumber": 21,
+        "control_arm": 1.000104969928738,
+        "control_arm_wavenumber": 10
+      },
+      "completed": false,
+      "died_after_step": null,
+      "died_before_step": null,
+      "predicted_growth_per_step": 1.06349768
+    },
+    {
+      "timestep_minutes": 10.0,
+      "conversion_time_level": true,
+      "steps_requested": 4000,
+      "ndiag": 200,
+      "returncode": 0,
+      "signalled": false,
+      "wall_s": 0.0,
+      "abort_message": false,
+      "abort_message_step": null,
+      "refused_by_guard": true,
+      "diagnostic_reports": 0,
+      "guard": {
+        "measured_arm": 1.031249075604476,
+        "measured_arm_wavenumber": 21,
+        "control_arm": 1.000207682732366,
+        "control_arm_wavenumber": 9
+      },
+      "completed": false,
+      "died_after_step": null,
+      "died_before_step": null,
+      "predicted_growth_per_step": 1.03125546
+    },
+    {
+      "timestep_minutes": 8.0,
+      "conversion_time_level": true,
+      "steps_requested": 4000,
+      "ndiag": 200,
+      "returncode": 0,
+      "signalled": false,
+      "wall_s": 4.5,
+      "abort_message": false,
+      "abort_message_step": null,
+      "refused_by_guard": false,
+      "diagnostic_reports": 20,
+      "guard": {
+        "measured_arm": 1.000146813630374,
+        "measured_arm_wavenumber": 3,
+        "control_arm": 1.00014675691533,
+        "control_arm_wavenumber": 3
+      },
+      "completed": true,
+      "died_after_step": null,
+      "died_before_step": null,
+      "predicted_growth_per_step": 1.0
+    },
+    {
+      "timestep_minutes": 6.0,
+      "conversion_time_level": true,
+      "steps_requested": 4000,
+      "ndiag": 200,
+      "returncode": 0,
+      "signalled": false,
+      "wall_s": 4.8,
+      "abort_message": false,
+      "abort_message_step": null,
+      "refused_by_guard": false,
+      "diagnostic_reports": 20,
+      "guard": {
+        "measured_arm": 1.000184129473594,
+        "measured_arm_wavenumber": 4,
+        "control_arm": 1.000184081200131,
+        "control_arm_wavenumber": 4
+      },
+      "completed": true,
+      "died_after_step": null,
+      "died_before_step": null,
+      "predicted_growth_per_step": 1.0
+    },
+    {
+      "timestep_minutes": 15.0,
+      "conversion_time_level": false,
+      "steps_requested": 4000,
+      "ndiag": 200,
+      "returncode": 0,
+      "signalled": false,
+      "wall_s": 4.8,
+      "abort_message": false,
+      "abort_message_step": null,
+      "refused_by_guard": false,
+      "diagnostic_reports": 20,
+      "guard": null,
+      "completed": true,
+      "died_after_step": null,
+      "died_before_step": null,
+      "predicted_growth_per_step": 1.10468796
+    },
+    {
+      "timestep_minutes": 10.0,
+      "conversion_time_level": false,
+      "steps_requested": 4000,
+      "ndiag": 200,
+      "returncode": 0,
+      "signalled": false,
+      "wall_s": 4.6,
+      "abort_message": false,
+      "abort_message_step": null,
+      "refused_by_guard": false,
+      "diagnostic_reports": 20,
+      "guard": null,
+      "completed": true,
+      "died_after_step": null,
+      "died_before_step": null,
+      "predicted_growth_per_step": 1.03125546
+    }
+  ]
+}
