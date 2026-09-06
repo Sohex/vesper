@@ -981,10 +981,11 @@ def main() -> None:
     glacial_ice = {
         "density_kg_m3": rhoglac,
         "declared_temperature_k": tglacref,
-        "why_this_temperature": "the one landmod already evaluates the snow "
-                                "conductivity at, so the two cryosphere "
-                                "materials are stated at one temperature "
-                                "rather than two",
+        "why_this_temperature": "the melting point of the modelled snow less "
+                                "ten kelvin, which is within 0.15 K of "
+                                "landmod's TSNOWREF, so the two cryosphere "
+                                "materials are stated at one temperature to "
+                                "the precision either of them turns on",
         "specific_heat_j_kg_k": round(glac_state["cp"], 4),
         "heat_capacity_j_m3_k": round(glac_cap, 1),
         "heat_capacity_source": "IAPWS-06 at the declared temperature, times "
