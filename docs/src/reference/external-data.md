@@ -81,6 +81,34 @@ and sizes come from the Dataverse API without credentials:
 2011 companion compilation is `doi:10.5683/SP2/TTJNIU`. This is the permeability
 GW-3 would run an Earth calibration on.
 
+**Pelletier et al. (2016) soil, regolith and sedimentary deposit thickness**,
+ORNL DAAC `doi:10.3334/ORNLDAAC/1304`, six GeoTIFFs on a 30-arcsecond grid from
+90N to 60S, openly licensed. Checked 2026-09-05 for world-kqtc, which asks
+whether GW-18's sourced aquifer thickness can be scored on Earth.
+
+**The route needs NO Earthdata login, and finding that out is the point of this
+entry.** The listing at `daac.ornl.gov/daacdata/...` redirects to an Earthdata
+OAuth prompt, which is what makes the dataset look credentialed. The archive's
+own file paths do not:
+`https://data.ornldaac.earthdata.nasa.gov/protected/global_soil/Global_Soil_Regolith_Sediment/data/<file>`
+answers 303 with a signed CloudFront URL to an anonymous client and the file
+returns 200 -- `average_soil_and_sedimentary-deposit_thickness.tif` is
+73,091,828 bytes. The user guide, which carries the file list and the valid
+ranges, is on the same host under `/public/.../comp/Global_Soil_Regolith_Sediment.pdf`.
+
+**AND IT IS NOT A COMPARATOR FOR `cover_thickness`, which is what world-kqtc
+actually needed to know.** Every thickness layer in it is capped at a maximum
+valid value of 50 m -- 4.2 m for the soil layer alone -- because the quantity is
+the permeable soil and regolith veneer above bedrock. Orogen's `cover_thickness`
+is the surviving sedimentary and volcanic cover over BASEMENT, whose land median
+on `canonical-10m-carve2` is 332 m and whose maximum is 2,953 m. The two are the
+same shape of number about different rock and they differ by two orders of
+magnitude, so scoring GW-18's arm against this grid would not test GW-18; it
+would silently replace a basin-fill thickness with a regolith thickness. What
+this dataset IS a comparator for is a regolith-thickness reading of the aquifer,
+which is a different model and would have to be argued as one. A basin-fill
+comparator would be a sedimentary-thickness compilation, and GlobSed is marine.
+
 **Berghuijs et al. (2022) global recharge**, Zenodo `10.5281/zenodo.7611675`,
 CC-BY 4.0, `RechargeTotal.nc` at 6.2 GB in mm/yr with a companion recharge
 fraction. RECHARGE rather than precipitation, which is the quantity a water
