@@ -381,6 +381,19 @@ explicit factor of two; `notes/audits/albedo-attenuation.md` measured 0.38 with
 a span of 0.29 to 0.48 on four paired arms, which is a factor of 1.66 and is
 now one bracket among four rather than the whole of the uncertainty.
 
+ONE LINK CARRIES A DECLARED BUILD MISMATCH AND IT IS NOT THIS CHAIN'S TO REPAIR.
+`lib/sensitivity.py`'s flux-to-kelvin slope was measured on a pair of arms on
+`canonical-10m-base` against a configured `canonical-10m-carve2`, and
+`scripts/check_consistency.py` fails on exactly that; the arms keep their
+identity and their convergence reports, so what is wrong with them is the build.
+world-fciz holds the purchase that closes it. Every kelvin claim in this tree
+rests on that one slope, including the attenuation above, which was back-solved
+through it -- so this chain inherits the mismatch rather than introducing it,
+and the alternative is picking a second slope, which is what having three of
+them in simultaneous use once cost a factor of 2.2. The derived limit moves
+inversely with the slope, so a slope wrong by a fifth moves it by a fifth, well
+inside the chain's own factor of two.
+
 ## What each quantity owes, and the twenty-seven-fold it was costing
 
 THAT DERIVATION IS ABOUT AGGREGATE COVER, and the contract used to apply its

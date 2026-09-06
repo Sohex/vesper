@@ -66,6 +66,14 @@ The cover magnitudes come from an LPJ run, and no run in this tree is accepted
 yet, so `cover_robustness` reports how far those magnitudes would have to move
 to change the verdict. That is what makes an answer taken on a refused run worth
 having: the verdict, not the covers, is what has to survive.
+
+The flux-to-kelvin slope carries a declared build mismatch of its own, which
+world-fciz holds and `scripts/check_consistency.py` fails on. It is read here
+anyway and deliberately: it is the project's ONE such conversion, every kelvin
+claim in this tree including the measured attenuation rests on it, and the only
+alternative is a second slope. The derived limit moves inversely with it, so a
+slope wrong by a fifth moves the answer by a fifth and leaves the verdict where
+it is.
 """
 
 from __future__ import annotations
