@@ -133,16 +133,20 @@ def _declared_climatology(config: dict, key: str,
 
 def declared_climatology(config: dict, key: str,
                          rung: str | None = None) -> str | None:
-    """The repo-relative path config declares under `key`, or None. NEVER RAISES.
+    """The repo-relative path config declares under `key`, or None.
 
-    THE ONE PLACE THE DECLARATION'S SHAPE IS KNOWN, and the reason it is public.
-    The three resolvers above raise, apply the grid guard and return an absolute
-    path, which is right for a step about to read a climatology and wrong for
-    the handful of callers that want the DECLARATION itself: a comparison
-    against a provenance record, a report of what is named, a caller that must
-    fall back rather than fail. Those four read `config.get(key)` and treated
-    the answer as a string, which the mapping form is not. A shape known in five
-    places is a shape that goes out of step.
+    NOTHING DECLARED IS None RATHER THAN A REFUSAL, which is the whole
+    difference from the three resolvers: they raise, apply the grid guard and
+    return an absolute path, which is right for a step about to read a
+    climatology and wrong for the handful of callers that want the DECLARATION
+    itself -- a comparison against a provenance record, a report of what is
+    named, a caller that must fall back rather than fail. Those four read
+    `config.get(key)` and treated the answer as a string, which the mapping form
+    is not. A shape known in five places is a shape that goes out of step, so
+    THIS IS THE ONE PLACE THAT KNOWS IT and that is why it is public.
+
+    A rung that is not on the ladder still raises, here as everywhere: that is
+    an error about the question rather than an absence of an answer.
 
     See `_declared_climatology` for the two accepted forms and why the rung is
     part of the declaration.
