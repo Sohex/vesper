@@ -973,6 +973,100 @@ def check_no_write_through_a_symlink() -> list[str]:
     return bad
 
 
+# Every generator that puts `lib/write_door.py`'s refusal at its write door, and
+# the group of regenerable artifact it guards. `notes/audits/worktree-write-
+# through.md` enumerates the groups and says which want a door; this says which
+# doors exist, so the two can be read against each other.
+WRITE_DOORS = {
+    "exoplasim/scripts/sra.py":
+        "exoplasim/inputs/<rung>/ staged .sra, for all four builders at once",
+    "biosphere/scripts/build_vesper_header.py":
+        "vendor/lpj-guess/framework/vesper.h",
+    "aeolian/scripts/build_dust.py":
+        "aeolian/analysis/dust_baseline.nc and its report",
+    "hydrography/scripts/build_hydrography.py":
+        "hydrography/data/<build>/ regions, basins and the coupling matrices",
+    "hydrography/scripts/surface_water.py":
+        "hydrography/data/<build>/surface_water.nc",
+    "hydrography/scripts/build_wetness.py":
+        "hydrography/data/<build>/wetness_<grid>.nc",
+    "hydrography/scripts/build_topographic_index.py":
+        "hydrography/data/<build>/topographic_index_<grid>.nc",
+    "hydrography/scripts/build_spatial_support.py":
+        "hydrography/data/<build>/ support and the resume checkpoint",
+    "hydrography/scripts/export_carve_list.py":
+        "hydrography/data/<build>/carve_list.txt and .json",
+    "exoplasim/scripts/build_climatology.py":
+        "exoplasim/analysis/climatology/, for every mean it writes",
+    "exoplasim/scripts/analyze_climatology.py":
+        "exoplasim/analysis/climatology/ classification, report and maps",
+    "exoplasim/scripts/compare_equilibria.py":
+        "exoplasim/analysis/ladder/ comparisons",
+    "exoplasim/scripts/convert_restart.py":
+        "exoplasim/analysis/ladder/ converted restarts and their reports",
+}
+
+DOOR_CALLS = ("refuse_a_write_through_a_symlink", "_refuse_write_through")
+
+
+def check_write_doors_are_installed(files: list[Path]) -> list[str]:
+    """Every writer that should refuse a write through a link still does.
+
+    THE DOOR IS ONE CALL AND NOTHING FAILS WHEN IT GOES. A guard that is
+    reached only in a worktree, and only by a generator someone happens to run
+    there, is invisible to every other pass in this tree: deleting the call
+    leaves a script that runs, imports, and produces the same artifact
+    everywhere it is normally exercised. So what is checked is that the call is
+    still in the file.
+
+    TWO-SIDED, so the table is not a private copy of itself. A registered
+    writer that no longer calls the door fails, and a writer that calls the
+    door without being registered fails too -- which is what stops the next
+    door from being installed and forgotten, and keeps the table readable
+    against `notes/audits/worktree-write-through.md`'s enumeration of the
+    groups.
+
+    STATIC, because the behaviour it stands for is proved elsewhere:
+    `lib/write_door.py --self-test` answers what the refusal does, and
+    `check_no_write_through_a_symlink` runs one caller's door against a real
+    symlink. Running thirteen generators would be the wrong tier and would not
+    answer a question those two leave open.
+    """
+    module = "lib/write_door.py"          # defines the refusal and self-tests it
+    gate = "scripts/smoke_test.py"        # holds the table above
+    reaches, calls = set(), set()
+    for f in files:
+        rel_path = str(f.relative_to(ROOT))
+        if rel_path in (module, gate):
+            continue
+        text = f.read_text(encoding="utf-8")
+        if "write_door" not in text and DOOR_CALLS[0] not in text:
+            continue
+        reaches.add(rel_path)
+        for node in ast.walk(ast.parse(text)):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
+            if name in DOOR_CALLS:
+                calls.add(rel_path)
+                break
+
+    bad = []
+    for rel_path, guards in sorted(WRITE_DOORS.items()):
+        if rel_path not in reaches:
+            bad.append(f"{rel_path} no longer reaches lib/write_door.py, and it "
+                       f"is the door on {guards}")
+        elif rel_path not in calls:
+            bad.append(f"{rel_path} imports the write door and never calls it, so "
+                       f"{guards} is unguarded")
+    for rel_path in sorted(reaches - set(WRITE_DOORS)):
+        bad.append(f"{rel_path} reaches lib/write_door.py and is not in "
+                   f"WRITE_DOORS. Add it with the group it guards, and record "
+                   f"the group in notes/audits/worktree-write-through.md")
+    return bad
+
+
 def check_production_window() -> list[str]:
     """`segments.py:production_window` picks the window a declaration implies.
 
@@ -6454,6 +6548,8 @@ def main() -> None:
                lambda: check_production_span_is_self_limiting()),
         ("a staged field is never written through a symlink",
                lambda: check_no_write_through_a_symlink()),
+        ("every writer with a write door still calls it",
+               lambda: check_write_doors_are_installed(files)),
         ("orbits no segment covers refuse rather than defaulting",
                lambda: check_uncovered_trailing_orbits_refuse()),
         ("a verdict window is refused across an I/O-regime change",

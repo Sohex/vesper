@@ -33,6 +33,7 @@ import drainage as dr
 import gridding
 import rungs
 from orogen import Export, LAND, OCEAN
+from write_door import refuse_a_write_through_a_symlink
 
 N_LEVELS = 128  # samples per basin hypsometric curve
 
@@ -238,6 +239,16 @@ def main() -> None:
                 "--output explicitly")
         out = DATA / terrain_build
     out.mkdir(parents=True, exist_ok=True)
+    # BEFORE the drainage solve, not at each write: a refusal that arrives after
+    # the priority flood has run costs the whole build to say what the output
+    # path said at the start. The coupling matrices are guarded in their own
+    # loop, because which of them are written depends on what is present.
+    for _product in ("regions.nc", "basins.nc", "hydrography_report.json"):
+        refuse_a_write_through_a_symlink(
+            out / _product,
+            what="a hydrography product every component downstream reads",
+            instead=("Pass --output to a path inside this worktree, or run the "
+                     "generator in the main checkout."))
     print(f"{ex.n_regions:,} regions, {n_basins} preserved basins")
 
     print("resolving drainage (priority flood)...")
@@ -349,6 +360,11 @@ def main() -> None:
         if not (gd / "manifest.json").is_file():
             print(f"  skipping {g}: not present")
             continue
+        refuse_a_write_through_a_symlink(
+            out / f"coupling_{g}.nc",
+            what="a basin-to-grid coupling matrix a run there may be reading",
+            instead=("Pass --output to a path inside this worktree, or run the "
+                     "generator in the main checkout."))
         c = couple_to_grid(ex, drn, gd, n_basins)
         couplings[g] = {"pairs": int(c["basin"].size), "n_lat": c["n_lat"], "n_lon": c["n_lon"]}
         with Dataset(out / f"coupling_{g}.nc", "w") as ds:

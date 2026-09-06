@@ -42,6 +42,7 @@ from netCDF4 import Dataset
 import numpy as np
 
 from _paths import ANALYSIS
+from write_door import refuse_a_write_through_a_symlink
 # One reader of the manifest's segment records, for every question about what
 # an orbit was for: see exoplasim/scripts/segments.py.
 from segments import low_io_orbits, non_production_orbits
@@ -97,6 +98,16 @@ def average_files(paths: list[Path], output: Path, product: str,
         if not path.is_file():
             raise RuntimeError(f"Missing climatology input {path}")
 
+    # THE ONE DOOR for every climatology this script writes -- the regular
+    # mean, the snapshot mean and each per-orbit mean go through here. What
+    # makes the climatology worse than most groups to write through is that the
+    # biosphere, the offline ocean and the carve verdict all read it out of the
+    # main checkout, so the replacement lands under a component that is not
+    # running.
+    refuse_a_write_through_a_symlink(
+        output, what="a climatology downstream components read",
+        instead=("Pass --output to a directory inside this worktree, or run "
+                 "the generator in the main checkout."))
     output.parent.mkdir(parents=True, exist_ok=True)
     with Dataset(paths[0]) as template, Dataset(output, "w", format="NETCDF4") as dst:
         for name, dim in template.dimensions.items():
@@ -402,6 +413,14 @@ def main() -> None:
                          "every consumer raises rather than guessing")
     series = climate_series(regular, list(years), float(orbit_seconds))
     series_path = output_dir / f"{args.label}_climate_series.json"
+    # The run manifest below is NOT guarded, and the difference is the caller
+    # contract in `lib/write_door.py`: `exoplasim/runs/` is linked WHOLE on
+    # purpose, so a run started in a worktree survives it, and recording a
+    # climatology against the run it came from is that arrangement working.
+    refuse_a_write_through_a_symlink(
+        series_path, what="the climate series beside a climatology",
+        instead=("Pass --output to a directory inside this worktree, or run "
+                 "the generator in the main checkout."))
     series_path.write_text(json.dumps(series, indent=2) + "\n", encoding="utf-8")
 
     manifest_path = run_dir / "run_manifest.json"

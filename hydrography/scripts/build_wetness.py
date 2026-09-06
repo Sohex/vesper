@@ -96,6 +96,7 @@ from _paths import ANALYSIS, CONFIG, DATA          # noqa: F401  puts lib/ on th
 import builds
 import gridding
 from orogen import Export, LAND
+from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 
 CFG_PATH = Path(__file__).resolve().parents[1] / "config" / "wetness.yaml"
 TI_CFG = Path(__file__).resolve().parents[1] / "config" / "topographic_index.yaml"
@@ -501,6 +502,10 @@ def main() -> int:
         print(f"    {k}")
 
     out = args.output or (data / f"wetness_{grid_name}.nc")
+    refuse_a_write_through_a_symlink(
+        out, what="the wetness classification a consumer of this build reads",
+        instead=("Pass --output to a path inside this worktree, or run the "
+                 "generator in the main checkout."))
     with Dataset(out, "w", format="NETCDF4") as ds:
         ds.title = "Mutually exclusive wetness classification and its area shares"
         ds.summary = (
@@ -611,6 +616,9 @@ def main() -> int:
     }
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     rp = ANALYSIS / "wetness_report.json"
+    refuse_a_write_through_a_symlink(
+        rp, what="this component's record of the wetness classification",
+        instead="Run the generator in the main checkout.")
     rp.write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nwrote {out}\nwrote {rp}")
     return 0

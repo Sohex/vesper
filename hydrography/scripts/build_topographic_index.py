@@ -65,6 +65,7 @@ from _paths import ANALYSIS, CONFIG, DATA          # noqa: F401  puts lib/ on th
 import builds
 import gridding
 from orogen import Export, LAND
+from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 
 CFG_PATH = Path(__file__).resolve().parents[1] / "config" / "topographic_index.yaml"
 SCORE_PATH = ANALYSIS / "topographic_index_score.json"
@@ -302,6 +303,10 @@ def main() -> int:
                 else DATA / args.build)
     data_dir.mkdir(parents=True, exist_ok=True)
     out = args.output or (data_dir / f"topographic_index_{grid_name}.nc")
+    refuse_a_write_through_a_symlink(
+        out, what="the topographic index a saturated fraction is read from",
+        instead=("Pass --output to a path inside this worktree, or run the "
+                 "generator in the main checkout."))
 
     with Dataset(out, "w", format="NETCDF4") as ds:
         ds.title = "Compound topographic index and its cell rank statistic"
@@ -430,6 +435,9 @@ def main() -> int:
     }
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     rp = ANALYSIS / "topographic_index_report.json"
+    refuse_a_write_through_a_symlink(
+        rp, what="this component's record of the topographic index",
+        instead="Run the generator in the main checkout.")
     rp.write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nwrote {out}\nwrote {rp}")
     return 0

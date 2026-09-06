@@ -42,6 +42,7 @@ import lake_balance as lb  # noqa: E402
 from orogen import LAND, Export  # noqa: E402
 from paths import best_available_climatology, rel  # noqa: E402
 from provenance import staged_surface_field  # noqa: E402
+from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 
 import builds  # noqa: E402
 import climatology  # noqa: E402
@@ -768,6 +769,10 @@ def main():
           f"{int((discharge > 1000).sum()):,} regions above 1000 m3/s")
 
     out = args.output or (data_dir() / "surface_water.nc")
+    refuse_a_write_through_a_symlink(
+        out, what="the solved lake and river field the carve verdict reads",
+        instead=("Pass --output to a path inside this worktree, or run the "
+                 "generator in the main checkout."))
     with Dataset(out, "w") as ds:
         ds.createDimension("region", n)
         ds.createDimension("basin", basins.n)
@@ -978,7 +983,11 @@ def main():
             capture_output=True, text=True).stdout.strip(),
     }
     ANALYSIS.mkdir(parents=True, exist_ok=True)
-    (ANALYSIS / "surface_water_report.json").write_text(json.dumps(report, indent=2) + "\n")
+    _report = ANALYSIS / "surface_water_report.json"
+    refuse_a_write_through_a_symlink(
+        _report, what="this component's record of the solved lake field",
+        instead="Run the generator in the main checkout.")
+    _report.write_text(json.dumps(report, indent=2) + "\n")
     print(f"wrote {out}")
 
 
