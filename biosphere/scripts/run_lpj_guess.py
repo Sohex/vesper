@@ -328,6 +328,48 @@ def continuity_verdict(binary: Path) -> None:
             "report a spin-up it did not integrate. world-glu7.")
 
 
+def state_sentinels_refusals(run_dir: Path, ranks: int,
+                             state: dict | None) -> list[str]:
+    """Did the model read the two restart integers this run declared?
+
+    `state_day` and `save_day` are the only integer parameters LPJ-GUESS
+    declares whose minimum is negative, and -1 in either is a SENTINEL: it means
+    the year boundary, not a day. `libraries/plib` stored an integer as
+    `(int)(num + 0.5)`, which truncates toward zero, so -1 arrived as 0 and
+    every restart taken here saved at the end of day 0 of `state_year` and
+    resumed at day 1 of it while every document said year boundary. Nothing
+    refused it, because 0 is in range and everything downstream was computed
+    from 0 consistently, and no check could have: the instruction file, this
+    runner and the fixture all held copies of the rule and all agreed with each
+    other. world-glu7.
+
+    So `framework/framework.cpp` prints what it PARSED and this reads it back.
+    It is checked after the run rather than before because that is when the log
+    exists, and what it protects is the MANIFEST: a run whose state file covers
+    an instant other than the one recorded beside it is a state file no later
+    run can safely continue from.
+    """
+    if not state:
+        return []
+    for rank in range(1, ranks + 1):
+        log = run_dir / f"run{rank}" / "guess.log"
+        if not log.is_file():
+            continue
+        for line in log.read_text(errors="replace").splitlines():
+            head = line.strip()
+            if not head.startswith("Restart instants:"):
+                continue
+            parts = head.replace("Restart instants:", "").split()
+            seen = {"state_day": int(parts[1]), "save_day": int(parts[3])}
+            return [f"the instruction file declares {name} {state[name]} and "
+                    f"the model parsed {seen[name]}"
+                    for name in ("state_day", "save_day")
+                    if seen[name] != state[name]]
+    return ["the model logged no restart instants, so which instant its state "
+            "file covers is not known. Rebuild: framework.cpp prints them "
+            "whenever a run restarts or saves."]
+
+
 def state_block(spinup: int, nyear: int, run_dir: Path,
                 parent: dict | None, parent_state: Path | None = None,
                 save_state: bool = True) -> dict:
@@ -921,6 +963,17 @@ def main() -> None:
     if (run_dir / "anpp.out").is_file():
         rows = (run_dir / "anpp.out").read_text().splitlines()[1:]
         cells = len({(r.split()[0], r.split()[1]) for r in rows if r.split()})
+
+    # WHAT THE MODEL ACTUALLY READ. Checked before the manifest is written,
+    # because the manifest is what a later continuation trusts.
+    sentinels = state_sentinels_refusals(run_dir, args.ranks, state)
+    if sentinels:
+        raise SystemExit(
+            "Refusing to record this run:\n  " + "\n  ".join(sentinels)
+            + f"\n\nThe state file in {run_dir / 'state'} covers a different "
+            "simulated instant from the one this run asked for, and a manifest "
+            "recording the asked-for instant would make it continuable from the "
+            "wrong day. world-glu7.")
 
     manifest = {
         "run_id": run_id,
