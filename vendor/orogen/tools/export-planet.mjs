@@ -74,7 +74,10 @@ const HELP = `
 Headless World Orogen generation + data export.
 
   --out DIR              output directory (default: out/planet-<seed>).
-                         One per --grid; see the note there.
+                         One per --grid; see the note there. A directory that
+                         already holds an export is REFUSED before generation
+                         and there is no override: export to a new directory,
+                         and remove a failed one yourself.
   --code STR             planet code; supplies seed and every slider. Any explicit
                          flag given alongside it wins. Codes predating the basin and
                          rock-contrast sliders decode with both OFF, which is what
