@@ -410,16 +410,92 @@ own closure block is a fourth reader.
 | consumer | quantity | tolerance | derivation |
 | --- | --- | --- | --- |
 | `build_surface_albedo.py --mode modelled` | `fpc.out` tree cover, grass cover | 0.05 | `derive_cover_tolerance.py`, the chain above, which is ABOUT these two |
-| `build_soil.py` | `cpool.out` SoilC | 0.05 | the tightest derived in this tree, applied conservatively to an unpriced chain |
-| `lpj_acceptance.yaml` closure | `cpool.out` and `npool.out` Totals, `soil_npool.out` NO2/NO/N2O/N2, `maet.out`, `mevap.out`, `mintercep.out` months, `tot_runoff.out` Total | 0.05 | the same, and the closure imposes no drift tolerance of its own |
+| `build_soil.py` | `cpool.out` SoilC | 0.05 | priced through the water-capacity chain, which cannot ask for tighter |
 | `score_prediction.py` | `anpp.out` Total, `lai.out` Total, `fpc.out` tree, grass, C4G and boreal cover | 0.2727 | tightest half-width over centre of the ten pre-registered bands |
 
 The albedo chain's number is the one derived above and it applies to the two
-quantities it was derived for. `build_soil.py`'s own chain -- soil carbon to
-organic mass fraction to volumetric water capacity to the model's `dwmax` --
-has not been priced, so SoilC and the closure's four pool and flux totals take
-the tightest tolerance derived anywhere in this tree. That is conservative and
-is recorded as conservative rather than as a derivation.
+quantities it was derived for.
+
+## The five quantities that carried the tightest number in the tree
+
+The assessed set used to carry five quantities at 0.05 with the derivation
+recorded as "the tightest tolerance derived in this tree, applied
+conservatively to an unpriced chain". A conservative number is not better than
+none when nothing demands it: it refuses runs and buys nothing, which is the
+defect a per-plant-functional-type column was costing before this contract
+scoped itself to consumers. The five split into two cases and only one of them
+was a missing derivation.
+
+### `cpool.out` SoilC, and its chain is now priced
+
+`build_soil.py:organic_properties` turns soil carbon into an organic mass
+fraction through the Adams reciprocal mixing rule, and
+`pedology/config/pedogenesis.yaml` enters that fraction into the volumetric
+plant-available water capacity as an additive term beside the texture and
+allophane ones. That capacity is the climate model's `dwmax`, whose overflow IS
+its runoff. THE GAIN ALONG THAT CHAIN IS ABOUT A TWENTIETH. Measured on
+2026-09-05 from `lpj_7d3c576ee4e342acb097b46fece976e0`'s own soil carbon and the
+soil report's land-mean texture: at a land-mean 9.15 kgC/m2 of rootable ground,
+0.838 of it rootable, the organic mass fraction is 0.0196 and the organic term
+is 0.045 of the capacity, and the fraction's elasticity in soil carbon is 1.11.
+So a relative drift of `X` in soil carbon moves the capacity by 0.050 `X`,
+bracketed 0.034 to 0.065 over `volumetric_capacity_organic`'s own bracket.
+
+At the declared tolerance that is a capacity perturbation of a quarter of a per
+cent, against a capacity whose OWN declared bracket is 74.3 to 130.1 mm about
+98.2, which is plus or minus twenty-nine per cent. The perturbation is two
+orders of magnitude below the uncertainty of the thing it perturbs, and it would
+take a soil carbon drift of over five hundred per cent to reach it. NOTHING THAT
+ROUTE CAN ASK FOR IS TIGHTER THAN 0.05.
+
+LOOP B'S EXIT CRITERION IS THE OTHER READER AND IT CANNOT PRICE THIS YET.
+`scripts/verify_joint_convergence.py` differences the land mean of the soil
+map's `soilc` column between successive iterations against
+`convergence.soil_carbon_relative_tolerance`, and that column is this one at
+unit gain: `build_soil.py` writes LPJ's soil carbon into it directly. Two things
+stop it setting the number. The tolerance carries no derivation of its own, so
+pricing this one against it would launder one undeclared number into another and
+lengthen every future run on that basis. And the criterion is a DIFFERENCE
+between two runs of the same model under the same forcing and the same spin-up
+policy, whose residual drifts are largely common and cancel from it at a gain
+nobody has measured -- the same reason a paired A/B is the wrong bar for the
+cover quantities above.
+
+### The closure's four totals owe no drift tolerance, and they have left the set
+
+`cpool.out` and `npool.out` Total, `aaet.out` Total and `tot_runoff.out` Total
+were assessed because the acceptance contract's own closure block reads them.
+The closure imposes no drift tolerance, and this is a property of its
+arithmetic rather than of any run.
+
+THE POOL CLOSURES ARE CONSERVATION IDENTITIES. `assess_lpj_run.py:closure_report`
+forms `(stock[-1] - stock[0]) + sum(flux)` against a share of the summed flux
+magnitude. A drifting pool enters both sides: the test holds exactly when the
+model conserves and fails exactly when it does not, at any state of drift.
+
+THE WATER CLOSURE HAS NO STOCK TERM AT ALL. Its residual is precipitation minus
+the three evaporative losses and runoff, which IS the implied change in soil
+water, ice and snowpack, and those stores reach no annual table. So what it
+needs settled is a quantity it cannot see, and a drift tolerance on a runoff or
+a transpiration column is not that requirement.
+
+`aaet.out` Total's recorded reader was `stability_outputs`, which is the list of
+tables this reducer runs on. It was assessed because it was assessed.
+
+WHAT LEAVING THE SET DOES AND DOES NOT DO. All four keep a reported drift bound
+on the acceptance artifact as a diagnostic, so what left the claim is visible
+rather than absent, and the closure block still runs on every one of them: a run
+that stops conserving carbon is refused exactly as before. What narrowed is the
+claim that these four have SETTLED, and nothing was making use of it.
+
+AND IT CHANGES THE VERDICT ON THE RECORD ON DISK, which has to be said rather
+than discovered. Re-read from `lpj_7d3c576ee4e342acb097b46fece976e0`'s
+acceptance artifact, the drift half's only failure was `cpool.out` total carbon
+at 0.0503 against 0.05, and it is one of the four. Every quantity that remains
+settles: 0.0107, 0.0151, 0.0186, 0.0420, 0.0744, 0.0683 and 0.0153 against their
+own limits. The drift the refusal was reporting is real, it lives in vegetation
+carbon, and it has not gone anywhere -- what changed is that no consumer asks
+for it to be gone. A reader who wants to weigh that has both halves here.
 
 `score_prediction.py`'s tolerance IS derived, from bands fixed in
 `notes/productivity-prediction.md` before the model ran a Vesper gridcell: a
@@ -458,8 +534,8 @@ the global half does. It is still a slope over `complete_forcing_cycles`, so it
 still sits inside one memory time, and its size is still absorbed into a limit
 measured from the run's own detrended windows rather than derived. Its family
 false-refusal rate is 0.34 on 100 windows and about 0.24 on the 124 a 1253-cycle
-record leaves; over eleven assessed quantities rather than 64 columns it is
-smaller than either, and it is still not derived. That errs toward REFUSING, so
+record leaves; over the assessed quantities rather than the 64 columns of the
+seven stability tables it is smaller than either, and it is still not derived. That errs toward REFUSING, so
 a pass through it is evidence and a refusal through it is not, and its
 empirical-null construction needs many windows and therefore cannot adopt the
 whole-record statistic. world-4hlw holds the analytic replacement.
@@ -508,8 +584,8 @@ Measured on the same record:
 | fpc.out tree cover, the albedo consumer's own quantity | 0.0186 | inside 1253 |
 | fpc.out grass cover, the albedo consumer's own quantity | 0.0420 | inside 1253 |
 | cpool.out SoilC, the soil consumer's quantity and loop B's exit | 0.0153 | inside 1253 |
-| every other assessed quantity | 0.0031 to 0.0744 against 0.05 or 0.2727 | inside 1253 |
-| cpool.out Total, the carbon closure's pool | 0.0503 against 0.05 | inside 1253 |
+| every other assessed quantity | 0.0107 to 0.0744 against 0.05 or 0.2727 | inside 1253 |
+| cpool.out Total, a diagnostic since it left the set | 0.0503 against a former 0.05 | inside 1253 |
 | anpp.out TrBR, a column no consumer reads | 0.4758 | 33846 |
 | aaet.out IBS, a column no consumer reads | 0.3105 | 26128 |
 
@@ -518,14 +594,16 @@ every column that does not is an individual plant functional type's. So the
 record floor is the record on disk, and the eight and three quarter hours the
 old assessed set asked for is not owed.
 
-ONE ASSESSED QUANTITY IS STILL REFUSED, and it is refused for drifting rather
-than for being unresolved: `cpool.out` Total bounds at 0.0503 against 0.05, on
-a drift estimate of 0.0113 that a settled series of its scatter would resolve
-inside the record it already has. The drift lives in `cpool.out` VegC, which
-bounds at 0.1495 -- vegetation carbon is still redistributing between the woody
-types while the COVER those types present has settled. That is a refusal a
-longer record does not answer and a longer spin-up does, which is the
-distinction the two floors exist to keep apart.
+THE DRIFT THAT USED TO REFUSE THIS RECORD IS STILL IN IT, and it is worth
+keeping the measurement now that no consumer asks about it. `cpool.out` Total
+bounds at 0.0503 on a drift estimate of 0.0113 that a settled series of its
+scatter would resolve inside the record it already has, so it was never a
+resolution problem. The drift lives in `cpool.out` VegC, which bounds at 0.1495:
+vegetation carbon is still redistributing between the woody types while the
+COVER those types present has settled. A longer record does not answer that and
+a longer spin-up does, which is the distinction the two floors exist to keep
+apart, and it is why the diagnostic is worth reading even though the claim no
+longer covers it.
 
 ### The relaxation time, measured without its asymptote
 
@@ -646,16 +724,18 @@ none is current.
 accepted. Every cover magnitude quoted from a run in this note is therefore from
 a refused run and is indicative of scale only.
 
-WHAT SEPARATES THE TREE FROM AN ACCEPTED RUN IS NOW ONE QUANTITY. Re-assessed
-under contract 5, `lpj_7d3c576ee4e342acb097b46fece976e0` settles ten of its
-eleven assessed quantities on the record it already has -- both the cover
-quantities the albedo consumer reads among them -- and is refused by
-`cpool.out` total carbon at 0.0503 against 0.05. That refusal is a drift and not
-a resolution: a settled series of its scatter closes inside the record it has,
-and the drift lives in vegetation carbon, which is what an under-spun run leaves
-behind. The run carried a 2318-cycle spin-up against the 8600 the minimax now
-derives.
+NO ASSESSED QUANTITY REFUSES THE RECORD ON DISK ANY MORE, and the reason is a
+change to the assessed set rather than to the record. Re-assessed under contract
+5, `lpj_7d3c576ee4e342acb097b46fece976e0` settled every assessed quantity except
+`cpool.out` total carbon at 0.0503 against 0.05, and that quantity left the set
+when its only reader was found to impose no drift tolerance. The section above
+carries both halves of that, because the run's numbers and the argument have to
+be readable together.
 
-A run at the derived floors -- 8600 spin-up, 1253 retained, about two and a half
-hours -- is what would settle it, and it is the only thing between this tree and
-its first accepted LPJ run. It is not a purchase this note makes.
+What remains between this tree and its first accepted LPJ run is therefore the
+rest of the gate rather than the drift half: the closure, the per-cell half, and
+`build_surface_albedo.py --mode modelled` never having been staged. The run
+carried a 2318-cycle spin-up against the 8600 the minimax now derives, and a run
+at the derived floors -- 8600 spin-up, 1253 retained, about two and a half hours
+-- is still what settles the vegetation carbon the diagnostic reports. It is not
+a purchase this note makes.

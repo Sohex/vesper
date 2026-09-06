@@ -39,6 +39,30 @@ reported_span: whole_retained_record
 # ADDING A CONSUMER ADDS A ROW HERE. That is the whole of the maintenance rule:
 # a quantity is assessed because something reads it, so a new reader that forms
 # a sum this list does not name is a sum this contract has not certified.
+#
+# AND A READER THAT IMPOSES NO DRIFT TOLERANCE IS NOT A CONSUMER FOR THIS
+# PURPOSE. The acceptance contract's own closure block used to put four pool and
+# flux totals here -- cpool.out and npool.out Total, aaet.out Total and
+# tot_runoff.out Total -- at the tightest tolerance derived anywhere in the tree,
+# on the ground that a conservative number is better than none. It is not: a
+# tolerance nothing demands refuses runs and buys nothing, which is the same
+# defect a per-plant-functional-type column was costing before this contract
+# scoped itself to consumers.
+#
+# THE POOL CLOSURES ARE CONSERVATION IDENTITIES. `assess_lpj_run.py` forms
+# `(stock[-1] - stock[0]) + sum(flux)` against a share of the flux throughput,
+# and a drifting pool enters both sides of that: it holds exactly when the model
+# conserves and fails exactly when it does not, at any state of drift. THE WATER
+# CLOSURE HAS NO STOCK TERM AT ALL, so what it needs settled is the soil water,
+# ice and snowpack no annual table carries, and a drift tolerance on a runoff or
+# a transpiration column is not that requirement. `aaet.out` Total's stated
+# reader was `stability_outputs`, which is the list of tables this reducer runs
+# on: it was assessed because it was assessed.
+#
+# All four keep a reported drift bound on the acceptance artifact as a
+# diagnostic, so what left the claim is visible rather than absent, and the
+# closure block still runs on every one of them. What narrowed is the claim that
+# they have SETTLED, which nothing was making use of. world-cqoc.
 assessed:
   reduction: sum
   quantities:
@@ -60,53 +84,34 @@ assessed:
       relative_end_to_end_limit: 0.05
       read_by: [exoplasim/scripts/build_surface_albedo.py, biosphere/scripts/score_prediction.py]
       derivation: biosphere/scripts/derive_cover_tolerance.py, and it is the chain the tolerance below was derived through
-    # `build_soil.py` reads the SoilC column for positive baseline iterations, and
-    # it is loop B's exit quantity. Its own chain -- soil carbon to organic mass
-    # fraction to volumetric water capacity to the model's dwmax -- has not been
-    # priced, so it takes the tightest tolerance derived anywhere in this tree.
-    # That is conservative and it is stated as such rather than derived.
+    # `build_soil.py` reads the SoilC column for positive baseline iterations,
+    # and it is loop B's exit quantity. Its physical chain IS priced: soil carbon
+    # to organic mass fraction through the Adams mixing rule, to the volumetric
+    # plant-available water capacity as an additive term beside texture and
+    # allophane, to the climate model's dwmax, whose overflow is its runoff.
+    # The gain along it is about a twentieth -- a relative drift in soil carbon
+    # moves the capacity by 0.034 to 0.065 of itself -- so the perturbation this
+    # tolerance permits is two orders of magnitude below the capacity's OWN
+    # declared bracket in pedology/config/pedogenesis.yaml. Nothing that route
+    # can ask for is tighter than this number, and it would take a drift of over
+    # five hundred per cent for it to reach that bracket.
+    #
+    # LOOP B'S EXIT CRITERION IS THE OTHER READER AND IT CANNOT PRICE THIS YET.
+    # It differences the land-mean of this column between successive iterations
+    # against `convergence.soil_carbon_relative_tolerance`, at unit gain. Two
+    # things stop that setting the number. The tolerance it would be set from
+    # carries no derivation of its own, so pricing this one against it would
+    # launder one undeclared number into another and lengthen every future run
+    # on that basis. And the criterion is a DIFFERENCE between two runs of the
+    # same model under the same forcing and the same spin-up policy, whose
+    # residual drifts are largely common and cancel from it at a gain nobody has
+    # measured. world-cqoc holds both.
     - id: cpool.out soil carbon
       table: cpool.out
       columns: [SoilC]
       relative_end_to_end_limit: 0.05
       read_by: [pedology/scripts/build_soil.py]
-      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
-    # The closure block of biosphere/config/lpj_acceptance.yaml reads these four
-    # pool and flux totals. It compares a pool's change against its flux, which
-    # is a CONSERVATION test and holds whether or not the pool is drifting, so it
-    # imposes no drift tolerance of its own and they take the same conservative
-    # tightest-in-tree number.
-    - id: cpool.out total carbon
-      table: cpool.out
-      columns: [Total]
-      relative_end_to_end_limit: 0.05
-      read_by: [biosphere/config/lpj_acceptance.yaml closure.carbon]
-      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
-    - id: npool.out total nitrogen
-      table: npool.out
-      columns: [Total]
-      relative_end_to_end_limit: 0.05
-      read_by: [biosphere/config/lpj_acceptance.yaml closure.nitrogen]
-      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
-    # NOT evapotranspiration and not the gridcell's transpiration either:
-    # commonoutput.cpp sums indiv.aaet over the individuals still in
-    # patch.vegetation after framework.cpp has run mortality, establishment and
-    # fire disturbance, so the column is what the survivors transpired. It is a
-    # real quantity that has to settle, which is why it is assessed here; the
-    # water closure reads maet.out instead, for the reason in
-    # notes/audits/closure-stocks-are-incomplete.md.
-    - id: aaet.out surviving-individual transpiration
-      table: aaet.out
-      columns: [Total]
-      relative_end_to_end_limit: 0.05
-      read_by: [biosphere/config/lpj_acceptance.yaml stability_outputs]
-      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
-    - id: tot_runoff.out total runoff
-      table: tot_runoff.out
-      columns: [Total]
-      relative_end_to_end_limit: 0.05
-      read_by: [biosphere/config/lpj_acceptance.yaml closure.water]
-      derivation: the tightest tolerance derived in this tree, applied conservatively to an unpriced chain
+      derivation: priced through the water-capacity chain, which cannot ask for tighter; loop B's own criterion is undeclared
     # `score_prediction.py` scores ten bands fixed in notes/productivity-prediction.md
     # before the model ran a Vesper gridcell, so their tolerance is pre-registered
     # rather than chosen here: a drift must not carry a value at a band's centre
