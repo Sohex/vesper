@@ -66,9 +66,10 @@ saturated-area closure is WITHDRAWN in `config/topographic_index.yaml`: the
 score that was the only thing able to license it was run and missed, and no
 narrower support can resolve the gain it would have had to show. So that class
 is absent permanently rather than pending, and this script forms no saturated
-share from any input. Peat needs a season and nothing in this component carries
-one: the groundwater solve is a steady state and every term reaching those
-stores in `config/land_water_ledger.yaml` has an annual interval floor. The
+share from any input. Peat needs persistence of SATURATION over a cycle, and
+the cycle this component carries is one of INUNDATION by a solved lake: the
+groundwater solve is a steady state and every term reaching those stores in
+`config/land_water_ledger.yaml` has an annual interval floor. The
 CLOSED-BASIN third of seasonal inundation IS formed, and the partition is cut
 against the periodic cycle rather than the annual equilibrium:
 `surface_water.py` solves the lake balance through the climatology's own time
