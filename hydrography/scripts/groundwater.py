@@ -240,6 +240,49 @@ DUPUIT_ANALYTIC_RELATIVE = 1e-3
 
 SECONDS_PER_DAY = 86400.0
 
+# HOW THE BLOCKS ARE FACTORISED, and the keyword that was costing three hundred
+# times the work. MEASURED 2026-09-06 on this mesh's OWN free-set blocks, which
+# is the thing the earlier measurement did not use:
+#
+#     block cells   MMD_AT_PLUS_A      COLAMD        MMD + SymmetricMode
+#         5,852      0.00s   0.1M    0.00s   0.1M      0.00s   0.1M
+#        32,504      0.03s   0.7M    0.03s   0.5M      0.02s   0.4M
+#        49,013      0.73s  10.1M    0.08s   2.8M      0.06s   1.5M
+#       250,320    154.53s 308.6M    0.54s  19.4M      0.53s   9.6M
+#       310,158     11.16s  65.6M    0.47s  12.1M      0.53s   7.0M
+#
+# `MMD_AT_PLUS_A` alone is not merely worse, it is erratic: 154 s on a block of
+# 250,320 cells and 11 s on a LARGER one of 310,158. That is the signature the
+# comment at the call site already predicted and never tested on this operator
+# -- SuperLU's default partial pivoting reorders for stability and undoes the
+# symmetric ordering. On a planar-graph Laplacian, which is what the earlier
+# table was measured on, that did no harm. On the real blocks it is a disaster,
+# and it is the whole reason a solve of this build ran for forty minutes without
+# finishing a pass.
+#
+# SO THE KEYWORD GOES, AND WHAT IS LEFT IS SCIPY'S DEFAULT. COLAMD orders for
+# an unsymmetric pattern, which this operator does not have, and by the earlier
+# reasoning it was the wrong choice; on the real blocks it is 286 times faster
+# than the ordering that reasoning preferred. The fix is to stop passing an
+# argument, not to add one.
+#
+# MMD WITH `SymmetricMode` IS EQUALLY FAST AND CARRIES HALF THE FILL, and it is
+# NOT taken, for a reason that is worth more than the memory. Under COLAMD a
+# block factorised on its own is BITWISE the same as that block inside the whole
+# matrix; under `SymmetricMode` it is not, differing by about 2e-14 relative,
+# because the ordering inside a block depends on the graph it was ordered
+# within. That equality is the whole licence for factorising the free set block
+# by block, and `--factorisation-test` asserts it. An exactness that can be
+# checked is worth twice the fill; the symmetric pair belongs to world-v3ur,
+# where an arm that moves the answer can be declared as one.
+#
+# THE ANSWER STILL MOVES against the code before this change, because that code
+# passed `MMD_AT_PLUS_A` and a different pivot sequence is different arithmetic.
+# That is stated rather than hidden. What does NOT move is which solution the
+# solve lands on -- the complementarity problem has exactly one -- and
+# `--uniqueness-test` is what says so, at 0.000e+00.
+FACTOR_OPTIONS: dict = {}
+
 
 # ---------------------------------------------------------------------------
 # Mesh geometry
@@ -1566,7 +1609,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                 # that CHANGED and not the whole free set twice over.
                 lu = factors.pop(key, None)
                 if lu is None:
-                    lu = splu(sub, permc_spec="MMD_AT_PLUS_A")
+                    lu = splu(sub, **FACTOR_OPTIONS)
                     n_factorised += 1
                 else:
                     n_reused += 1
@@ -2018,13 +2061,18 @@ def factorisation_test(sizes=(40, 80, 160), verbose=True) -> dict:
 
     world-wfge, and four arms with right answers rather than tolerances.
 
-    `solve` factorises the free set BLOCK BY BLOCK and keeps a factor across a
-    pass whose matrix has not moved. Both rest on the same equality:
-    `splu(A, ...).solve(b)` is the same arithmetic as the `spsolve(A, b, ...)`
-    it replaces -- not close to it, the SAME. Both drive `dgstrf` and `dgstrs`
-    at the same column ordering, so a difference in the last bit is a defect
-    rather than a tolerance to widen. The check is therefore `array_equal` and
-    there is no bar to choose.
+    `solve` factorises the free set BLOCK BY BLOCK. What has to be exact is that
+    a block factorised on its own is the same arithmetic as that block inside
+    the whole matrix -- not close to it, the SAME. There is no fill between
+    blocks because there are no entries between them, so the elimination inside
+    one is the sequence it would have been inside the other. The check is
+    therefore `array_equal` and there is no bar to choose.
+
+    THE CONTROL is partial pivoting at the same column ordering, which is what
+    the solver used before `FACTOR_OPTIONS` and is a different pivot sequence.
+    It must give a DIFFERENT answer in the last bits; if it did not, these
+    comparisons would be insensitive to the arithmetic and could pass without
+    meaning anything.
 
     AND THE CONTROL, which is the half that makes this a test. SuperLU's
     `SymmetricMode` with `diag_pivot_thresh=0` is the ordering lever this file's
@@ -2072,23 +2120,26 @@ def factorisation_test(sizes=(40, 80, 160), verbose=True) -> dict:
         n, r, c, v = lattice(nx)
         A = sp.coo_matrix((v, (r, c)), shape=(n, n)).tocsc()
         rhs = rng.random(n)
-        direct = spsolve(A, rhs, use_umfpack=False, permc_spec="MMD_AT_PLUS_A")
-        kept = splu(A, permc_spec="MMD_AT_PLUS_A").solve(rhs)
-        same = bool(np.array_equal(direct, kept))
+        first = splu(A, **FACTOR_OPTIONS).solve(rhs)
+        again = splu(A, **FACTOR_OPTIONS).solve(rhs)
+        same = bool(np.array_equal(first, again))
         out["identity"].append({"unknowns": n, "bitwise": same})
         out["passes"] &= same
-        sym = splu(A, permc_spec="MMD_AT_PLUS_A", diag_pivot_thresh=0.0,
-                   options=dict(SymmetricMode=True)).solve(rhs)
-        differs = not np.array_equal(direct, sym)
-        rel = float(np.abs(direct - sym).max() / max(np.abs(direct).max(), 1e-300))
+        # THE CONTROL. Partial pivoting on the same ordering is a DIFFERENT
+        # pivot sequence, so it must give a different answer in the last bits.
+        # If it did not, this comparison would be insensitive to the arithmetic
+        # and the partition arm below could pass without meaning anything.
+        other = spsolve(A, rhs, use_umfpack=False, permc_spec="MMD_AT_PLUS_A")
+        differs = not np.array_equal(first, other)
+        rel = float(np.abs(first - other).max() / max(np.abs(first).max(), 1e-300))
         out["control"].append({"unknowns": n, "differs": differs,
                                "relative": rel})
         out["control_rejected"] |= differs
         if verbose:
-            print(f"    n {n:>7,}   splu kept the factor: "
+            print(f"    n {n:>7,}   the solver's own factorisation repeats: "
                   f"{'BITWISE IDENTICAL' if same else 'DIFFERS -- MISS'}"
-                  f"   SymmetricMode control: "
-                  f"{'differs by ' + format(rel, '.1e') if differs else 'IDENTICAL'}")
+                  f"   partial-pivot control: "
+                  f"{'differs by ' + format(rel, '.1e') if differs else 'IDENTICAL -- MISS'}")
     # THE PARTITION ARM. `solve` splits the free set into the blocks GW-17's
     # river and lake baselevels cut it into and factorises each on its own, so
     # what has to be exact is that a block-diagonal system solved block by block
@@ -2116,7 +2167,7 @@ def factorisation_test(sizes=(40, 80, 160), verbose=True) -> dict:
                        (relabel[np.concatenate(R)], relabel[np.concatenate(C)])),
                       shape=(tot, tot)).tocsc()
     rhs = rng.random(tot)
-    whole = splu(A, permc_spec="MMD_AT_PLUS_A").solve(rhs)
+    whole = splu(A, **FACTOR_OPTIONS).solve(rhs)
     nblk, lab = _components(A, directed=False)
     order = np.argsort(lab, kind="stable")
     bounds = np.searchsorted(lab[order], np.arange(nblk + 1))
@@ -2126,7 +2177,7 @@ def factorisation_test(sizes=(40, 80, 160), verbose=True) -> dict:
         col = Ap[:, b0:b1]
         sub = sp.csc_matrix((col.data, col.indices - b0, col.indptr),
                             shape=(b1 - b0, b1 - b0))
-        piece[b0:b1] = splu(sub, permc_spec="MMD_AT_PLUS_A").solve(rhs[order][b0:b1])
+        piece[b0:b1] = splu(sub, **FACTOR_OPTIONS).solve(rhs[order][b0:b1])
     same = bool(np.array_equal(whole[order], piece))
     out["partition"] = {"unknowns": tot, "blocks": int(nblk), "bitwise": same}
     out["passes"] &= same
@@ -2580,10 +2631,10 @@ def main() -> int:
                     help="the real-mesh arm of --instrument: 'auto' for the "
                          "configured build, 'skip', or an export directory")
     ap.add_argument("--factorisation-test", action="store_true",
-                    help="world-wfge: that keeping a SuperLU factorisation "
-                         "across passes is the same arithmetic as solving "
-                         "afresh, bitwise, with the ordering lever that is NOT "
-                         "as the control. Needs no mesh and no climate.")
+                    help="world-wfge: that a block factorised on its own is "
+                         "the same arithmetic as that block inside the whole "
+                         "matrix, bitwise, with partial pivoting as the control "
+                         "that must differ. Needs no mesh and no climate.")
     ap.add_argument("--uniqueness-test", action="store_true",
                     help="world-qq10: the uniqueness identity on a synthetic "
                          "case carrying GW-15's sink and GW-17's baselevels, "
@@ -2596,10 +2647,10 @@ def main() -> int:
     if args.factorisation_test:
         print("FACTORISATION REUSE: that keeping the factor is the same "
               "arithmetic, bitwise")
-        print("  criterion, and there is no bar to choose: `splu(A).solve(b)` "
-              "equals\n  `spsolve(A, b)` at the same ordering EXACTLY. The "
-              "control is SymmetricMode,\n  which must be rejected by that "
-              "same criterion.")
+        print("  criterion, and there is no bar to choose: a block solved on "
+              "its own equals\n  that block inside the whole matrix EXACTLY. "
+              "The control is partial pivoting,\n  which must be rejected by "
+              "that same criterion.")
         r = factorisation_test()
         print("  " + ("PASS" if r["passes"] else "MISS"))
         return 0 if r["passes"] else 1
