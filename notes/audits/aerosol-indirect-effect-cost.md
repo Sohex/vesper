@@ -233,13 +233,22 @@ acquired, permissively licensed, and about 60 lines of arithmetic plus a Kohler
 critical-supersaturation function and five thermodynamic functions -- under 300
 lines self-contained. Kappa is three literals from a paper on disk.
 
-**The updraft closure and the radiation re-derivation are the price, and neither
-can be quoted as a point.** Bracketed by what the tree already shows: a
-boundary-layer velocity scale means a new diagnostic in `fluxmod` with its own
-derivation and its own gravity retarget, and re-deriving `tau(W, r_e)` in two
-bands plus a longwave coefficient carrying an effective radius is the same shape
-of work as `world-f9ig`, which is a landed and inspectable precedent for the
-radiation half.
+**The updraft closure and the radiation re-derivation are the price, and only
+one of the two has a precedent to bracket it against.** The radiation half is
+the same shape of work as WORLD-F9IG, which replaced `swr`'s three analytic fits
+with the Stephens (1984) tables: 326 lines touched in `radmod.f90` and 56 in
+`run_exoplasim.py`, 309 inserted and 73 removed across the two. That is a landed,
+inspectable precedent for re-sourcing an optical depth in `swr`, and the
+re-derivation here is narrower in one way -- `tau` is re-sourced and the
+two-stream tables are untouched -- and wider in another, since the longwave
+coefficient would gain an effective radius it does not have.
+
+**The updraft closure has no precedent here and is the item that cannot be
+quoted.** A boundary-layer velocity scale means a new diagnostic in `fluxmod`
+with its own derivation and its own gravity retarget, in a module that carries
+no prognostic turbulence energy and no boundary-layer depth to build one from.
+What can be said about its size is that it is larger than the parameterisation
+it feeds, which is 60 lines of arithmetic.
 
 **And a run cost that is near zero.** ARG is closed form -- no root find in the
 2000 scheme -- so it is a handful of transcendentals per mode per cloudy column,
