@@ -1605,9 +1605,10 @@ def main() -> None:
             "largest at a closed-canopy site of the kind the above-ground "
             "maximum came from) and the field's tail (land maximum against "
             "p99). The spread ACROSS elements is a different statement and is "
-            "what by_element carries. Neither end spans the LEVEL exposure on "
-            "the capacity coefficients, which is larger than both and which "
-            "level_probe reports and world-n4i0 owns."),
+            "what by_element carries. Neither end spans the LEVEL of the "
+            "capacity coefficients, which is a clay MINERALOGY statement this "
+            "component cannot make, is larger than both, and is bracketed "
+            "across soil orders and swept in level_probe instead."),
         "declared_multiplier": float(anut["belowground_and_exchangeable_multiplier"]),
     }
 
