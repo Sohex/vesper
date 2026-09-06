@@ -983,5 +983,6 @@ the response.
 
 Per-component kelvin consequences are not recorded here. The canonical local
 sensitivity is `lib/sensitivity.py`; corrected magnitudes are in
-`exoplasim/notes/parameter-decisions.md`. THE AMPLITUDES BELOW ARE THE
-DECISION.
+`exoplasim/notes/parameter-decisions.md`. THE AMPLITUDES IN THE CONFIGURATION
+BLOCK ARE THE DECISION, and a kelvin figure is a product of a slope that is
+re-derived per model.
