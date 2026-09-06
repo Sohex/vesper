@@ -483,7 +483,11 @@ void Patchpft::serialize(ArchiveStream& arch) {
 		& swindow
 		& water_deficit_y
 		& inund_count
-		& inund_stress;
+		& inund_stress
+		// Rebuilt on day 0 from the serialized mphen (driver.cpp) and read
+		// through the year by somdynam's raingreen litter release. A resumed
+		// patch that never sees day 0 keeps the constructor's month 0.
+		& driest_mth;
 	if (pft.landcover==CROPLAND)
 		arch & *cropphen;
 
@@ -536,6 +540,14 @@ Patch::Patch(int i,Stand& s,Soiltype& st):
 	wdemand_leafon = 0.0;
 
 	growingseasondays = 0;
+
+	// Reset on day 0 and accumulated daily; a patch that is read at year end
+	// before its first day 0 would otherwise report whatever the allocator
+	// left here, and an uninitialised double reaching a retained output is a
+	// defect on its own terms.
+	asurfrunoff = 0.0;
+	adrainrunoff = 0.0;
+	abaserunoff = 0.0;
 
 	burned = false;
 	fire_line_intensity = 0.0;
@@ -608,6 +620,15 @@ void Patch::serialize(ArchiveStream& arch) {
 		& mintercep
 		& mrunoff
 		& mpet
+		// The three annual runoff accumulators. They are reset on day 0 and
+		// read by commonoutput at year end into tot_runoff.out, a retained
+		// output, so a save point INSIDE a year leaves a resumed patch to
+		// report the remainder of the year as though it were the whole of it.
+		// Same argument as Soil::serialize's four annual accumulators.
+		// world-lus4.
+		& asurfrunoff
+		& adrainrunoff
+		& abaserunoff
 		& ndemand
 		& irrigation_y
 		& fire_line_intensity
@@ -2914,6 +2935,17 @@ Gridcell::Gridcell():climate(*this),
 		landcover.frac[NATURAL] = 1.0;
 	}
 	
+	// Nitrogen and phosphorus deposition. The annual sums are reset on day 0
+	// and the daily values are supplied by the input module; VesperInput
+	// declares no phosphorus deposition at all, so dpdep is read from here for
+	// the whole run and an indeterminate value would be an undeclared flux.
+	aNH4dep = 0.0;
+	aNO3dep = 0.0;
+	apdep = 0.0;
+	dNH4dep = 0.0;
+	dNO3dep = 0.0;
+	dpdep = 0.0;
+
 	// Initialise SIMFIRE variables
 	for (int i = 0; i<AVG_INTERVAL_FAPAR; i++) {
 		fapar_recent_max[i] = 0.5;
@@ -3061,7 +3093,15 @@ void Gridcell::serialize(ArchiveStream& arch) {
 		& nesterov_max
 		& nesterov_monthly_max
 		& nesterov_cur
-		& fapar_recent_max;
+		& fapar_recent_max
+		// The annual deposition accumulators. Reset on day 0, summed daily,
+		// and read at year end by nsources.out and nflux.out AND by
+		// Patch::nflux and Patch::pflux, which are what MassBalance checks the
+		// pool change against -- so losing them is a reported mass imbalance
+		// as well as two wrong retained outputs.
+		& aNH4dep
+		& aNO3dep
+		& apdep;
 	if (!arch.save() && had_requested_root &&
 			stochastic_root_seed != requested_root) {
 		fail("restart stochastic root %ld does not match requested root %ld",
