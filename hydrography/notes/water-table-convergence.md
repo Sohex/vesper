@@ -3,11 +3,14 @@
 This is worldbuilding. Vesper is a fictional super-Earth and this document is
 about a numerical solver for a groundwater model of it.
 
-Measured 2026-08-20 on `precarve-craton`, forced by the BOOTSTRAP climatology.
-This build has no `baseline_climatology` and `surface_water.nc` was forced the
-same way; by this project's vocabulary a bootstrap run's numbers are not the
-baseline, so every FIGURE here is provisional in that sense. The convergence
-findings are not, because they are properties of the discretised problem.
+Measured 2026-08-20 on `precarve-craton`, forced by the BOOTSTRAP climatology,
+except for the cost section at the end, which is measured 2026-09-05 on
+`canonical-10m-carve2` and names its build at every figure. Neither build has a
+`baseline_climatology` in play here and `surface_water.nc` was forced by the
+bootstrap either way; by this project's vocabulary a bootstrap run's numbers are
+not the baseline, so every FIGURE here is provisional in that sense. The
+convergence findings are not, because they are properties of the discretised
+problem.
 
 `hydrography/scripts/groundwater.py` is the code.
 
