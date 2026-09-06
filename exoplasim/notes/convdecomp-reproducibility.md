@@ -189,12 +189,60 @@ runs above agree with the clean ones on the restart, bit for bit.
 ## Where the `nconvtime` term runs at T21
 
 Measured on the way, same bed, post-fix binary, 200 steps, `nenergy = 1`. The
-model's own guard puts the explicit gravity-wave limit at 18.7 minutes and
-refuses 30 and 20. Below the guard, `nconvtime = 1` traps on a floating-point
-exception at 15 minutes and completes at 12 and at 10; `nconvtime = 0` completes
-at 15. So the failure at 15 is the term and not the timestep, and the guard's
-limit is not where this term becomes usable at this rung. An arm that wants
-`conversion_time_level` at T21 runs at 12 minutes or below.
+model's own guard put the explicit gravity-wave limit at 18.7 minutes and
+refused 30 and 20. Below the guard, `nconvtime = 1` trapped on a floating-point
+exception at 15 minutes and ran to 200 steps at 12 and at 10; `nconvtime = 0`
+ran to 200 steps at 15.
+
+**The failure at 15 is the term and not the timestep**, and that much the bed
+shows: the same steps, the same restart, one namelist key apart.
+
+**What it does not show is where the term becomes usable.** Reaching 200 steps
+is not stability, and the two things a 200-step bed can tell apart are narrower
+than they look. `plasim.f90:stability_check` writes `Abort_Message` and executes
+a bare Fortran `stop`, which exits 0, so a run that aborted and a run that
+finished carry the same exit status; only a trap, at 136, is distinguishable
+from either. And the growth this term produces is slow enough at 10 and 12
+minutes that 200 steps do not reach the range that trips
+`-ffpe-trap=overflow`, so what separated 15 from 12 on that bed was the bed's
+LENGTH.
+
+`world-bt3b` establishes the boundary by deriving it rather than probing for
+it. The term takes the reference conversion's divergence half off `sdt` -- the
+centred mean of t-dt and t+dt -- and puts it on the divergence at t, and
+`sdt - sd` is the second time difference: `O(dt^2)` for a smooth mode and, for
+the leapfrog computational mode which alternates sign every step, exactly
+`-2 sd`. So the term feeds that mode, the Robert-Asselin filter is the only
+thing damping it, and the boundary is a function of `PNU`; at `PNU = 0` there
+is none at any step, which no gravity-wave CFL can express. At T21 with the
+model's own `PNU`, hyperdiffusion and sponge the boundary is 8.27 minutes
+against a guard that admitted 19.0, and the linearised step grows 1.0313 per
+step at 10 minutes and 1.0635 at 12 -- amplifications of 471 and 2.2e5 over
+this bed's 200 steps, against 4.5e8 at 15.
+
+`exoplasim/analysis/conversion_time_stability_sweep.json` carries the table and
+`exoplasim/scripts/conversion_time_stability.py` regenerates it without
+building or running the model. **So "an arm that wants
+`conversion_time_level` at T21 runs at 12 minutes or below" was wrong: 12
+minutes grows, it grows slowly, and a 200-step bed cannot see it.** The model
+now measures its own amplification at startup and refuses, so a caller does not
+have to know this.
+
+## The bed of the section above cannot be rebuilt
+
+Attempting the longer arms found it. `run_14906cb7b914`'s restart was written
+on 2026-08-25 and the model has gained the land-tile surface temperature record
+since, so a binary built from the current source stops in its first step with
+`Error in get_restart_array: Requested array {dlt_ts} was not found`. That is
+the same class `lib/rungs.py` records for the earlier T21 restarts, which
+`convert_restart` refuses for the partial-cell tile records.
+
+`run_0d41aa82c287` is the replacement and is a better parent on its own terms:
+T21 l10 at dt 45, 108 orbits, `equilibrated_for_worldbuilding`, restart
+`58a3d2b977af8c8f`, and its restart carries the current record set. A stability
+boundary is a property of the configuration rather than of the state, which is
+the argument `filter_timestep_matrix.py` track B and `make_profile_bed.py` both
+make, so nothing about the question moves with the parent.
 
 ## Rebuild
 
