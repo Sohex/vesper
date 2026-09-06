@@ -50,12 +50,17 @@ cfg = yaml.safe_load((here / "config/planet.yaml").read_text())
 flags = [f for f in cfg["model"]["compile_flags"]["f90_opts"]
          if not f.startswith("-ffpe-trap")]
 line = " ".join(flags)
+# The LINK line drops the two flags that act on a COMPILE and not on a link,
+# so the two lines say what each step actually does. gfortran accepts both at
+# link and ignores them, which is exactly why they would go unnoticed.
+link = " ".join(f for f in flags
+                if f != "-cpp" and not f.startswith("-ffpe-summary"))
 (work / "socrates/make/Mk_cmd").write_text(f"""#
 # Vesper CLIM-61 cost bench. The flag line is config/planet.yaml's production
 # f90_opts less -ffpe-trap, so this measures the code and not the compiler.
 #
 FORTCOMP        = gfortran {line} -c
-LINK            = gfortran {line}
+LINK            = gfortran {link}
 LIBLINK         = ar rvu
 INCCDF_PATH     = /usr/include
 LIBCDF_PATH     = /usr/lib
