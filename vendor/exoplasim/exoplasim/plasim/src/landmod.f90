@@ -150,10 +150,16 @@
 !     They are inert here because this world does not report their inputs yet.
 !     forhgt needs a canopy height, which is GRAV-7's; forpai needs a plant or
 !     stem area index per gridcell, which is what the vegetation component will
-!     report under BIO-17; forint needs a canopy snow store with a mass balance
-!     rather than a declared standing fraction, which is BIO-32. Turning any of
-!     them on moves the surface energy balance of every snow-covered forested
-!     cell, so it is a declared decision and not a default. BIO-30.
+!     report under BIO-17. Turning either of them on moves the surface energy
+!     balance of every snow-covered forested cell, so it is a declared decision
+!     and not a default. BIO-30.
+!
+!     forint IS NO LONGER AN AXIS. It was a standing fraction of intercepted
+!     canopy snow, which is a state and not a parameter, and `cansnowmod` now
+!     predicts it from a store with a mass balance. What is left of it is the
+!     fallback the store hands back where there is no canopy to hold anything.
+!     The store's block is below and BIO-32 is where it came from; it switches
+!     on with forpai and needs no third decision of its own.
 !
 !     forext is the extinction coefficient of the canopy gap fraction,
 !     exp(-forext*forpai), read only when forpai is positive so it changes
@@ -168,6 +174,63 @@
       real    :: forpai   = -1.0  ! canopy plant area index (<=0 off)
       real    :: forext   =  1.0  ! extinction coefficient of the gap fraction
       real    :: forint   =  0.0  ! intercepted-snow fraction of the canopy
+
+!     THE CANOPY SNOW STORE. `forint` above is a STANDING fraction, so with it
+!     alone interception and unloading are not represented and the seasonal
+!     course of the canopy's snow is absent. `cansnowmod` is the store that
+!     predicts it: `tands` runs a mass balance in which the canopy takes its
+!     share of the falling snow, gives it back as the load relaxes, cannot hold
+!     more than its capacity and sheds all of it above freezing, and the ground
+!     pack is driven by the THROUGHFALL rather than by `dprs`. `forint` becomes
+!     the FALLBACK the store hands back where there is no canopy to hold
+!     anything, which is where this world stands until BIO-33 reports a plant
+!     area index per gridcell. BIO-32.
+!
+!     THE STORE SWITCHES ON WITH forpai, and with nothing else: at a
+!     non-positive plant area index there is no capacity, the throughfall is
+!     `dprs` to the last bit and `dcansn` stays empty, so the ground pack's
+!     tendency is the expression it already was.
+!     `exoplasim/scripts/verify_canopy_snow.sh` checks that bitwise, and checks
+!     that the snow that falls equals the throughfall plus the change in the
+!     store over a driven sequence.
+!
+!     Essery (2013), Geophys. Res. Lett. 40, 5521-5525, 10.1002/grl.51008,
+!     Sect. 3.2 and Eq. (3), which is the canopy-snow half of the same scheme
+!     `snowmaskmod` takes its gap-fraction form and its extinction coefficient
+!     from, gives the first three:
+!
+!     forceff is the interception efficiency `c`.
+!
+!     fortau is the removal timescale and is IN SECONDS, not in days. It is a
+!     physical unloading time -- wind and gravity strip a loaded canopy -- and
+!     the paper's ten days is a duration and not a count of this world's days,
+!     which are 30 hours long. Read as ten of THIS planet's days it would be
+!     1.25 times too long.
+!
+!     forcap is the capacity per unit plant area index. It is the one constant
+!     of the four whose MAGNITUDE that source does not establish: the paper uses
+!     it inside an albedo parametrization, where only the ratio of the load to
+!     the capacity is read, so its own results constrain the ratio and not the
+!     mass. A canopy snow LOAD measurement would bracket it, and this project
+!     holds none. The consequence is one-signed and is stated rather than
+!     hidden: a smaller capacity intercepts less and delays less, so this value
+!     is a LOWER BOUND on what the store does to the modelled surface water
+!     balance. WORLD-X0U5.
+!
+!     forintc is the conversion from the store's GEOMETRIC canopy snow cover to
+!     `snowmaskmod`'s EFFECTIVE OPTICAL interception weight, and it is a
+!     separate decision from the store: canopy snow is patchier and more shaded
+!     than a snowpack, so the optical fraction is the smaller of the two, and
+!     the schemes Essery surveys reach it through a canopy-snow albedo measured
+!     under another star, which `snowmaskmod` refuses to import. At zero the
+!     store runs and drives nothing optical, which is what keeps the albedo
+!     path a declared decision while the water path follows `forpai`.
+      real    :: forcap  = 2.0e-4 ! canopy snow capacity per unit plant area
+                                  ! index (m water equivalent)
+      real    :: forceff = 0.25   ! interception efficiency of the canopy
+      real    :: fortau  = 8.64e+5! canopy snow unloading timescale (s)
+      real    :: forintc = 0.0    ! effective optical fraction per unit
+                                  ! geometric canopy snow cover
 
 !     River routing, used by roffini here and by oroini in glaciermod.
 !
@@ -533,6 +596,12 @@
       real :: dsnowt(NHOR)        = 0.0    ! snow temperatur (K)
       real :: dtclsoil(NHOR)      = 0.0    ! clim soil temp. (initilization) (K)
       real :: dsnowz(NHOR)        = 0.0    ! snow depth (m water equivalent)
+!     The canopy snow store and the interception weight it hands the mask.
+!     dcansn is PROGNOSTIC and travels with the restart; dcanfi is derived from
+!     it every step by `tands` and is initialised to `forint` so a cold start
+!     and a step before the first `tands` both see the fallback. BIO-32.
+      real :: dcansn(NHOR)        = 0.0    ! canopy snow (m water equivalent)
+      real :: dcanfi(NHOR)        = 0.0    ! interception weight from the store
       real :: dwater(NHOR)        = 0.0    ! surface water for soil (m/s)
 !
 !     The layered liquid store, and the drainage out of its base. Both are
@@ -633,6 +702,7 @@
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
 !$omp&  dwatcl,dsoili,ddrain,adrain,dsoilwf,dsoilwfc,dsoilwz,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,nlandwphase,dzglac,dztop,&
 !$omp&  forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,forext,forhgt,forint,forpai,&
+!$omp&  forcap,forceff,fortau,forintc,dcansn,dcanfi,&
 !$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
 !$omp&  sicecap,sicediff,snowcap,snowdiff,soilcapdry,soilcapsat,soildifdry,soildifsat,&
@@ -681,7 +751,7 @@
       use radmod
       use snowmaskmod
 
-      integer :: ifound(5)
+      integer :: ifound(6)
 !     The ice volume fraction the snow conductivity is derived from. Declared
 !     rather than left to implicit typing, and NOT initialised, so it is an
 !     automatic local and every thread computes its own. WORLD-A9S5.
@@ -703,6 +773,7 @@
      &                ,wetsigma,wetsigma1,wetsigma2                      &
      &                ,albforest,forcovmx,forcovmn                      &
      &                ,forhgt,forpai,forext,forint                       &
+     &                ,forcap,forceff,fortau,forintc                     &
      &                ,soildifdry,soildifsat                           &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb     &
@@ -990,6 +1061,13 @@
       call mpbcr(forpai)
       call mpbcr(forext)
       call mpbcr(forint)
+      call mpbcr(forcap)
+      call mpbcr(forceff)
+      call mpbcr(fortau)
+      call mpbcr(forintc)
+!     The weight the mask reads before the first `tands` of the run, and the
+!     one it reads for good where there is no canopy to hold anything. BIO-32.
+      dcanfi(:) = forint
       call mpbcr(forcovmx)
       call mpbcr(forcovmn)
       call mpbcr(soildifdry)
@@ -1152,7 +1230,8 @@
           ! snow, and reduces to dforest and zero at the inert defaults, so the
           ! four lines below are the same arithmetic they were.
           call snowcanopymask(dforest(jhor),dsnow(jhor)*1000./rhosnow,        &
-          &                   forhgt,forpai,forext,forcovmx,forcovmn,forint, &
+          &                   forhgt,forpai,forext,forcovmx,forcovmn,        &
+          &                   dcanfi(jhor),                                    &
           &                   zfcovmx,zfcovmn,zfint,zkmx,zkmn)
           zsfmax =albsmaxf +zfint*(albsmax -albsmaxf)
           zsfmin =albsminf +zfint*(albsmin -albsminf)
@@ -1281,6 +1360,13 @@
        dsoili(:,:) = 0.
        ddrain(:) = 0.
        adrain(:) = 0.
+!      The canopy snow store, A RECORD THAT MAY BE ABSENT for the same reason
+!      the four above are: a restart written before BIO-32 carries no canopy,
+!      and an empty canopy is what that restart's world had. It is preset to
+!      zero here and stays zero when the record is not found, which is the same
+!      state a cold start has. BIO-32.
+       dcansn(:) = 0.
+       call mpgetgp_found('dcansn',dcansn,NHOR,     1  ,ifound(6))
        call mpgetgp_found('dwatcl',dwatcl,NHOR,NLSOILWX,ifound(1))
        call mpgetgp_found('dsoili',dsoili,NHOR,NLSOILWX,ifound(2))
        call mpgetgp_found('ddrain',ddrain,NHOR,     1  ,ifound(3))
@@ -1505,7 +1591,8 @@
          ! snow, and reduces to dforest and zero at the inert defaults, so the
          ! four lines below are the same arithmetic they were.
          call snowcanopymask(dforest(jhor),dsnow(jhor)*1000./rhosnow,        &
-         &                   forhgt,forpai,forext,forcovmx,forcovmn,forint, &
+         &                   forhgt,forpai,forext,forcovmx,forcovmn,         &
+         &                   dcanfi(jhor),                                     &
          &                   zfcovmx,zfcovmn,zfint,zkmx,zkmn)
          zsfmax =albsmaxf +zfint*(albsmax -albsmaxf)
          zsfmin =albsminf +zfint*(albsmin -albsminf)
@@ -1629,6 +1716,7 @@
       call mpputgp('dwcl'    ,dwcl    ,NHOR,14)
       call mpputgp('dsnowt'  ,dsnowt  ,NHOR, 1)
       call mpputgp('dsnowz'  ,dsnowz  ,NHOR, 1)
+      call mpputgp('dcansn'  ,dcansn  ,NHOR, 1)
       call mpputgp('dsoilt'  ,dsoilt  ,NHOR,NLSOIL)
       call mpputgp('dwatcl'  ,dwatcl  ,NHOR,NLSOILWX)
       call mpputgp('dsoili'  ,dsoili  ,NHOR,NLSOILWX)
@@ -1652,6 +1740,7 @@
 
       subroutine tands
       use landmod
+      use cansnowmod
 !
       parameter(zsnowmax=1.)
       parameter(ztop=0.1)
@@ -1672,6 +1761,12 @@
       real zctop(NHOR)        ! heat capacity (top soil/snow layer)
       real zsntop(NHOR)       ! snow depth (top soil/snow layer)
       real zztop(NHOR)        ! depth of the uppermost layer
+!     The canopy snow store's step. Automatic locals, so every thread carries
+!     its own: dcansn is threadprivate and the step is per cell. BIO-32.
+      real zcanold            ! the canopy's load at the start of the step
+      real zthrough           ! throughfall to the ground pack (m w.e./s)
+      real zdcan              ! the canopy store's tendency (m w.e./s)
+      real zfcan              ! geometric canopy snow cover fraction
 !
 !     debug
 !
@@ -1747,11 +1842,37 @@
 !
 
        if(dls(jhor) > 0.0) then
-        if(dprs(jhor) > 0.) zdsnowz(jhor)=dprs(jhor)
+!       THE CANOPY SNOW STORE. cansnowmod takes the canopy's share of the
+!       falling snow, gives back what the load sheds, and returns the
+!       THROUGHFALL that is what actually reaches the ground pack, so the
+!       pack's tendency below is driven by that and not by dprs. It also
+!       returns the interception weight the canopy/snow mask reads later in
+!       this step. The temperature it is given is this cell's surface
+!       temperature, which over a canopy-covered cell is the temperature of the
+!       canopy and the snow on it; the scheme's own source drives it with an
+!       air temperature analysis, and this model has no separate canopy
+!       temperature to offer it.
+!
+!       AT A NON-POSITIVE forpai THERE IS NO CAPACITY: zthrough is dprs to the
+!       last bit, dcansn stays empty and zdcan is exactly zero, so the four
+!       lines that follow are the arithmetic they already were. BIO-32.
+        zcanold=dcansn(jhor)
+        call canopysnowstep(dforest(jhor),forpai,forcap,forceff,fortau, &
+     &                      dprs(jhor),zcanold,dts(jhor),tmelt,deltsec, &
+     &                      forintc,                                    &
+     &                      dcansn(jhor),zthrough,zfcan,dcanfi(jhor))
+        zdcan=(dcansn(jhor)-zcanold)/deltsec
+        if(zthrough > 0.) zdsnowz(jhor)=zthrough
         if(dsnowz(jhor) > 0.) zdsnowz(jhor)=zdsnowz(jhor)+devap(jhor)
         zsnowz(jhor)=AMAX1(0.,dsnowz(jhor)+zdsnowz(jhor)*deltsec)
         zdsnowz(jhor)=(zsnowz(jhor)-dsnowz(jhor))/deltsec
-        dwater(jhor)=devap(jhor)+dprl(jhor)+dprc(jhor)-zdsnowz(jhor)
+!       The water the canopy is holding is in neither the pack nor the soil, so
+!       it leaves the soil's supply with its own tendency. Without this line the
+!       surface water balance would not close: the pack takes less than the
+!       snowfall and the difference would have arrived in the soil instead of
+!       staying in the canopy.
+        dwater(jhor)=devap(jhor)+dprl(jhor)+dprc(jhor)-zdsnowz(jhor)    &
+     &              -zdcan
         dsnowz(jhor)=zsnowz(jhor)
        end if
       enddo
