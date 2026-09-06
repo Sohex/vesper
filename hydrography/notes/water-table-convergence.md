@@ -468,13 +468,32 @@ cells and it is **13,094 blocks**. The largest holds 606,808 cells, which is
 cent between them and the remaining thirteen thousand are small enough that what
 they cost is the per-block call and not the factorisation.
 
-What that is worth, in the units a direct factorisation charges in: the sum of
-`n^1.5` over the blocks is **0.280** of `(sum n)^1.5`, so the factorisation work
-is a bit over a quarter of what the union costs, and the largest single
-factorisation is a 606,808-cell problem rather than a 3,914,015-cell one. The
-count is a LOWER bound on the partition, because the solve also drops the cells
-that reach neither recharge nor the sea and any that the sink seeds at the
+The count is a LOWER bound on the partition, because the solve also drops the
+cells that reach neither recharge nor the sea and any that the sink seeds at the
 surface, and dropping more cells can only cut further.
+
+**What that is worth, and the exponent is measured rather than assumed.** The
+textbook figure for a planar direct solve is `n^1.5`, which would put the sum
+over the blocks at 0.280 of the union's. The exponent this file's own recorded
+`splu` table actually shows, over 399,424 to 1,999,396 unknowns, is **1.235**,
+and its fill grows as about `n (9.5 ln n - 53)` -- so both are nearly linear at
+these sizes and the textbook exponent overstates the saving. Extrapolating that
+table rather than the exponent:
+
+| | monolithic | partitioned | ratio |
+| --- | ---: | ---: | ---: |
+| factorisation time | 18.7 s | 10.0 s | 0.53 |
+| fill, all blocks held | 355 M | 247 M | 0.69 |
+| fill, largest block alone | 355 M | 44 M | 0.12 |
+
+That is an extrapolation from a synthetic at a fifth of the size and it is NOT a
+measurement of this solve; it is what sized the design. Two things follow from
+it that do not depend on its accuracy. The saving in TIME is about a factor of
+two rather than the factor of three and a half the textbook exponent promises,
+so the partition is worth having and is not the end of the cost. And the saving
+in PEAK is only available if the factors are not all held at once, which is why
+the cache is spent only after a zero-flip pass: during the passes where the free
+set is largest, nothing is kept and the peak is one block's fill.
 
 It is exact rather than an approximation to the coupled solve. There are no
 entries between blocks, so there is no fill between them, and the elimination
