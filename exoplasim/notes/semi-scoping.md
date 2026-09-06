@@ -396,3 +396,39 @@ acceleration question and its declared invalidity already live.
 That also fixes what `dust-14` gets. The dust term changes the melt energy and
 therefore the equilibrium line, which is a statement the world can carry. It does
 not by itself say how much ice there is.
+
+## 8. The price, and the criteria that decide it
+
+Declared 2026-09-05, before the cost below was worked out. Sections 1 to 7 settle
+that SEMI is the candidate on its STRUCTURE. What CLIM-63 still owes is a price
+and a criterion, and one question those sections do not ask.
+
+**Ask first whether the thing should exist.** Deleting is a fix, so the port has
+to beat two alternatives and not one. The refused alternative is the
+positive-degree-day scheme, and section 5 disposes of it. The alternative that
+has never been named is **the model's own land surface**: `landmod` already runs
+a surface energy balance with snow, carries a snow water equivalent, and melts
+it. If what SEMI adds over that is only the downscaling, the grain size and the
+dust term, then the port is those three pieces and not a mass balance scheme, and
+the price is smaller than section 6's 1,900 lines. That question is answered
+below before any cost is quoted.
+
+**The criteria.**
+
+- **SEMI IS ESTABLISHED as the candidate** if it survives the test that refused
+  the PDD scheme (section 5: it does), if every input it needs is either
+  available now or held by a named row, and if no cheaper object in the tree
+  already computes what it computes.
+- **THE PORT IS BUYABLE** if its recurring run cost is small beside a
+  commissioning. A surface mass balance runs offline on a climatology rather than
+  inside the climate model, so the bar is that one evaluation over the fine grid
+  costs less than one ORBIT of the climate model at the configured rung -- 13.45 s
+  at T21, 75.74 s at T42, 491.96 s at T85, from
+  `notes/audits/resolution-ladder-wall-clock.md`. Above that the mass balance
+  becomes a term in loop A's cadence rather than a diagnostic of it.
+- **AND THE PORT IS REFUSED, whatever it costs**, if what it would deliver needs
+  a duration. Section 7 already binds this: the honest deliverables are the annual
+  balance field and the surface at which it integrates to zero.
+
+**Rule 7.** Nothing is commissioned, so nothing is charged for invalidation. The
+cost of adopting SEMI is what building it costs plus what the next cycle runs.

@@ -202,3 +202,45 @@ number this host cannot give today:** a cost per timestep for both schemes,
 measured rather than counted. The command is a wrapped `radstep` on
 `bench/bed_t170cold` under `perf`, with the candidate stood up far enough to run
 one column, on a machine with nothing else on it.
+
+## The buy criterion, fixed before the cost per timestep was measured
+
+Declared 2026-09-05, before the candidate had been compiled or run. The
+measurement that follows is judged against these and nothing else.
+
+**What the price is compared against is a COMMISSIONING, not a run.** One
+commissioning is the bootstrap plus the baseline plus their settling, and
+`lib/run_lengths.py` puts its span at 37.8 to 77.4 orbits. At the ladder's
+measured wall clock -- `notes/audits/resolution-ladder-wall-clock.md`, 13.45 s an
+orbit at T21, 75.74 at T42, 491.96 at T85 -- that is 8 to 17 minutes at T21, 48
+to 98 minutes at T42, and 5.2 to 10.6 hours at T85. The rung the criterion is
+stated at is T85, because that is where the answer changes.
+
+- **AFFORDABLE at a whole-model slowdown of 1.5x or less.** A T85 commissioning
+  stays inside one overnight, so the cadence of loop A is still set by the
+  physics rather than by the clock.
+- **MARGINAL between 1.5x and 3x.** Buyable, but the commissioning span has to be
+  re-derived against the new clock before it is, and the escalation route through
+  the rungs is a separate decision.
+- **PROHIBITIVE above 3x.** A T85 commissioning no longer fits a day, and the
+  iteration cadence of loop A becomes the binding constraint on the world.
+
+**And a second criterion that is not a time.** A thread team's working set on one
+die targets 32 MB. The candidate carries roughly (bands x k-terms x levels) more
+state per column than the broadband scheme, and at T170 on sixteen the model is
+already about eight times over that target
+(`docs/src/reference/environment.md`). So the increment is what is judged:
+**a candidate that adds more per-die state than the whole present radiation
+holds is a regression on the standing constraint whatever it costs in seconds**,
+and the disposition then is to block the columns rather than to refuse the
+scheme.
+
+**Rule 7 removes the other half of the arithmetic.** No canonical climatology
+lineage has been declared, so every build, run and climatology in the tree is
+disposable. The price of this swap is what the NEXT cycle runs. There is no
+invalidated output to weigh against it and none is priced in below.
+
+**What would make the measurement not a measurement.** The model's own startup at
+T21 is about 1.6 s (`where-the-time-goes.md`), and a 2.94 s bed against it
+returned a confident number with the wrong SIGN. Both arms below are therefore
+sized against their own startup and the size is stated.
