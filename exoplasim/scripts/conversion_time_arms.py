@@ -258,11 +258,25 @@ def main() -> int:
     # predicted rates accounts for every death, those intervals share a value.
     reached = [a["amplification_reached"] for a in arms
                if a.get("amplification_reached")]
-    overlap = None
-    if len(reached) > 1:
+    overlap, agreement = None, None
+    if len(reached) < 2:
+        # NOT THE SAME AS A DISAGREEMENT, and a null that meant both would be
+        # unreadable. Fewer than two deaths is nothing to compare, which is the
+        # ordinary case once the guard refuses the arms that would have died.
+        agreement = (f"{len(reached)} arm(s) died, so there is nothing to "
+                     "compare. Two deaths are the fewest that can share a rate.")
+    else:
         lo = max(x[0] for x in reached)
         hi = min(x[1] for x in reached)
-        overlap = [float(f"{lo:.3g}"), float(f"{hi:.3g}")] if lo <= hi else None
+        if lo <= hi:
+            overlap = [float(f"{lo:.3g}"), float(f"{hi:.3g}")]
+            agreement = ("one exponential, at the predicted rates, accounts "
+                         "for every death")
+        else:
+            agreement = ("the deaths do NOT share a rate: no single "
+                         "amplification is consistent with all their brackets, "
+                         "so the prediction is wrong about the size of the "
+                         "effect even where it is right about its sign")
     controls_held = all(a["completed"] for a in arms
                         if not a["conversion_time_level"])
     refused = [a["timestep_minutes"] for a in arms if a["refused_by_guard"]]
@@ -290,13 +304,13 @@ def main() -> int:
             "exits 0, so the exit status alone cannot tell it from a "
             "completed run."),
         "shared_amplification": overlap,
+        "shared_amplification_verdict": agreement,
         "shared_amplification_note": (
-            "The interval every dying arm's bracket is consistent with. A "
-            "non-null value says ONE exponential, at the rates "
-            "conversion_time_stability.py predicts, accounts for every death; "
-            "null says the deaths do not share a rate and the prediction is "
-            "wrong about the size of the effect even where it is right about "
-            "its sign."),
+            "The interval every dying arm's bracket is consistent with, and "
+            "the verdict beside it says which of the three things a null "
+            "means: too few deaths to compare, or deaths that share no rate. "
+            "A non-null interval says one exponential, at the rates "
+            "conversion_time_stability.py predicts, accounts for every death."),
         "provenance": {
             "generated_utc": datetime.now(timezone.utc).isoformat(),
             "sweep": str(args.sweep.relative_to(PROJECT_ROOT))
