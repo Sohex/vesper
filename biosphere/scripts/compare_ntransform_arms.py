@@ -5,13 +5,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
+import yaml
 
-from _paths import COMPONENT_ROOT, RUNS
+from _paths import CONFIG, COMPONENT_ROOT, RUNS
+from gridding import label_row_weights
+from rungs import model_grid
 
 ANALYSIS = COMPONENT_ROOT / "analysis"
 WINDOW_YEARS = 10
@@ -89,14 +91,17 @@ def summarize(vesper_rows: dict, stock_rows: dict) -> dict:
     cells = sorted({key[:2] for key in vesper_rows})
     v_cell = []
     s_cell = []
-    weights = []
     for lon, lat in cells:
         v_cell.append(np.mean([vesper_rows[(lon, lat, year)] for year in selected]))
         s_cell.append(np.mean([stock_rows[(lon, lat, year)] for year in selected]))
-        weights.append(max(0.0, math.cos(math.radians(lat))))
     v = np.asarray(v_cell)
     s = np.asarray(s_cell)
-    w = np.asarray(weights)
+    # The table is keyed by the latitude each cell carries rather than by an
+    # index, so the weight is looked up on the model's rows and REFUSES a
+    # latitude that is not one of them. `lib/gridding.py` owns both halves.
+    _, nlat, _ = model_grid(yaml.safe_load(CONFIG.read_text(encoding="utf-8")))
+    w = label_row_weights([lat for _, lat in cells], nlat,
+                          what=f"the {len(cells)} simulated cells")
     delta = v - s
     vmean = float(np.average(v, weights=w))
     smean = float(np.average(s, weights=w))

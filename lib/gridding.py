@@ -975,6 +975,85 @@ def require_gaussian_rows(spec: GridSpec, lat_axis, what: str = "the grid") -> N
             "nearest centres; construct both from one source. CLAUDE.md rule 3.")
 
 
+# --- THE AREA WEIGHT, and the one thing it is not ---------------------------
+#
+# A weighted mean over a Gaussian grid takes the QUADRATURE WEIGHTS, which are
+# the sine-of-latitude extent of each row and are what `GridSpec.dsin` is. The
+# two accessors below are that weight with the axis checked, so that a caller
+# needing a global or land mean has one door and does not reach for the cosine.
+#
+# `cos(lat)` IS NOT AN AREA WEIGHT HERE. It is the metric factor of a band that
+# is equally spaced in latitude, and a Gaussian row is not one: the rows crowd
+# toward the equator and the nodes are quadrature abscissae rather than cell
+# centres. Against the quadrature weights the cosine is wide in the polar row by
+# 1.767 per cent at T21, 1.796 at T42, 1.805 at T85 and 1.808 at T170, which
+# converges to about 1.81 rather than to zero; the interior converges normally,
+# 0.0292 per cent median at T21 down to 0.0009 at T170. So a cosine-weighted
+# mean is a mean over a grid nobody is running, and it is quiet, because a
+# weight that is wrong by a part in ten thousand returns an ordinary-looking
+# number everywhere. `notes/audits/ocean-grid-crossing.md` section 3 has the
+# measurement and `source/README.md` names the cosine as a fourth thing that is
+# none of the three area quantities an export ships.
+#
+# A cosine that is a METRIC term is a different creature and stays: the
+# east-west cell width an advection scheme divides by, the polar-convergence
+# blur a projection applies, the unit vector a KD-tree is built on. What is
+# replaced here is the cosine used as a WEIGHT.
+
+
+def _require_gaussian_axis(lat_axis, what: str) -> int:
+    """The row count of an axis that IS this many Gaussian nodes, or a refusal.
+
+    The bar is `require_same_rows`'s rather than `require_gaussian_rows`'s,
+    because a climatology's latitude axis is netCDF float32 and agrees with the
+    constructed nodes to a few parts in a million and no closer, and because a
+    per-cell text product prints its rows to a handful of decimals. It is still
+    two orders tighter than the gap between a Gaussian axis and an equally
+    spaced one at any rung on the ladder, which is what it exists to catch.
+    """
+    axis = np.asarray(lat_axis, dtype=np.float64)
+    if axis.ndim != 1 or axis.size < 2:
+        raise ValueError(
+            f"{what}: a latitude axis is one-dimensional and holds a row; this "
+            f"has shape {axis.shape}")
+    off = float(np.abs(axis - gaussian_latitudes(axis.size)).max())
+    if off > 1e-3:
+        raise SystemExit(
+            f"{what}: the axis differs from the {axis.size}-row Gauss-Legendre "
+            f"nodes by up to {off:.4g} degrees, so it is not the grid these "
+            "weights are the quadrature of. Weight the field on the partition "
+            "its own grid has rather than on one it does not.")
+    return int(axis.size)
+
+
+def gaussian_row_weights(lat_axis, what: str = "the area weight") -> np.ndarray:
+    """Area weight of each ROW of the Gaussian grid this axis names.
+
+    The Gauss-Legendre quadrature weights north to south, summing to two. A
+    cell's share of the sphere is one of these divided by `2 * nlon`, so on a
+    grid whose columns are all one width a mean over rows needs nothing more,
+    and the constant cancels out of any ratio of weighted sums.
+
+    Take this where the weight is broadcast against an axis the caller already
+    holds -- a spectrum over wavenumber, a column over levels -- and
+    `gaussian_area_weights` where a two-dimensional field is being averaged.
+    """
+    return gaussian_grid(_require_gaussian_axis(lat_axis, what)).dsin
+
+
+def gaussian_area_weights(lat_axis, nlon: int,
+                          what: str = "the area weight") -> np.ndarray:
+    """Share of the sphere in every cell, shaped `(nlat, nlon)` and summing to one.
+
+    So `(field * w).sum()` is a global mean, `(field * w)[mask].sum() /
+    w[mask].sum()` is a mean over a subset, and multiplying by `4 pi R^2` for a
+    radius the CALLER reads from `config/planet.yaml` turns a weighted sum into
+    an integral. `CLAUDE.md` rule 2: nothing here knows the planet.
+    """
+    return gaussian_grid(_require_gaussian_axis(lat_axis, what),
+                         int(nlon)).cell_area_fraction()
+
+
 # ---------------------------------------------------------------------------
 # THE MODEL'S OWN LABELS. `column()` above places an Orogen longitude, which
 # runs -180..180; ExoPlaSim labels the SAME columns 0..360 from index 0 and has
@@ -1047,6 +1126,37 @@ def model_label_cells(lat_label, lon_label, nlat: int, nlon: int,
     rows = row(lat_label, gaussian_latitudes(int(nlat)))
     cols = model_label_column(lon_label, nlon, what=what)
     return rows, cols
+
+
+def label_row_weights(lat_label, nlat: int,
+                      what: str = "a labelled point") -> np.ndarray:
+    """Row area weight for each POINT of a per-cell product keyed by latitude.
+
+    For an artifact whose rows are addressed by the latitude they carry rather
+    than by an index -- an LPJ-GUESS `.out` table, `pedology/data/<build>/
+    land_column_states_<res>.txt` -- where the rows present are whatever subset
+    was simulated, so there is no axis on the file to hand `gaussian_row_weights`.
+    Each point gets the quadrature weight of the row its latitude names, which
+    is proportional to that cell's area because every column is one width, and
+    the constant cancels out of a weighted mean.
+
+    THE ROW IS LOOKED UP AND THEN CHECKED. `row()` bins on the midpoints and so
+    always returns a row; what makes this refuse rather than snap is that the
+    latitude is then compared against the node of the row it landed in, which is
+    how a table written on a different rung from the one asked for here is
+    caught instead of being weighted by whichever rows its latitudes happen to
+    fall in.
+    """
+    nodes = gaussian_latitudes(int(nlat))
+    labels = np.asarray(lat_label, dtype=np.float64)
+    rows = row(labels, nodes)
+    off = float(np.abs(labels - nodes[rows]).max()) if labels.size else 0.0
+    if off > 1e-3:
+        raise SystemExit(
+            f"{what}: a latitude is {off:.4g} degrees from the nearest row of "
+            f"the {int(nlat)}-row Gaussian grid. It is not on this grid, and "
+            "the weight it would be given belongs to a row it does not sit in.")
+    return gaussian_grid(int(nlat)).dsin[rows]
 
 
 def require_model_labels(lat_axis, lon_axis, nlat: int, nlon: int,
@@ -1147,7 +1257,7 @@ def goldstein_grid(nlon: int, nlat: int, igrid: int = GOLDSTEIN_EQUAL_AREA,
 # where the answer is unknown is not a check.
 
 
-_CHECKS = 27
+_CHECKS = 33
 
 
 def _selftest() -> int:
@@ -1402,6 +1512,75 @@ def _selftest() -> int:
     require_model_labels(gaussian_latitudes(32), model_longitude_labels(64),
                          32, 64, what="the model's own axes")
     check("the model's own axes are accepted", True)
+
+    # THE AREA WEIGHT: a Gauss-Legendre quadrature is an IDENTITY rather than an
+    # approximation, so this is asserted exactly and not compared loosely. The
+    # weights integrate every polynomial in the sine of latitude up to degree
+    # 2n-1 over the sphere exactly, and the moments below are three such
+    # integrals with a known closed form: 2, 2/3 and 2/5. Nothing about the new
+    # accessors can be right if these are not.
+    # The rungs come from the ladder registry rather than being spelled here;
+    # `lib/rungs.py` is the one table and a second copy of it is a lint failure.
+    for nlat_w in sorted(set(RUNGS.values()))[:3]:
+        nodes = gaussian_latitudes(nlat_w)
+        w = gaussian_row_weights(nodes, what="the selftest's axis")
+        mu = np.sin(np.deg2rad(nodes))
+        moments = [float((w * mu ** k).sum()) for k in (0, 2, 4)]
+        exact = [2.0, 2.0 / 3.0, 2.0 / 5.0]
+        worst = max(abs(g - e) / e for g, e in zip(moments, exact))
+        # 1e-12 is the round trip through degrees and back, not slack: over
+        # these three rungs the quadrature misses by at most 1.6e-14 and the
+        # cosine below misses by at least 3.4e-04, so the bar discriminates by
+        # ten orders.
+        check(f"the row weights integrate the sphere's moments exactly at "
+              f"nlat={nlat_w}", worst <= 1e-12, f"worst relative miss {worst:.3g}")
+
+    # THE CONTROL, and it is the defect this row exists to remove: the same
+    # three moments taken with cos(lat) as the weight must MISS. If they did
+    # not, the cosine would be the quadrature and there would be nothing here to
+    # fix. The zeroth moment is the sphere itself, so the miss is reported on
+    # the weight sum a caller normalises by.
+    cos_w = np.cos(np.deg2rad(gaussian_latitudes(64)))
+    cos_w = cos_w * (2.0 / cos_w.sum())
+    mu = np.sin(np.deg2rad(gaussian_latitudes(64)))
+    cos_miss = abs(float((cos_w * mu ** 2).sum()) / (2.0 / 3.0) - 1.0)
+    check("cos(lat) as a weight misses the same identity",
+          cos_miss > 1e-6, f"missed by only {cos_miss:.3g}")
+
+    # And the area weight is the row weight spread over the columns: it sums to
+    # one, so a weighted sum is a mean, and it agrees with the spec it is built
+    # from rather than being a second construction.
+    aw = gaussian_area_weights(gaussian_latitudes(48), 96,
+                               what="the selftest's axis")
+    check("the area weights partition the sphere",
+          abs(float(aw.sum()) - 1.0) <= 1e-14
+          and float(np.abs(aw - gaussian_grid(48, 96).cell_area_fraction()).max()) <= 0.0,
+          f"sum {aw.sum() - 1.0:.3g}")
+
+    # THE CONTROL for the axis check: an equally spaced latitude axis of the
+    # same length is a real grid and is not this one, so it must be refused
+    # rather than weighted as if it were Gaussian. Same for a latitude label
+    # that sits between two rows.
+    refused_axes = 0
+    uniform = 90.0 - (np.arange(64) + 0.5) * (180.0 / 64)
+    for bad in (lambda: gaussian_row_weights(uniform, what="the control"),
+                lambda: gaussian_area_weights(uniform, 128, what="the control"),
+                lambda: label_row_weights(gaussian_latitudes(32) + 0.5, 32,
+                                          what="the control")):
+        try:
+            bad()
+        except SystemExit:
+            refused_axes += 1
+    check("an axis that is not Gaussian is refused as an area weight",
+          refused_axes == 3, f"{refused_axes} of 3 refused")
+
+    # And the labels the model does write are accepted and land on their own
+    # rows, so the control above refuses the convention rather than everything.
+    labels = gaussian_latitudes(32)[[0, 5, 16, 31]]
+    got = label_row_weights(labels, 32, what="the model's own rows")
+    check("a label on the axis takes its own row's weight",
+          bool(np.array_equal(got, gaussian_grid(32).dsin[[0, 5, 16, 31]])),
+          f"{got}")
 
     print(f"\n{_CHECKS} checks, {len(problems)} failed")
     return 1 if problems else 0

@@ -71,6 +71,7 @@ from netCDF4 import Dataset
 
 import _paths  # noqa: F401  -- puts lib and this directory on the path
 from _paths import ANALYSIS
+from gridding import gaussian_row_weights
 from segments import production_window, non_production_orbits
 # CLAUDE.md names lib/autocorrelation.py as the one place a standard error is
 # taken over a series with memory. The defect this script carried was a second,
@@ -184,7 +185,9 @@ def annual_series(run_dir: Path, window: int) -> dict:
     fields = {}
     for year in span:
         with Dataset(files[year]) as nc:
-            w = np.cos(np.deg2rad(nc.variables["lat"][:]))[:, None]
+            w = gaussian_row_weights(
+                np.asarray(nc.variables["lat"][:], dtype=float),
+                what=str(files[year]))[:, None]
             for key, (var, _) in METRICS.items():
                 if var not in nc.variables:
                     out[key] = None

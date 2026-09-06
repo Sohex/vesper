@@ -364,7 +364,12 @@ intensive, categorical, moments, expectation, and the DISTRIBUTION -- the
 area-weighted quantile table a sub-grid hypsometry is, with the share
 above a threshold read back out of it -- the ledger of what a
 reduction dropped, grids as CELL BOUNDARIES: the Gaussian and GOLDSTEIN
-constructors a crossing takes its coordinates from, and the model's OWN
+constructors a crossing takes its coordinates from, THE AREA WEIGHT in its
+three forms -- per row, per cell, and per point of a product keyed by the
+latitude it carries -- each of which checks the axis it was handed and
+refuses one that is not the grid the quadrature belongs to, because
+`cos(lat)` is the metric factor of an equally spaced band and a Gaussian row
+is not one, and the model's OWN
 LABEL AXIS with the inverse from a label back to the index it names, which
 REFUSES a label that is not on the axis rather than snapping it to the
 nearest column -- an export centre offered as a model label lands exactly

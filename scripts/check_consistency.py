@@ -150,7 +150,7 @@ import yaml                          # noqa: E402
 import builds                        # noqa: E402
 import rungs                         # noqa: E402
 from paths import rel                # noqa: E402
-from gridding import coupling_ocean_fraction   # noqa: E402
+from gridding import coupling_ocean_fraction, gaussian_area_weights   # noqa: E402
 from provenance import applied_removals, artifact_drift, artifact_input_drift, BIOSPHERE_INERT_CONFIG_KEYS, INERT_CONFIG_KEYS, config_drift, REMOVED_CONFIG_KEYS, removal_problems, unknown_inert_keys   # noqa: E402
 
 
@@ -1661,7 +1661,9 @@ def check_water_path_currency(rep: "Report", config: dict) -> None:
             column += (0.1 * dsigma[k] * hus[:, k] * surface_p / gravity
                        * np.sqrt(273.0 / air_t[:, k])
                        * sigma[k] * surface_p / 1.0e5)
-        weights = np.cos(np.deg2rad(lat))[None, :, None] * np.ones_like(column)
+        weights = np.broadcast_to(
+            gaussian_area_weights(lat, column.shape[2],
+                                  what=str(best.path))[None, :, :], column.shape)
         here = (float((column * weights).sum() / weights.sum())
                 * swbw.WATER_MAGNIFICATION)
         declared = swbw.CORRK_PATH_CM

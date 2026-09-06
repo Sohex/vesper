@@ -59,7 +59,7 @@ import climatology  # noqa: E402  from lib/, via _paths
 from build_dust import (advect_to_steady_state, flag_anomalous_bins,
                         settling_velocity, steering_wind)
 from builds import grid_export, mesh_export
-from gridding import land_fraction_of_class
+from gridding import gaussian_area_weights, land_fraction_of_class
 from orogen import Export
 from paths import best_available_climatology, rel
 from aerosol_deposition import write_deposition
@@ -193,9 +193,16 @@ def main() -> None:
     def annual(field):
         return np.tensordot(weights, field, axes=(0, 0))
 
-    coslat = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, lon.size))
+    # THE AREA WEIGHT and THE SOLVER'S METRIC, kept apart for the reason
+    # `build_sea_salt.py` states at the same seam: `area` is each cell's share
+    # of the sphere and carries every mean below, `coslat_solver` is the floored
+    # cosine `advect_to_steady_state` divides its east-west width by and is what
+    # the mass balance is checked against because it is what the solver
+    # conserved over.
+    area = gaussian_area_weights(lat, lon.size, what=str(clim_path))
     coslat_solver = np.maximum(
-        coslat, cfg["transport"].get("polar_coslat_floor", 1e-3))
+        np.cos(np.deg2rad(lat))[:, None] * np.ones((1, lon.size)),
+        cfg["transport"].get("polar_coslat_floor", 1e-3))
     ta_a, ps_a, pr_a = annual(ta), annual(ps) * 100.0, annual(pr)
     rho_a = ps_a * lev[-1] / (R_DRY * ta_a)
     # `hur` is in percent; see build_sea_salt for what the attribute used to say.
@@ -240,9 +247,10 @@ def main() -> None:
             f"no arc terrain found for {cfg['emission']['arc_classes']}; the "
             f"source has nowhere to sit and a uniform fallback would be an "
             f"invented geography")
-    arc_area_fraction = float((arc * coslat).sum() / coslat.sum())
+    arc_area_fraction = float((arc * area).sum() / area.sum())
 
-    planet_area = 4.0 * np.pi * (1.2 * 6.371e6) ** 2
+    planet_area = 4.0 * np.pi * (
+        float(config["planet"]["radius_earth"]) * 6.371e6) ** 2
     b1 = band1_fraction()
     lam_s, f_s = stellar_weights()
 
@@ -278,7 +286,7 @@ def main() -> None:
                  / s["acid_mass_fraction"])
         aerosol_kg_per_year = s_kg * s["aerosol_yield"] * per_s
         # Distributed over the arc, per unit area, as a steady flux.
-        cell_area = coslat / coslat.sum() * planet_area
+        cell_area = area / area.sum() * planet_area
         share = arc * cell_area
         emission = (aerosol_kg_per_year / EARTH_YEAR_S
                     * share / share.sum() / cell_area)
@@ -324,7 +332,7 @@ def main() -> None:
         # counts a polar row and an equatorial row alike, which on this
         # climatology reads the humidity four points too dry and takes the
         # asymmetry parameter, and so the forcing, off the wrong node.
-        rh_mean = float((rh_cell * coslat).sum() / coslat.sum())
+        rh_mean = float((rh_cell * area).sum() / area.sum())
         ssa = float(np.interp(rh_mean, optics_rh, ssa1_t))
         beta = backscatter_fraction(float(np.interp(rh_mean, optics_rh, g1_t)))
         forcing = (shortwave_forcing(aod1, ssa, beta, alb1_a, b1 * rsdt_a)
@@ -334,15 +342,14 @@ def main() -> None:
             "sulfur_tg_per_earth_year": round(s_kg / 1e9, 4),
             "aerosol_tg_per_earth_year": round(aerosol_kg_per_year / 1e9, 4),
             "burden_mg_m2_global_mean": round(
-                float((m * coslat).sum() / coslat.sum()) * 1e6, 5),
+                float((m * area).sum() / area.sum()) * 1e6, 5),
             "lifetime_days_area_mean": round(
-                float((1.0 / loss * coslat).sum() / coslat.sum()) / 86400.0, 3),
+                float((1.0 / loss * area).sum() / area.sum()) / 86400.0, 3),
             "optical_depth_global_mean": round(
-                float((b1 * aod1 + (1 - b1) * aod2).sum() * 0 +
-                      ((b1 * aod1 + (1 - b1) * aod2) * coslat).sum()
-                      / coslat.sum()), 6),
+                float(((b1 * aod1 + (1 - b1) * aod2) * area).sum()
+                      / area.sum()), 6),
             "toa_shortwave_forcing_w_m2_global": round(
-                float((forcing * coslat).sum() / coslat.sum()), 5),
+                float((forcing * area).sum() / area.sum()), 5),
             "single_scattering_albedo": round(ssa, 6),
             "critical_surface_albedo": round(
                 critical_surface_albedo(ssa, beta), 4),
@@ -445,8 +452,8 @@ def main() -> None:
     # soil_solution and it had no carrier. One size, because the source is a
     # single lognormal mode, so the bin axis has length one rather than being
     # absent: the ledger reads both carriers through one convention.
-    land_w = coslat * (lsm >= 0.5)
-    ocean_w = coslat * (lsm < 0.5)
+    land_w = area * (lsm >= 0.5)
+    ocean_w = area * (lsm < 0.5)
     dep = write_deposition(
         args.output_deposition_nc, args.output_deposition,
         lat=lat, lon=lon,

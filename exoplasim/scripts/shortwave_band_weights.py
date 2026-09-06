@@ -159,6 +159,7 @@ import numpy as np
 import yaml
 
 from _paths import ANALYSIS, CONFIG, MODEL_SRC  # also puts lib/ on sys.path
+from gridding import gaussian_area_weights  # noqa: E402  from lib/
 from paths import climatology_path
 import sensitivity  # noqa: E402  from lib/
 
@@ -905,7 +906,9 @@ def column_water_cm(config: dict) -> tuple[float, str]:
                     * np.sqrt(273.0 / air_t[:, k])
                     * sigma[k] * surface_p / 1.0e5
                 )
-            weights = np.cos(np.deg2rad(lat))[None, :, None] * np.ones_like(column)
+            weights = np.broadcast_to(
+                gaussian_area_weights(lat, column.shape[2],
+                                      what=str(named))[None, :, :], column.shape)
             mean_cm = float((column * weights).sum() / weights.sum())
             return (
                 mean_cm * WATER_MAGNIFICATION,
@@ -945,7 +948,10 @@ def predict(config: dict, weight: float, absorber: str = "h2o", co2_fit: dict | 
 
     gravity = float(config["planet"]["gravity_m_s2"])
     dsigma = np.diff(sigma_half)
-    area = np.cos(np.deg2rad(lat))[None, :, None] * np.ones_like(rst)
+    area = np.broadcast_to(
+        gaussian_area_weights(lat, rst.shape[2],
+                              what="the baseline climatology")[None, :, :],
+        rst.shape)
     mean = lambda x: float((x * area).sum() / area.sum())
 
     column = np.zeros_like(surface_p)

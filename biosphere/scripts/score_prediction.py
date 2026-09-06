@@ -26,6 +26,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, PROJECT_ROOT, climatology_path
+from gridding import gaussian_area_weights  # noqa: E402
 from paths import rel  # noqa: E402
 
 import climatology as climatology_lib
@@ -105,8 +106,8 @@ def main() -> None:
                   * 1000.0 * 86400.0 * orbit.EARTH_CALENDAR_YEAR_DAYS)
 
     radius_km = 6371.0 * float(config["planet"]["radius_earth"])
-    weight = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))
-    cell_km2 = weight / weight.sum() * 4.0 * np.pi * radius_km ** 2
+    cell_km2 = (gaussian_area_weights(lat, len(lon), what=str(climatology))
+                * 4.0 * np.pi * radius_km ** 2)
     rootable, rootable_provenance = read_rootable(
         config, lat, lon, args.rootable, land=land)
     effective_area_km2 = cell_km2 * rootable

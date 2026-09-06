@@ -82,6 +82,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
+from gridding import gaussian_row_weights  # noqa: E402  from lib/, via _paths
 from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -120,7 +121,8 @@ def ke_spectrum(run_dir: Path, first: int, last: int, level: int | None):
         fu = np.fft.rfft(ua, axis=3) / ua.shape[3]
         fv = np.fft.rfft(va, axis=3) / va.shape[3]
         power = 0.5 * (np.abs(fu) ** 2 + np.abs(fv) ** 2)
-        w = np.cos(np.deg2rad(lat))[None, None, :, None]
+        w = gaussian_row_weights(np.asarray(lat, dtype=float),
+                                 what=str(path))[None, None, :, None]
         spec = (power * w).sum(axis=2) / w.sum()      # over latitude
         spec = spec.mean(axis=(0, 1))                 # over time and level
         total = spec if total is None else total + spec

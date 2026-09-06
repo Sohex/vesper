@@ -90,6 +90,11 @@ for lat in (0, 15, 30, 45, 60, 75):
                      "absorbed_change_w_m2": -(a - A_DIF) * insol * S0})
 
 def cap(lat0):
+    # A UNIFORM LATITUDE SAMPLE, not a model grid, so cos(lat) is the exact area
+    # element here rather than the Gaussian-row approximation `lib/gridding.py`
+    # refuses: a band of fixed width d centred on `la` covers
+    # `2 cos(la) sin(d/2)` of the sphere, and the constant divides out of the
+    # ratio below. Nothing on this grid is read from a climatology.
     lats, decs = np.linspace(lat0, 89.5, 120), np.linspace(-OBLIQ, OBLIQ, 61)
     num = den = 0.0
     for la in lats:

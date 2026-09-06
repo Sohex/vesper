@@ -46,6 +46,7 @@ from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT, climatology_path  # noq
 
 import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 # Aliased because `climatology` is a local Path in main().
+from gridding import gaussian_area_weights  # noqa: E402
 from paths import rel  # noqa: E402
 from builds import component_data, land_column_states
 
@@ -156,7 +157,7 @@ def main() -> None:
     liquid_daily = to_daily(liquid, year_length)
     potential_daily = to_daily(potential, year_length)
 
-    weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))
+    weights = gaussian_area_weights(lat, len(lon), what=str(climatology))
     lw = weights[land]
 
     def land_mean(field: np.ndarray) -> float:
