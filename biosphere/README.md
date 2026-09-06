@@ -606,10 +606,13 @@ source which must be granted, because a gate nothing can satisfy is a wall
 refusing for a reason nobody wrote down.
 
 The third ground is what the fork can EMIT. An accepted run has to retain
-fifteen tables together, and four of them have a quantity behind them: the
-monthly water table, and the diffusion, plant-transport and ebullition fluxes.
-The other eleven wait on a model rather than on an output routine, and
-`acceptance.retained_output_status` records which model each waits on.
+`acceptance.retained_outputs` together, and each of those tables either has a
+quantity behind it in the fork today or waits on a model rather than on an
+output routine; `acceptance.retained_output_status` records which, and which
+model each waiting table waits on. The split is not written down anywhere: the
+gate re-derives it against `modules/commonoutput.cpp` on every run, prints it
+and puts it on the report as `retained_output_split`, because a count beside a
+list that is appended to stops being true without anything objecting.
 `run_lpj_guess.py` derives one instruction row from each retained filename's
 stem, so a table with no declared parameter in `modules/commonoutput.cpp` does
 not produce an empty file -- it aborts the run while plib parses the instruction

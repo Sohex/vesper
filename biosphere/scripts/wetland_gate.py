@@ -914,6 +914,47 @@ def switches(active: bool) -> dict[str, int | float]:
             "wetland_runon": 0.0}
 
 
+def retained_output_split(declaration: dict, evidence: dict) -> dict:
+    """How many retained tables the fork can emit and how many wait on a model.
+
+    RE-DERIVED RATHER THAN DECLARED. `retained_outputs` is appended to and the
+    fork gains emitters, so any count written beside either one stops being true
+    without anything objecting. `commonoutput.cpp` is the authority for what can
+    be emitted and the declaration is the authority for what is waiting; where
+    those two disagree the table is counted as CONTRADICTED and not as either,
+    because a disagreement is what `evaluate` refuses on and hiding it inside a
+    class would leave the summary agreeing with a broken declaration.
+
+    Every table is in exactly one of the four buckets, so the four sum to
+    `retained` and the caller can check that rather than trust it.
+    """
+    retained = list((declaration.get("acceptance") or {})
+                    .get("retained_outputs") or [])
+    status = (declaration.get("acceptance") or {}).get("retained_output_status")
+    declared = evidence.get("declared_output_parameters")
+    counts = {"retained": len(retained), "emitted": 0, "waiting": 0,
+              "unclassified": 0, "contradicted": 0,
+              "source": "modules/commonoutput.cpp"}
+    if status is None or declared is None:
+        counts["unclassified"] = len(retained)
+        counts["source"] = ("the declaration or commonoutput.cpp could not be "
+                            "read, so nothing is classified")
+        return counts
+    for name in retained:
+        entry = (status or {}).get(name)
+        if entry is None:
+            counts["unclassified"] += 1
+            continue
+        has_emitter = f"file_{name.split('.')[0]}" in declared
+        if bool(entry.get("emitted")) != has_emitter:
+            counts["contradicted"] += 1
+        elif has_emitter:
+            counts["emitted"] += 1
+        else:
+            counts["waiting"] += 1
+    return counts
+
+
 # --------------------------------------------------------------------------
 # Acceptance, for output that does not exist yet.
 
@@ -1344,6 +1385,8 @@ def main() -> None:
     if args.check_run is not None:
         run_refusals = check_run(args.check_run, declaration)
 
+    split = retained_output_split(declaration, evidence)
+
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "generator": "biosphere/scripts/wetland_gate.py",
@@ -1356,6 +1399,7 @@ def main() -> None:
         "switches_written": switches(requested and not refusals),
         "residual_tolerance_ceiling": RESIDUAL_TOLERANCE_CEILING,
         "months_in_the_simulated_year": _simulated_months(),
+        "retained_output_split": split,
         "refusals": [r.as_dict() for r in refusals],
         "run_checked": str(args.check_run) if args.check_run else None,
         "run_refusals": [r.as_dict() for r in run_refusals],
@@ -1369,6 +1413,13 @@ def main() -> None:
     REPORT.write_text(json.dumps(report, indent=2) + "\n")
 
     state = "REQUESTED" if requested else "not requested"
+    print(f"retained outputs: {split['retained']} tables, "
+          f"{split['emitted']} with a quantity behind them in the fork today, "
+          f"{split['waiting']} waiting on a model"
+          + (f", {split['unclassified']} the declaration says nothing about"
+             if split["unclassified"] else "")
+          + (f", {split['contradicted']} whose declaration disagrees with "
+             "commonoutput.cpp" if split["contradicted"] else ""))
     print(f"wetland, peat and methane activation {state}; "
           f"{len(refusals)} preconditions unmet")
     for refusal in refusals:
