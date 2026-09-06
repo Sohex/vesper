@@ -159,7 +159,7 @@ import numpy as np
 import yaml
 
 from _paths import ANALYSIS, CONFIG, MODEL_SRC  # also puts lib/ on sys.path
-from paths import climatology_path
+from paths import climatology_path, declared_climatology
 import sensitivity  # noqa: E402  from lib/
 
 SSAP = "http://svo2.cab.inta-csic.es/theory/newov2/ssap.php"
@@ -716,7 +716,10 @@ def pressure_reduction(config: dict,
     but no baseline pass it, which is what `corrk_cross_check.py` does to derive
     the amounts it quotes rather than carrying them as literals.
     """
-    named = climatology or config.get("baseline_climatology")
+    # The declaration is per rung and may be a mapping, so its shape is read
+    # in lib/paths.py and not here. This must not raise: the fallback below
+    # is the point of the branch.
+    named = climatology or declared_climatology(config, "baseline_climatology")
     if named:
         path = Path(named)
         if not path.is_absolute():
@@ -883,7 +886,7 @@ def column_water_cm(config: dict) -> tuple[float, str]:
     argument the absorptance is evaluated at. Falls back to Earth's global mean
     only if no baseline is named, and says which it used.
     """
-    named = config.get("baseline_climatology")
+    named = declared_climatology(config, "baseline_climatology")
     if named:
         path = Path(CONFIG).resolve().parents[1] / named
         if path.is_file():

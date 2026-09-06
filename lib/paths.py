@@ -131,6 +131,25 @@ def _declared_climatology(config: dict, key: str,
     return declared, want
 
 
+def declared_climatology(config: dict, key: str,
+                         rung: str | None = None) -> str | None:
+    """The repo-relative path config declares under `key`, or None. NEVER RAISES.
+
+    THE ONE PLACE THE DECLARATION'S SHAPE IS KNOWN, and the reason it is public.
+    The three resolvers above raise, apply the grid guard and return an absolute
+    path, which is right for a step about to read a climatology and wrong for
+    the handful of callers that want the DECLARATION itself: a comparison
+    against a provenance record, a report of what is named, a caller that must
+    fall back rather than fail. Those four read `config.get(key)` and treated
+    the answer as a string, which the mapping form is not. A shape known in five
+    places is a shape that goes out of step.
+
+    See `_declared_climatology` for the two accepted forms and why the rung is
+    part of the declaration.
+    """
+    return _declared_climatology(config, key, rung)[0]
+
+
 def _no_declaration(key: str, rung: str, config: dict, what: str) -> SystemExit:
     """The refusal when nothing is declared for the rung a step is running at."""
     declared = config.get(key)

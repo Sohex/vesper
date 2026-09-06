@@ -3106,6 +3106,58 @@ def check_climatology_declaration_is_per_rung() -> list[str]:
     return problems
 
 
+def check_climatology_keys_are_read_through_lib(files: list[Path]) -> list[str]:
+    """Nothing reads the two climatology keys out of a config dict by hand.
+
+    THE DECLARATION HAS A SHAPE AND ONE PLACE KNOWS IT. It is a path, a mapping
+    from ladder rung to path, or null, and a caller that writes
+    `config.get("baseline_climatology")` gets the mapping itself the moment a
+    second rung is declared: `Path(a dict)` raises, and a provenance string
+    compared against a dict calls every staged field another lineage's. Four
+    call sites did exactly that -- two in `shortwave_band_weights.py`, one in
+    `run_exoplasim.py`'s staged-field lineage guard and one in
+    `verify_joint_convergence.py` -- and all four were invisible while the
+    scalar form was the only one in use.
+
+    `lib/paths.py` is the one place: the three resolvers for a step about to
+    READ a climatology, and `declared_climatology` for a caller that wants the
+    declaration itself and must not raise. This check is what keeps the count
+    at one.
+    """
+    keys = ("baseline_climatology", "bootstrap_climatology")
+    allowed = {ROOT / "lib" / "paths.py", ROOT / "scripts" / "smoke_test.py"}
+    problems = []
+    for path in files:
+        if Path(path).resolve() in allowed:
+            continue
+        try:
+            tree = ast.parse(Path(path).read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            key = None
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "get"
+                    and node.args
+                    and isinstance(node.args[0], ast.Constant)
+                    and node.args[0].value in keys):
+                key = node.args[0].value
+            elif (isinstance(node, ast.Subscript)
+                  and isinstance(node.slice, ast.Constant)
+                  and node.slice.value in keys):
+                key = node.slice.value
+            if key is not None:
+                where = str(Path(path).resolve().relative_to(ROOT))
+                problems.append(
+                    f"{where}:{node.lineno} reads {key!r} out of a config "
+                    "dict. The declaration is a path, a rung-to-path mapping "
+                    "or null, and lib/paths.py is the one place that shape is "
+                    "known: call a resolver, or declared_climatology() where "
+                    "the declaration itself is wanted and a refusal is not")
+    return problems
+
+
 def check_no_shadowed_imports(files: list[Path]) -> list[str]:
     """A name bound by `import X` is never rebound to something else.
 
@@ -6579,6 +6631,8 @@ def main() -> None:
                lambda: check_best_available_climatology_resolves_by_stage()),
               ("a climatology declared at one rung answers for no other",
                lambda: check_climatology_declaration_is_per_rung()),
+              ("the climatology declaration's shape is known in one place",
+               lambda: check_climatology_keys_are_read_through_lib(files)),
               ("no imported module name is rebound",
                lambda: check_no_shadowed_imports(files)),
               ("no name is loaded that nothing binds, model Python included",
