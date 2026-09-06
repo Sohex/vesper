@@ -241,7 +241,10 @@ def main() -> int:
         row["died_before_step"] = (reports + 1) * args.ndiag if died else None
         rate = predicted(args.sweep, dt)
         row["predicted_growth_per_step"] = rate
-        if rate and rate > 1.0 and not finished:
+        # An arm the guard REFUSED never integrated, so it has no death to
+        # bracket and no amplification to have reached. `not finished` covers
+        # both refusals and deaths and is not the test.
+        if rate and rate > 1.0 and row["died_after_step"] is not None:
             ln = math.log(rate)
             row["amplification_reached"] = [
                 float(f"{math.exp(ln * row['died_after_step']):.3g}"),
