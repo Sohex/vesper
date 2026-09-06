@@ -508,9 +508,10 @@ def albedo_report_path(config) -> Path:
 # IT IS READ FROM THE REPORT, and that is the whole of WORLD-SU9O. It was a
 # declared constant measured by differencing three generator runs, and a measured
 # constant with no re-derivation is a number that drifts from the terrain it
-# describes with nothing objecting: the same declaration read 0.0851423, taken on
-# a staging that is not the one this budget reads, while the generator on the
-# report it does read gives another figure. `build_surface_albedo.py` now carries
+# describes with nothing objecting: the declaration read 0.0851423 and the
+# generator on the report this budget reads emits another figure, and the
+# declaration recorded no staging, so which of them the item wanted could not be
+# settled from what was written down. `build_surface_albedo.py` now carries
 # a per-class indicator through the identical arithmetic the albedo takes and
 # emits the exact derivative under each `lithology_albedo_overrides` entry, so
 # the consumer reads the emitted value and there is no second copy to disagree
