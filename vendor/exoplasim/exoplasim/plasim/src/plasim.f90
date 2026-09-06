@@ -793,7 +793,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             write(nud,'(A,E24.16,A,I5)')                                &
      &         ' NCONVTIME: control arm    ',zcctrl,                     &
      &         ' per step at total wavenumber ',jcctrl
-            write(nud,'(A,E24.16,A,E24.16,A,F8.1,A)')                   &
+!        THE TIMESTEP TO TEN PLACES, for the same reason as the sixteen
+!        digits above. `deltsec` is `day_24hr / mtspd` and `mtspd` is rounded
+!        UP TO EVEN, so a caller's MPSTEP of 8.5 runs at 8.4705882353 -- and to
+!        one decimal that reads back as 8.5, where the growth is 1.00429 rather
+!        than the 1.00374 this run measured. The recomputation would then have
+!        been of a different timestep and reported a disagreement that was only
+!        the report's own rounding.
+            write(nud,'(A,E24.16,A,E24.16,A,F16.10,A)')                 &
      &         ' NCONVTIME: effect ',zcgrow-zcctrl,' against a resolution of ',&
      &         zcres,', this run runs at ',deltsec/60.0,' min'
             write(nud,'(A,F8.1,A)')                                     &
