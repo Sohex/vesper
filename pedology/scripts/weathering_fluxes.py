@@ -78,7 +78,8 @@ from _paths import (ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT,
 
 import builds
 from lithology_map import ROCK_TO_MEYBECK
-from gridding import gaussian_grid, land_fraction_of_class, require_gaussian_rows
+from gridding import (gaussian_grid, gaussian_latitudes,
+                      land_fraction_of_class, require_same_rows)
 from paths import rel
 
 from build_soil import EARTH_YEAR_DAYS, KELVIN, lithology_fractions
@@ -131,9 +132,19 @@ def grid_cell_area_km2(lat: np.ndarray, lon: np.ndarray,
     The radius is the export manifest's, not Earth's. One implementation,
     because two scripts turn a flux per litre into a flux per year with it and a
     second copy is a second chance to put Earth's radius in.
+
+    THE AXIS COMES OFF A CLIMATOLOGY, SO `require_same_rows` IS THE DOOR.
+    netCDF stores it as float32, so the constructed Gauss-Legendre nodes and the
+    axis on disk agree to a few parts in a million and no closer;
+    `require_gaussian_rows` carries a float64 bar for an EXPORT's axis and
+    refuses a correct climatology axis for that reason alone, which is what it
+    did to both callers of this function. `analysis/spatial_reduction_gap.py`
+    states the same distinction at its own call site. Rows are joined by INDEX
+    either way: CLAUDE.md rule 3.
     """
     spec = gaussian_grid(len(lat), len(lon))
-    require_gaussian_rows(spec, lat, what="the grid these cell areas are for")
+    require_same_rows(gaussian_latitudes(len(lat)), lat,
+                      "the grid these cell areas are for")
     return spec.cell_area_fraction() * (4.0 * np.pi * float(radius_km) ** 2)
 
 
@@ -207,7 +218,14 @@ def main() -> None:
     # restated: this was the string "450 ppm" in five places, so changing
     # config/planet.yaml left every one of them behind.
     pco2_ppm = float(config["atmosphere"]["pCO2_bar"]) * 1e6
-    fractions, mesh, grid_dir = lithology_fractions(config)
+    # The grid is the configured rung's: this step reads a climatology, which
+    # `require_configured_grid` has already held to `model.resolution`, so
+    # asking for any other export would integrate the lithology onto a grid the
+    # climate is not on. `build_soil.py` takes a `--grid` because it is the
+    # step that CUTS a soil at a rung; this one follows the climate it was
+    # given.
+    grid_dir = builds.grid_export(config)
+    fractions, mesh = lithology_fractions(config, grid_dir)
     silica_c, bicarb_c = concentrations()
 
     # Cell area on the sphere, km2, so fluxes are absolute rather than per-area.

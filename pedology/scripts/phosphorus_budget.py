@@ -360,7 +360,10 @@ def absolute_arm(cfg: dict, ped: dict, climatology: Path,
             (annual_mean(np.asarray(data["pr"][:], dtype=float), centres)
              - evaporation) * scale, 0.0)
 
-    fractions, mesh, grid_dir = lithology_fractions(cfg)
+    # The configured rung's grid, for the reason weathering_fluxes.py states:
+    # this step reads a climatology config has already pinned to that rung.
+    grid_dir = builds.grid_export(cfg)
+    fractions, mesh = lithology_fractions(cfg, grid_dir)
     area_km2 = grid_cell_area_km2(lat, lon,
                                   float(mesh.manifest["planet"]["radiusKm"]))
     # Litres of runoff per cell per Earth year: mm -> m -> m3 -> l over km2.
