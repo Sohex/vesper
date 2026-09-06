@@ -465,6 +465,147 @@ def check_one_grid_convention(files: list[Path]) -> list[str]:
     return bad
 
 
+# --- THE COSINE AS AN AREA WEIGHT -------------------------------------------
+#
+# `lib/gridding.py` owns the area weight and it is the Gauss-Legendre
+# quadrature, not `cos(lat)`: against the quadrature the cosine is wide in the
+# polar row by about 1.81 per cent at every rung on the ladder, and wrong by a
+# part in ten thousand through the interior, so a cosine-weighted mean is a mean
+# over a grid nobody is running and it returns an ordinary-looking number while
+# it does it. Twenty-eight sites were swept onto `gaussian_row_weights` and
+# `gaussian_area_weights`; nothing stopped the twenty-ninth from being written,
+# which is the shape of defect `check_one_grid_convention` already exists for.
+#
+# THE DISCRIMINATOR IS THE USE AND NOT THE EXPRESSION. A cosine of a latitude is
+# a metric term in plenty of places that are not weights -- the east-west cell
+# width an explicit advection step divides by, a unit vector on the sphere, the
+# cosine of a solar zenith angle -- so the check reads every cosine whose
+# argument names a latitude and holds it against a list that says which ones are
+# metric terms and what each is. A new one is red until it is either put behind
+# the quadrature door or named here.
+#
+# The argument is read by balancing parentheses rather than by a cleverer
+# pattern, so `np.cos(np.deg2rad(ds.lat))` is seen through its conversions and
+# `coslat * np.cos(lo)` -- a USE of a cosine taken further up -- is not a second
+# site. `notes/audits/ocean-grid-crossing.md` section 3 has the measurement.
+COSINE_CALL = re.compile(r"\b(?:np|numpy|math)\.cos\s*\(")
+# `lat` anywhere in the argument catches `lat`, `lats`, `clat`, `latitudes` and
+# `ds.lat`; `la` is admitted only as a whole identifier, which is what
+# `maps/build_basemap.py` and `analysis/snow_albedo_zenith.py` bind a latitude in
+# radians to.
+LATITUDE_TOKEN = re.compile(r"lat|(?<![A-Za-z0-9_])la(?![A-Za-z0-9_])")
+
+# Every cosine of a latitude in the walked tree that is NOT a weight, keyed by
+# the file and by the argument the cosine is taken of, so an exemption covers
+# one expression rather than a whole file. A row whose site has gone is reported
+# too: a list that outlives what it excuses stops being a list of what is there.
+COSINE_METRIC_TERMS = (
+    {"path": "aeolian/scripts/build_dust.py", "cos_of": "np.deg2rad(lat)",
+     "what": "advect_to_steady_state's east-west cell width, which the explicit "
+             "step divides by and floors near the poles"},
+    {"path": "aeolian/scripts/build_sea_salt.py", "cos_of": "np.deg2rad(lat)",
+     "what": "the coslat_solver mirror of build_dust's cell width"},
+    {"path": "aeolian/scripts/build_volcanic_sulfate.py", "cos_of": "np.deg2rad(lat)",
+     "what": "the coslat_solver mirror of build_dust's cell width"},
+    {"path": "maps/build_basemap.py", "cos_of": "la",
+     "what": "pixel_directions, a unit vector on the sphere"},
+    {"path": "maps/build_basemap.py", "cos_of": "np.deg2rad(lat)",
+     "what": "the polar-convergence blur, a width that grows as 1/cos(lat)"},
+    {"path": "maps/build_basemap.py", "cos_of": "np.deg2rad(lat_deg)",
+     "what": "the east-west pixel spacing"},
+    {"path": "hydrography/scripts/groundwater.py", "cos_of": "lat",
+     "what": "a unit vector on the sphere"},
+    {"path": "hydrography/scripts/earth_calibration.py", "cos_of": "lat",
+     "what": "a unit vector on the sphere"},
+    {"path": "hydrography/scripts/earth_calibration.py", "cos_of": "la",
+     "what": "a unit vector on the sphere"},
+    {"path": "lib/remap.py", "cos_of": "la",
+     "what": "unit, a unit vector on the sphere for the overlap search"},
+    {"path": "maps/projections.py", "cos_of": "la",
+     "what": "a unit vector on the sphere"},
+    {"path": "exoplasim/scripts/cloud_optical_depth_bracket.py",
+     "cos_of": "np.radians(lat)",
+     "what": "the cosine of the solar zenith angle"},
+    {"path": "analysis/snow_albedo_zenith.py", "cos_of": "lat",
+     "what": "the cosine of the solar zenith angle"},
+    {"path": "analysis/snow_albedo_zenith.py", "cos_of": "np.deg2rad(la)",
+     "what": "cap, a UNIFORM latitude sample rather than a model grid, where the "
+             "cosine IS the exact area element and not an approximation to a "
+             "Gaussian row's"},
+)
+# Two files carry the pattern rather than an instance of it: `lib/gridding.py`
+# owns the weight and keeps the cosine as its selftest's negative control, and
+# this file states the check.
+COSINE_OWNER = ("lib/gridding.py", "scripts/smoke_test.py")
+
+
+def _cosine_argument(line: str, open_paren: int) -> str:
+    """The text inside the parentheses of a call whose `(` is at `open_paren`.
+
+    Balanced, so a nested conversion comes back whole and an unclosed call --
+    a cosine wrapped across a line break -- comes back as what is on the line.
+    """
+    depth, out = 0, []
+    for ch in line[open_paren:]:
+        if ch == "(":
+            depth += 1
+            if depth == 1:
+                continue
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                break
+        out.append(ch)
+    return "".join(out).strip()
+
+
+def check_no_cosine_area_weight(files: list[Path]) -> list[str]:
+    """The area weight is the quadrature, so no cosine of a latitude is a weight.
+
+    Reads every `np.cos`/`math.cos` whose argument names a latitude and reports
+    the ones `COSINE_METRIC_TERMS` does not name. It fails in the direction that
+    matters: a new area weight written with a cosine goes red and has to go
+    through `lib/gridding.py`'s door, while a metric term is named in the list
+    with what it is.
+
+    Prose is skipped the way `check_no_order_picks` skips it, and a bare
+    `cos(lat)` in a sentence never matches to begin with, because the pattern is
+    a qualified CALL.
+    """
+    bad = []
+    exempt = {(e["path"], e["cos_of"]) for e in COSINE_METRIC_TERMS}
+    seen, reported = set(), set()
+    for f in files:
+        rel = str(f.relative_to(ROOT))
+        if rel in COSINE_OWNER:
+            continue
+        for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if (stripped.startswith("#") or "weight-ok" in line
+                    or "`" in line or stripped.startswith("*")):
+                continue
+            for m in COSINE_CALL.finditer(line):
+                arg = _cosine_argument(line, m.end() - 1)
+                if not LATITUDE_TOKEN.search(arg):
+                    continue
+                key = (rel, arg)
+                seen.add(key)
+                if key in exempt or (rel, i, arg) in reported:
+                    continue
+                reported.add((rel, i, arg))
+                bad.append(
+                    f"{rel}:{i}: cos({arg}) -- the area weight is "
+                    "lib/gridding.py's quadrature (gaussian_row_weights, "
+                    "gaussian_area_weights). If this is a metric term rather "
+                    "than a weight, name it in COSINE_METRIC_TERMS")
+    for entry in COSINE_METRIC_TERMS:
+        if (entry["path"], entry["cos_of"]) not in seen:
+            bad.append(
+                f"{entry['path']} no longer takes cos({entry['cos_of']}), and "
+                f"COSINE_METRIC_TERMS still excuses it as {entry['what']}")
+    return bad
+
+
 def check_registered_in_workflow(files) -> list[str]:
     """Every generator that writes an artifact is registered in `config/pipeline.yaml`.
 
@@ -6622,6 +6763,8 @@ def main() -> None:
               ("no artifact selection by sort order", lambda: check_no_order_picks(files)),
               ("one grid convention, in lib/gridding.py",
                lambda: check_one_grid_convention(files)),
+              ("no cosine of a latitude used as an area weight",
+               lambda: check_no_cosine_area_weight(files)),
               ("every generator is declared in config/pipeline.yaml, in a walked directory",
                lambda: check_registered_in_workflow(files)),
               ("every registered script exists",
