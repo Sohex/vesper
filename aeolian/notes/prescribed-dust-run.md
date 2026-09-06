@@ -95,10 +95,16 @@ and defaults to 1.
 **Length: 30 orbits of adjustment, then 10 with `NLOWIO = 0` and seasonal output
 for the climatology.** The baseline's own fitted relaxation is about 9.6 orbits,
 so 30 is three e-foldings; the climatology block matches the baseline's, which is
-also 10 orbits, so the two are averaged over the same window length. At the
-baseline's measured rate -- 1.8 min per orbit on 16 ranks in spin-up, 6.4 with
-`NLOWIO = 0` and snapshots -- that is about two hours per run and four for the
-pair.
+also 10 orbits, so the two are averaged over the same window length. At the rate
+the T42 baseline was running at when this was written -- 1.8 min per orbit on 16
+MPI ranks in spin-up, 6.4 with `NLOWIO = 0` and snapshots -- that is about two
+hours per run and four for the pair. **Both figures are T42 and neither survives
+to another rung or to the current model.** The clean-I/O one predates the pyburn
+fix that cut postprocessing tenfold, so the clean regime now costs about 1.27x
+the low-I/O one rather than 3.6x
+(`notes/audits/pyburn-postprocessing-cost.md`); and the per-rung price on the
+threaded model is `notes/audits/resolution-ladder-wall-clock.md`. Re-cost this
+run from those against whichever rung it is made at.
 
 **Why a control run rather than the existing baseline climatology.** The baseline
 is quasi-equilibrated with a mean TOA balance of -0.60 W/m2, so it is still

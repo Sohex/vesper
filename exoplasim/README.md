@@ -656,6 +656,7 @@ unless told they exist.
 | `compare_flux_sweep.py` | compare equilibrated reports across a flux sweep |
 | `run_albedo_bracket.sh` | drives the four bracket cases end to end, threading each run's announced id into its own continuation; `--self-test` checks that threading without a model |
 | `compare_albedo_bracket.py` | compare albedo endmembers and decide whether the bracket resolved |
+| `run_flux_bracket.sh` | buys BOTH arms of `lib/sensitivity.py`'s flux-to-kelvin secant in one invocation, identical in structure and differing only in flux, because the arms have to be one instrument and one window and a standing run reused as one arm silently is not; the whole pair is re-bought whenever the staged surface moves. `RUNS_HOME` relocates each payload out of a worktree; `--self-test` checks the id threading and the relocation without a model |
 | `dust_indices.py` | the one place a refractive-index dataset NAME becomes n and k; `aeolian/config/dust.yaml` declares which |
 | `dust_optics.py` | two-band mineral dust optics, and the sign of its forcing |
 | `mie_dust.py` | Bohren and Huffman Mie code with lognormal size integration |

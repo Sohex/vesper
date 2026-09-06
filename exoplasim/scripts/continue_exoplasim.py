@@ -655,7 +655,7 @@ def main() -> None:
     # reason to avoid the cheap regime for spin-up.
     #
     # Model time is identical either way. The wall-clock gap was 104 s against
-    # 387 s an orbit when measured 2026-08-17; almost all of that was a
+    # 387 s an orbit at T42 when measured 2026-08-17; almost all of that was a
     # quadratic reader in pyburn rather than the I/O mode, and with it fixed the
     # clean regime costs about 1.27x. See
     # notes/audits/pyburn-postprocessing-cost.md. Segments record which regime
