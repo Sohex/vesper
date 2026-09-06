@@ -260,6 +260,31 @@ def step(h_old, geom, area, dt, gamma, slope_mode, gradop, tol, itmax,
     return h, trace, False, solves
 
 
+def check_gradient(n_regions, cfg, seed=0):
+    """The least-squares gradient against an identity, before it is quoted.
+
+    On a sphere of radius R the field `H = R cos(theta)` has tangential gradient
+    magnitude exactly `sin(theta)`, everywhere except the poles where the
+    identity is degenerate. That is a right answer the reconstruction cannot
+    see, which is what makes it a test rather than a comparison. The two-point
+    operator's own noise floor is GW-8's 12 per cent, so a reconstruction worse
+    than that would make the `full` arm meaningless.
+    """
+    export, geom, pts, radius_km, _ = build_mesh(n_regions, cfg, seed)
+    op = cell_gradient_operator(geom, pts)
+    z = pts[:, 2]
+    got = grad_magnitude(op, radius_km * 1000.0 * z)
+    exact = np.sqrt(np.maximum(0.0, 1.0 - z * z))
+    away = exact > 0.2
+    rel = np.abs(got[away] - exact[away]) / exact[away]
+    return dict(field="H = R cos(theta), |grad H| = sin(theta)",
+                cells=int(away.sum()),
+                median_relative_error=float(np.median(rel)),
+                p90_relative_error=float(np.percentile(rel, 90)),
+                max_relative_error=float(rel.max()),
+                against=OPERATOR_NOISE_FLOOR)
+
+
 def build_mesh(n_regions, cfg, seed=0):
     import groundwater as gw
     import orogen as og
@@ -396,6 +421,8 @@ def main() -> None:
 
     cfg = yaml.safe_load((ROOT / "config/planet.yaml").read_text())
     load_before = host_load()
+    gradient_check = check_gradient(min(args.regions), cfg) \
+        if "full" in args.slope else None
     arms = []
     for n in args.regions:
         for mode in args.slope:
@@ -415,6 +442,7 @@ def main() -> None:
         picard_max=PICARD_MAX,
         glen_exponent=N_GLEN,
         glen_rate_factor_per_year=A_GLEN_PER_YEAR,
+        gradient_reconstruction_check=gradient_check,
         arms=arms,
     )
     args.out.write_text(json.dumps(report, indent=2) + "\n")
