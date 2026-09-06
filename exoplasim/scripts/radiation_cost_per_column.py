@@ -38,6 +38,18 @@ The candidate's driver does the same thing by construction: its spectral file
 read is timed separately and reported, and one warm-up call is discarded before
 the timed loop, so the k-table touch and the allocator are not in the number.
 
+## The binary is built here rather than found
+
+The T21 profiling bed carries the executable WORLD-43RK measured with, and
+`radmod.f90` has moved seventeen times since -- WORLD-F9IG alone replaced three
+analytic fits with the Stephens (1984) tables, which changes the shortwave
+cloud kernel's transcendental count. A cost measurement taken on that binary
+would be a measurement of a scheme this project no longer runs, and it would
+look exactly like a measurement of the one it does. So a fresh executable is
+built from the tree's own source at every invocation, with `--no-publish` so it
+stays in its build directory and cannot become the binary a run picks up, and
+its sha is reported beside the number.
+
 ## The attribution, and what it deliberately includes
 
 `perf record` gives the model's cost by symbol. Radiation is `swr_` and `lwr_`
@@ -137,6 +149,25 @@ def make_bed(steps: int) -> Path:
     text = re.sub(r"N_RUN_STEPS\s*=\s*\d+", f"N_RUN_STEPS = {steps}", text)
     nl.write_text(text)
     return dest
+
+
+def build_current_model(threads: int, verbose: bool = False) -> Path:
+    """A fresh executable from THIS tree's source, unpublished.
+
+    `--no-publish` leaves it in its build directory: an arm that publishes
+    overwrites the shipped binary and gives the next run unknown provenance,
+    which is what that flag exists to prevent.
+    """
+    cmd = [sys.executable, str(ROOT / "exoplasim/scripts/build_model.py"),
+           "--res", RUNG, "--ranks", str(threads), "--print-path"]
+    p = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
+    if p.returncode != 0:
+        raise SystemExit("build_model.py failed:\n" + p.stdout[-3000:]
+                         + "\n" + p.stderr[-3000:])
+    path = Path(p.stdout.strip().splitlines()[-1])
+    if not path.is_file():
+        raise SystemExit(f"build_model.py named {path}, which is not a file")
+    return path
 
 
 def model_exe(bed: Path) -> Path:
@@ -308,6 +339,12 @@ def main() -> None:
                          "13.4 s between them carries 2 per cent scatter rather "
                          "than 6")
     ap.add_argument("--rounds", type=int, default=3)
+    ap.add_argument("--bed-binary", action="store_true",
+                    help="measure the executable the bed already carries rather "
+                         "than building one. The bed's is WORLD-43RK's and "
+                         "radmod has moved since, so this is for reproducing "
+                         "that measurement and not for taking a new one")
+    ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--threads", type=int, default=16)
     ap.add_argument("--nlon", type=int, default=NLON)
     ap.add_argument("--nlat", type=int, default=NLAT)
@@ -320,7 +357,11 @@ def main() -> None:
     WORK.mkdir(parents=True, exist_ok=True)
     short, long = sorted(args.steps)
     beds = {n: make_bed(n) for n in (short, long)}
-    exe = model_exe(beds[short])
+    if args.bed_binary:
+        exe = model_exe(beds[short])
+    else:
+        exe = build_current_model(args.threads, args.verbose)
+    exe_sha = __import__("hashlib").sha256(exe.read_bytes()).hexdigest()
     env = dict(OMP_NUM_THREADS=str(args.threads), OMP_WAIT_POLICY="passive")
 
     loads = [load()[0]]
@@ -393,6 +434,8 @@ def main() -> None:
         rung=RUNG,
         threads=args.threads,
         rounds=args.rounds,
+        executable=dict(path=str(exe), sha256=exe_sha,
+                        built_here=not args.bed_binary),
         bed=dict(source=str(SOURCE_BED.relative_to(ROOT)),
                  steps_short=short, steps_long=long,
                  wall_s_short=wall_short, wall_s_long=wall_long,
