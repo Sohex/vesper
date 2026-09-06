@@ -1329,9 +1329,14 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # most blocks skip the factorisation and pay the back-substitution
         # alone.
         phases("partition")
+        # The two ends of every face that has a free cell at BOTH ends, gathered
+        # once. They were gathered four times between the block graph and the
+        # assembly, over a face list of tens of millions, for arrays that do not
+        # change in between.
+        sb, db = src[both], dst[both]
+        tb = trans[both]
         blk_graph = sp.coo_matrix(
-            (np.ones(int(both.sum()), dtype=np.int8),
-             (idx[src[both]], idx[dst[both]])), shape=(m, m))
+            (np.ones(sb.size, dtype=np.int8), (idx[sb], idx[db])), shape=(m, m))
         n_blocks, blk = _components(blk_graph, directed=False)
         del blk_graph
         # STABLE, so the cells inside a block keep their relative order and the
@@ -1350,12 +1355,10 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         idx[unknown] = pos
 
         phases("assembly")
-        rows = np.concatenate([idx[src[both]], idx[dst[both]],
-                               idx[src[both]], idx[dst[both]]])
-        cols = np.concatenate([idx[dst[both]], idx[src[both]],
-                               idx[src[both]], idx[dst[both]]])
-        vals = np.concatenate([-trans[both], -trans[both],
-                               trans[both], trans[both]])
+        isb, idb = idx[sb], idx[db]
+        rows = np.concatenate([isb, idb, isb, idb])
+        cols = np.concatenate([idb, isb, isb, idb])
+        vals = np.concatenate([-tb, -tb, tb, tb])
         rhs = np.zeros(m)
         np.add.at(rhs, idx[unknown], supply[unknown])
         if et_max_m_s is not None:
