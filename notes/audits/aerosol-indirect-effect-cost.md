@@ -86,10 +86,13 @@ turn on either arm.
 
 **And the inversion is the number to carry away. A change of 25 to 33 per cent
 in droplet number already reaches the reopening threshold.** That is what makes
-this decidable without a droplet number: the threshold is not at some large
-aerosol perturbation this world might or might not produce, it is at a third of
-one doubling. Any indirect effect this model could have that is not
-approximately zero is material.
+this decidable without a droplet number: the threshold sits at a third of one
+doubling rather than at some large aerosol perturbation this world might or might
+not produce. Below it the term still is not zero -- a tenth of a doubling is
+about 0.4 W/m2, or 0.3 K -- so what the bracket has to establish is not whether
+the effect exists but whether this world's aerosol moves droplet number by more
+than a quarter, which is a question about the aerosol products and not about the
+parameterisation.
 
 ## Why the instrument can carry that, and where it cannot
 

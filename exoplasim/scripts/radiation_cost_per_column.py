@@ -176,11 +176,21 @@ def radiation_share(shares: dict) -> dict:
     def sym(name):
         return sum(v for k, v in by_sym.items() if k.endswith(":" + name))
 
-    libm = sum(v for k, v in by_dso.items() if "libm" in k)
+    # libm.so and libmvec.so are SEPARATE objects here and only the first
+    # belongs to radiation. `radiation-scheme-price.md` establishes that every
+    # non-integer `**` in the radiation sits inside a `where` block, so none of
+    # them reaches libmvec's vector calls: the scalar `pow`, `exp` and `log` are
+    # radiation's and the vector ones are the unmasked code elsewhere in the
+    # physics. Counting libmvec as radiation would inflate the share with work
+    # that is not radiation's, so it is reported beside rather than inside.
+    libm = sum(v for k, v in by_dso.items()
+               if "libm.so" in k or k.endswith("libm"))
+    libmvec = sum(v for k, v in by_dso.items() if "libmvec" in k)
     swr, lwr, radstep = sym("swr_"), sym("lwr_"), sym("radstep_")
     return dict(swr_percent=round(swr, 3), lwr_percent=round(lwr, 3),
                 radstep_self_percent=round(radstep, 3),
                 libm_percent=round(libm, 3),
+                libmvec_percent_not_counted=round(libmvec, 3),
                 radiation_percent=round(swr + lwr + radstep + libm, 3),
                 radiation_percent_model_code_only=round(swr + lwr + radstep, 3))
 
