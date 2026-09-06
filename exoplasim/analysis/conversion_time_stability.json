@@ -1,0 +1,72 @@
+{
+  "what": "the one-step amplification of the model's linearised adiabatic step with NCONVTIME on, and the coarsest timestep at which it does not grow",
+  "provenance": {
+    "generated_utc": "2026-09-06T05:02:04.201647+00:00",
+    "config": "config/planet.yaml",
+    "config_sha256": "8175c1d7fec42adc87dc395e420018d459fbfcafc441b20453a39e0cabd99480",
+    "model_source_sha256": "a4b2ff2930d1f61c294db5c129bdcc6fb445df84514b0ef9bfc87be694004275",
+    "commit": "c67ee2851f69f006b71aa309ed159d5b7f6186ad",
+    "numpy": "2.5.2",
+    "discard_steps": 1000,
+    "measured_steps": 3000,
+    "neutral_tolerance": 1e-10
+  },
+  "rows": [
+    {
+      "rung": "T21",
+      "timestep_minutes": 45.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.2801925,
+      "worst_total_wavenumber": 17,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T42",
+      "timestep_minutes": 45.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 9.6275,
+      "stability_boundary_minutes": 4.1864,
+      "guard_over_boundary": 2.2997,
+      "growth_per_step": 1.34494008,
+      "worst_total_wavenumber": 29,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T85",
+      "timestep_minutes": 45.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 4.7853,
+      "stability_boundary_minutes": 2.0814,
+      "guard_over_boundary": 2.2991,
+      "growth_per_step": 1.43101505,
+      "worst_total_wavenumber": 51,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T127",
+      "timestep_minutes": 30.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 3.209,
+      "stability_boundary_minutes": 1.3959,
+      "guard_over_boundary": 2.2988,
+      "growth_per_step": 1.43091729,
+      "worst_total_wavenumber": 76,
+      "growth_per_step_nconvtime_off": 1.0
+    },
+    {
+      "rung": "T170",
+      "timestep_minutes": 15.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 2.3997,
+      "stability_boundary_minutes": 1.0438,
+      "guard_over_boundary": 2.299,
+      "growth_per_step": 1.38272283,
+      "worst_total_wavenumber": 115,
+      "growth_per_step_nconvtime_off": 1.0
+    }
+  ],
+  "note": "guard_over_boundary is how much coarser a step the model's explicit gravity-wave limit admits than the scheme is stable at. A null boundary means the modification grows at every step down to 0.05 min, which is what PNU = 0 gives: the Robert-Asselin filter is the only thing damping the leapfrog computational mode the term feeds. world-bt3b."
+}

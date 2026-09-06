@@ -2306,6 +2306,29 @@ checks:
   # world-2v9z.
   - id: lint_diag_arrays
     script: exoplasim/scripts/lint_diag_arrays.py
+  # What timestep the NCONVTIME term is stable at, which is not the explicit
+  # gravity-wave limit the model's guard used to test. The term takes the
+  # reference conversion's divergence half off `sdt` -- the centred mean of
+  # t-dt and t+dt -- and puts it on the divergence at t, and `sdt - sd` is the
+  # second time difference: O(dt^2) for a smooth mode and exactly -2 sd for the
+  # LEAPFROG COMPUTATIONAL MODE. So the term feeds that mode, the only thing
+  # damping it is the Robert-Asselin filter, and the boundary is a function of
+  # PNU -- at PNU = 0 there is none at any step. A gravity-wave CFL cannot say
+  # that.
+  #
+  # It rebuilds the model's own linearised adiabatic step from
+  # config/planet.yaml through initpm's, initsi's and makebm's arithmetic and
+  # takes the spectral radius of the one-step map. `--against <run>/plasim_diag`
+  # compares it with the amplification plasim.f90 prints at startup, which is
+  # the check with a right answer: two implementations of one map.
+  #
+  # No build and no run of the model; it writes
+  # exoplasim/analysis/conversion_time_stability.json with its provenance.
+  # world-bt3b.
+  - id: conversion_time_stability
+    script: exoplasim/scripts/conversion_time_stability.py
+    writes:
+      - exoplasim/analysis/conversion_time_stability.json
   # Does anything uninitialised reach a stored value, at the optimisation level
   # this project ships? The trapping form of that question does not arm at -O2
   # -- world-5rs measured the positive control -- and `-finit-real=zero` was

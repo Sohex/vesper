@@ -1,0 +1,419 @@
+#!/usr/bin/env python3
+"""What timestep the NCONVTIME term is stable at, and it is not the guard's.
+
+    python exoplasim/scripts/conversion_time_stability.py
+    python exoplasim/scripts/conversion_time_stability.py --rung T21 --dt 15
+    python exoplasim/scripts/conversion_time_stability.py --against <run>/plasim_diag
+
+Worldbuilding frame: a numerical experiment on the Vesper project's climate
+model. Nothing here is about the simulated planet.
+
+WHAT `NCONVTIME` DOES AND WHY ITS TIMESTEP IS ITS OWN QUESTION.
+`model.conversion_time_level` takes the adiabatic reference conversion's
+divergence half off `sdt` -- the centred mean of t-dt and t+dt that
+`spectrala`'s semi-implicit solve produces -- and puts it on the divergence at
+t, so the two halves of the conversion meet at one time level. It is world-0ov's
+first repair route and is refuted; `exoplasim/notes/resolution-tuned-parameters.md`
+carries the refutation. It remains as a CONTROL.
+
+WHY THE GUARD IT CARRIED CANNOT BE THE BOUNDARY. The model refuses the setting
+above `a / (c sqrt(N(N+1)))` with `c = sqrt(R T0 / (1 - kappa))`, the explicit
+gravity-wave limit. That speed is right -- it is within 2% of the largest
+eigenvalue of the model's own semi-implicit vertical structure matrix -- and the
+limit is still not where the term becomes usable, because the mode the term
+destabilises is not a gravity wave. `sdt - sd` is the second time difference:
+O(dt^2) for a smooth mode and, for the LEAPFROG COMPUTATIONAL MODE, which
+alternates sign every step, exactly `-2 sd`. The term therefore feeds the
+computational mode, the only thing that damps that mode is the Robert-Asselin
+filter, and the boundary is a function of PNU. At PNU = 0 there is no stable
+timestep at all, which no gravity-wave CFL can express. world-bt3b.
+
+WHAT THIS COMPUTES. The one-step amplification of the model's own linearised
+adiabatic step: `spectrala`'s divergence solve with the nonlinear tendencies
+zero, step 3a's term, the leapfrog advance, the time filter in the two halves
+the model splits it into, and `spectrald`'s implicit hyperdiffusion, Rayleigh
+drag and Newtonian cooling. Every matrix is rebuilt from `config/planet.yaml`
+through the same arithmetic `initpm`, `initsi` and `makebm` use, so this is the
+model's map and not a model of it.
+
+WHAT IT IS FOR, now that `plasim.f90:conversion_time_amplification` computes the
+same thing at startup. Two implementations of one map, and `--against` compares
+them: the model prints its amplification and this recomputes it from the
+configuration, so a disagreement is a defect in one of them rather than a
+question about either. That is the check with a right answer here; the growth
+rate itself has no independent standard to be compared with.
+
+VALIDATION AGAINST THE MODEL'S OWN BEHAVIOUR is in
+`exoplasim/notes/convdecomp-reproducibility.md`, which carries the T21 arms and
+the criterion they were judged against.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _paths  # noqa: F401
+from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: E402
+import lapse  # noqa: E402  from lib/
+import rungs  # noqa: E402  the one rung-to-dimension mapping
+
+OUT = ANALYSIS / "conversion_time_stability.json"
+
+# The model's own reference day for the write interval and the timestep count,
+# `plasim.f90`'s `day_24hr`. Not the planet's rotation.
+SECONDS_PER_ABSOLUTE_DAY = 86400.0
+# `p_earth.f90:82` declares PNU and `config/planet.yaml` may override it with
+# `model.robert_filter`. Absent there, this is what the model runs.
+PNU_DEFAULT = 0.1
+# The measured span, matching `conversion_time_amplification` in the model.
+DISCARD, MEASURE = 1000, 3000
+# The noise floor a growth has to clear to be called growth. A neutral map
+# returns a mean log of zero up to double-precision roundoff, which accumulates
+# over MEASURE steps as about sqrt(MEASURE) * 1e-16; this is four orders above
+# that and eight below the smallest growth that could matter over a run.
+NEUTRAL = 1.0e-10
+
+
+class Column:
+    """The model's vertical structure at one configuration, built its way."""
+
+    def __init__(self, cfg: dict, rung: str, pnu: float):
+        self.rung = rung
+        self.ntru = int(rung.lstrip("Tt"))
+        self.nlev = int(cfg["model"]["layers"])
+        self.pnu = pnu
+        gas_constant, cp = lapse.gas_properties(cfg)
+        self.akap = gas_constant / cp
+        self.gascon = gas_constant
+        self.t0_k = float(cfg["model"]["semi_implicit_reference_temperature_k"])
+        self.plarad = float(cfg["planet"]["radius_earth"]) * 6371000.0
+        self.sidereal = float(cfg["planet"]["rotation_hours"]) * 3600.0
+        self.ww = 2.0 * math.pi / self.sidereal
+        ptop = float(cfg["model"]["model_top_hpa"]) * 100.0
+        psurf = 100000.0
+        if int(cfg["model"]["vertical_grid"]) != 4:
+            raise SystemExit(
+                f"model.vertical_grid is {cfg['model']['vertical_grid']} and "
+                "this builds initpm's neqsig == 4 quartic only. The sigma grid "
+                "is what tau and g are built from, so another one is another "
+                "column and this would silently answer for the wrong model.")
+        n = self.nlev
+        sigmah = np.array([0.75 * (j / n) + 1.75 * (j / n) ** 3
+                           - 1.5 * (j / n) ** 4 for j in range(1, n + 1)])
+        top = ptop / psurf
+        sigmah = sigmah - sigmah[0]
+        sigmah = sigmah / sigmah[-1]
+        sigmah = sigmah * (1.0 - top) + top
+        self.sigmah = sigmah
+        self.dsigma = np.empty(n)
+        self.dsigma[0] = sigmah[0]
+        self.dsigma[1:] = sigmah[1:] - sigmah[:-1]
+        rdsig = 0.5 / self.dsigma
+        cv = self.plarad * self.ww
+        self.ct = cv * cv / gas_constant
+        self.t0 = np.full(n, self.t0_k / self.ct)
+        tkp = self.akap * self.t0
+        t01s2 = np.zeros(n)
+        t01s2[:n - 1] = self.t0[1:] - self.t0[:-1]
+        zalp = np.zeros(n)
+        zalp[1:] = np.log(sigmah[1:]) - np.log(sigmah[:-1])
+        g = np.zeros((n, n))
+        g[0, 0] = 1.0
+        for j in range(2, n + 1):
+            g[j - 1, j - 1] = 1.0 - zalp[j - 1] * sigmah[j - 2] / self.dsigma[j - 1]
+            g[j - 1, 0:j - 1] = zalp[j - 1]
+        cm = np.zeros((n, n))
+        for j in range(n):
+            cm[j, :] = g[:, j] * (self.dsigma[j] / self.dsigma[:])
+        tau = np.zeros((n, n))
+        zt01s2, zsig = t01s2[0], sigmah[0]
+        tau[0, 0] = 0.5 * zt01s2 * (zsig - 1.0) + tkp[0]
+        tau[1:, 0] = 0.5 * zt01s2 * self.dsigma[1:]
+        for jl in range(2, n + 1):
+            zttm, zsigm = zt01s2, zsig
+            zt01s2, zsig = t01s2[jl - 1], sigmah[jl - 1]
+            for j2 in range(1, n + 1):
+                ztm = 1.0 if j2 <= jl else 0.0
+                ztmm = 1.0 if j2 < jl else 0.0
+                ztau = zttm * (zsigm - ztmm)
+                if jl < n:
+                    ztau += zt01s2 * (zsig - ztm)
+                ztau = ztau * rdsig[jl - 1] * self.dsigma[j2 - 1]
+                if j2 <= jl:
+                    ztau += tkp[jl - 1] * cm[j2 - 1, jl - 1]
+                tau[j2 - 1, jl - 1] = ztau
+        self.g, self.c, self.tau, self.tkp = g, cm, tau, tkp
+        # The half nconvtime moves off sdt, `tkp(jlev) * c(jlev2,jlev)`.
+        tkc = np.zeros((n, n))
+        for jl in range(n):
+            for j2 in range(jl + 1):
+                tkc[j2, jl] = tkp[jl] * cm[j2, jl]
+        self.tkc = tkc
+        # The damping, converted as `initpm` converts it: the namelist value in
+        # days becomes seconds through the 24-hour day, then a rate in the
+        # model's own time unit through the sidereal day.
+        hd = cfg["model"]["hyperdiffusion"]
+        if rung not in hd["timescales_days"]:
+            raise SystemExit(
+                f"model.hyperdiffusion.timescales_days has no {rung}, so this "
+                "rung has no declared damping and the map cannot be built for "
+                "it. The damping is what bounds the growth.")
+        table = hd["timescales_days"][rung]
+        self.ndel = int(hd["order_alpha"])
+        self.nhdiff = int(round(float(hd["cutoff_fraction"]) * self.ntru))
+        rate = lambda days: self.sidereal / (2.0 * math.pi
+                                             * float(days) * SECONDS_PER_ABSOLUTE_DAY)
+        self.tdissd = rate(table["divergence"])
+        self.tdisst = rate(table["temperature"])
+        sponge = [float(x) for x in cfg["model"]["rayleigh_sponge_rotations"]]
+        if len(sponge) != n:
+            raise SystemExit(
+                f"model.rayleigh_sponge_rotations has {len(sponge)} entries "
+                f"and the model has {n} levels")
+        self.tfrc = np.array([
+            self.sidereal / (2.0 * math.pi * x * self.sidereal) if x > 0 else 0.0
+            for x in sponge])
+
+    def sak(self, jn: int) -> float:
+        """`readnl`'s hyperdiffusion shape at total wavenumber `jn`."""
+        if jn < self.nhdiff:
+            return 0.0
+        zakk = 1.0 / float(self.ntru - self.nhdiff) ** self.ndel
+        return zakk * float(jn - self.nhdiff) ** self.ndel
+
+    def gravity_wave_limit_minutes(self) -> float:
+        """The limit `plasim.f90`'s NCONVTIME guard used to test against."""
+        cgw = math.sqrt(self.gascon * self.t0_k / (1.0 - self.akap))
+        return self.plarad / (cgw * math.sqrt(self.ntru * (self.ntru + 1.0))) / 60.0
+
+    def growth(self, dt_minutes: float, jn: int, nconvtime: bool = True) -> float:
+        """Amplification per step of the linearised step at wavenumber `jn`."""
+        n = self.nlev
+        delt = dt_minutes * 60.0 * self.ww
+        delt2 = 2.0 * delt
+        cn = jn * (jn + 1.0)
+        mf = np.zeros((n, n))
+        for j1 in range(n):
+            for j2 in range(n):
+                mf[j2, j1] = delt * delt * (self.t0[j1] * self.dsigma[j2]
+                                            + np.dot(self.g[:, j1], self.tau[j2, :]))
+        mf += np.eye(n) / cn
+        bm1 = np.linalg.inv(mf)
+        sak = self.sak(jn)
+        fd = 1.0 / (1.0 + delt2 * (self.tdissd * sak + self.tfrc))
+        ft = 1.0 / (1.0 + delt2 * (self.tdisst * sak))
+        pnu21 = 1.0 - 2.0 * self.pnu
+        # The one-step map as a matrix; its spectral radius is the answer, and
+        # an eigenvalue solve says it exactly where the model's iteration
+        # approaches it.
+        size = 2 * (2 * n + 1)
+        a = np.zeros((size, size))
+        half = 2 * n + 1
+        for k in range(size):
+            e = np.zeros(size)
+            e[k] = 1.0
+            zd, zt, zp = e[0:n], e[n:2 * n], e[2 * n]
+            adm, atm, apm = e[half:half + n], e[half + n:half + 2 * n], e[half + 2 * n]
+            zz = adm / cn + delt * (self.g.T @ atm + self.t0 * apm)
+            sdt = zz @ bm1
+            spt = self.dsigma @ sdt
+            stt = -(self.tau.T @ sdt)
+            if nconvtime:
+                stt = stt + (self.tkc.T @ (sdt - zd))
+            sdm = pnu21 * zd + self.pnu * adm
+            stm = pnu21 * zt + self.pnu * atm
+            spm = pnu21 * zp + self.pnu * apm
+            dp = (2.0 * sdt - adm) * fd
+            tp = (delt2 * stt + atm) * ft
+            pp = apm - delt2 * spt
+            sdm = sdm + self.pnu * dp
+            stm = stm + self.pnu * tp
+            spm = spm + self.pnu * pp
+            out = np.zeros(size)
+            out[0:n], out[n:2 * n], out[2 * n] = dp, tp, pp
+            out[half:half + n] = sdm
+            out[half + n:half + 2 * n] = stm
+            out[half + 2 * n] = spm
+            a[:, k] = out
+        return float(max(abs(np.linalg.eigvals(a))))
+
+    def worst_growth(self, dt_minutes: float, nconvtime: bool = True):
+        """`(growth, wavenumber)` over every total wavenumber the rung resolves."""
+        best, at = 0.0, 0
+        for jn in range(1, self.ntru + 1):
+            g = self.growth(dt_minutes, jn, nconvtime)
+            if g > best:
+                best, at = g, jn
+        return best, at
+
+    def boundary_minutes(self, lo: float = 0.05, hi: float = 240.0):
+        """The coarsest step whose worst mode does not grow, or None.
+
+        None means every step down to `lo` grows, which is what PNU = 0 gives:
+        the modification has no stable timestep at all there, and that is a
+        statement about the scheme and not about how small a step one can
+        afford.
+        """
+        if self.worst_growth(lo)[0] > 1.0 + NEUTRAL:
+            return None
+        for _ in range(44):
+            mid = 0.5 * (lo + hi)
+            if self.worst_growth(mid)[0] <= 1.0 + NEUTRAL:
+                lo = mid
+            else:
+                hi = mid
+        return lo
+
+
+def model_amplification(diag: Path):
+    """The amplification `plasim.f90` printed, as `(growth, wavenumber, dt)`."""
+    text = diag.read_text(encoding="latin-1", errors="replace")
+    match = None
+    for match in re.finditer(
+            r"NCONVTIME: amplification\s+([0-9.EeDd+-]+)\s+per step at total "
+            r"wavenumber\s+(\d+).*?runs at\s+([0-9.]+)\s+min", text, re.S):
+        pass
+    if match is None:
+        return None
+    return (float(match.group(1).replace("D", "E").replace("d", "e")),
+            int(match.group(2)), float(match.group(3)))
+
+
+def provenance(cfg_path: Path) -> dict:
+    try:
+        commit = subprocess.run(
+            ["git", "-C", str(PROJECT_ROOT), "rev-parse", "HEAD"],
+            capture_output=True, text=True, check=True).stdout.strip()
+    except Exception:
+        commit = None
+    src = PROJECT_ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src"
+    digest = hashlib.sha256()
+    for path in sorted(src.glob("*.f90")):
+        digest.update(path.read_bytes())
+    return {
+        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "config": str(cfg_path.relative_to(PROJECT_ROOT)),
+        "config_sha256": hashlib.sha256(cfg_path.read_bytes()).hexdigest(),
+        "model_source_sha256": digest.hexdigest(),
+        "commit": commit,
+        "numpy": np.__version__,
+        "discard_steps": DISCARD,
+        "measured_steps": MEASURE,
+        "neutral_tolerance": NEUTRAL,
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--config", type=Path, default=CONFIG)
+    parser.add_argument("--rung", default=None,
+                        help="one rung; default is every rung the escalation "
+                             "route visits plus every rung with a measured "
+                             "stability ceiling")
+    parser.add_argument("--dt", type=float, default=None,
+                        help="one timestep in minutes; default is the route's "
+                             "step for the rung")
+    parser.add_argument("--pnu", type=float, default=None,
+                        help="Robert-Asselin coefficient; default is "
+                             "model.robert_filter, or the model's own 0.1")
+    parser.add_argument("--against", type=Path, default=None,
+                        help="a run's plasim_diag; compare the amplification "
+                             "the model printed with the one computed here")
+    parser.add_argument("--output", type=Path, default=OUT)
+    args = parser.parse_args()
+
+    cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    pnu = args.pnu if args.pnu is not None else float(
+        cfg["model"].get("robert_filter", PNU_DEFAULT))
+
+    if args.against is not None:
+        printed = model_amplification(args.against)
+        if printed is None:
+            print(f"{args.against} carries no NCONVTIME amplification line; "
+                  "the run did not enable conversion_time_level, or it was "
+                  "made by a binary built before the guard")
+            return 2
+        got, jn, dt = printed
+        rung = args.rung or str(cfg["model"]["resolution"]).upper()
+        column = Column(cfg, rung, pnu)
+        here, jn_here = column.worst_growth(dt)
+        # A CHECK WITH A RIGHT ANSWER. Two implementations of one map: the
+        # model's iteration approaches the spectral radius the eigenvalue solve
+        # here returns exactly, so they agree to the iteration's convergence or
+        # one of them is wrong. The tolerance is on the ITERATION and not on
+        # the physics.
+        agree = abs(got - here) <= 1e-6 * max(1.0, here) and jn == jn_here
+        print(f"{rung} at dt {dt} min, PNU {pnu}")
+        print(f"  the model printed  {got:.10f} per step at wavenumber {jn}")
+        print(f"  recomputed here    {here:.10f} per step at wavenumber {jn_here}")
+        print("  they agree" if agree else
+              "  THEY DISAGREE: one of the two implementations of this map is "
+              "wrong, and the guard's refusals rest on the model's")
+        return 0 if agree else 1
+
+    if args.rung:
+        wanted = [(args.rung.upper(), args.dt)]
+    else:
+        wanted = [(r, dt) for r, dt in rungs.ESCALATION_ROUTE]
+        for r in sorted(rungs.STABILITY_CEILING_MINUTES):
+            if not any(r == w for w, _ in wanted):
+                wanted.append((r, rungs.stability_ceiling(r)))
+
+    rows = []
+    for rung, dt in wanted:
+        if rung not in cfg["model"]["hyperdiffusion"]["timescales_days"]:
+            continue
+        column = Column(cfg, rung, pnu)
+        guard = column.gravity_wave_limit_minutes()
+        boundary = column.boundary_minutes()
+        row = {"rung": rung, "timestep_minutes": dt, "pnu": pnu,
+               "gravity_wave_limit_minutes": round(guard, 4),
+               "stability_boundary_minutes":
+                   None if boundary is None else round(boundary, 4),
+               "guard_over_boundary":
+                   None if boundary is None else round(guard / boundary, 4)}
+        if dt is not None:
+            grow, jn = column.worst_growth(dt)
+            control, _ = column.worst_growth(dt, nconvtime=False)
+            row["growth_per_step"] = round(grow, 8)
+            row["worst_total_wavenumber"] = jn
+            row["growth_per_step_nconvtime_off"] = round(control, 8)
+        rows.append(row)
+        print(f"{rung:<5} dt {str(dt):>6}  guard {guard:7.2f} min  "
+              f"boundary "
+              f"{'none at any step' if boundary is None else f'{boundary:7.2f} min'}"
+              + (f"  growth {row['growth_per_step']:.6f} at n="
+                 f"{row['worst_total_wavenumber']}" if dt is not None else ""))
+
+    result = {
+        "what": ("the one-step amplification of the model's linearised "
+                 "adiabatic step with NCONVTIME on, and the coarsest timestep "
+                 "at which it does not grow"),
+        "provenance": provenance(args.config),
+        "rows": rows,
+        "note": ("guard_over_boundary is how much coarser a step the model's "
+                 "explicit gravity-wave limit admits than the scheme is stable "
+                 "at. A null boundary means the modification grows at every "
+                 "step down to 0.05 min, which is what PNU = 0 gives: the "
+                 "Robert-Asselin filter is the only thing damping the leapfrog "
+                 "computational mode the term feeds. world-bt3b."),
+    }
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {args.output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
