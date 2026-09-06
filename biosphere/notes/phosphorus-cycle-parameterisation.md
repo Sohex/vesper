@@ -29,7 +29,7 @@ cited measurements.
 | `PFRAC_MINTOMAX` | `guess.h` | `Pft::init_ctop_limits` and `Pft::init_ctop_min` | 3.68 | dimensionless | McGroddy et al. (2004) foliar dispersion contrast; BRACKET 3.68 to 4.41 | yes, from 2.78 |
 | `PFRAC_MINTOMAX_CROPGREEN` | `guess.h` | `Pft::init_ctop_limits` | 7.77 | dimensionless | the same transfer applied to its nitrogen counterpart 5.0; cropland is refused under BIO-27 | yes, from 5.0 |
 | `PFRAC_LEAFTOROOT` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` fine-root P demand | 1.16 | dimensionless | Yuan et al. (2011); root N:P is not separable from leaf N:P, so the nitrogen proportion carries; BRACKET 1.02 to 1.35. The tissue window is mean-anchored, so the contrast the model runs on is the derived 1.0 for any leaf window width | no, and now for a reason |
-| `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` sapwood P demand | 6.9 | dimensionless | UNDERIVED, on the LEVEL and not the form. Nitrogen's, for sapwood PLUS BARK, from Friend et al. (1997) Table 4 p. 254. The proportional form stands: Yan et al. (2016) put the phosphorus exponent at 1.58 tropical, 0.97 temperate and 0.80 boreal over 335 species and 12 sites, so it crosses 1 inside the climate range a global model spans. The 6.9 sits below the 10.1 to 15.5 the one paired leaf-and-bole-wood phosphorus dataset brackets a scalar at | no |
+| `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` sapwood P demand | 6.9 | dimensionless | UNDERIVED on the LEVEL and ABSENT on the SHAPE; the form stands. Nitrogen's, for sapwood PLUS BARK, from Friend et al. (1997) Table 4 p. 254. The proportional form stands: Yan et al. (2016) put the phosphorus exponent at 1.58 tropical, 0.97 temperate and 0.80 boreal over 335 species and 12 sites, so it crosses 1 inside the climate range a global model spans. The 6.9 sits below the 10.1 to 15.5 the one paired leaf-and-bole-wood phosphorus dataset brackets a scalar at | no |
 | `PFRAC_MAXTOMIN` | `guess.h` | `Pft::init_ctop_limits` | 0.9 | dimensionless | nothing to transfer: the nitrogen original is declared arbitrary in `Pft::init_cton_limits`. It sets the tissue window's WIDTH only, so it no longer moves the applied proportion | no |
 | `PMASS_SAT` | `somdynam.cpp` | `somfluxes` through `setptoc`, and the P-limitation-off pin | 0.002 * 6.6 | kgP/m2 labile P | Parton, Stewart and Cole (1988) Fig. 3 p. 115, whose labile-P axis saturates at 2.0 gP/m2, CONVERTED into this fork's Hedley-labile currency by 6.6, the low end of the 6.6 to 11.3 bracket | yes, and it is a declared divergence from the vendored 0.002 |
 | `PCONC_SAT` | was `somdynam.cpp` | nowhere | removed | -- | the ramp it was the threshold of is removed: a decomposer community's biomass C:P is homeostatic with respect to its resource's phosphorus content, so the surface microbial pool's C:P does not vary with litter P. The surface microbial pool holds the C:P `soil.cpp` initialises it to, which is `world-634q` | deleted |
@@ -433,14 +433,41 @@ What would settle it is one measurement: paired leaf and WHOLE-SAPWOOD phosphoru
 concentrations over more than one region. It is not in the accessible literature
 and it is not a decision anyone can make from what is here.
 
-A second finding falls out of Yan and is NOT this row: the leaf-to-wood
-phosphorus ratio, not just its exponent, varies systematically with mean annual
-temperature and by plant functional type, along the same axis the model's plant
-types already distinguish. A single scalar applied to every type is wrong in a
-direction the model could resolve. `world-3e5n` owns it.
+### The shape is the second defect, and it survives the measurement that settles the level
 
-`ifplim 1` keeps refusing and keeps naming `PFRAC_LEAFTOSAP` until the level is
-answered. BIO-34.
+The leaf-to-wood phosphorus ratio, not just its exponent, varies systematically
+with mean annual temperature and by plant functional type, along the same axes
+the model's plant types already distinguish: 0.77 at 18.7 N to 2.63 at 50.9 N,
+r2 = 0.31 against latitude and 0.30 against MAT, both p < 0.001 (Yan Fig. 4), and
+1.26 / 0.96 / 0.70 by evergreen broad-leaved / deciduous broad-leaved /
+coniferous. `Pft::init_ctop_limits` gives every one of them the same constant.
+
+**It is larger than the variation the model does carry.** Across plant types leaf
+C:P varies only through `sla`, as `sla^-0.80936`, and the woody types' calculated
+`sla` runs 9.300 to 26.03, so leaf C:P spans 2.30 and under a fixed scalar
+sapwood C:P spans the same 2.30. Yan's 3.4 between its warmest and coldest sites
+is larger.
+
+**It compounds with the exponent residual rather than cancelling it.** The true
+ratio is lower in the tropics, so a fixed scalar over-states it there and
+under-states those types' sapwood P demand; it is higher toward the pole, so the
+boreal types' demand is over-stated. That is the same sign as the residual the
+proportional form leaves.
+
+**Yan does not license per-type values, and the transfer that would use it is
+refused on the size of its own assumption.** Carrying Yan's ratios across as
+relative positions -- one unknown bole-level scalar times each group's twig ratio
+over the mean -- assumes the twig-to-bole tissue gradient is the same in every
+climate and functional group. That gradient is a factor of twenty against the 3.4
+the transfer would deliver, so a 20 per cent difference in the untested
+assumption swamps the whole signal and nothing the construction moves could check
+it.
+
+**What would settle it is BIO-34's measurement resolved by climate or by
+functional group.** A single global mean scalar, which is what that row asks for,
+leaves this one exactly where it is. `world-3e5n` owns it, and `parameters.cpp`
+refuses `ifplim 1` on both defects by name so that settling either alone does not
+lift the refusal.
 
 ## The saturation pair: one is its source's value, and the other's ramp is gone
 
@@ -1000,10 +1027,14 @@ break in a conservation sum.
 
 ## What is still open
 
-- `PFRAC_LEAFTOSAP`'s LEVEL. The form is settled and the applied proportion
-  equals the declared constant, so this is a question about one number, and it
-  needs paired leaf and whole-sapwood phosphorus concentrations over more than
-  one region, which the accessible literature does not have.
+- `PFRAC_LEAFTOSAP`'s LEVEL and its SHAPE, which are two rows and one
+  measurement. The form is settled and the applied proportion equals the
+  declared constant. The level needs paired leaf and whole-sapwood phosphorus
+  concentrations over more than one region (BIO-34); the shape needs the same
+  measurement RESOLVED BY CLIMATE OR BY FUNCTIONAL GROUP (`world-3e5n`), because
+  a single global mean would still be applied to every plant type. Neither is in
+  the accessible literature, and `parameters.cpp` refuses `ifplim 1` naming
+  both.
 - The surface microbial pool's C:P is now derived through the pool's own C:N
   and a measured decomposer N:P, and what one constant does not resolve is the
   across-biome spread: Xu et al. (2013) put microbial N:P between 3.5 and 10.6
