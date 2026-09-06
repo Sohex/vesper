@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -774,6 +775,22 @@ def main() -> int:
                               "residual", "infeasible_pinned_cells"],
             "seepage_clipped_m3_s": res.get("seepage_clipped_m3_s"),
             "trace": res.get("residual_trace", []),
+        },
+        # world-wfge. WALL TIME PER PHASE OF THE OUTER LOOP, and the count of
+        # passes whose matrix repeated. A timing is only as meaningful as the
+        # load it was taken under, so read it beside `host_load_average` below
+        # and not on its own.
+        "cost": {
+            "phase_seconds": res.get("phase_seconds"),
+            "matrix_repeat": res.get("matrix_repeat"),
+            "host_load_average": list(os.getloadavg()),
+            "phase_note": ("wall seconds inside solve(), by phase. `setup` is "
+                           "everything before the first pass, `factor_solve` is "
+                           "the sparse factorisation and back-substitution, "
+                           "`assembly` builds the matrix, `release` and "
+                           "`residual` are the two water balances per pass. The "
+                           "load average is this host's at the moment the "
+                           "report was written"),
         },
         "outer_iterations": res.get("outer_iterations"),
         "water_table": {

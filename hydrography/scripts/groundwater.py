@@ -1136,6 +1136,10 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     prev_free_key = None
     prev_value_key = None
     pattern_repeats = value_repeats = 0
+    lu = None
+    lu_key = None
+    lu_free_key = None
+    lu_reuses = 0
     for outer in range(max_outer):
         phases("active_set")
         # A cell with no conducting face has no LATERAL equation: nothing can
@@ -1285,6 +1289,16 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                 continue
 
         phases("assembly")
+        # THE FACTOR IS DROPPED BEFORE THE NEW MATRIX IS BUILT, not after.
+        # Holding a factorisation whose fill runs to gigabytes while the next
+        # pass allocates its own assembly arrays raises the peak on a host
+        # several agents share, for a factor that a changed free set has already
+        # made useless. The free set is a NECESSARY condition for the matrix to
+        # repeat, so it decides this without waiting for the values.
+        free_key = hash(np.flatnonzero(unknown).tobytes())
+        if lu_free_key != free_key:
+            lu = None
+            lu_key = None
         rows = np.concatenate([idx[src[both]], idx[dst[both]],
                                idx[src[both]], idx[dst[both]]])
         cols = np.concatenate([idx[dst[both]], idx[src[both]],
@@ -1312,11 +1326,19 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
             vals = np.concatenate([vals, trans[edge_one]])
             np.add.at(rhs, idx[u_side], trans[edge_one] * head[p_side])
 
-        A = sp.coo_matrix((vals, (rows, cols)), shape=(m, m)).tocsr()
+        # ONE CONVERSION, NOT TWO. The operator is symmetric -- the
+        # off-diagonals are `-trans` on both sides of every face, and every
+        # other contribution lands on the diagonal -- so its CSR arrays ARE its
+        # CSC arrays and the transpose is free. This used to build the CSR, read
+        # the diagonal off it, and then convert the whole thing again for a
+        # solver that wants CSC; the second conversion sorts and rebuilds arrays
+        # that already held the right numbers in the right order.
+        _csr = sp.coo_matrix((vals, (rows, cols)), shape=(m, m)).tocsr()
+        A = sp.csc_matrix((_csr.data, _csr.indices, _csr.indptr), shape=(m, m))
+        del _csr
         # Cheap, exact, and order-independent: the free set IS the pattern under
         # a fixed face list, and the assembled values are the matrix. Hashing
         # the bytes costs one pass over arrays the assembly above just built.
-        free_key = hash(np.flatnonzero(unknown).tobytes())
         value_key = hash((free_key, A.data.tobytes()))
         pattern_repeats += int(free_key == prev_free_key)
         value_repeats += int(value_key == prev_value_key)
@@ -1383,9 +1405,34 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # SuperLU's working set. That arm needs `splu` with `SymmetricMode`
         # rather than this call, and it is the one lever WORLD-V3UR's memory
         # blocker has not been tried against.
-        with phases("factor_solve"):
-            x = spsolve(A.tocsc(), rhs, use_umfpack=False,
-                        permc_spec="MMD_AT_PLUS_A")
+        # FACTORISE, OR REUSE THE FACTORISATION IF THE MATRIX HAS NOT MOVED.
+        # `splu(A, permc_spec=...).solve(b)` is BIT-IDENTICAL to
+        # `spsolve(A, b, permc_spec=...)`: both drive the same SuperLU
+        # factorisation and the same back-substitution. That equality is
+        # ASSERTED by `--factorisation-test` rather than assumed, because it is
+        # what licenses the change at all. What `splu` adds is that the factor
+        # survives the call, so a pass whose matrix repeats pays the
+        # back-substitution alone.
+        #
+        # `SymmetricMode` is deliberately NOT set here. It halves the fill and
+        # it is measurably NOT bit-identical -- 7.9e-16 relative on a Laplacian
+        # of this operator's coefficient span -- which forfeits the one thing
+        # that makes a restructuring of this solve checkable. That lever belongs
+        # to world-v3ur's memory blocker, where an arm that changes the answer
+        # at round-off can be declared as such.
+        #
+        # THE OLD FACTOR IS DROPPED BEFORE THE NEW ONE IS BUILT. The fill of one
+        # of these runs to gigabytes at this mesh's size, so holding two at once
+        # doubles the peak on a host several agents share.
+        if lu_key is not None and lu_key == value_key:
+            lu_reuses += 1
+        else:
+            lu = None
+            with phases("factorise"):
+                lu = splu(A, permc_spec="MMD_AT_PLUS_A")
+            lu_key, lu_free_key = value_key, free_key
+        with phases("back_substitute"):
+            x = lu.solve(rhs)
         if not np.all(np.isfinite(x)):
             raise SystemExit(
                 f"the direct solve returned {int((~np.isfinite(x)).sum()):,} "
@@ -1488,6 +1535,8 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                       f"balance {bal[i]:.6e}  anchor {bool(anchor[i])}  "
                       f"failed_anchor {bool(anchor_failed[i])}  "
                       f"rowsum {rowsum[i]:.3e}  depth {surface_m[i]-head[i]:.2f} m")
+    lu = None
+    lu_key = lu_free_key = None
     phases.stop()
     result["residual_trace"] = trace
     # ON THE ARTIFACT, not in a log line, because the row this was added for
@@ -1500,6 +1549,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         "passes_assembled": int(len(trace)),
         "pattern_repeats": int(pattern_repeats),
         "value_repeats": int(value_repeats),
+        "factorisations_reused": int(lu_reuses),
     }
     if verbose:
         print(f"  phases: {result['phase_seconds']}")
@@ -1795,6 +1845,80 @@ def dupuit_test(n_cells=200, dx_m=500.0, k_m_s=1e-5, recharge_m_s=2.5e-10,
             # the terrain and this is the term the Kirchhoff transform drops.
             print(f"    departure from the FLAT-base parabola {err:.3e}, "
                   f"which is the size of the term, not an error")
+    return out
+
+
+def factorisation_test(sizes=(40, 80, 160), verbose=True) -> dict:
+    """Does keeping the factor change the answer? It must not, and this can fail.
+
+    world-wfge. `solve` reuses a SuperLU factorisation across passes whose
+    matrix has not moved, which is only licensed if `splu(A, ...).solve(b)` is
+    the same arithmetic as the `spsolve(A, b, ...)` it replaces -- not close to
+    it, the SAME. Both drive `dgstrf` and `dgstrs` at the same column ordering,
+    so the equality is exact and a difference in the last bit is a defect rather
+    than a tolerance to widen. The check is therefore `array_equal` and there is
+    no bar to choose.
+
+    AND THE CONTROL, which is the half that makes this a test. SuperLU's
+    `SymmetricMode` with `diag_pivot_thresh=0` is the ordering lever this file's
+    own comment records as halving the fill, and it MUST be rejected here: it
+    changes the pivot sequence, so it changes the answer at round-off, and a
+    solve whose active set turns on a cell sitting at the surface to the last
+    bit can find a different set of cells dry. Recording it as a REJECTION is
+    what says the equality above is a property of this particular substitution
+    and not of any two ways of solving the same system.
+
+    The operand is a planar-graph Laplacian carrying the coefficient span the
+    real operator has -- Gleeson's -15.2 to -11.8 in log10 permeability, 3.4
+    orders -- because a well-conditioned test matrix would agree bitwise under
+    any pivoting and would therefore not be able to reject anything.
+    """
+    rng = np.random.default_rng(20260905)
+    out = {"identity": [], "control": [], "passes": True, "control_rejected": False}
+    for nx in sizes:
+        n = nx * nx
+        rows, cols, vals = [], [], []
+        diag = np.zeros(n)
+        for di, dj in ((1, 0), (0, 1)):
+            a = np.arange(n).reshape(nx, nx)[:nx - di, :nx - dj].ravel()
+            b = np.arange(n).reshape(nx, nx)[di:, dj:].ravel()
+            t = 10.0 ** rng.uniform(-15.2, -11.8, a.size)
+            rows += [a, b]
+            cols += [b, a]
+            vals += [-t, -t]
+            np.add.at(diag, a, t)
+            np.add.at(diag, b, t)
+        rows.append(np.arange(n))
+        cols.append(np.arange(n))
+        # A Dirichlet edge, so the operator is non-singular for the same reason
+        # the real one is: a boundary the water leaves by.
+        edge = np.zeros(n)
+        edge[:nx] = diag[:nx].mean()
+        vals.append(diag + edge)
+        A = sp.coo_matrix((np.concatenate(vals),
+                           (np.concatenate(rows), np.concatenate(cols))),
+                          shape=(n, n)).tocsc()
+        rhs = rng.random(n)
+        direct = spsolve(A, rhs, use_umfpack=False, permc_spec="MMD_AT_PLUS_A")
+        kept = splu(A, permc_spec="MMD_AT_PLUS_A").solve(rhs)
+        same = bool(np.array_equal(direct, kept))
+        out["identity"].append({"unknowns": n, "bitwise": same})
+        out["passes"] &= same
+        sym = splu(A, permc_spec="MMD_AT_PLUS_A", diag_pivot_thresh=0.0,
+                   options=dict(SymmetricMode=True)).solve(rhs)
+        differs = not np.array_equal(direct, sym)
+        rel = float(np.abs(direct - sym).max() / max(np.abs(direct).max(), 1e-300))
+        out["control"].append({"unknowns": n, "differs": differs,
+                               "relative": rel})
+        out["control_rejected"] |= differs
+        if verbose:
+            print(f"    n {n:>7,}   splu kept the factor: "
+                  f"{'BITWISE IDENTICAL' if same else 'DIFFERS -- MISS'}"
+                  f"   SymmetricMode control: "
+                  f"{'differs by ' + format(rel, '.1e') if differs else 'IDENTICAL'}")
+    # The control has to fire on at least one size or the identity above is
+    # untested: a test that cannot reject anything has no right answer.
+    out["passes"] = bool(out["passes"] and out["control_rejected"])
     return out
 
 
@@ -2217,6 +2341,11 @@ def main() -> int:
     ap.add_argument("--instrument-mesh", default="auto",
                     help="the real-mesh arm of --instrument: 'auto' for the "
                          "configured build, 'skip', or an export directory")
+    ap.add_argument("--factorisation-test", action="store_true",
+                    help="world-wfge: that keeping a SuperLU factorisation "
+                         "across passes is the same arithmetic as solving "
+                         "afresh, bitwise, with the ordering lever that is NOT "
+                         "as the control. Needs no mesh and no climate.")
     ap.add_argument("--uniqueness-test", action="store_true",
                     help="world-qq10: the uniqueness identity on a synthetic "
                          "case carrying GW-15's sink and GW-17's baselevels, "
@@ -2225,6 +2354,17 @@ def main() -> int:
                          "one that can be shown going red, and needs no mesh "
                          "and no climate.")
     args = ap.parse_args()
+
+    if args.factorisation_test:
+        print("FACTORISATION REUSE: that keeping the factor is the same "
+              "arithmetic, bitwise")
+        print("  criterion, and there is no bar to choose: `splu(A).solve(b)` "
+              "equals\n  `spsolve(A, b)` at the same ordering EXACTLY. The "
+              "control is SymmetricMode,\n  which must be rejected by that "
+              "same criterion.")
+        r = factorisation_test()
+        print("  " + ("PASS" if r["passes"] else "MISS"))
+        return 0 if r["passes"] else 1
 
     if args.uniqueness_test:
         return 0 if uniqueness_test()["passes"] else 1
