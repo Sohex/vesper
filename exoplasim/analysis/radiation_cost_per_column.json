@@ -1,0 +1,331 @@
+{
+  "measured_on": "2026-09-06",
+  "host_load": {
+    "min": 2.98,
+    "max": 10.62,
+    "median": 6.46,
+    "samples": 10
+  },
+  "rung": "T21",
+  "threads": 16,
+  "rounds": 3,
+  "executable": {
+    "path": "/tmp/claude-1000/-home-cfutro-docs-world/63a76a1a-93d7-49cd-8b2e-ba0d91c83262/scratchpad/bench_model3/bed_t21_8000/plasim.x",
+    "sha256": "fe21b1b62b457accc579f3e33667a444e7ef36ae4bc235b976d50fb7f5698fba",
+    "built_here": true,
+    "from_run": "/home/cfutro/docs/world/.claude/worktrees/fan2-climprice/exoplasim/runs/run_0d41aa82c287"
+  },
+  "bed": {
+    "source": "exoplasim/bench/43rk/bed_t21",
+    "steps_short": 8000,
+    "steps_long": 16000,
+    "wall_s_short": 56.782992781023495,
+    "wall_s_long": 113.19364670396317,
+    "cpu_ms_short": 339918.06,
+    "cpu_ms_long": 672457.74,
+    "startup_cpu_ms": 7378.380000000005,
+    "short_arm_over_startup": 46.06947053418227
+  },
+  "present_scheme": {
+    "cpu_ms_per_step": 41.56746,
+    "instructions_per_step": 168082166.452375,
+    "attribution": {
+      "swr_percent": 10.47,
+      "lwr_percent": 7.51,
+      "radstep_self_percent": 0.34,
+      "libm_percent": 13.67,
+      "libmvec_percent_not_counted": 6.32,
+      "radiation_percent": 31.99,
+      "radiation_percent_model_code_only": 18.32
+    },
+    "columns": 2048,
+    "radiation_calls_per_step": 1,
+    "cpu_s_per_column_per_call": 6.4928859638671865e-06
+  },
+  "candidate": {
+    "spectral_files": "ga7",
+    "arms": [
+      {
+        "setup_s": 0.0148,
+        "sw_s_total": 5.355101,
+        "lw_s_total": 9.049229,
+        "sw_s_per_col_call": 1.307398e-05,
+        "lw_s_per_col_call": 2.209284e-05,
+        "both_s_per_col_call": 3.516682e-05,
+        "check_sw_dn_sfc": 256.524222,
+        "check_lw_up_toa": 280.811743,
+        "task_clock_ms": 14426.21,
+        "instructions": 94793674665.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 0,
+        "zenith": 0
+      },
+      {
+        "setup_s": 0.0143,
+        "sw_s_total": 8.666853,
+        "lw_s_total": 14.55478,
+        "sw_s_per_col_call": 2.115931e-05,
+        "lw_s_per_col_call": 3.553412e-05,
+        "both_s_per_col_call": 5.669343e-05,
+        "check_sw_dn_sfc": 143.084084,
+        "check_lw_up_toa": 221.048541,
+        "task_clock_ms": 23557.52,
+        "instructions": 176813882474.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 1,
+        "zenith": 0
+      },
+      {
+        "setup_s": 0.0153,
+        "sw_s_total": 5.291824,
+        "lw_s_total": 8.465164,
+        "sw_s_per_col_call": 1.291949e-05,
+        "lw_s_per_col_call": 2.06669e-05,
+        "both_s_per_col_call": 3.35864e-05,
+        "check_sw_dn_sfc": 117.35415,
+        "check_lw_up_toa": 280.811743,
+        "task_clock_ms": 14037.81,
+        "instructions": 94885764940.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 0,
+        "zenith": 1
+      },
+      {
+        "setup_s": 0.0147,
+        "sw_s_total": 8.690203,
+        "lw_s_total": 14.69193,
+        "sw_s_per_col_call": 2.121632e-05,
+        "lw_s_per_col_call": 3.586898e-05,
+        "both_s_per_col_call": 5.70853e-05,
+        "check_sw_dn_sfc": 63.98256,
+        "check_lw_up_toa": 221.048541,
+        "task_clock_ms": 23276.27,
+        "instructions": 177000565452.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 1,
+        "zenith": 1
+      },
+      {
+        "setup_s": 0.0142,
+        "sw_s_total": 5.214441,
+        "lw_s_total": 9.048408,
+        "sw_s_per_col_call": 1.273057e-05,
+        "lw_s_per_col_call": 2.209084e-05,
+        "both_s_per_col_call": 3.482141e-05,
+        "check_sw_dn_sfc": 256.524222,
+        "check_lw_up_toa": 280.811743,
+        "task_clock_ms": 14610.15,
+        "instructions": 94793643334.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 0,
+        "zenith": 0
+      },
+      {
+        "setup_s": 0.0151,
+        "sw_s_total": 8.799011,
+        "lw_s_total": 14.22124,
+        "sw_s_per_col_call": 2.148196e-05,
+        "lw_s_per_col_call": 3.471982e-05,
+        "both_s_per_col_call": 5.620179e-05,
+        "check_sw_dn_sfc": 143.084084,
+        "check_lw_up_toa": 221.048541,
+        "task_clock_ms": 23568.27,
+        "instructions": 176813843200.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 1,
+        "zenith": 0
+      },
+      {
+        "setup_s": 0.0148,
+        "sw_s_total": 5.347533,
+        "lw_s_total": 8.547752,
+        "sw_s_per_col_call": 1.30555e-05,
+        "lw_s_per_col_call": 2.086854e-05,
+        "both_s_per_col_call": 3.392404e-05,
+        "check_sw_dn_sfc": 117.35415,
+        "check_lw_up_toa": 280.811743,
+        "task_clock_ms": 13924.48,
+        "instructions": 94885764627.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 0,
+        "zenith": 1
+      },
+      {
+        "setup_s": 0.0137,
+        "sw_s_total": 8.641817,
+        "lw_s_total": 14.15602,
+        "sw_s_per_col_call": 2.109819e-05,
+        "lw_s_per_col_call": 3.45606e-05,
+        "both_s_per_col_call": 5.565879e-05,
+        "check_sw_dn_sfc": 63.98256,
+        "check_lw_up_toa": 221.048541,
+        "task_clock_ms": 23107.47,
+        "instructions": 177000817443.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 1,
+        "zenith": 1
+      },
+      {
+        "setup_s": 0.0144,
+        "sw_s_total": 5.114995,
+        "lw_s_total": 8.806886,
+        "sw_s_per_col_call": 1.248778e-05,
+        "lw_s_per_col_call": 2.150119e-05,
+        "both_s_per_col_call": 3.398897e-05,
+        "check_sw_dn_sfc": 256.524222,
+        "check_lw_up_toa": 280.811743,
+        "task_clock_ms": 14037.78,
+        "instructions": 94793761323.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 0,
+        "zenith": 0
+      },
+      {
+        "setup_s": 0.0143,
+        "sw_s_total": 8.680843,
+        "lw_s_total": 14.14384,
+        "sw_s_per_col_call": 2.119347e-05,
+        "lw_s_per_col_call": 3.453087e-05,
+        "both_s_per_col_call": 5.572433e-05,
+        "check_sw_dn_sfc": 143.084084,
+        "check_lw_up_toa": 221.048541,
+        "task_clock_ms": 22967.26,
+        "instructions": 176813840603.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 1,
+        "zenith": 0
+      },
+      {
+        "setup_s": 0.0147,
+        "sw_s_total": 5.119774,
+        "lw_s_total": 8.770407,
+        "sw_s_per_col_call": 1.249945e-05,
+        "lw_s_per_col_call": 2.141213e-05,
+        "both_s_per_col_call": 3.391157e-05,
+        "check_sw_dn_sfc": 117.35415,
+        "check_lw_up_toa": 280.811743,
+        "task_clock_ms": 14153.44,
+        "instructions": 94885915750.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 0,
+        "zenith": 1
+      },
+      {
+        "setup_s": 0.0152,
+        "sw_s_total": 8.69103,
+        "lw_s_total": 14.04997,
+        "sw_s_per_col_call": 2.121833e-05,
+        "lw_s_per_col_call": 3.430168e-05,
+        "both_s_per_col_call": 5.552001e-05,
+        "check_sw_dn_sfc": 63.98256,
+        "check_lw_up_toa": 221.048541,
+        "task_clock_ms": 22926.22,
+        "instructions": 177000782352.0,
+        "nprofile": 2048,
+        "nrep": 200,
+        "nlayer": 10,
+        "cloud": 1,
+        "zenith": 1
+      }
+    ],
+    "by_arm": {
+      "zenith0_cloud0": 3.482141e-05,
+      "zenith0_cloud1": 5.620179e-05,
+      "zenith1_cloud0": 3.391157e-05,
+      "zenith1_cloud1": 5.565879e-05
+    },
+    "working_set": {
+      "rows": [
+        {
+          "columns": 25,
+          "max_rss_kb": 11616,
+          "cpu_s_per_column_per_call": 3.437253e-05
+        },
+        {
+          "columns": 50,
+          "max_rss_kb": 13168,
+          "cpu_s_per_column_per_call": 3.617939e-05
+        },
+        {
+          "columns": 100,
+          "max_rss_kb": 15584,
+          "cpu_s_per_column_per_call": 2.586113e-05
+        },
+        {
+          "columns": 200,
+          "max_rss_kb": 19476,
+          "cpu_s_per_column_per_call": 3.071055e-05
+        },
+        {
+          "columns": 400,
+          "max_rss_kb": 28616,
+          "cpu_s_per_column_per_call": 2.678082e-05
+        },
+        {
+          "columns": 800,
+          "max_rss_kb": 47400,
+          "cpu_s_per_column_per_call": 2.808432e-05
+        },
+        {
+          "columns": 1600,
+          "max_rss_kb": 77904,
+          "cpu_s_per_column_per_call": 2.952352e-05
+        }
+      ],
+      "marginal_kb_per_column": 42.08761904761905,
+      "fixed_kb": 10563.809523809523,
+      "die_budget_kb": 32768,
+      "columns_per_thread_inside_the_budget": 65,
+      "note": "eight threads a die, one shared copy of the spectral tables; the marginal term is what a thread multiplies"
+    },
+    "cpu_s_per_column_per_call": [
+      3.391157e-05,
+      5.620179e-05
+    ]
+  },
+  "comparison": {
+    "candidate_over_present": [
+      5.2228808866684835,
+      8.655902831616345
+    ],
+    "whole_model_slowdown_at_this_rung": [
+      2.350899595645248,
+      3.4491233158340684
+    ],
+    "note": "the slowdown assumes the radiation share measured here and that the rest of the model is untouched; it is stated at the rung the bed is, and the note carries what it means at T85"
+  },
+  "by_object": {
+    "plasim.x": 65.02000000000011,
+    "libm.so.6": 13.669999999999998,
+    "libmvec.so.1": 6.319999999999975,
+    "libc.so.6": 6.849999999999993,
+    "libgomp.so.1.0.0": 1.05,
+    "[unknown]": 2.1899999999999964,
+    "libfftw3.so.3.7.11": 2.9799999999999804,
+    "libgfortran.so.5.0.0": 0.02,
+    "libgcc_s.so.1": 0.01,
+    "ld-linux-x86-64.so.2": 0.0
+  }
+}
