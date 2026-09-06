@@ -213,6 +213,19 @@ def check_restatements(root) -> list[str]:
 # T85 was declared the operating support. `notes/audits/resolution-ladder.md`
 # keeps the argument and records that it has no consumer.
 #
+# AND A FIFTH IS DELIBERATELY NOT HERE EITHER, because it is per-rung and in
+# minutes and will look like a ceiling to the next reader.
+# `model.conversion_time_level` changes what the model integrates, and the
+# timestep the MODIFIED scheme is stable at is a property of the rung, of PNU
+# and of the damping -- 8.27 minutes at T21 against a measured ceiling of 120,
+# and none at any step at PNU = 0. Putting it in `STABILITY_CEILING_MINUTES`
+# would refuse every production configuration on the strength of a control no
+# configured run enables. It lives in
+# `exoplasim/analysis/conversion_time_stability.json`, which
+# `exoplasim/scripts/conversion_time_stability.py` writes, and in the model's
+# own runtime guard, which measures it rather than reading it from anywhere.
+# world-bt3b.
+#
 # `config/planet.yaml` carries `model.timestep_minutes`, the ACTIVE step one run
 # is configured at, and nothing else about the timestep: the ceiling table used
 # to sit beside it and drifted from the grid it was copied out of.

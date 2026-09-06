@@ -571,18 +571,38 @@ the two halves meet, and it is world-0ov's first repair route.
 
 IT CHANGES WHAT THE MODEL INTEGRATES. It leaves that half out of the
 semi-implicit treatment in the temperature equation while the divergence solve
-still treats the temperature implicitly, so what it is stable at is the explicit
-gravity-wave timestep, `dt < a / (c sqrt(N(N+1)))` with
-`c = sqrt(R T0 / (1 - kappa))`, which on this planet is a factor of about 2.4
-below the step the escalation route runs a rung at. It blew up inside ten model
-days at the configured step, and the model refuses the setting above the limit
-rather than integrating something that is not a solution.
+still treats the temperature implicitly, so the timestep it is stable at is its
+own question.
+
+AND THE ANSWER IS NOT THE EXPLICIT GRAVITY-WAVE TIMESTEP. That limit,
+`dt < a / (c sqrt(N(N+1)))` with `c = sqrt(R T0 / (1 - kappa))`, is a necessary
+condition, and it is not mis-derived: taken on the model's own fastest external
+mode instead -- the largest eigenvalue of the semi-implicit vertical structure
+matrix -- the limit moves by 1 percent at every rung.
+The mode this term destabilises is not a gravity wave: `sdt - sd` is the second
+time difference, O(dt^2) for a smooth mode and exactly `-2 sd` for the leapfrog
+computational mode, so the term feeds that mode, the Robert-Asselin filter is
+the only thing damping it, and the boundary is a function of `PNU` as well as of
+the rung. At `PNU = 0` there is no stable timestep at all.
+
+The model therefore measures rather than estimates: `plasim.f90`'s
+`conversion_time_amplification` iterates its own linearised adiabatic step at
+the configured rung, timestep, vertical grid, reference temperature, Robert
+coefficient and damping. It runs that iteration TWICE, once with the term and
+once without, because a finite iteration on a neutral map is biased high and no
+threshold can be set under the bias; the control arm's right answer is one, so
+its measured distance from one is what the instrument can resolve on that
+configuration, and the model refuses when the effect exceeds it.
+`exoplasim/scripts/conversion_time_stability.py` computes the same map without
+building or running the model, which is where a caller finds the boundary before
+buying a run.
 
 The key is ABSENT from `config/planet.yaml`, and absent is the off state:
-`run_exoplasim.py` reads it with a default of false and writes `NCONVTIME` only
-when it is declared. It stays off because the price is that shorter timestep at
-every rung and the operation the sink actually comes from is not yet named
-(world-pkf).
+`run_exoplasim.py` reads it with a default of false and writes `NCONVTIME`
+only when it is declared.
+
+OFF, because the price is a much shorter timestep at every rung and the
+operation the sink actually comes from is not yet named (world-pkf).
 
 ## `robert_filter`
 

@@ -45,7 +45,7 @@ from _paths import ANALYSIS
 from write_door import refuse_a_write_through_a_symlink
 # One reader of the manifest's segment records, for every question about what
 # an orbit was for: see exoplasim/scripts/segments.py.
-from segments import low_io_orbits, non_production_orbits
+from segments import low_io_orbits, non_production_orbits, orbit_purposes
 
 import climatology
 from gridding import gaussian_area_weights
@@ -91,8 +91,120 @@ def identity_from_run(run_dir: Path) -> dict:
     return {k: v for k, v in out.items() if v is not None}
 
 
+def namelist_number(run_dir: Path, key: str) -> float:
+    """One scalar out of the run's staged `plasim_namelist`.
+
+    Read from the run directory and not from `config/planet.yaml`, because
+    `configure()` rewrites the namelists on every continuation and the staged
+    file is what the binary parsed. Raises rather than defaulting: every key
+    this asks for is written by `run_exoplasim.py` on every prepare and every
+    continuation, so an absent one means the run was not staged by this project
+    and its record count is not derivable from it.
+    """
+    path = run_dir / "plasim_namelist"
+    if not path.is_file():
+        raise SystemExit(
+            f"{path} is missing, so the raw record count cannot be declared "
+            "from the run. An evenly spaced bin axis does not carry it and a "
+            "climatology over such orbits refuses rather than guessing; see "
+            "lib/climatology.py.")
+    match = re.search(rf"^\s*{key}\s*=\s*(-?[\d.]+(?:[eEdD][-+]?\d+)?)",
+                      path.read_text(encoding="latin-1"),
+                      re.IGNORECASE | re.MULTILINE)
+    if not match:
+        raise SystemExit(f"{path} does not set {key}, so the write interval "
+                         "the run used is not recoverable from it")
+    return float(match.group(1).replace("d", "e").replace("D", "E"))
+
+
+def declared_records(run_dir: Path, years: list[int]) -> tuple[list[int], dict]:
+    """The raw record count per orbit, declared from the run, with its record.
+
+    WHY IT IS DECLARED AND NOT READ OFF THE FILE. pyburn bins an orbit's raw
+    records into twelve and stamps each bin with the mean of the timestamps in
+    it, so an evenly spaced axis says every adjacent PAIR of bins holds the
+    same total and NOT that the bins are equal. `NLOWIO = 1` writes 36 records
+    an orbit, which bins evenly, and 18 records at twice the interval stamp the
+    identical axis while weighting neighbouring bins 1 to 2. So the weights are
+    not in such a file, and `lib/climatology.py` refuses it rather than
+    returning the equal ones. The count lives in the run: the orbit's step
+    count and the write interval are both in its namelist, and the I/O regime
+    that selects between two intervals is in the segment that produced each
+    orbit.
+
+    THE REGIME IS PER ORBIT. A staged namelist describes the LAST segment, and
+    a run prepared cheap and continued clean has orbit zero at one interval and
+    the rest at another. Handing the last segment's regime to every orbit puts
+    182 records on an orbit that holds 36; `climatology.bin_counts` refuses
+    that pairing on every file whose axis is determined enough to show it, and
+    the ambiguous ones are exactly the ones where it cannot, which is why the
+    record below says which evidence each product's weights rest on.
+    """
+    manifest_path = run_dir / "run_manifest.json"
+    manifest = (json.loads(manifest_path.read_text(encoding="utf-8"))
+                if manifest_path.is_file() else {})
+    runsteps = (manifest.get("derived_parameters") or {}).get("runsteps_per_orbit")
+    staged_steps = int(namelist_number(run_dir, "N_RUN_STEPS"))
+    if runsteps is None:
+        runsteps = staged_steps
+    elif int(runsteps) != staged_steps:
+        # TWO VIEWS OF ONE FACT. The manifest derives the orbit's step count
+        # from the orbital period and the timestep; the namelist is what the
+        # model was handed. A disagreement means one of them describes another
+        # run, and the record count is wrong either way.
+        raise SystemExit(
+            f"{run_dir.name} derives {int(runsteps)} steps per orbit and its "
+            f"staged namelist runs {staged_steps}. The raw record count is the "
+            "orbit's steps over the write interval, so these cannot differ and "
+            "the climatology's bin weights cannot be declared until they agree.")
+    mpstep = namelist_number(run_dir, "MPSTEP")
+    nwpd = int(namelist_number(run_dir, "NWPD"))
+    nstpw = int(namelist_number(run_dir, "NSTPW"))
+
+    tainted = set(low_io_orbits(run_dir, years))
+    purposes = orbit_purposes(run_dir, years)
+    counts, intervals = [], []
+    for year in years:
+        low_io = year in tainted
+        counts.append(climatology.records_per_orbit(
+            int(runsteps), mpstep, nwpd, nstpw, low_io))
+        intervals.append(climatology.write_interval_steps(
+            mpstep, nwpd, nstpw, low_io))
+    record = {
+        "runsteps_per_orbit": int(runsteps),
+        "timestep_minutes": mpstep,
+        "nwpd": nwpd,
+        "nstpw": nstpw,
+        "raw_records_per_orbit": sorted(set(counts)),
+        "write_interval_steps": sorted(set(intervals)),
+        "low_io_orbits": sorted(tainted),
+        "orbit_purposes": {str(year): purposes.get(year) or "undeclared"
+                           for year in years},
+        "spinup_orbit_count": sum(1 for year in years
+                                  if purposes.get(year) == "spinup"),
+        "undeclared_orbit_count": sum(1 for year in years
+                                      if purposes.get(year) is None),
+        "source": ("the run's staged plasim_namelist for the interval and the "
+                   "manifest's segments for each orbit's I/O regime"),
+    }
+    return counts, record
+
+
+def spans(years: list[int], label_of) -> str:
+    """`years` as `first-last:label` runs, for a netCDF attribute."""
+    out, start = [], 0
+    for i in range(1, len(years) + 1):
+        if i == len(years) or label_of(years[i]) != label_of(years[start]):
+            out.append(f"{years[start]}-{years[i - 1]}:{label_of(years[start])}")
+            start = i
+    return ",".join(out)
+
+
 def average_files(paths: list[Path], output: Path, product: str,
                   identity: dict | None = None) -> None:
+    # `identity` carries the declared-record attributes too: they are stamped
+    # through the same generic loop below, so one dict is the whole of what a
+    # product says about itself.
     """Write a compressed, same-grid mean across corresponding model orbits."""
     if not paths:
         raise ValueError("No input files supplied")
@@ -209,7 +321,8 @@ SERIES_FIELDS = {
 }
 
 
-def climate_series(paths: list[Path], years: list[int], orbit_seconds: float) -> dict:
+def climate_series(paths: list[Path], years: list[int], orbit_seconds: float,
+                   ntimes: list[int]) -> dict:
     """Per orbit AND per time bin, globally and over land, plus the residuals.
 
     Seasonal rather than annual, because the two questions a stellar cycle raises
@@ -223,6 +336,14 @@ def climate_series(paths: list[Path], years: list[int], orbit_seconds: float) ->
     separately, so the two cannot drift apart. The bins hold UNEQUAL numbers of
     raw records (lib/climatology.py, CLIM-13), so the annual mean weights them
     by record count rather than plainly averaging.
+
+    `ntimes` is the raw record count per orbit, DECLARED from the run and
+    checked against each file's centres by `climatology.bin_counts`. It is
+    passed rather than inferred because an evenly spaced axis does not carry
+    it: 36 records at a write interval of 160 steps and 18 at 320 stamp a
+    bit-identical axis and weight neighbouring bins 1 to 1 and 1 to 2. Every
+    `NLOWIO = 1` orbit this project runs is in that class, so without the
+    declaration a series over spin-up orbits refuses.
 
     Deliberately small even so: about 17 fields by two masks by twelve bins per
     orbit, rounded, which is a few hundred KB for a full stellar cycle and
@@ -238,9 +359,10 @@ def climate_series(paths: list[Path], years: list[int], orbit_seconds: float) ->
         return float(f"{value:.6g}")
 
     bin_weights_ = None
-    for path in paths:
+    for path, declared in zip(paths, ntimes):
         with Dataset(path) as data:
-            w = climatology.bin_weights(np.asarray(data["time"][:], dtype=float))
+            w = climatology.bin_weights(
+                np.asarray(data["time"][:], dtype=float), declared)
             if bin_weights_ is None:
                 bin_weights_ = w
             elif not np.allclose(w, bin_weights_):
@@ -395,6 +517,13 @@ def main() -> None:
                 message + "\n  Re-run those orbits without --low-io, or pass "
                 "--allow-low-io to build anyway and accept it.")
         print("  WARNING: " + message)
+    # THE RAW RECORD COUNT, DECLARED FROM THE RUN. An evenly spaced bin axis
+    # does not carry it, and every NLOWIO = 1 orbit this project runs has one,
+    # so a climatology over spin-up orbits refuses without this rather than
+    # weighting the bins equally -- which is wrong whenever the count lands in
+    # the alternating class. world-uf9k; lib/climatology.py has the collision.
+    year_list = list(years)
+    ntimes, record = declared_records(run_dir, year_list)
     regular = [run_dir / f"MOST.{year:05d}.nc" for year in years]
     snapshots = [run_dir / "snapshots" / f"MOST_SNAP.{year:05d}.nc" for year in years]
     output_dir = args.output.resolve()
@@ -404,6 +533,45 @@ def main() -> None:
     # int, not bool: netCDF attributes have no boolean type, and the generic
     # identity loop below writes whatever this dict holds.
     identity["low_io"] = int(bool(tainted))
+
+    # WHAT A READER NEEDS TO TELL THREE THINGS APART, and they are three rather
+    # than two. `lib/paths.py:climatology_stage` names which of the two
+    # CONFIGURED climatologies a file is -- the bootstrap on terrain-only
+    # surface fields, the baseline on the full ones -- and that is a property
+    # of the RUN. Whether the orbits averaged here were SPIN-UP is a property
+    # of the segments that produced them, and it is orthogonal: either stage
+    # can be built from spin-up orbits, and the bootstrap normally is. So the
+    # stage cannot be read off this and this cannot be read off the stage.
+    #
+    # `climatology_bin_weights_evidence` is the one that has to be here rather
+    # than derivable later. Where the axis determines the weights the file is
+    # self-supporting; where it does not, the declared count is the WHOLE of
+    # the evidence and a consumer that wants to re-derive anything from the
+    # bins is resting on this record and on nothing in the file.
+    purposes = record["orbit_purposes"]
+    def axis_is_self_supporting(path: Path) -> bool:
+        with Dataset(path) as data:
+            return climatology.axis_determines_its_weights(
+                np.asarray(data["time"][:], dtype=float))
+
+    determined = all(axis_is_self_supporting(path) for path in regular)
+    identity["climatology_orbit_purposes"] = spans(
+        year_list, lambda y: purposes[str(y)])
+    identity["climatology_spinup_orbit_count"] = int(record["spinup_orbit_count"])
+    identity["climatology_undeclared_purpose_orbit_count"] = int(
+        record["undeclared_orbit_count"])
+    identity["climatology_raw_records_per_orbit"] = ",".join(
+        str(n) for n in record["raw_records_per_orbit"])
+    identity["climatology_write_interval_steps"] = ",".join(
+        str(n) for n in record["write_interval_steps"])
+    identity["climatology_runsteps_per_orbit"] = int(record["runsteps_per_orbit"])
+    identity["climatology_record_count_source"] = record["source"]
+    identity["climatology_bin_weights_evidence"] = (
+        "the file's own bin centres determine them"
+        if determined else
+        "the declared raw record count only: these bin centres are equally "
+        "consistent with a filling that weights neighbouring bins 1 to 2, so "
+        "nothing in the file distinguishes the two")
     average_files(regular, regular_output,
                   "time-bin means averaged across model orbits", identity)
     average_files(snapshots, snapshot_output,
@@ -424,7 +592,8 @@ def main() -> None:
         raise SystemExit("the run manifest does not give orbital_year_seconds, "
                          "so the per-orbit water closure cannot be scaled; "
                          "every consumer raises rather than guessing")
-    series = climate_series(regular, list(years), float(orbit_seconds))
+    series = climate_series(regular, year_list, float(orbit_seconds), ntimes)
+    series["declared_records"] = record
     series_path = output_dir / f"{args.label}_climate_series.json"
     # The run manifest below is NOT guarded, and the difference is the caller
     # contract in `lib/write_door.py`: `exoplasim/runs/` is linked WHOLE on
@@ -447,6 +616,8 @@ def main() -> None:
             "snapshots": str(snapshot_output),
             "per_year": per_year_outputs,
             "climate_series": str(series_path),
+            "declared_records": record,
+            "bin_weights_evidence": identity["climatology_bin_weights_evidence"],
         }
         # Retain the original convenience key for existing tooling.
         if args.label == "baseline":

@@ -211,6 +211,54 @@
       integer :: ndiaggp3d=  0  ! number of additional 3-d gp-diagnostic arrays
       integer :: ndiagsp2d=  0  ! number of additional 2-d sp-diagnostic arrays
       integer :: ndiagsp3d=  0  ! number of additional 3-d sp-diagnostic arrays
+
+!     THE CODE BAND EACH OPTIONAL DIAGNOSTIC BLOCK IS NUMBERED IN. world-2v9z.
+!
+!     `outdiag` and `snapshotdiag` number these four blocks off the LOOP INDEX
+!     and write them into the same unit the ordinary output goes to. Off the
+!     bases they carried -- 0, 20, 50 and 60 -- `ndiagsp2d = 1` made the model
+!     write code 51 twice per output step: once as `outsc`'s ecliptic
+!     longitude, a length-1 scalar record, and once as a length-NESP spectral
+!     array. `pyburn.readallvariables` keeps the FIRST record's header per code
+!     and reshapes the whole joined array by it, so the two record sets were
+!     concatenated and read as extra timestamps of whichever came first: a
+!     variable with the wrong time axis and the wrong values, under the name
+!     the postprocessor's own table supplies, with nothing downstream able to
+!     tell. All four keys are in plasim_nl, so a namelist reached it.
+!
+!     The bands below are disjoint from each other and from every code any
+!     writer in this model uses: the ordinary output ends at 411, the energy
+!     decomposition occupies 360-387 and 460-487, and the ecological stream
+!     600-628 on a unit of its own. NDIAG_BLOCK_CODES is each band's CAPACITY
+!     and it is enforced rather than assumed -- `check_diagnostic_blocks` in
+!     plasim.f90 refuses a count that would run one block into the next, which
+!     is what makes these bases a boundary instead of a wider version of the
+!     same collision.
+      integer, parameter :: NDIAGGP2D_CODE0 = 700
+      integer, parameter :: NDIAGGP3D_CODE0 = 800
+      integer, parameter :: NDIAGSP2D_CODE0 = 900
+      integer, parameter :: NDIAGSP3D_CODE0 = 1000
+      integer, parameter :: NDIAG_BLOCK_CODES = 99
+
+!     HOW MANY ARRAYS FRANK'S TWO SWITCHES ACTUALLY FILL. world-2v9z.
+!
+!     `ndiaggp` and `ndiagsp` are the switches that WRITE these arrays and
+!     `ndiaggp3d` and `ndiagsp3d` are what ALLOCATES them, and they are
+!     different namelist keys with nothing tying them together. Under
+!     `ndiaggp == 1` the model fills dgp3d indices 1 to 21 across plasim,
+!     fluxmod, rainmod, miscmod and radmod; under `ndiagsp == 1` it fills
+!     dsp3d 1 to 3. With a smaller `ndiaggp3d` -- or with the key unset, which
+!     leaves the array UNALLOCATED -- every one of those is a write past the
+!     end. `check_diagnostic_blocks` refuses the pairing at startup.
+!
+!     These counts are DERIVED FROM THE SOURCE AND CHECKED, not remembered:
+!     `exoplasim/scripts/lint_diag_arrays.py` reads every literal array index
+!     any writer in `plasim/src` uses and refuses when the maximum and the
+!     numbers here disagree. A new write therefore raises the number the guard
+!     demands instead of silently needing an array the guard still allows to be
+!     too small.
+      integer, parameter :: NDIAGGP_ARRAYS_FILLED = 21
+      integer, parameter :: NDIAGSP_ARRAYS_FILLED = 3
       integer :: ndivdamp =  0  ! divergence damping countdown
       integer :: nhdiff   = 15  ! critical wavenumber for horizontal diffusion
       integer :: ntime    =  0  ! switch for time use diagnostics

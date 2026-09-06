@@ -1,0 +1,227 @@
+{
+  "what": "the one-step amplification of the model's linearised adiabatic step with NCONVTIME on, and the coarsest timestep at which it does not grow",
+  "provenance": {
+    "generated_utc": "2026-09-06T05:53:52.407380+00:00",
+    "config": "config/planet.yaml",
+    "config_sha256": "dc2b9280928be925a10ddd8b022773f8ebf90a2aa464d26582669abf4b471e06",
+    "model_source_sha256": "7ee5a09af58b527f0a544eb6f28712b7e69441afae018e40527462ed6a6be4c5",
+    "commit": "9f96611176082187cb029386b0eb6f74dfb61238",
+    "numpy": "2.5.2",
+    "discard_steps": 1000,
+    "measured_steps": 3000,
+    "neutral_tolerance": 1e-10
+  },
+  "rows": [
+    {
+      "rung": "T21",
+      "timestep_minutes": 45.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.2801925,
+      "worst_total_wavenumber": 17,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.2801925030410062,
+        "measured_arm_wavenumber": 17,
+        "control_arm": 1.000190014143761,
+        "control_arm_wavenumber": 3,
+        "effect": 0.2800024888972452,
+        "resolution": 0.0001900141437609637,
+        "refused": true
+      }
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 30.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.22375846,
+      "worst_total_wavenumber": 19,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.223758463624318,
+        "measured_arm_wavenumber": 19,
+        "control_arm": 1.0000315920748464,
+        "control_arm_wavenumber": 5,
+        "effect": 0.22372687154947157,
+        "resolution": 3.159207484637605e-05,
+        "refused": true
+      }
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 20.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.15728965,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.1572896454936203,
+        "measured_arm_wavenumber": 21,
+        "control_arm": 1.000158883421463,
+        "control_arm_wavenumber": 7,
+        "effect": 0.15713076207215737,
+        "resolution": 0.00015888342146297418,
+        "refused": true
+      }
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 15.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.10468796,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.1046879638913796,
+        "measured_arm_wavenumber": 21,
+        "control_arm": 1.0001230391767648,
+        "control_arm_wavenumber": 10,
+        "effect": 0.10456492471461476,
+        "resolution": 0.00012303917676481646,
+        "refused": true
+      }
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 12.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.06349768,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.0634976826883258,
+        "measured_arm_wavenumber": 21,
+        "control_arm": 1.0001047883163405,
+        "control_arm_wavenumber": 10,
+        "effect": 0.06339289437198525,
+        "resolution": 0.00010478831634053165,
+        "refused": true
+      }
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 10.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.03125546,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.0312554608769928,
+        "measured_arm_wavenumber": 21,
+        "control_arm": 1.00020771048905,
+        "control_arm_wavenumber": 9,
+        "effect": 0.03104775038794272,
+        "resolution": 0.0002077104890501058,
+        "refused": true
+      }
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 8.5,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.00429644,
+      "worst_total_wavenumber": 21,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.004296440807325,
+        "measured_arm_wavenumber": 21,
+        "control_arm": 1.0001251117324224,
+        "control_arm_wavenumber": 9,
+        "effect": 0.0041713290749025855,
+        "resolution": 0.00012511173242235607,
+        "refused": true
+      }
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 8.2679,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.0,
+      "worst_total_wavenumber": 1,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.0001741515123095,
+        "measured_arm_wavenumber": 11,
+        "control_arm": 1.0001755535469037,
+        "control_arm_wavenumber": 11,
+        "effect": -1.4020345942000745e-06,
+        "resolution": 0.00017555354690368397,
+        "refused": false
+      }
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 8.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.0,
+      "worst_total_wavenumber": 6,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.000146716002263,
+        "measured_arm_wavenumber": 3,
+        "control_arm": 1.000146659340978,
+        "control_arm_wavenumber": 3,
+        "effect": 5.666128499726142e-08,
+        "resolution": 0.00014665934097801703,
+        "refused": false
+      }
+    },
+    {
+      "rung": "T21",
+      "timestep_minutes": 6.0,
+      "pnu": 0.1,
+      "gravity_wave_limit_minutes": 19.0349,
+      "gravity_wave_limit_from_structure_matrix_minutes": 19.2261,
+      "stability_boundary_minutes": 8.2731,
+      "guard_over_boundary": 2.3008,
+      "growth_per_step": 1.0,
+      "worst_total_wavenumber": 1,
+      "growth_per_step_nconvtime_off": 1.0,
+      "guard": {
+        "measured_arm": 1.0001841329936498,
+        "measured_arm_wavenumber": 4,
+        "control_arm": 1.0001840845699461,
+        "control_arm_wavenumber": 4,
+        "effect": 4.8423703713496025e-08,
+        "resolution": 0.0001840845699461191,
+        "refused": false
+      }
+    }
+  ],
+  "note": "guard_over_boundary is how much coarser a step the model's explicit gravity-wave limit admits than the scheme is stable at. A null boundary means the modification grows at every step down to 0.05 min, which is what PNU = 0 gives: the Robert-Asselin filter is the only thing damping the leapfrog computational mode the term feeds. gravity_wave_limit_from_structure_matrix_minutes is the same limit taken on the model's own fastest external mode rather than on a single-level estimate of it, and the two agreeing is what says the guard was aimed at the wrong mode rather than mis-derived. world-bt3b."
+}

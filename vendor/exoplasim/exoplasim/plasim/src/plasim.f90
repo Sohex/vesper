@@ -449,6 +449,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     allocate additional diagnostic arrays, if switched on
 !
+!     THE COUNTS ARE CHECKED BEFORE ANYTHING IS ALLOCATED, because both ways
+!     they can be wrong are silent. world-2v9z.
+      call check_diagnostic_blocks
 
       if(ndiaggp2d > 0) then
        allocate(dgp2d(NHOR,ndiaggp2d))
@@ -721,16 +724,32 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call makebm
 !
 !     NCONVTIME TAKES THE TEMPERATURE EQUATION'S REFERENCE CONVERSION OUT OF THE
-!     SEMI-IMPLICIT TREATMENT, so the timestep it is stable at is the EXPLICIT
-!     gravity-wave one and not the rung table's. For a spectral model the fastest
-!     resolved external mode gives
+!     SEMI-IMPLICIT TREATMENT, so the timestep it is stable at is its own
+!     question and not the rung table's. world-0ov.
+!
+!     WHAT IT IS NOT IS THE EXPLICIT GRAVITY-WAVE TIMESTEP, which is what this
+!     used to refuse above:
 !
 !         dt  <  a / (c sqrt(N (N+1))),    c = sqrt(R T0 / (1 - kappa))
 !
-!     which at T42 on this planet is 9.5 minutes against a configured 22.5. Run
-!     above it and the model blows up inside ten model days, which is what
-!     happened. This refuses rather than letting a declared setting integrate
-!     something that is not a solution. world-0ov.
+!     That speed is right -- taken on the model's OWN fastest external mode, the
+!     largest eigenvalue of the vertical structure matrix `makebm` inverts, the
+!     limit moves by 1 percent -- and it is still not where the term becomes
+!     usable, because the mode the term destabilises is not a gravity wave. `sdt - sd` is the second time difference: O(dt^2)
+!     for a smooth mode and, for the LEAPFROG COMPUTATIONAL MODE, which
+!     alternates sign every step, exactly `-2 sd`. So the term feeds the
+!     computational mode, the only thing that damps that mode is the
+!     Robert-Asselin filter, and the boundary is a function of PNU: at PNU = 0
+!     there is no stable timestep at all. A gravity-wave CFL cannot say that,
+!     and at T21 it admitted 19 minutes where the scheme grows above 8.
+!
+!     So this MEASURES instead. `conversion_time_amplification` iterates the
+!     model's own linearised adiabatic step at this configuration and returns
+!     the growth per step of the fastest mode; a growth above one is a
+!     configuration this integrates away from a solution rather than toward
+!     one, and that is what is refused. The gravity-wave limit is still
+!     reported, because it is a necessary condition and a familiar number, but
+!     it decides nothing. world-bt3b.
 !
 !     NDEALIAS USES THE LEGENDRE PATH'S DECOMPOSITION -- a per-process partial
 !     from fc2sp_t, reduce-scattered and gathered back -- and SHTns integrates
@@ -745,16 +764,71 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (nconvtime > 0) then
          zcgw  = sqrt(gascon * t0(NLEV) * ct / (1.0 - akap))
          zcgwd = plarad / (zcgw * sqrt(real(NTRU) * real(NTRU+1)))
+!        EVERY THREAD MEASURES BOTH ARMS, and they all get the same numbers:
+!        the routine reads `bm1`, `tau`, `g`, `c`, `t0`, `tkp`, `dsigma`, the
+!        four damping arrays and `pnu`, all of which are broadcast or built
+!        identically before this point, and it writes nothing shared. So the
+!        verdict below is the same on every thread without a broadcast.
+         call conversion_time_amplification(1,zcgrow,jcworst)
+         call conversion_time_amplification(0,zcctrl,jcctrl)
+!        THE INSTRUMENT'S OWN ERROR, MEASURED. The control arm's right answer
+!        is one: the semi-implicit scheme is neutrally stable, which is what
+!        every production run at every rung on the route rests on. What it
+!        actually returns is one plus this iteration's bias, so the distance
+!        from one is what this instrument can resolve on THIS configuration,
+!        and an effect smaller than that is noise however tidy it looks. The
+!        two arms share the bias to about 5e-8 on a stable configuration while
+!        the first unstable step separates them by 4.2e-3.
+         zcres = abs(zcctrl - 1.0)
+!        SIXTEEN DIGITS AND NOT EIGHT. These two numbers are what
+!        `exoplasim/scripts/conversion_time_stability.py --against` compares its
+!        own arms with, and a report rounded to eight would put a floor on that
+!        comparison at 1e-8 -- which is above the 5e-8 the two arms differ by on
+!        a stable configuration, so the check would have been unable to see the
+!        thing it exists to check.
          if (mypid == NROOT) then
-            write(nud,'(A,F8.1,A,F8.1,A)')                              &
-     &         ' NCONVTIME: explicit gravity-wave timestep limit ',      &
-     &         zcgwd/60.0,' min, this run runs at ',deltsec/60.0,' min'
+            write(nud,'(A,E24.16,A,I5)')                                &
+     &         ' NCONVTIME: amplification ',zcgrow,                      &
+     &         ' per step at total wavenumber ',jcworst
+            write(nud,'(A,E24.16,A,I5)')                                &
+     &         ' NCONVTIME: control arm    ',zcctrl,                     &
+     &         ' per step at total wavenumber ',jcctrl
+!        THE TIMESTEP TO TEN PLACES, for the same reason as the sixteen
+!        digits above. `deltsec` is `day_24hr / mtspd` and `mtspd` is rounded
+!        UP TO EVEN, so a caller's MPSTEP of 8.5 runs at 8.4705882353 -- and to
+!        one decimal that reads back as 8.5, where the growth is 1.00429 rather
+!        than the 1.00374 this run measured. The recomputation would then have
+!        been of a different timestep and reported a disagreement that was only
+!        the report's own rounding.
+            write(nud,'(A,E24.16,A,E24.16,A,F16.10,A)')                 &
+     &         ' NCONVTIME: effect ',zcgrow-zcctrl,' against a resolution of ',&
+     &         zcres,', this run runs at ',deltsec/60.0,' min'
+            write(nud,'(A,F8.1,A)')                                     &
+     &         ' NCONVTIME: the explicit gravity-wave limit is ',        &
+     &         zcgwd/60.0,' min, which is necessary and is not the boundary'
+            flush(nud)
          endif
-         if (deltsec > zcgwd) then
-            if (mypid == NROOT) write(nud,*)                            &
-     &         'NCONVTIME needs a timestep at or below the explicit ',   &
-     &         'gravity-wave limit; see world-0ov'
-            stop 'nconvtime above the explicit gravity-wave timestep'
+!        EVERY THREAD WAITS FOR THAT REPORT TO REACH THE FILE. A bare Fortran
+!        `stop` on any thread ends the process, and without this the reason for
+!        a refusal is lost with it -- which is how the first form of this guard
+!        refused four configurations and explained none of them.
+!$omp barrier
+         if (zcgrow - zcctrl > zcres) then
+            if (mypid == NROOT) then
+               write(nud,*)                                             &
+     &            'NCONVTIME grows at this timestep by more than this ', &
+     &            'measurement can be wrong by, so the run would ',      &
+     &            'integrate away from a solution rather than toward one.'
+               write(nud,*)                                             &
+     &            'The boundary depends on PNU as well as the rung and ',&
+     &            'is not the gravity-wave limit; ',                     &
+     &            'exoplasim/scripts/conversion_time_stability.py ',     &
+     &            'reports it without building or running the model. ',  &
+     &            'see world-bt3b'
+               flush(nud)
+            endif
+!$omp barrier
+            stop 'nconvtime grows at this timestep'
          endif
       endif
 
@@ -2333,6 +2407,307 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       return
       end
 
+
+!     ================================
+!     SUBROUTINE CHECK_DIAGNOSTIC_BLOCKS
+!     ================================
+
+      subroutine check_diagnostic_blocks
+      use pumamod
+
+!     THE OPTIONAL DIAGNOSTIC BLOCKS, REFUSED RATHER THAN WRITTEN WRONG.
+!     world-2v9z. Two independent ways a namelist can ask for something the
+!     model cannot deliver, and neither of them says so on its own.
+!
+!     1. A BLOCK LONGER THAN ITS CODE BAND. `outdiag` and `snapshotdiag`
+!        number each block off the loop index from the bases in plasimmod, and
+!        a count past the band runs one block onto the next block's codes --
+!        the same collision the bases were moved to remove, one door along. A
+!        code collision inside one output stream is invisible: the
+!        postprocessor keeps the FIRST record's header per code and reshapes
+!        everything it later joins under that code by it, so two different
+!        fields come back as one variable with the wrong time axis.
+!
+!     2. A SWITCH THAT FILLS MORE ARRAYS THAN THE ALLOCATION HOLDS. `ndiaggp`
+!        and `ndiagsp` turn the writes on; `ndiaggp3d` and `ndiagsp3d` size the
+!        arrays. They are different namelist keys and nothing ties them
+!        together, so `ndiaggp = 1` with a smaller `ndiaggp3d` -- or with the
+!        key unset, which leaves `dgp3d` UNALLOCATED -- writes past the end of
+!        an allocatable from five different modules. The counts it needs are
+!        NDIAGGP_ARRAYS_FILLED and NDIAGSP_ARRAYS_FILLED, which
+!        `exoplasim/scripts/lint_diag_arrays.py` holds to what the source
+!        actually writes.
+!
+!     A REFUSAL AND NOT A CLAMP. Raising `ndiaggp3d` on the caller's behalf
+!     would produce a run whose output has more fields than the namelist asked
+!     for, and shrinking `ndiaggp` would produce one with fewer; neither is
+!     what was asked for, and both leave a record that says the namelist was
+!     honoured.
+
+      integer :: kbad
+
+      kbad = 0
+
+      if (ndiaggp2d > NDIAG_BLOCK_CODES) kbad = 1
+      if (ndiaggp3d > NDIAG_BLOCK_CODES) kbad = 1
+      if (ndiagsp2d > NDIAG_BLOCK_CODES) kbad = 1
+      if (ndiagsp3d > NDIAG_BLOCK_CODES) kbad = 1
+      if (kbad > 0) then
+         if (mypid == NROOT) then
+            write(nud,*) 'NDIAGGP2D/NDIAGGP3D/NDIAGSP2D/NDIAGSP3D are ',    &
+     &         ndiaggp2d,ndiaggp3d,ndiagsp2d,ndiagsp3d
+            write(nud,*) 'each block is numbered from its own base and has ',&
+     &         NDIAG_BLOCK_CODES,' codes; a longer block writes onto the ',  &
+     &         'next block. see world-2v9z'
+         endif
+         stop 'a diagnostic block is longer than its code band'
+      endif
+
+      if (ndiaggp > 0 .and. ndiaggp3d < NDIAGGP_ARRAYS_FILLED) then
+         if (mypid == NROOT) then
+            write(nud,*) 'NDIAGGP is ',ndiaggp,' which fills dgp3d arrays 1 to ',&
+     &         NDIAGGP_ARRAYS_FILLED,' and NDIAGGP3D allocates ',ndiaggp3d
+            write(nud,*) 'set NDIAGGP3D to at least that, or NDIAGGP to 0. ', &
+     &         'see world-2v9z'
+         endif
+         stop 'ndiaggp fills more arrays than ndiaggp3d allocates'
+      endif
+
+      if (ndiagsp > 0 .and. ndiagsp3d < NDIAGSP_ARRAYS_FILLED) then
+         if (mypid == NROOT) then
+            write(nud,*) 'NDIAGSP is ',ndiagsp,' which fills dsp3d arrays 1 to ',&
+     &         NDIAGSP_ARRAYS_FILLED,' and NDIAGSP3D allocates ',ndiagsp3d
+            write(nud,*) 'set NDIAGSP3D to at least that, or NDIAGSP to 0. ', &
+     &         'see world-2v9z'
+         endif
+         stop 'ndiagsp fills more arrays than ndiagsp3d allocates'
+      endif
+
+      return
+      end
+
+!     ========================================
+!     SUBROUTINE CONVERSION_TIME_AMPLIFICATION
+!     ========================================
+
+      subroutine conversion_time_amplification(kconv,pgrow,kworst)
+      use pumamod
+
+!     THE ONE-STEP AMPLIFICATION OF THE MODEL'S OWN ADIABATIC STEP WITH
+!     NCONVTIME ON, at this rung, this timestep, this vertical grid, this
+!     reference temperature, this Robert coefficient and this damping.
+!     world-bt3b.
+!
+!     WHY A MEASUREMENT AND NOT A FORMULA. The guard this replaced tested the
+!     explicit gravity-wave limit, which is a NECESSARY condition and not the
+!     boundary. What the modification does is take the reference conversion's
+!     divergence half off `sdt` -- the centred mean of t-dt and t+dt -- and put
+!     it on the divergence at t, and `sdt - sd` is the second time difference:
+!     O(dt^2) for a smooth mode and, for the LEAPFROG COMPUTATIONAL MODE, which
+!     alternates sign every step, exactly `-2 sd`. So the term feeds the
+!     computational mode, the only thing that damps that mode is the
+!     Robert-Asselin filter, and the boundary is a function of PNU. At PNU = 0
+!     there is no stable timestep at all, which no gravity-wave CFL can say.
+!
+!     So this iterates the linearised step instead. Everything it needs is
+!     already built: `bm1` from `makebm` for every total wavenumber, `tau`, `g`,
+!     `c`, `t0`, `tkp` and `dsigma` from `initsi` and `initpm`, `tdissd`,
+!     `tdisst`, `tfrc`, `damp`, `ndel` and `nhdiff` from `readnl`, and `pnu`
+!     and `pnu21` from the planet namelist. The state it carries is one
+!     spectral mode's (D, T, ln ps) at t and the FILTERED ones at t-dt, which
+!     is exactly what `spectrala` reads. There is no tuned constant in it and
+!     no number to keep in step with the model: it IS the model's arithmetic,
+!     and `exoplasim/scripts/conversion_time_stability.py` is the second
+!     implementation this one is checked against.
+!
+!     IT WRITES NOTHING SHARED, so every thread may run it and they all reach
+!     the same number without a broadcast.
+!
+!     `kconv` SELECTS THE ARM, and there are two because a finite iteration
+!     cannot separate a growth of one from a growth of one plus a millionth.
+!     The neutral modes of this map sit exactly on the unit circle and the map
+!     is not normal, so the norm grows polynomially and the measured rate
+!     carries a positive bias that falls only as log(N)/N -- 1.8e-4 per step at
+!     N = 3000, which is enormous next to any growth worth refusing. Iterating
+!     longer does not reach it and a tolerance large enough to absorb it would
+!     pass configurations that blow up over a commissioning run.
+!
+!     WHAT SEPARATES THEM IS A CONTROL ARM. `kconv = 0` runs the SAME iteration
+!     on the SAME configuration with the term off, and that map's right answer
+!     is known: the semi-implicit scheme is neutrally stable, which is what
+!     every production run at every rung on the route rests on. Its measured
+!     departure from one is therefore this instrument's error, MEASURED on this
+!     configuration rather than assumed, and the two arms share it: on a stable
+!     configuration the two rates differ by about 5e-8 while each sits 1.8e-4
+!     above one, and at the first unstable step the difference is 4.2e-3. Five
+!     orders of magnitude separate the effect from the instrument's own scatter,
+!     which is what makes the comparison a verdict rather than a number.
+!
+!     `pgrow` is the growth per step of the fastest mode over every total
+!     wavenumber the truncation resolves and `kworst` is the wavenumber
+!     carrying it.
+
+      integer, intent(in) :: kconv
+      real, intent(out) :: pgrow
+      integer, intent(out) :: kworst
+
+      real :: zd(NLEV),zt(NLEV),zp
+      real :: zdm(NLEV),ztm(NLEV),zpm
+      real :: zdn(NLEV),ztn(NLEV),zpn
+      real :: zdmn(NLEV),ztmn(NLEV),zpmn
+      real :: zz(NLEV),zsdt(NLEV),zstt(NLEV)
+      real :: zfd(NLEV),zft(NLEV),zsak(NLEV)
+      real :: zspt,zsum,zq,znorm,zlog,zakk,zsq,zg
+      integer :: jn,jlev,jlev2,jit
+
+!     THE SPAN. 1000 steps are discarded and 3000 measured, which is long
+!     enough for the iterate to lose its start on any growth worth refusing.
+!     Iterating a 21-number state 4000 times for each of NTRU wavenumbers is
+!     microseconds, once, at startup.
+      integer, parameter :: JDISCARD = 1000
+      integer, parameter :: JMEASURE = 3000
+
+      pgrow = 0.0
+      kworst = 0
+
+      do jn = 1 , NTRU
+         zq = 1.0 / (real(jn) * real(jn+1))
+!        The hyperdiffusion shape at this wavenumber, per level and exactly as
+!        `readnl` builds `sak`: zero below the cut-off, normalised to one at
+!        the truncation, and with that level's own `ndel`.
+         do jlev = 1 , NLEV
+            zakk = 1.0 / (real(NTRU-nhdiff)**ndel(jlev))
+            zsq  = real(jn - nhdiff)
+            if (jn >= nhdiff) then
+               zsak(jlev) = zakk * zsq**ndel(jlev)
+            else
+               zsak(jlev) = 0.0
+            endif
+            zfd(jlev) = 1.0 / (1.0 + delt2                              &
+     &                * (tdissd(jlev)*zsak(jlev) + tfrc(jlev)))
+            zft(jlev) = 1.0 / (1.0 + delt2                              &
+     &                * (tdisst(jlev)*zsak(jlev) + damp(jlev)))
+         enddo
+
+!        A DETERMINISTIC START THAT IS NOT SPECIAL. A vector of ones can be
+!        orthogonal to the mode being looked for; this is the same generic
+!        direction on every run and every host, so the verdict is reproducible
+!        without being a lucky or an unlucky one.
+         do jlev = 1 , NLEV
+            zd(jlev)  = sin(1.0 * real(jlev))
+            zt(jlev)  = cos(2.0 * real(jlev))
+            zdm(jlev) = cos(0.7 * real(jlev))
+            ztm(jlev) = sin(1.3 * real(jlev))
+         enddo
+         zp   =  0.25
+         zpm  = -0.125
+         zlog =  0.0
+
+         do jit = 1 , JDISCARD + JMEASURE
+!           1. the divergence solve, `spectrala` step 1 with the nonlinear
+!              tendencies zero
+            do jlev2 = 1 , NLEV
+               zz(jlev2) = zdm(jlev2)*zq + delt                         &
+     &                   * (dot_product(g(:,jlev2),ztm) + t0(jlev2)*zpm)
+            enddo
+            do jlev = 1 , NLEV
+               zsum = 0.0
+               do jlev2 = 1 , NLEV
+                  zsum = zsum + zz(jlev2) * bm1(jlev2,jlev,jn)
+               enddo
+               zsdt(jlev) = zsum
+            enddo
+!           2. and 3., the pressure and temperature tendencies
+            zspt = 0.0
+            do jlev = 1 , NLEV
+               zspt = zspt + dsigma(jlev) * zsdt(jlev)
+            enddo
+            do jlev = 1 , NLEV
+               zstt(jlev) = -dot_product(tau(:,jlev),zsdt)
+            enddo
+!           3a. THE TERM, on the measured arm only. The reference conversion's
+!               divergence half read off the divergence at t rather than off
+!               `sdt`. `kconv = 0` is the control and leaves it where the model
+!               ordinarily has it.
+            if (kconv > 0) then
+             do jlev = 1 , NLEV
+               zsum = 0.0
+               do jlev2 = 1 , jlev
+                  zsum = zsum + tkp(jlev) * c(jlev2,jlev)               &
+     &                        * (zsdt(jlev2) - zd(jlev2))
+               enddo
+               zstt(jlev) = zstt(jlev) + zsum
+             enddo
+            endif
+!           4.a the time filter's first part, on the state at t
+            do jlev = 1 , NLEV
+               zdmn(jlev) = pnu21*zd(jlev) + pnu*zdm(jlev)
+               ztmn(jlev) = pnu21*zt(jlev) + pnu*ztm(jlev)
+            enddo
+            zpmn = pnu21*zp + pnu*zpm
+!           4.b the leapfrog advance
+            do jlev = 1 , NLEV
+               zdn(jlev) = 2.0*zsdt(jlev) - zdm(jlev)
+               ztn(jlev) = delt2*zstt(jlev) + ztm(jlev)
+            enddo
+            zpn = zpm - delt2*zspt
+!           `spectrald`'s implicit hyperdiffusion, Rayleigh drag and Newtonian
+!           cooling, which act on the advanced state before the filter's second
+!           part reads it.
+            do jlev = 1 , NLEV
+               zdn(jlev) = zdn(jlev) * zfd(jlev)
+               ztn(jlev) = ztn(jlev) * zft(jlev)
+            enddo
+!           the time filter's second part
+            do jlev = 1 , NLEV
+               zdmn(jlev) = zdmn(jlev) + pnu*zdn(jlev)
+               ztmn(jlev) = ztmn(jlev) + pnu*ztn(jlev)
+            enddo
+            zpmn = zpmn + pnu*zpn
+
+            do jlev = 1 , NLEV
+               zd(jlev)  = zdn(jlev)
+               zt(jlev)  = ztn(jlev)
+               zdm(jlev) = zdmn(jlev)
+               ztm(jlev) = ztmn(jlev)
+            enddo
+            zp  = zpn
+            zpm = zpmn
+
+            znorm = sqrt(dot_product(zd,zd) + dot_product(zt,zt)        &
+     &                 + dot_product(zdm,zdm) + dot_product(ztm,ztm)    &
+     &                 + zp*zp + zpm*zpm)
+!           A state that reached zero carries no rate. It cannot happen for a
+!           map with a neutral mode, which every configuration of this one has,
+!           so this is a refusal rather than a fallback.
+            if (znorm <= 0.0) then
+               pgrow = huge(pgrow)
+               kworst = jn
+               return
+            endif
+!           RENORMALISED EVERY STEP, which is what keeps a growing mode inside
+!           the range the declared -ffpe-trap=overflow permits: the amplitude
+!           is O(1) throughout and only its logarithm accumulates.
+            if (jit > JDISCARD) zlog = zlog + log(znorm)
+            do jlev = 1 , NLEV
+               zd(jlev)  = zd(jlev)  / znorm
+               zt(jlev)  = zt(jlev)  / znorm
+               zdm(jlev) = zdm(jlev) / znorm
+               ztm(jlev) = ztm(jlev) / znorm
+            enddo
+            zp  = zp  / znorm
+            zpm = zpm / znorm
+         enddo
+
+         zg = exp(zlog / real(JMEASURE))
+         if (zg > pgrow) then
+            pgrow = zg
+            kworst = jn
+         endif
+      enddo
+
+      return
+      end
 
 !     =================
 !     SUBROUTINE MAKEBM

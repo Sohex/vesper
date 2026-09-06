@@ -1096,7 +1096,7 @@
 
       if(ndiagsp2d > 0 .and. mypid == NROOT) then
        do jdiag=1,ndiagsp2d
-        jcode=50+jdiag
+        jcode=NDIAGSP2D_CODE0+jdiag
         call writesp(40,dsp2d(1,jdiag),jcode,0,1.,0.0)
        enddo
       end if
@@ -1107,7 +1107,7 @@
 
       if(ndiagsp3d > 0 .and. mypid == NROOT) then
        do jdiag=1,ndiagsp3d
-        jcode=60+jdiag
+        jcode=NDIAGSP3D_CODE0+jdiag
         do jlev=1,NLEV
          call writesp(40,dsp3d(1,jlev,jdiag),jcode,jlev,1.,0.0)
         enddo
@@ -1120,7 +1120,7 @@
 
       if(ndiaggp2d > 0) then
        do jdiag=1,ndiaggp2d
-        jcode=jdiag
+        jcode=NDIAGGP2D_CODE0+jdiag
         call writegp(40,dgp2d(1,jdiag),jcode,0)
        enddo
       end if
@@ -1131,7 +1131,7 @@
 
       if(ndiaggp3d > 0) then
        do jdiag=1,ndiaggp3d
-        jcode=20+jdiag
+        jcode=NDIAGGP3D_CODE0+jdiag
         do jlev=1,NLEV
          call writegp(40,dgp3d(1,jlev,jdiag),jcode,jlev)
         enddo
@@ -2225,7 +2225,7 @@
 
       if(ndiagsp2d > 0 .and. mypid == NROOT) then
        do jdiag=1,ndiagsp2d
-        jcode=50+jdiag
+        jcode=NDIAGSP2D_CODE0+jdiag
         call writesp(140,dsp2d(1,jdiag),jcode,0,1.,0.0)
        enddo
       end if
@@ -2236,7 +2236,7 @@
 
       if(ndiagsp3d > 0 .and. mypid == NROOT) then
        do jdiag=1,ndiagsp3d
-        jcode=60+jdiag
+        jcode=NDIAGSP3D_CODE0+jdiag
         do jlev=1,NLEV
          call writesp(140,dsp3d(1,jlev,jdiag),jcode,jlev,1.,0.0)
         enddo
@@ -2249,7 +2249,7 @@
 
       if(ndiaggp2d > 0) then
        do jdiag=1,ndiaggp2d
-        jcode=jdiag
+        jcode=NDIAGGP2D_CODE0+jdiag
         call writegp(140,dgp2d(1,jdiag),jcode,0)
        enddo
       end if
@@ -2260,7 +2260,7 @@
 
       if(ndiaggp3d > 0) then
        do jdiag=1,ndiaggp3d
-        jcode=20+jdiag
+        jcode=NDIAGGP3D_CODE0+jdiag
         do jlev=1,NLEV
          call writegp(140,dgp3d(1,jlev,jdiag),jcode,jlev)
         enddo

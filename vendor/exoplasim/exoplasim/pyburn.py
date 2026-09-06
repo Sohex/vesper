@@ -875,19 +875,24 @@ def readallvariables(fbuffer):
             #level and each is nlat*nlon or NSP, and a scalar is length 1.
             #
             #WHAT BREAKS IT is two DIFFERENT fields sharing a code in one
-            #stream, and the model can produce that. `outdiag` numbers its
-            #optional diagnostic arrays off the loop index -- jcode = 50+jdiag
-            #for the 2-D spectral block -- so `ndiagsp2d > 0` in `plasim_nl`
-            #writes codes 51 upward into the same unit 40 that `outsc` writes
-            #the orbital elements 51 to 54 into. The record LENGTHS differ,
-            #NESP against 1, which is what makes the collision detectable at
-            #all; the names never could be. Refusing the read is the only
-            #honest answer, because the joined array is not the variable the
-            #table names and nothing downstream can tell.
+            #stream, and the model could produce that. `outdiag` numbers its
+            #optional diagnostic arrays off the loop index, and off the bases
+            #they carried the 2-D spectral block started at 51 -- into the same
+            #unit 40 that `outsc` writes the orbital elements 51 to 54 into.
+            #The record LENGTHS differ, NESP against 1, which is what makes the
+            #collision detectable at all; the names never could be. Refusing
+            #the read is the only honest answer, because the joined array is
+            #not the variable the table names and nothing downstream can tell.
             #
-            #The numbering itself is a model-source defect and the repair is a
-            #Fortran renumber. This is the guard that keeps it from being
-            #silent in the meantime. world-k5db.
+            #The numbering was repaired in the model: `plasimmod.f90` bases the
+            #four blocks at 700, 800, 900 and 1000 with 99 codes each, clear of
+            #everything else this model writes, `check_diagnostic_blocks`
+            #refuses a count that would run one block onto the next, and
+            #`exoplasim/scripts/lint_diag_arrays.py` holds the bands disjoint
+            #against the source. This stays as the far end of that question:
+            #it fires on a raw read from any binary, including one built before
+            #the renumber, and on any other way two fields reach one code.
+            #world-k5db, world-2v9z.
             if len(field)!=_widths[kcode]:
                 raise Exception(
                     "Code %s carries records of two lengths in this file, %d and %d. "
