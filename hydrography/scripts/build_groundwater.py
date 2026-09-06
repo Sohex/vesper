@@ -33,6 +33,7 @@ import argparse
 import hashlib
 import json
 import os
+import resource
 import subprocess
 import sys
 from pathlib import Path
@@ -784,6 +785,12 @@ def main() -> int:
             "phase_seconds": res.get("phase_seconds"),
             "matrix_repeat": res.get("matrix_repeat"),
             "host_load_average": list(os.getloadavg()),
+            # The peak this process reached, GB. It belongs on the artifact
+            # because the thing that decides whether a solve of this size can
+            # run beside anything else is its footprint and not its wall time,
+            # and because a run that swapped is one whose timing means nothing.
+            "peak_resident_gb": round(
+                resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1048576, 2),
             "phase_note": ("wall seconds inside solve(), by phase. `setup` is "
                            "everything before the first pass, `factor_solve` is "
                            "the sparse factorisation and back-substitution, "
