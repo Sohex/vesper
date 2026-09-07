@@ -101,123 +101,136 @@ ARCHIVED_RUNS = PROJECT_ROOT / "archive" / "runs"
 CONVERGENCE_REPORTS = PROJECT_ROOT / "exoplasim" / "analysis" / "convergence"
 
 # --------------------------------------------------------------------------
-# The slope. Measured 2026-08-27, on the active build.
+# The slope. Measured 2026-09-06, on the active build.
 # --------------------------------------------------------------------------
 #
-# Two T21 runs on `canonical-10m-base`, same executable sha, same staged surface
-# fields, and configs that differ in nothing but the flux the run was given:
+# Two T21 runs on `canonical-10m-carve2`, same executable sha, same staged
+# surface fields, same structure, same window indices, same I/O regime, and
+# configs that differ in nothing but the flux the run was given:
 #
-#     f = 0.945   run_432e5e46adef   fitted asymptote 279.6805 K +/- 0.0203
-#     f = 1.000   run_b45380e61f90   fitted asymptote 288.4654 K +/- 0.0465
+#     f = 0.945   run_c919391cf715   asymptote 280.2349 K +/- 0.0223
+#     f = 1.000   run_9d5dbf9bd3d9   asymptote 289.7602 K +/- 0.0307
 #
-# giving 159.7 K per unit flux ratio. Both pass all six convergence criteria.
+# giving 173.19 K per unit flux ratio over a 9.53 K chord. Both pass all six
+# convergence criteria over orbits 75-129 of their clean-I/O block.
 #
 # THE ASYMPTOTES ARE THE DECLARED ESTIMATOR and `verify()` recomputes exactly
-# this secant, so the tolerance only has to absorb a re-assessment moving a fit
-# inside its own stated uncertainty. The two half-widths propagate to
-# sqrt(0.0203^2 + 0.0465^2) / 0.055 = 0.92 K per unit flux ratio, which is the
+# this secant, so the tolerance only has to absorb a re-assessment moving an
+# estimate inside its own stated uncertainty. The two half-widths propagate to
+# sqrt(0.0223^2 + 0.0307^2) / 0.055 = 0.69 K per unit flux ratio, which is the
 # floor any spread can honestly claim and is what the tolerance is rounded from.
 #
-# THE SPREAD IS THE ENVELOPE OF THE ESTIMATORS ON THIS BUILD, because it is
-# wider than that floor and the estimators disagree by more than either fit:
+# THE ASYMPTOTE IS THE DRIFT FORM'S, NOT A FREE EXPONENTIAL FIT'S, and that is
+# the repair this pair waited on rather than a change of estimator made for it.
+# `assess_convergence.py` chose between the two forms on four sanity bounds and
+# never asked whether the chosen one could resolve the criterion's own
+# threshold, so a fit that collapsed outright routed to the drift form and
+# passed while one that half-succeeded carried its own large error into the
+# statistic and failed. These two arms landed on opposite sides of that on
+# opposite windows with every other criterion passing on all four assessments,
+# which is what made the defect undeniable. The selection now reads the
+# resolving bar this file's consumer already declares, both arms take the drift
+# form on both windows, and all four assessments pass. world-jejw;
+# `notes/audits/flux-slope-bracket.md`.
 #
-#     159.7   the two fitted asymptotes                      DECLARED
-#     159.2   the two settled-window means
-#     158.2   the last ten orbits of each assessed window
-#     155.3   the bootstrap climatology of the 0.945 run against the last ten
-#             orbits of the 1.000 run, which is what `derive_design_flux.py`
-#             reads and what `notes/audits/design-flux-two-point-response.md`
-#             measures as an 8.54 K span
+# THE ESTIMATORS AGREE TO 0.17 K PER UNIT FLUX RATIO, and two of the three use
+# no fit at all -- they are direct averages over 55 orbits of settled data on
+# each arm:
 #
-# The low end is the lowest of those; the high end is the declared value plus the
-# propagated half-width, since no estimator sits above it. The 4 K width is the
-# 0.945 run's last twelve orbits -- the ones its climatology was cut from, added
-# after its assessment -- sitting about 0.2 K above its own fitted asymptote.
+#     173.19   the two asymptotes                              DECLARED
+#     173.22   the two settled-window means
+#     173.05   the last ten orbits of each assessed window
+#
+# There is no fourth estimator here. The pair the previous declaration rested
+# on had a bootstrap climatology cut from one arm, and this pair has no
+# climatology on either arm, so nothing reads the design-flux route across it.
+#
+# THE SPREAD IS THE PROPAGATED UNCERTAINTY AND NOT THE ESTIMATOR ENVELOPE,
+# which is the opposite of the pair this replaces and is what the numbers ask
+# for: the three estimators span 0.17 and the two arms' own uncertainties
+# propagate to 0.69, so an envelope of the estimators would claim a precision
+# neither arm's error supports. The declared value plus and minus that floor is
+# the honest statement, and every estimator sits well inside it.
+#
+# THE SLOPE IS AN INPUT TO THE ASSESSMENT THAT PRODUCED IT, and the loop closes
+# in one step. `radiative_damping_w_m2_per_k` is this slope inverted, the
+# convergence assessment's relaxation time is the modelled slab over that
+# damping, and the drift form's asymptote is the window mean plus the drift
+# times that time. Re-deriving both arms against 173.19 rather than the 159.7
+# they were assessed under shortens the relaxation by about 8 per cent and moves
+# each asymptote by under 0.002 K, so the second iterate of this declaration is
+# 173.19 to the digits carried and the chord moves by a thousandth of a kelvin.
+# The recorded asymptotes are the reports', which is what `verify()` reads.
+#
+# THIS IS A CHORD ACROSS 9.5 K AND IT CARRIES SEA-ICE RETREAT. The modelled sea
+# ice mean fraction falls from 0.0753 to 0.0190 between the endpoints, so the
+# ice-albedo feedback over that retreat is inside the number rather than outside
+# it.
+#
+# THIS IS NOT the stellar sweep's sensitivity. The 0.85-to-0.95 sweep spans 21
+# W/m2 absorbed and 33 K, which is 330 K per unit flux ratio: 1.9x this, because
+# it crosses the ice transition proper. Do not use one for the other.
 #
 # THE BASELINE IS THE COLD ENDPOINT, NOT INSIDE THE BRACKET. This is a forward
 # secant anchored at the design flux and it is honest about that. It is not the
-# defect that retired 150.2: that bracket ran 0.95 to 1.00 and excluded 0.945
-# entirely, so it described a regime the baseline was not in. What localises this
-# one is a converged run BELOW 0.945 on this build, which loop A's flux
-# re-bracket produces anyway.
+# defect that retired 202.0: that bracket ran 0.910 to 0.945 on a superseded
+# build whose two runs are both deleted. What localises this one is a converged
+# run BELOW 0.945 on this build, which loop A's flux re-bracket produces anyway.
 #
-# THIS IS A CHORD ACROSS 8.8 K AND IT CARRIES SEA-ICE RETREAT. The modelled sea
-# ice mean fraction falls from 0.0799 to 0.0252 between the endpoints, so the
-# ice-albedo feedback over that retreat is inside the number rather than outside
-# it. Stated because it is the obvious explanation to reach for and it is the
-# wrong one: the superseded 202.0 was measured across a pair whose ice barely
-# moved and it is the HIGHER value, so the difference between the two is the
-# build and the model source, not the ice.
-#
-# THIS REPLACES 202.0, measured at T42 on `precarve-craton` between f = 0.910 and
-# f = 0.945. That build is superseded, both of its runs have been deleted, and
-# the model source has moved under it. It is 26% high against this measurement.
-#
-# THIS IS NOT the stellar sweep's sensitivity. The 0.85-to-0.95 sweep spans 21
-# W/m2 absorbed and 33 K, which is 330 K per unit flux ratio: 2.1x this, because
-# it crosses the ice transition proper. Do not use one for the other.
-#
-# THE REPLACEMENT PAIR IS BOUGHT AND THIS DECLARATION HAS NOT MOVED ONTO IT.
-# `run_c919391cf715` at f = 0.945 and `run_9d5dbf9bd3d9` at f = 1.000 are on the
-# configured build, matched in geography, executable, window and I/O regime, and
-# they measure 173.8 K per unit flux ratio with three estimators agreeing to
-# 0.73 -- two of which use no fit at all. So the value below is 8 per cent low
-# and every consumer of it is, until the move is made.
-#
-# What holds the move off is world-jejw, not a missing run. `_verify_bracket`
-# requires each arm's report to carry
-# `sufficiently_equilibrated_for_worldbuilding`; the cold arm's does not, and it
-# fails on the fitted asymptote's own standard error rather than on any drift.
-# Neither arm RESOLVES that criterion and both reports say so, so the verdict
-# separating them is the estimator's noise. Moving this declaration onto a pair
-# one arm of which the assessor declines to certify would put that noise under
-# every kelvin the project converts. `notes/audits/flux-slope-bracket.md` has
-# the numbers, the cost and what re-buying the pair would now take.
-SLOPE_K_PER_FLUX_RATIO = 159.7
-SLOPE_SPREAD_K_PER_FLUX_RATIO = (155.3, 160.6)
+# THIS REPLACES 159.7, measured on `canonical-10m-base` between the same two
+# flux ratios. That build is superseded and both of its endpoints are on it, so
+# every currency check was failing on that declaration. It is 8 per cent low
+# against this measurement.
+SLOPE_K_PER_FLUX_RATIO = 173.19
+SLOPE_SPREAD_K_PER_FLUX_RATIO = (172.49, 173.89)
 
 # `report` is the file the asymptote is READ FROM, named rather than derived: a
-# diagnostic assessment carries its mode in its filename and must never stand
-# where a reader looks for a run's own verdict, so naming it is what keeps the
-# two apart. The warm endpoint's orbits are all declared diagnostic, so its
-# report is about the experiment and not about the planet's trajectory; the
-# fitted asymptote of its temperature series is a property of the series either
-# way, and its six criteria are recorded here because that is what makes it
-# usable as an endpoint at all.
+# truncated or diagnostic assessment carries its scope in its filename and must
+# never stand where a reader looks for a run's own verdict, so naming it is what
+# keeps the two apart. Both arms here name their run's OWN default report, which
+# is also what makes the run index's copy of the asymptote a second reading that
+# has to agree.
 #
 # `window` AND `io_regime` ARE PART OF THE MEASUREMENT, and leaving them out
-# once cost this number. A run has more than one admissible window, and the
-# asymptote is different in each: the cold endpoint reads 279.6805 K over
-# orbits 37-69 and 279.8296 K over the twelve clean-I/O orbits after them, a
-# difference of 0.15 K that moves this slope by 2.7. Naming only the run and
-# the report file left the window as an argument nobody recorded, so when the
-# default assessment moved to the clean block -- which it had to, once a verdict
-# window was forbidden from spanning the I/O join -- the file under that name
-# quietly became a reading of a different window, and `verify()` recomputed the
-# slope from an unmatched pair without noticing.
+# once cost this number. A run has more than one admissible window and the
+# asymptote is different in each, so naming only the run and the report file
+# leaves the window as an argument nobody recorded; when a default assessment
+# then moves to a different block, the file under that name quietly becomes a
+# reading of something else and `verify()` recomputes the slope from an
+# unmatched pair without noticing. That is how the previous declaration broke.
 #
 # THE ARMS OF A DIFFERENCE HAVE TO BE READ ON ONE INSTRUMENT AND ONE WINDOW.
-# PlaSim's low-I/O accumulation and the clean stream disagree by about 0.17 K on
-# this run, which is 2 per cent of the 8.8 K chord and the whole of that 2.7.
-# Both endpoints are therefore read over orbits 37-69 of their own 70-orbit
-# low-I/O block, the same indices on both, and `_verify_bracket` refuses when a
-# report's window is not the one recorded here or when the two arms differ in
-# regime. `docs/src/practice/failure-modes.md` class 36.
+# PlaSim's low-I/O accumulation averages over the output interval and the clean
+# stream does not, so the two regimes are two instruments and the join between
+# them is a step -- 0.13 K on the warm arm here, against a chord of 9.5. Both
+# endpoints are therefore read over orbits 75-129 of their own 60-orbit clean
+# block, the same indices on both, and `_verify_bracket` refuses when a report's
+# window is not the one recorded here or when the two arms differ in regime.
+# `docs/src/practice/failure-modes.md` class 36.
+#
+# THE WINDOW IS 55 AND THE DERIVED DEFAULT IS NOW 61, which is not a shortfall
+# to be excused. 55 was the default when the purchase was specified and the
+# arms' clean block was sized to hold it; the bar that matters is per run, and
+# each arm's own `resolving_power` row reads `resolves: true` for the offset
+# criterion over these orbits. The nominal-sized default is what a run with the
+# NOISIEST declared scatter would need, and it moved to 61 because this pair's
+# warm arm is that run. Re-buying this pair would need a clean block of at
+# least 66 orbits.
 SLOPE_BRACKET_RUNS = {
-    "cold": {"run_id": "run_432e5e46adef", "flux_ratio": 0.945,
-             "asymptote_k": 279.6805, "asymptote_half_width_k": 0.0203,
-             "report": "run_432e5e46adef_convergence_through070.json",
-             "window": (37, 69), "io_regime": "low_io",
+    "cold": {"run_id": "run_c919391cf715", "flux_ratio": 0.945,
+             "asymptote_k": 280.2349, "asymptote_half_width_k": 0.0223,
+             "report": "run_c919391cf715_convergence.json",
+             "window": (75, 129), "io_regime": "clean_io",
              "status": "equilibrated_for_worldbuilding"},
-    "warm": {"run_id": "run_b45380e61f90", "flux_ratio": 1.000,
-             "asymptote_k": 288.4654, "asymptote_half_width_k": 0.0465,
-             "report": "run_b45380e61f90_convergence_diagnostic.json",
-             "window": (37, 69), "io_regime": "low_io",
+    "warm": {"run_id": "run_9d5dbf9bd3d9", "flux_ratio": 1.000,
+             "asymptote_k": 289.7602, "asymptote_half_width_k": 0.0307,
+             "report": "run_9d5dbf9bd3d9_convergence.json",
+             "window": (75, 129), "io_regime": "clean_io",
              "status": "equilibrated_for_worldbuilding"},
 }
-# The propagated half-width, 0.92, rounded up. A recomputation that moves further
-# than the two fits' own stated uncertainty is a real change and not fit noise.
-SLOPE_TOLERANCE_K_PER_FLUX_RATIO = 1.0
+# The propagated half-width, 0.69, rounded up. A recomputation that moves further
+# than the two arms' own stated uncertainty is a real change and not fit noise.
+SLOPE_TOLERANCE_K_PER_FLUX_RATIO = 0.7
 
 # Both endpoints stage the same surface fields, which is what makes their
 # difference a flux response rather than a surface change wearing a slope's
@@ -226,7 +239,7 @@ SLOPE_TOLERANCE_K_PER_FLUX_RATIO = 1.0
 # surface is the most determined state that exists here and the slope is measured
 # on it. It moves when the baseline surface exists, and this declaration is what
 # has to be re-derived then.
-SLOPE_GEOGRAPHY = "ecb13b14"
+SLOPE_GEOGRAPHY = "75475656"
 
 # The declaration this replaced, kept as a FIXTURE and not as a record: it is
 # what `test_currency_refuses_a_superseded_measurement()` drives the currency
@@ -675,6 +688,36 @@ def test_currency_refuses_a_superseded_measurement(
 
 
 
+def _report_covering_other_orbits(window, prefer_run: str) -> str:
+    """A convergence report on disk whose window is not `window`.
+
+    The substitute the window guard's self-test needs. Reports of `prefer_run`
+    come first, because a differently-scoped assessment of the arm's OWN run is
+    the swap that happened; any other report serves the same purpose, since the
+    guards that read the run id are all driven by the row and not by this file.
+
+    Raises when the tree holds no such report: a guard that cannot be asked its
+    question must say so rather than return a pass.
+    """
+    want = tuple(window)
+    candidates = sorted(CONVERGENCE_REPORTS.glob("*_convergence*.json"),
+                        key=lambda path: (not path.name.startswith(prefer_run),
+                                          path.name))
+    for path in candidates:
+        try:
+            report = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:                              # noqa: BLE001
+            continue
+        got = (report.get("window_start_year_index"),
+               report.get("window_end_year_index"))
+        if None not in got and tuple(got) != want:
+            return path.name
+    raise AssertionError(
+        f"no convergence report under {rel(CONVERGENCE_REPORTS)} covers a "
+        f"window other than {want[0]}-{want[1]}, so the per-arm window guard "
+        f"cannot be exercised and this test proves nothing")
+
+
 def test_window_and_regime_refuse_an_unmatched_pair(
         cfg: dict | None = None) -> None:
     """The window and I/O-regime guards must both be able to return no.
@@ -682,12 +725,17 @@ def test_window_and_regime_refuse_an_unmatched_pair(
     Named refusals rather than differences, and each is driven by the exact
     substitution that once passed silently:
 
-    THE WINDOW, PER ARM. Point the cold endpoint at a differently-scoped
-    assessment of the SAME RUN. Such a file is a perfectly good report, which is
-    why the swap went unnoticed once -- it just covers other orbits, and the
-    asymptote differs between them by enough to move this slope by several
-    kelvin per unit flux ratio. Nothing but the window guard distinguishes the
-    two.
+    THE WINDOW, PER ARM. Point the cold endpoint at a report covering other
+    orbits. Such a file is a perfectly good report, which is why the swap went
+    unnoticed once -- it just covers a different window, and the asymptote
+    differs between windows by enough to move this slope by several kelvin per
+    unit flux ratio. Every other guard reads the run id, which this substitution
+    leaves alone, so nothing but the window guard distinguishes the two.
+
+    THE SUBSTITUTE IS FOUND ON DISK RATHER THAN TYPED, and this test refuses
+    rather than passing when no such file exists. A named file that has since
+    been removed, or that has come to describe the declared window, turns this
+    substitution into a no-op that reads as the guard working.
 
     THE WINDOW, ACROSS THE ARMS. Shift one arm's declared window by one orbit.
     Two rows can each describe their own report correctly and still name
@@ -700,7 +748,8 @@ def test_window_and_regime_refuse_an_unmatched_pair(
     can only come from the declared instruments differing.
     """
     swapped = copy.deepcopy(SLOPE_BRACKET_RUNS)
-    swapped["cold"]["report"] = f"{swapped['cold']['run_id']}_convergence.json"
+    swapped["cold"]["report"] = _report_covering_other_orbits(
+        swapped["cold"]["window"], swapped["cold"]["run_id"])
     problems = _verify_bracket(swapped, SLOPE_K_PER_FLUX_RATIO,
                                SLOPE_SPREAD_K_PER_FLUX_RATIO,
                                SLOPE_TOLERANCE_K_PER_FLUX_RATIO,
@@ -725,7 +774,11 @@ def test_window_and_regime_refuse_an_unmatched_pair(
             f"the bracket accepted the pairing: {problems}")
 
     relabelled = copy.deepcopy(SLOPE_BRACKET_RUNS)
-    relabelled["cold"]["io_regime"] = "clean_io"
+    # The OTHER regime, taken from the two the model has rather than typed, so
+    # this substitution cannot quietly become a no-op when the declaration moves
+    # from one to the other -- which is what it just did.
+    relabelled["cold"]["io_regime"] = sorted(
+        {"low_io", "clean_io"} - {relabelled["cold"]["io_regime"]})[0]
     problems = _verify_bracket(relabelled, SLOPE_K_PER_FLUX_RATIO,
                                SLOPE_SPREAD_K_PER_FLUX_RATIO,
                                SLOPE_TOLERANCE_K_PER_FLUX_RATIO,
