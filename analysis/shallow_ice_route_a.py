@@ -95,6 +95,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "lib"))
 sys.path.insert(0, str(ROOT / "hydrography" / "scripts"))
 
+import nc_geometry  # noqa: E402  -- after sys.path reaches lib/
+
 SECONDS_PER_YEAR = 3.15576e7
 
 # Glen's law, from references/big-mitgcm/MITgcmIS.py, which declares
@@ -288,7 +290,7 @@ def check_gradient(n_regions, cfg, seed=0):
 def build_mesh(n_regions, cfg, seed=0):
     import groundwater as gw
     import orogen as og
-    radius_km = float(cfg["planet"]["radius_earth"]) * 6371.0
+    radius_km = nc_geometry.planet_radius_m(cfg) / 1000.0
     jitter = 0.0
     try:
         reg = og.REGISTRY[cfg["source_build"]] if hasattr(og, "REGISTRY") else None

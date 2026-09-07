@@ -38,6 +38,7 @@ import gridding
 from build_boundary_conditions import build
 from orogen import Export
 from paths import climatology_path, rel
+import nc_geometry
 
 CONFIG = PROJECT_ROOT / "config/planet.yaml"
 CONTRACT = PROJECT_ROOT / "config/partial_surface.yaml"
@@ -140,7 +141,7 @@ def main() -> None:
     fraction = np.asarray(built["land_fraction"], dtype=float)
     binary = np.asarray(built["land_mask"], dtype=bool)
     spec = gridding.gaussian_grid(*fraction.shape)
-    radius = float(cfg["planet"]["radius_earth"]) * 6_371_000.0
+    radius = nc_geometry.planet_radius_m(cfg)
     area = spec.cell_area(radius)
     minimum = int(declaration["flux_bracket"]["minimum_reference_cells"])
 

@@ -75,6 +75,7 @@ import _paths  # noqa: F401
 from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: E402
 import lapse  # noqa: E402  from lib/
 import rungs  # noqa: E402  the one rung-to-dimension mapping
+import nc_geometry
 
 OUT = ANALYSIS / "conversion_time_stability.json"
 # The sweep writes BESIDE the ladder table, never over it: one is every rung
@@ -155,7 +156,7 @@ def inputs_from_config(cfg: dict, rung: str, pnu: float) -> dict:
         "rung": rung, "ntru": ntru, "nlev": nlev, "pnu": pnu,
         "gascon": gas_constant, "akap": gas_constant / cp,
         "t0_k": float(cfg["model"]["semi_implicit_reference_temperature_k"]),
-        "plarad": float(cfg["planet"]["radius_earth"]) * 6371000.0,
+        "plarad": nc_geometry.planet_radius_m(cfg),
         "sidereal": sidereal,
         "ptop": float(cfg["model"]["model_top_hpa"]) * 100.0,
         "psurf": 100000.0,

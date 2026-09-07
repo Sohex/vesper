@@ -62,6 +62,7 @@ from lpj_output import reduce_table, require_lpj_acceptance
 # one quantity, and the two would drift the moment either moved.
 from run_lpj_guess import NFIX_A_BRACKET
 import lpj_pfts
+import nc_geometry
 
 COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 ANALYSIS = COMPONENT_ROOT / "analysis"
@@ -206,7 +207,7 @@ def main() -> None:
         precip = (climatology_lib.annual_mean_of(data, "pr")
                   * 1000.0 * 86400.0 * orbit.EARTH_CALENDAR_YEAR_DAYS)
 
-    radius_km = 6371.0 * float(config["planet"]["radius_earth"])
+    radius_km = nc_geometry.planet_radius_m(config) / 1000.0
     cell_km2 = (gaussian_area_weights(lat, len(lon), what=str(climatology))
                 * 4.0 * np.pi * radius_km ** 2)
     rootable, rootable_provenance = read_rootable(

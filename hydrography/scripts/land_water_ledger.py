@@ -54,6 +54,7 @@ import yaml
 
 from _paths import ANALYSIS, PROJECT_ROOT  # noqa: F401  (adds lib/ to sys.path)
 from lapse import gas_properties
+import nc_geometry
 
 COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 DECLARATION = COMPONENT_ROOT / "config" / "land_water_ledger.yaml"
@@ -751,7 +752,6 @@ WETNESS_KNEE = 0.4
 
 WATER_DENSITY_KG_M3 = 1000.0
 
-EARTH_RADIUS_M = 6371000.0
 
 # The swept axes. Deliberately wider than this world reaches, because the
 # result is a BOUND. In order: the mass of the lowest model layer, the surface
@@ -902,7 +902,7 @@ def bucket_floor_bound() -> dict:
     config = _yaml.safe_load((PROJECT_ROOT / "config" / "planet.yaml")
                              .read_text(encoding="utf-8"))
     ga = float(config["planet"]["gravity_m_s2"])
-    radius_m = float(config["planet"]["radius_earth"]) * EARTH_RADIUS_M
+    radius_m = nc_geometry.planet_radius_m(config)
     model = config["model"]
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
     deltsec = float(model["timestep_minutes"]) * 60.0

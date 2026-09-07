@@ -153,6 +153,7 @@ import rungs                         # noqa: E402
 from paths import rel                # noqa: E402
 from gridding import coupling_ocean_fraction, gaussian_area_weights   # noqa: E402
 from provenance import applied_removals, artifact_drift, artifact_input_drift, BIOSPHERE_INERT_CONFIG_KEYS, INERT_CONFIG_KEYS, config_drift, REMOVED_CONFIG_KEYS, removal_problems, unknown_inert_keys   # noqa: E402
+import nc_geometry
 
 
 def land_sea_mask():
@@ -2513,7 +2514,7 @@ def main() -> int:
         if not hd:
             rep.add(WARN, "hyperdiffusion vs its rule", "no block declared")
         else:
-            radius = float(config["planet"]["radius_earth"]) * 6371e3
+            radius = nc_geometry.planet_radius_m(config)
             wind = float(hd["eddy_wind_m_s"])
             ratios = hd["ratios_to_vorticity"]
             bad = []

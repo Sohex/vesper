@@ -52,8 +52,8 @@ import sea_water  # noqa: E402  from lib/
 import sensitivity  # noqa: E402  from lib/
 from paths import climatology_path  # noqa: E402
 from run_exoplasim import freezing_point_k  # noqa: E402
+import nc_geometry
 
-EARTH_RADIUS_M = 6371000.0
 ALBEDO_PER_ICE_AREA = (0.25, 0.40) # planetary albedo per unit new ice area; see module docstring
 
 # THE SLAB'S HEAT CAPACITY COMES FROM THE MODEL. Density and specific heat are
@@ -109,7 +109,7 @@ def main() -> None:
     args = ap.parse_args()
 
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
-    a = float(cfg["planet"]["radius_earth"]) * EARTH_RADIUS_M
+    a = nc_geometry.planet_radius_m(cfg)
     mld = float(cfg["surface"]["mixed_layer_depth_m"])
     heatcap = CRHOS * CPS * mld
     incident = (float(cfg["orbit"]["earth_solar_constant_w_m2"])
