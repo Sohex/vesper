@@ -62,7 +62,11 @@ make distclean >/dev/null 2>&1 || true
 CFLAGS="-O3 -march=znver4" ./configure --prefix="$PREFIX" --enable-openmp \
     > "$SRC/configure.log" 2>&1 \
     || { echo "configure failed, see $SRC/configure.log" >&2; tail -20 "$SRC/configure.log"; exit 1; }
-make -j"$(nproc)" > "$SRC/build.log" 2>&1 \
+# The scheduler hands this job whole physical cores, so the visible CPU list
+# holds both SMT siblings of each and `nproc` returns double the usable
+# count. SLURM_CPUS_PER_TASK is what was actually allocated; the fallback
+# is for a shell outside the scheduler.
+make -j"${SLURM_CPUS_PER_TASK:-$(nproc)}" > "$SRC/build.log" 2>&1 \
     || { echo "build failed, see $SRC/build.log" >&2; tail -20 "$SRC/build.log"; exit 1; }
 make install >> "$SRC/build.log" 2>&1
 

@@ -1,0 +1,5978 @@
+{
+  "contract_version": "vesper-lpj-acceptance/1",
+  "generated": "2026-09-07T09:42:36+00:00",
+  "run_id": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
+  "source_build": "canonical-10m-carve2",
+  "manifest_sha256": "0f1d15719a9aecdc6a9800895bc12132d23774f06aab6cf26f9aceee678155a3",
+  "contract_sha256": "d8899d1fa113d18c0d1c9a34ff6bbe103533a58f68cf17138dacc6236cc55e0d",
+  "continuation": null,
+  "timescales": {
+    "estimator": "lib/autocorrelation.py:integrated_time",
+    "relaxation_estimator": "lib/lpj_output.py:relaxation_time",
+    "reliable_span_multiple": 10.0,
+    "drift_tolerance": 0.05,
+    "contract_version": "vesper-lpj-equilibrium-window/6",
+    "tables": {
+      "anpp.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "anpp.out total productivity": {
+            "memory": {
+              "tau_cycles": 20.1539135123692,
+              "effective_samples": 62.17154793439932,
+              "reliable": true,
+              "lag1": 0.8014123949720667
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00041745550965088807,
+                0.00012010764224368309,
+                -0.00026938617445237956
+              ],
+              "step_standard_errors": [
+                0.00020207891280300068,
+                0.00019661402669259652,
+                0.00019749519492316854
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.002951207657489109,
+              "relative_standard_error": 0.004011288906723058,
+              "upper_bound": 0.010084217253403556,
+              "tau_cycles": 87.03114323380461,
+              "effective_samples_per_half": 7.192827495305718,
+              "degrees_of_freedom": 12.337513553017631,
+              "critical_value": 1.7782338200470373,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.2727,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ]
+          }
+        },
+        "columns": {
+          "BNE": {
+            "memory": {
+              "tau_cycles": 169.84408486271033,
+              "effective_samples": 7.377354360105238,
+              "reliable": false,
+              "lag1": 0.9878279456200864
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -1.816166489831527e-05,
+                -0.00032841356118398606,
+                0.0001386348323819805
+              ],
+              "step_standard_errors": [
+                0.0001463607176455982,
+                0.00014535208846756242,
+                0.00010395074172150975
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.10368993707859023,
+              "relative_standard_error": 0.04352408231694371,
+              "upper_bound": 0.20145455544743737,
+              "tau_cycles": 229.11874239340762,
+              "effective_samples_per_half": 2.7322077341238575,
+              "degrees_of_freedom": 3.3933099848789534,
+              "critical_value": 2.2462189474076024,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 11640.648870673807
+            }
+          },
+          "BINE": {
+            "memory": {
+              "tau_cycles": 106.0554474321213,
+              "effective_samples": 11.814574643155016,
+              "reliable": true,
+              "lag1": 0.9834607002439463
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00020540937838975197,
+                0.00033894266390843263,
+                -2.715753742681907e-05
+              ],
+              "step_standard_errors": [
+                0.0001591918219377217,
+                0.00013096195600800534,
+                0.00010119083332354904
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.06311877901749571,
+              "relative_standard_error": 0.0399895308974753,
+              "upper_bound": 0.15257470386522481,
+              "tau_cycles": 196.95043640966247,
+              "effective_samples_per_half": 3.1784646503544796,
+              "degrees_of_freedom": 3.433735453793795,
+              "critical_value": 2.2369836014599715,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 7169.671575226097
+            }
+          },
+          "BNS": {
+            "memory": {
+              "tau_cycles": 54.490533594269735,
+              "effective_samples": 22.994819785206992,
+              "reliable": true,
+              "lag1": 0.9745549121711318
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -4.4394522258511294e-05,
+                -4.917796337240189e-06,
+                4.8012234228579295e-06
+              ],
+              "step_standard_errors": [
+                6.770670910448599e-05,
+                6.155500302741777e-05,
+                6.728537682685031e-05
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.00853623532969596,
+              "relative_standard_error": 0.02284433554377761,
+              "upper_bound": 0.04997029922840934,
+              "tau_cycles": 104.88889236438101,
+              "effective_samples_per_half": 5.968220141226146,
+              "degrees_of_freedom": 9.930101042165447,
+              "critical_value": 1.8137565795823414,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1705.0232633131811
+            }
+          },
+          "TeNE": {
+            "memory": {
+              "tau_cycles": 28.505695395109395,
+              "effective_samples": 43.95612815728649,
+              "reliable": true,
+              "lag1": 0.9733146534373561
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                1.8928279996286335e-06,
+                -3.1674243906101515e-05,
+                7.788651330413053e-06
+              ],
+              "step_standard_errors": [
+                1.8827911015506385e-05,
+                1.570052582654521e-05,
+                1.5400190021467e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.14958753904773237,
+              "relative_standard_error": 0.08161698794169014,
+              "upper_bound": 0.288508928303901,
+              "tau_cycles": 40.96573940291245,
+              "effective_samples_per_half": 15.281061909882059,
+              "degrees_of_freedom": 27.535171862360823,
+              "critical_value": 1.702113650106993,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 22436.186790758486
+            }
+          },
+          "TeBS": {
+            "memory": {
+              "tau_cycles": 64.77902820246193,
+              "effective_samples": 19.34267979574877,
+              "reliable": true,
+              "lag1": 0.9599124177003976
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00012656262040105105,
+                2.534966934784194e-05,
+                -0.00011285246018244606
+              ],
+              "step_standard_errors": [
+                8.483472999312309e-05,
+                8.06572274803591e-05,
+                9.274872156490567e-05
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.008615435232702726,
+              "relative_standard_error": 0.02422255198298573,
+              "upper_bound": 0.05274238164754731,
+              "tau_cycles": 108.4022990627744,
+              "effective_samples_per_half": 5.774785271274471,
+              "degrees_of_freedom": 9.52237911084948,
+              "critical_value": 1.8217298675151978,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 2006.6237037558753
+            }
+          },
+          "IBS": {
+            "memory": {
+              "tau_cycles": 70.90436951931568,
+              "effective_samples": 17.671689467017394,
+              "reliable": true,
+              "lag1": 0.9850501817324167
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                5.7375607809199806e-05,
+                0.0001253257620213344,
+                -0.00011844598426068035
+              ],
+              "step_standard_errors": [
+                9.565681969367666e-05,
+                8.466882439234363e-05,
+                9.269412586423844e-05
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.059715941177528285,
+              "relative_standard_error": 0.05531289973400153,
+              "upper_bound": 0.16072783659352965,
+              "tau_cycles": 110.59297506590681,
+              "effective_samples_per_half": 5.660395695358963,
+              "degrees_of_freedom": 9.309880174760384,
+              "critical_value": 1.8261905613657077,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 12054.005132757455
+            }
+          },
+          "TeBE": {
+            "memory": {
+              "tau_cycles": 19.800857129202168,
+              "effective_samples": 63.28008892867997,
+              "reliable": true,
+              "lag1": 0.9236669277694854
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0001777420814390307,
+                -3.808773000922583e-05,
+                1.4976655779937176e-05
+              ],
+              "step_standard_errors": [
+                9.982537979789333e-05,
+                9.649115492175423e-05,
+                9.000767200237518e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.003718474913771433,
+              "relative_standard_error": 0.005847114467187394,
+              "upper_bound": 0.013598981253699082,
+              "tau_cycles": 33.299423662696846,
+              "effective_samples_per_half": 18.799124163258917,
+              "degrees_of_freedom": 34.8207164214138,
+              "critical_value": 1.6898089468531332,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "TrBE": {
+            "memory": {
+              "tau_cycles": 156.9893867247013,
+              "effective_samples": 7.981431268326933,
+              "reliable": false,
+              "lag1": 0.9858522693939464
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00136222760960324,
+                -0.0013399127876535452,
+                -5.271664285813257e-05
+              ],
+              "step_standard_errors": [
+                0.0005993866405610479,
+                0.0007537428810635439,
+                0.0007539591695253996
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0477478392683512,
+              "relative_standard_error": 0.05783977594868737,
+              "upper_bound": 0.2202981748120118,
+              "tau_cycles": 312.4602140532897,
+              "effective_samples_per_half": 2.0034550699412774,
+              "degrees_of_freedom": 1.9393291344971824,
+              "critical_value": 2.9832469561558965,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 12143.130312287141
+            }
+          },
+          "TrIBE": {
+            "memory": {
+              "tau_cycles": 40.732676832533734,
+              "effective_samples": 30.76154324822601,
+              "reliable": true,
+              "lag1": 0.9714735727442616
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00017770651682107695,
+                -0.00010926636120611385,
+                -2.427680337310778e-05
+              ],
+              "step_standard_errors": [
+                0.00016709638473113778,
+                0.00015003199807117227,
+                0.0001546633480314936
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.007244612831755934,
+              "relative_standard_error": 0.036715210760248806,
+              "upper_bound": 0.07235111309993908,
+              "tau_cycles": 83.81509571481114,
+              "effective_samples_per_half": 7.4688216324422605,
+              "degrees_of_freedom": 12.778470716750181,
+              "critical_value": 1.7732841217589659,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 3949.730382141491
+            }
+          },
+          "TrBR": {
+            "memory": {
+              "tau_cycles": 185.90039093035264,
+              "effective_samples": 6.740168720083192,
+              "reliable": false,
+              "lag1": 0.9934780646202315
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0021300617836446205,
+                0.0015043359196713832,
+                -0.0003100720973838282
+              ],
+              "step_standard_errors": [
+                0.0006093980459041981,
+                0.0009146993707463578,
+                0.000925057295755956
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.022474289763223017,
+              "relative_standard_error": 0.10089418741185911,
+              "upper_bound": 0.33933796808848127,
+              "tau_cycles": 473.39507693138313,
+              "effective_samples_per_half": 1.3223627166928404,
+              "degrees_of_freedom": 1.8096960208386832,
+              "critical_value": 3.140554341666803,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 28647.7094466001
+            }
+          },
+          "C3G": {
+            "memory": {
+              "tau_cycles": 12.171030532542371,
+              "effective_samples": 102.94937611484772,
+              "reliable": true,
+              "lag1": 0.8524794376855527
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -2.628818009922998e-05,
+                -0.00011230120860426449,
+                5.8205448894635414e-05
+              ],
+              "step_standard_errors": [
+                7.681453088189126e-05,
+                6.707048523908952e-05,
+                6.753188517226628e-05
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.01076141769888293,
+              "relative_standard_error": 0.007453997527231436,
+              "upper_bound": 0.02321773631876882,
+              "tau_cycles": 20.242000047311652,
+              "effective_samples_per_half": 30.925797773779735,
+              "degrees_of_freedom": 59.001398321357506,
+              "critical_value": 1.6710924003368186,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "C4G": {
+            "memory": {
+              "tau_cycles": 22.65129195014002,
+              "effective_samples": 55.31693303667186,
+              "reliable": true,
+              "lag1": 0.9002121742721911
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00010562296367864522,
+                9.03538877066977e-05,
+                0.00014935756469302598
+              ],
+              "step_standard_errors": [
+                0.00013808955945796665,
+                0.00012982098467995587,
+                0.00012720847903588522
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.03470341377210871,
+              "relative_standard_error": 0.01997108388495343,
+              "upper_bound": 0.06859162601326863,
+              "tau_cycles": 38.6846873550223,
+              "effective_samples_per_half": 16.18211346145799,
+              "degrees_of_freedom": 30.2219587172114,
+              "critical_value": 1.69686394771452,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 20.1539135123692,
+              "effective_samples": 62.17154793439932,
+              "reliable": true,
+              "lag1": 0.8014123949720667
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00041745550965088807,
+                0.00012010764224368309,
+                -0.00026938617445237956
+              ],
+              "step_standard_errors": [
+                0.00020207891280300068,
+                0.00019661402669259652,
+                0.00019749519492316854
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.002951207657489109,
+              "relative_standard_error": 0.004011288906723058,
+              "upper_bound": 0.010084217253403556,
+              "tau_cycles": 87.03114323380461,
+              "effective_samples_per_half": 7.192827495305718,
+              "degrees_of_freedom": 12.337513553017631,
+              "critical_value": 1.7782338200470373,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          }
+        }
+      },
+      "lai.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "lai.out total leaf area": {
+            "memory": {
+              "tau_cycles": 25.471541976392704,
+              "effective_samples": 49.19215339068572,
+              "reliable": true,
+              "lag1": 0.8453351567666493
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.002295267534838663,
+                -0.0035969015314520902,
+                -0.0044527741389903674
+              ],
+              "step_standard_errors": [
+                0.002835438328905577,
+                0.0025178833616590858,
+                0.0026731962967390986
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0065626791013167025,
+              "relative_standard_error": 0.0036799332651079454,
+              "upper_bound": 0.012836089609146815,
+              "tau_cycles": 44.12788738719006,
+              "effective_samples_per_half": 14.186040553161002,
+              "degrees_of_freedom": 26.358382518978594,
+              "critical_value": 1.7047620312337624,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.2727,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ]
+          }
+        },
+        "columns": {
+          "BNE": {
+            "memory": {
+              "tau_cycles": 151.75436219510752,
+              "effective_samples": 8.256764299065376,
+              "reliable": false,
+              "lag1": 0.9847162956476438
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.000252770977691108,
+                -0.0027787704916413247,
+                0.001198645580799844
+              ],
+              "step_standard_errors": [
+                0.001252199331173686,
+                0.0012471296174347778,
+                0.0009563194925060941
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.09614268805090728,
+              "relative_standard_error": 0.03762482547748686,
+              "upper_bound": 0.1714688956017082,
+              "tau_cycles": 173.52044264913673,
+              "effective_samples_per_half": 3.6076440933578633,
+              "degrees_of_freedom": 5.151459573963828,
+              "critical_value": 2.002034736237461,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 9639.545212409359
+            }
+          },
+          "BINE": {
+            "memory": {
+              "tau_cycles": 91.7697532380778,
+              "effective_samples": 13.653736179821129,
+              "reliable": true,
+              "lag1": 0.9842419796123658
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0017958798390108263,
+                0.0028804827304142674,
+                -0.0004782277360552145
+              ],
+              "step_standard_errors": [
+                0.0013718679607270872,
+                0.0011637575285129416,
+                0.0009769225380249884
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.058725719329520636,
+              "relative_standard_error": 0.043717409603814296,
+              "upper_bound": 0.15136431632405892,
+              "tau_cycles": 184.64327425517766,
+              "effective_samples_per_half": 3.3903211613051543,
+              "degrees_of_freedom": 4.085914913319553,
+              "critical_value": 2.1190321621081516,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 7854.439399933259
+            }
+          },
+          "BNS": {
+            "memory": {
+              "tau_cycles": 51.38100398024453,
+              "effective_samples": 24.386444462661057,
+              "reliable": true,
+              "lag1": 0.9747360151930193
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00031456825541718164,
+                -6.655246472682397e-05,
+                4.890431339541618e-05
+              ],
+              "step_standard_errors": [
+                0.0005257730463142618,
+                0.0004812671510628246,
+                0.0005111537325326608
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.008963070490127989,
+              "relative_standard_error": 0.023896130089491825,
+              "upper_bound": 0.05247528056482286,
+              "tau_cycles": 108.10539408332588,
+              "effective_samples_per_half": 5.790645372584178,
+              "degrees_of_freedom": 9.56361980272945,
+              "critical_value": 1.8208894039218968,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 1869.169216400282
+            }
+          },
+          "TeNE": {
+            "memory": {
+              "tau_cycles": 30.21799279130649,
+              "effective_samples": 41.46536166890871,
+              "reliable": true,
+              "lag1": 0.9824325159090169
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                4.61531926159945e-05,
+                -0.00029982178174784227,
+                8.368967104704179e-05
+              ],
+              "step_standard_errors": [
+                0.00017809302040017305,
+                0.00014716222761408925,
+                0.0001397233769338912
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.13549037076697407,
+              "relative_standard_error": 0.08051953046044255,
+              "upper_bound": 0.2731909682677113,
+              "tau_cycles": 45.43038052612091,
+              "effective_samples_per_half": 13.779325481107767,
+              "degrees_of_freedom": 24.258295650744696,
+              "critical_value": 1.7101515211689717,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 20666.531674530223
+            }
+          },
+          "TeBS": {
+            "memory": {
+              "tau_cycles": 57.51841390650353,
+              "effective_samples": 21.78432809424748,
+              "reliable": true,
+              "lag1": 0.9595762658890256
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0019482325372786324,
+                0.00039062417880308953,
+                -0.0013768324175444102
+              ],
+              "step_standard_errors": [
+                0.0010214768416136788,
+                0.0010403393515496647,
+                0.0011338661755571939
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.01492781538135801,
+              "relative_standard_error": 0.024427103231277055,
+              "upper_bound": 0.058774193317726396,
+              "tau_cycles": 95.82405329933619,
+              "effective_samples_per_half": 6.53280651826003,
+              "degrees_of_freedom": 11.060328413807383,
+              "critical_value": 1.7949888499356084,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 2156.001793522028
+            }
+          },
+          "IBS": {
+            "memory": {
+              "tau_cycles": 66.78479543821989,
+              "effective_samples": 18.761755453142076,
+              "reliable": true,
+              "lag1": 0.9856685504465088
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0006022838412158282,
+                0.0010122168414272506,
+                -0.0010310732018627942
+              ],
+              "step_standard_errors": [
+                0.0009186807815454523,
+                0.000811902579728135,
+                0.0008702938857656258
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.05268471369160526,
+              "relative_standard_error": 0.05522392301378086,
+              "upper_bound": 0.15298441820695757,
+              "tau_cycles": 106.10546831249822,
+              "effective_samples_per_half": 5.8997901800529835,
+              "degrees_of_freedom": 9.79923302366646,
+              "critical_value": 1.8162364975469603,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 11440.306690920628
+            }
+          },
+          "TeBE": {
+            "memory": {
+              "tau_cycles": 18.054115042321094,
+              "effective_samples": 69.40246016283889,
+              "reliable": true,
+              "lag1": 0.9387803468079726
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0021315645863341226,
+                -0.0004928511166302219,
+                -0.00014057073308554324
+              ],
+              "step_standard_errors": [
+                0.0012568704093868285,
+                0.0011362100466164931,
+                0.0011095538500550898
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.002748281833158351,
+              "relative_standard_error": 0.006288955326035044,
+              "upper_bound": 0.013355088726167677,
+              "tau_cycles": 30.959313904586587,
+              "effective_samples_per_half": 20.22008633425364,
+              "degrees_of_freedom": 37.44681544690361,
+              "critical_value": 1.6865769182839034,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "TrBE": {
+            "memory": {
+              "tau_cycles": 140.1134568198911,
+              "effective_samples": 8.942752740806826,
+              "reliable": false,
+              "lag1": 0.9836157339062124
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.012278032525818938,
+                -0.01338099387300673,
+                -0.0007310524558356013
+              ],
+              "step_standard_errors": [
+                0.005552297460082108,
+                0.006958612488364812,
+                0.007181777830937749
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.05717852442257561,
+              "relative_standard_error": 0.057135773716836216,
+              "upper_bound": 0.2057233209516912,
+              "tau_cycles": 280.9805033775024,
+              "effective_samples_per_half": 2.227912586372435,
+              "degrees_of_freedom": 2.4239247055046476,
+              "critical_value": 2.599856217320181,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 12523.66591832996
+            }
+          },
+          "TrIBE": {
+            "memory": {
+              "tau_cycles": 34.13099283574156,
+              "effective_samples": 36.71150165569968,
+              "reliable": true,
+              "lag1": 0.9654039363181671
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0011556430181715455,
+                -0.001037037585873729,
+                -0.0002359386391791729
+              ],
+              "step_standard_errors": [
+                0.0011909552038269794,
+                0.0011517656751889548,
+                0.0012326532233817918
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.015610361064530188,
+              "relative_standard_error": 0.03507999077396936,
+              "upper_bound": 0.0772828920114794,
+              "tau_cycles": 76.4426066382058,
+              "effective_samples_per_half": 8.189150364309096,
+              "degrees_of_freedom": 14.37676611367373,
+              "critical_value": 1.7580543662147283,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 3777.023998295301
+            }
+          },
+          "TrBR": {
+            "memory": {
+              "tau_cycles": 176.95856058444733,
+              "effective_samples": 7.0807537982998525,
+              "reliable": false,
+              "lag1": 0.9912569701270548
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.014391206450631383,
+                0.01079785308256323,
+                -0.0034079431598372234
+              ],
+              "step_standard_errors": [
+                0.004276450172322041,
+                0.0061847599424492816,
+                0.006350249655924336
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.021475592870996707,
+              "relative_standard_error": 0.10004786128073144,
+              "upper_bound": 0.3296931000754127,
+              "tau_cycles": 465.878916378661,
+              "effective_samples_per_half": 1.3436967804123474,
+              "degrees_of_freedom": 1.855844136595474,
+              "critical_value": 3.080700609277059,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 27514.591177470043
+            }
+          },
+          "C3G": {
+            "memory": {
+              "tau_cycles": 11.49094060570136,
+              "effective_samples": 109.0424224609002,
+              "reliable": true,
+              "lag1": 0.8710372999959647
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00011920291787931303,
+                -0.0012831852462158455,
+                0.0005699935390943989
+              ],
+              "step_standard_errors": [
+                0.0008433427372907207,
+                0.0007445592598290339,
+                0.0007556030100473526
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.011482224842829583,
+              "relative_standard_error": 0.007530339481761311,
+              "upper_bound": 0.02403135758231658,
+              "tau_cycles": 16.880024408446722,
+              "effective_samples_per_half": 37.08525443166724,
+              "degrees_of_freedom": 71.39957683714617,
+              "critical_value": 1.666476361375386,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "C4G": {
+            "memory": {
+              "tau_cycles": 19.015584976579063,
+              "effective_samples": 65.89331864064573,
+              "reliable": true,
+              "lag1": 0.8439309527186252
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0010071727906962868,
+                0.0006609777108636111,
+                0.0010475903983434842
+              ],
+              "step_standard_errors": [
+                0.0011242369085542076,
+                0.0010440454023996114,
+                0.0010445575175503368
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.03264905811095963,
+              "relative_standard_error": 0.019753836142445084,
+              "upper_bound": 0.06599312587615812,
+              "tau_cycles": 32.56987803022777,
+              "effective_samples_per_half": 19.220213211084666,
+              "degrees_of_freedom": 36.25896048376191,
+              "critical_value": 1.6879793638437681,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 25.471541976392704,
+              "effective_samples": 49.19215339068572,
+              "reliable": true,
+              "lag1": 0.8453351567666493
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.002295267534838663,
+                -0.0035969015314520902,
+                -0.0044527741389903674
+              ],
+              "step_standard_errors": [
+                0.002835438328905577,
+                0.0025178833616590858,
+                0.0026731962967390986
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0065626791013167025,
+              "relative_standard_error": 0.0036799332651079454,
+              "upper_bound": 0.012836089609146815,
+              "tau_cycles": 44.12788738719006,
+              "effective_samples_per_half": 14.186040553161002,
+              "degrees_of_freedom": 26.358382518978594,
+              "critical_value": 1.7047620312337624,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          }
+        }
+      },
+      "fpc.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "fpc.out tree cover": {
+            "memory": {
+              "tau_cycles": 37.62621579776986,
+              "effective_samples": 33.301249499405316,
+              "reliable": true,
+              "lag1": 0.9613513239310276
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0008112684516152491,
+                0.000569622679161691,
+                -0.0016651196057860251
+              ],
+              "step_standard_errors": [
+                0.001026031041678804,
+                0.0009107528751001571,
+                0.0009410610826563344
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0054541126069802045,
+              "relative_standard_error": 0.008070304489426007,
+              "upper_bound": 0.019556180554375944,
+              "tau_cycles": 70.40746763433307,
+              "effective_samples_per_half": 8.891102336632558,
+              "degrees_of_freedom": 15.776451872233661,
+              "critical_value": 1.747402215848579,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "exoplasim/scripts/build_surface_albedo.py",
+              "biosphere/scripts/score_prediction.py"
+            ]
+          },
+          "fpc.out grass cover": {
+            "memory": {
+              "tau_cycles": 17.462981432475114,
+              "effective_samples": 71.7517798919406,
+              "reliable": true,
+              "lag1": 0.866983140858945
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00026392700559747795,
+                -0.0002916101090450762,
+                0.0005089929088103462
+              ],
+              "step_standard_errors": [
+                0.00042003470389181995,
+                0.0003762337780276133,
+                0.00042397504597496666
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0019984502939734933,
+              "relative_standard_error": 0.008487914728013513,
+              "upper_bound": 0.016315499887785537,
+              "tau_cycles": 31.848502701717273,
+              "effective_samples_per_half": 19.65555510922798,
+              "degrees_of_freedom": 37.289838595707316,
+              "critical_value": 1.686757001287967,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "exoplasim/scripts/build_surface_albedo.py",
+              "biosphere/scripts/score_prediction.py"
+            ]
+          },
+          "fpc.out C4 grass cover": {
+            "memory": {
+              "tau_cycles": 24.070185656126714,
+              "effective_samples": 52.05610035172567,
+              "reliable": true,
+              "lag1": 0.8981031803983431
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00027661171933194076,
+                0.00016976177633411596,
+                0.00031856413782475196
+              ],
+              "step_standard_errors": [
+                0.00033013566077034405,
+                0.0003103650471749237,
+                0.0003196632921797447
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.03129039693329478,
+              "relative_standard_error": 0.020600825807719707,
+              "upper_bound": 0.06633359217249157,
+              "tau_cycles": 41.65517759898668,
+              "effective_samples_per_half": 15.02814382467615,
+              "degrees_of_freedom": 28.0352468301758,
+              "critical_value": 1.701057790900068,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.2727,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ]
+          },
+          "fpc.out boreal needleleaf cover": {
+            "memory": {
+              "tau_cycles": 40.93186164367521,
+              "effective_samples": 30.611849783617487,
+              "reliable": true,
+              "lag1": 0.9769148065321529
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0006597414452275199,
+                0.00021035878772072275,
+                0.00029188079530388655
+              ],
+              "step_standard_errors": [
+                0.00031681102495491906,
+                0.000313518658431011,
+                0.00032688974015016617
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0011686768490757782,
+              "relative_standard_error": 0.018540881686769903,
+              "upper_bound": 0.03519787644623802,
+              "tau_cycles": 114.3712576844681,
+              "effective_samples_per_half": 5.473403131816853,
+              "degrees_of_freedom": 8.904222565967364,
+              "critical_value": 1.8353603767098219,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.2727,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ]
+          }
+        },
+        "columns": {
+          "BNE": {
+            "memory": {
+              "tau_cycles": 157.10964965566404,
+              "effective_samples": 7.975321711595628,
+              "reliable": false,
+              "lag1": 0.9849084662748859
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                3.0378111163138766e-05,
+                -0.0006737815660681924,
+                0.00032072962789530396
+              ],
+              "step_standard_errors": [
+                0.0003118676872974871,
+                0.0003142049498119081,
+                0.00023917137206487025
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.08302169804434958,
+              "relative_standard_error": 0.042195757349776514,
+              "upper_bound": 0.17585000091206832,
+              "tau_cycles": 222.35207062105508,
+              "effective_samples_per_half": 2.815354938011189,
+              "degrees_of_freedom": 3.6091352367472784,
+              "critical_value": 2.199943991957058,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 10058.720674443028
+            }
+          },
+          "BINE": {
+            "memory": {
+              "tau_cycles": 110.46182066747453,
+              "effective_samples": 11.343285783528152,
+              "reliable": true,
+              "lag1": 0.9845083370913145
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0005702272776668023,
+                0.0009445784703657825,
+                -8.218390463940461e-05
+              ],
+              "step_standard_errors": [
+                0.0003809035370042759,
+                0.0003058255988785247,
+                0.0002569593629332424
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.07166633316734389,
+              "relative_standard_error": 0.04164955688903473,
+              "upper_bound": 0.1680635324557238,
+              "tau_cycles": 211.5281381105729,
+              "effective_samples_per_half": 2.9594171517397303,
+              "degrees_of_freedom": 3.1284700694644507,
+              "critical_value": 2.314483189946226,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 8231.241388421711
+            }
+          },
+          "BNS": {
+            "memory": {
+              "tau_cycles": 57.52038277968368,
+              "effective_samples": 21.78358243545212,
+              "reliable": true,
+              "lag1": 0.9770495068409041
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00011989227872386508,
+                -6.043811657686221e-05,
+                5.3335072047985474e-05
+              ],
+              "step_standard_errors": [
+                0.00019537268583178874,
+                0.00017214847734815163,
+                0.00018496663269937288
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.012585676650267899,
+              "relative_standard_error": 0.02564273809884265,
+              "upper_bound": 0.0597211905358823,
+              "tau_cycles": 115.6004490424749,
+              "effective_samples_per_half": 5.415203878403532,
+              "degrees_of_freedom": 8.787926410857532,
+              "critical_value": 1.8381622782998277,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 2123.9369476125453
+            }
+          },
+          "TeNE": {
+            "memory": {
+              "tau_cycles": 34.75450421251048,
+              "effective_samples": 36.05288086799872,
+              "reliable": true,
+              "lag1": 0.983416280526041
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                2.173393318988942e-05,
+                -8.166229024284704e-05,
+                2.4430916717543762e-05
+              ],
+              "step_standard_errors": [
+                4.0376044955407474e-05,
+                3.341752581067407e-05,
+                3.276221832777049e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.14427744870088105,
+              "relative_standard_error": 0.07774004323649507,
+              "upper_bound": 0.2777356307822547,
+              "tau_cycles": 50.079029403134726,
+              "effective_samples_per_half": 12.500242266293109,
+              "degrees_of_freedom": 22.123407917184647,
+              "critical_value": 1.7167237954238965,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 21431.875125264887
+            }
+          },
+          "TeBS": {
+            "memory": {
+              "tau_cycles": 59.13215145319692,
+              "effective_samples": 21.18982599494539,
+              "reliable": true,
+              "lag1": 0.9613527271452423
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0005008466354883556,
+                0.00027782486796635447,
+                -0.0004166434508743981
+              ],
+              "step_standard_errors": [
+                0.0002881371762331103,
+                0.0002741627326995098,
+                0.00030606590811331014
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.026922165234598477,
+              "relative_standard_error": 0.02693982581941355,
+              "upper_bound": 0.07608863241697375,
+              "tau_cycles": 110.16116393411502,
+              "effective_samples_per_half": 5.682583386413717,
+              "degrees_of_freedom": 9.363323975961533,
+              "critical_value": 1.8250477011972592,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 2034.188139769674
+            }
+          },
+          "IBS": {
+            "memory": {
+              "tau_cycles": 77.77167472163617,
+              "effective_samples": 16.111264216500327,
+              "reliable": true,
+              "lag1": 0.9858989285254928
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00011391347128453418,
+                0.00030893402960952,
+                -0.00028946635290770344
+              ],
+              "step_standard_errors": [
+                0.00023101776494592605,
+                0.00020683462637062944,
+                0.00022631635729562847
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.05841170693861674,
+              "relative_standard_error": 0.056621076788088365,
+              "upper_bound": 0.16334372978722683,
+              "tau_cycles": 122.22634455016991,
+              "effective_samples_per_half": 5.121645438255314,
+              "degrees_of_freedom": 8.215910691770276,
+              "critical_value": 1.8532325558083544,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 12115.471826251702
+            }
+          },
+          "TeBE": {
+            "memory": {
+              "tau_cycles": 21.232286808301218,
+              "effective_samples": 59.013897622658,
+              "reliable": true,
+              "lag1": 0.9382385334151518
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00023541208525235113,
+                7.435376125472515e-05,
+                -6.606127783673199e-05
+              ],
+              "step_standard_errors": [
+                0.0002994782107756741,
+                0.0002716610700322845,
+                0.00028776349589670533
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.003735672925994082,
+              "relative_standard_error": 0.006184516545128146,
+              "upper_bound": 0.014175515751099238,
+              "tau_cycles": 32.705534490229965,
+              "effective_samples_per_half": 19.140491349774553,
+              "degrees_of_freedom": 36.191973533893616,
+              "critical_value": 1.688061265407907,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "TrBE": {
+            "memory": {
+              "tau_cycles": 79.00871992727268,
+              "effective_samples": 15.85900899487276,
+              "reliable": true,
+              "lag1": 0.9705690260094549
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0007282033347756761,
+                -0.0016136398213075567,
+                -0.0003656991114772898
+              ],
+              "step_standard_errors": [
+                0.0006943482116199091,
+                0.0007362174506057053,
+                0.0007518074035142322
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.06673793289618984,
+              "relative_standard_error": 0.03348687356743524,
+              "upper_bound": 0.13075091170439024,
+              "tau_cycles": 145.350119911836,
+              "effective_samples_per_half": 4.306841992147708,
+              "degrees_of_freedom": 6.608877394985927,
+              "critical_value": 1.9115842116252586,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 4475.729278098588
+            }
+          },
+          "TrIBE": {
+            "memory": {
+              "tau_cycles": 50.93907606732539,
+              "effective_samples": 24.59801191415269,
+              "reliable": true,
+              "lag1": 0.9698825215248082
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0002834065371719371,
+                -0.00038824707925574735,
+                5.515479499961125e-05
+              ],
+              "step_standard_errors": [
+                0.0002917213946976963,
+                0.00029986985770556106,
+                0.0003265414185486477
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.02911293396381678,
+              "relative_standard_error": 0.040966005628246045,
+              "upper_bound": 0.10281856082608133,
+              "tau_cycles": 97.45602653571191,
+              "effective_samples_per_half": 6.423409841879894,
+              "degrees_of_freedom": 10.783499532573844,
+              "critical_value": 1.7991899803734965,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 5336.438121429646
+            }
+          },
+          "TrBR": {
+            "memory": {
+              "tau_cycles": 158.48497185144896,
+              "effective_samples": 7.906112392627746,
+              "reliable": false,
+              "lag1": 0.9903704415903678
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.002035043003550528,
+                0.0017817004234165282,
+                -0.0008987159197108956
+              ],
+              "step_standard_errors": [
+                0.000723973623344815,
+                0.0010203148086811045,
+                0.0010606161551339308
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.021035938300019267,
+              "relative_standard_error": 0.0937142123214817,
+              "upper_bound": 0.29604971539648217,
+              "tau_cycles": 432.7229705608239,
+              "effective_samples_per_half": 1.4466530380596214,
+              "degrees_of_freedom": 1.9854800542480038,
+              "critical_value": 2.9346005294591024,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 23823.290732518595
+            }
+          },
+          "C3G": {
+            "memory": {
+              "tau_cycles": 13.45318664978498,
+              "effective_samples": 93.1377845724029,
+              "reliable": true,
+              "lag1": 0.8713412443959792
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -1.268471373445934e-05,
+                -0.0004613718853792026,
+                0.0001904287709855873
+              ],
+              "step_standard_errors": [
+                0.00026035010667340645,
+                0.00023159569445179213,
+                0.00024792130796312805
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.011155963364381755,
+              "relative_standard_error": 0.007119124611830554,
+              "upper_bound": 0.02307782123786034,
+              "tau_cycles": 23.09755295590043,
+              "effective_samples_per_half": 27.102438132524508,
+              "degrees_of_freedom": 52.111556385076376,
+              "critical_value": 1.674624131970784,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "C4G": {
+            "memory": {
+              "tau_cycles": 24.070185656126714,
+              "effective_samples": 52.05610035172567,
+              "reliable": true,
+              "lag1": 0.8981031803983431
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00027661171933194076,
+                0.00016976177633411596,
+                0.00031856413782475196
+              ],
+              "step_standard_errors": [
+                0.00033013566077034405,
+                0.0003103650471749237,
+                0.0003196632921797447
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.03129039693329478,
+              "relative_standard_error": 0.020600825807719707,
+              "upper_bound": 0.06633359217249157,
+              "tau_cycles": 41.65517759898668,
+              "effective_samples_per_half": 15.02814382467615,
+              "degrees_of_freedom": 28.0352468301758,
+              "critical_value": 1.701057790900068,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 42.732310257031,
+              "effective_samples": 29.322074853040185,
+              "reliable": true,
+              "lag1": 0.8491658775952333
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0005491453624725806,
+                0.00027844132134413613,
+                -0.0011531748336860437
+              ],
+              "step_standard_errors": [
+                0.0008645867937432483,
+                0.0008046270829677207,
+                0.0008073548670594248
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0033666329999786832,
+              "relative_standard_error": 0.00494190600429312,
+              "upper_bound": 0.012105689840580367,
+              "tau_cycles": 82.06094603437121,
+              "effective_samples_per_half": 7.628476519607756,
+              "degrees_of_freedom": 13.252413135541149,
+              "critical_value": 1.7683575594132939,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          }
+        }
+      },
+      "cpool.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "cpool.out soil carbon": {
+            "memory": {
+              "tau_cycles": 77.92166899661807,
+              "effective_samples": 16.080251053842062,
+              "reliable": true,
+              "lag1": 0.9973203814893804
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.016781473205023545,
+                0.019694527593204114,
+                0.013008102805455835
+              ],
+              "step_standard_errors": [
+                0.003079625272637784,
+                0.0032691384569470557,
+                0.004171101368359694
+              ],
+              "admissible": false,
+              "ratio": 1.173587524324655,
+              "reason": "a ratio of 1.174 is not a contraction"
+            },
+            "drift": {
+              "relative_drift": 0.007810811227497249,
+              "relative_standard_error": 0.002523929132173154,
+              "upper_bound": 0.015208163999543596,
+              "tau_cycles": 470.2291540432509,
+              "effective_samples_per_half": 1.3312658192656883,
+              "degrees_of_freedom": 1.9891389641851247,
+              "critical_value": 2.930887669447785,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            },
+            "read_by": [
+              "pedology/scripts/build_soil.py"
+            ]
+          }
+        },
+        "columns": {
+          "VegC": {
+            "memory": {
+              "tau_cycles": 73.62741753549679,
+              "effective_samples": 17.018116918142777,
+              "reliable": true,
+              "lag1": 0.9774109290402249
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.008518212048107543,
+                0.0020754483611624686,
+                0.062034037315187085
+              ],
+              "step_standard_errors": [
+                0.033098340920400045,
+                0.024453082332009927,
+                0.022584022544674072
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.025912406509147282,
+              "relative_standard_error": 0.02866977486060992,
+              "upper_bound": 0.0924135097605474,
+              "tau_cycles": 244.2798840837351,
+              "effective_samples_per_half": 2.5626342600744705,
+              "degrees_of_freedom": 3.1108923582623698,
+              "critical_value": 2.319554428826979,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 1381.879381012653
+            }
+          },
+          "LitterC": {
+            "memory": {
+              "tau_cycles": 27.514960765752964,
+              "effective_samples": 45.5388619546778,
+              "reliable": true,
+              "lag1": 0.9493488765347955
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.025281120522562928,
+                -0.009599141312057524,
+                0.009103797313290585
+              ],
+              "step_standard_errors": [
+                0.009967371597136615,
+                0.010243083231438044,
+                0.009745539276336453
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.011528649922301012,
+              "relative_standard_error": 0.015830204760161934,
+              "upper_bound": 0.0387632165811905,
+              "tau_cycles": 53.438779082387796,
+              "effective_samples_per_half": 11.714339488087507,
+              "degrees_of_freedom": 21.086421217397703,
+              "critical_value": 1.7204178386515634,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "SoilC": {
+            "memory": {
+              "tau_cycles": 77.92166899661807,
+              "effective_samples": 16.080251053842062,
+              "reliable": true,
+              "lag1": 0.9973203814893804
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.016781473205023545,
+                0.019694527593204114,
+                0.013008102805455835
+              ],
+              "step_standard_errors": [
+                0.003079625272637784,
+                0.0032691384569470557,
+                0.004171101368359694
+              ],
+              "admissible": false,
+              "ratio": 1.173587524324655,
+              "reason": "a ratio of 1.174 is not a contraction"
+            },
+            "drift": {
+              "relative_drift": 0.007810811227497249,
+              "relative_standard_error": 0.002523929132173154,
+              "upper_bound": 0.015208163999543596,
+              "tau_cycles": 470.2291540432509,
+              "effective_samples_per_half": 1.3312658192656883,
+              "degrees_of_freedom": 1.9891389641851247,
+              "critical_value": 2.930887669447785,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 118.44783791738416,
+              "effective_samples": 10.578496172078307,
+              "reliable": true,
+              "lag1": 0.9907872639104004
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.050582956247614774,
+                0.01217018254132718,
+                0.08414534343171098
+              ],
+              "step_standard_errors": [
+                0.03507951227688372,
+                0.019643319466602065,
+                0.02120881111732358
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.012182276745921962,
+              "relative_standard_error": 0.008592458328842976,
+              "upper_bound": 0.03728020394589683,
+              "tau_cycles": 426.97770440903923,
+              "effective_samples_per_half": 1.4661187072201314,
+              "degrees_of_freedom": 1.999057051443752,
+              "critical_value": 2.9209250995988767,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          }
+        }
+      },
+      "npool.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {},
+        "columns": {
+          "VegN": {
+            "memory": {
+              "tau_cycles": 104.7672161166046,
+              "effective_samples": 11.959848189584676,
+              "reliable": true,
+              "lag1": 0.9747320059911266
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00010079407888626685,
+                1.3772793462429878e-05,
+                0.0002891500253891857
+              ],
+              "step_standard_errors": [
+                0.000157896745268696,
+                0.00015777259300535796,
+                0.00015094156333705488
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.01095692778698883,
+              "relative_standard_error": 0.020397790007545376,
+              "upper_bound": 0.06211572360349603,
+              "tau_cycles": 268.2127260900406,
+              "effective_samples_per_half": 2.3339682986923154,
+              "degrees_of_freedom": 2.6010755981811426,
+              "critical_value": 2.5080558137711475,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 1357.4195144162286
+            }
+          },
+          "LitterN": {
+            "memory": {
+              "tau_cycles": 20.971133833721662,
+              "effective_samples": 59.74879612780742,
+              "reliable": true,
+              "lag1": 0.9280156330450676
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                5.219700427368072e-05,
+                -2.5697412278881046e-05,
+                1.8995062445540875e-05
+              ],
+              "step_standard_errors": [
+                3.620802503033697e-05,
+                3.741361033318612e-05,
+                3.43354867498504e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.002320512179322591,
+              "relative_standard_error": 0.007514355735718881,
+              "upper_bound": 0.015029116492977248,
+              "tau_cycles": 34.7798064697908,
+              "effective_samples_per_half": 17.99895006729649,
+              "degrees_of_freedom": 33.77243463822327,
+              "critical_value": 1.6912433694408873,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "SoilN": {
+            "memory": {
+              "tau_cycles": 105.70087558837798,
+              "effective_samples": 11.854206438927264,
+              "reliable": true,
+              "lag1": 0.9947413942840272
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0026921287597234667,
+                0.002700276811276159,
+                0.0024863910013616097
+              ],
+              "step_standard_errors": [
+                0.0006086236089909018,
+                0.0006120685138444322,
+                0.0006410758264832485
+              ],
+              "admissible": false,
+              "ratio": 1.0030266202993683,
+              "reason": "a ratio of 1.003 is not a contraction"
+            },
+            "drift": {
+              "relative_drift": 0.01185187553411738,
+              "relative_standard_error": 0.004209293975836073,
+              "upper_bound": 0.024160658310758292,
+              "tau_cycles": 490.6254634566562,
+              "effective_samples_per_half": 1.2759223616107795,
+              "degrees_of_freedom": 1.995788743826177,
+              "critical_value": 2.9241917640585022,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 66.78980888978388,
+              "effective_samples": 18.760347137206107,
+              "reliable": true,
+              "lag1": 0.9856341718918996
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.002643491433076184,
+                0.0026885682447478354,
+                0.0027943369806824325
+              ],
+              "step_standard_errors": [
+                0.0005090526624035815,
+                0.0005108191403224778,
+                0.0005366738756655479
+              ],
+              "admissible": false,
+              "ratio": 1.0170519983941073,
+              "reason": "a ratio of 1.017 is not a contraction"
+            },
+            "drift": {
+              "relative_drift": 0.011742815114302998,
+              "relative_standard_error": 0.004242683539731243,
+              "upper_bound": 0.024156492007231495,
+              "tau_cycles": 481.0282966895434,
+              "effective_samples_per_half": 1.3013787428061048,
+              "degrees_of_freedom": 1.994083837179054,
+              "critical_value": 2.9259021505325027,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          }
+        }
+      },
+      "aaet.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {},
+        "columns": {
+          "BNE": {
+            "memory": {
+              "tau_cycles": 165.43803219763456,
+              "effective_samples": 7.5738328324840625,
+              "reliable": false,
+              "lag1": 0.9871405710039157
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.006179135028975047,
+                -0.18058934523562575,
+                0.08342327230049795
+              ],
+              "step_standard_errors": [
+                0.08064017520746922,
+                0.08465147672468365,
+                0.06046636273390755
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.10543868022936069,
+              "relative_standard_error": 0.04959380299875591,
+              "upper_bound": 0.22085110163361354,
+              "tau_cycles": 245.19323134216378,
+              "effective_samples_per_half": 2.5530884216229675,
+              "degrees_of_freedom": 3.0850295180954905,
+              "critical_value": 2.327154088327286,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 13507.579777244417
+            }
+          },
+          "BINE": {
+            "memory": {
+              "tau_cycles": 109.98377349156894,
+              "effective_samples": 11.392589654109765,
+              "reliable": true,
+              "lag1": 0.9849188052744712
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.10815787133906696,
+                0.20061147433123727,
+                -0.01740471152155365
+              ],
+              "step_standard_errors": [
+                0.07751563253895725,
+                0.061470894411929704,
+                0.05086796292217404
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.07964991465654057,
+              "relative_standard_error": 0.037272912404643276,
+              "upper_bound": 0.15788274452504075,
+              "tau_cycles": 171.07371367652001,
+              "effective_samples_per_half": 3.6592413091802714,
+              "degrees_of_freedom": 4.230409498772044,
+              "critical_value": 2.098919156603237,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 7848.875138238107
+            }
+          },
+          "BNS": {
+            "memory": {
+              "tau_cycles": 54.60893402376608,
+              "effective_samples": 22.944963537553914,
+              "reliable": true,
+              "lag1": 0.9772445880427907
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.02572629865190379,
+                -0.0033692140812178195,
+                0.010028728308052681
+              ],
+              "step_standard_errors": [
+                0.027099738784910857,
+                0.024590280637691794,
+                0.025503588769533993
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.010767497751001526,
+              "relative_standard_error": 0.026633023590105043,
+              "upper_bound": 0.059906830554554896,
+              "tau_cycles": 118.23327766265885,
+              "effective_samples_per_half": 5.294617660740933,
+              "degrees_of_freedom": 8.515736365634156,
+              "critical_value": 1.8450527270140702,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 2271.6422284266328
+            }
+          },
+          "TeNE": {
+            "memory": {
+              "tau_cycles": 32.057095276087466,
+              "effective_samples": 39.08651077737095,
+              "reliable": true,
+              "lag1": 0.9841913082208358
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.005121364258744487,
+                -0.023721580412589094,
+                0.0061079860349600446
+              ],
+              "step_standard_errors": [
+                0.0130905228121401,
+                0.011068787714651834,
+                0.010799874809383653
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.13859896965424998,
+              "relative_standard_error": 0.07762418042451286,
+              "upper_bound": 0.2712315828403563,
+              "tau_cycles": 45.254231575188186,
+              "effective_samples_per_half": 13.832960547787112,
+              "degrees_of_freedom": 24.80746238211147,
+              "critical_value": 1.708650738220515,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 24937.44405099563
+            }
+          },
+          "TeBS": {
+            "memory": {
+              "tau_cycles": 55.92737013642581,
+              "effective_samples": 22.404057207472984,
+              "reliable": true,
+              "lag1": 0.9637259934632819
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.12323446369544122,
+                -0.0002292929951535072,
+                -0.04621041213464849
+              ],
+              "step_standard_errors": [
+                0.06669098437059523,
+                0.062482695492411554,
+                0.06527860717368336
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.013009757328609288,
+              "relative_standard_error": 0.02436292193114965,
+              "upper_bound": 0.057488084705656854,
+              "tau_cycles": 108.81422515873808,
+              "effective_samples_per_half": 5.7529242990683604,
+              "degrees_of_freedom": 9.334769579649558,
+              "critical_value": 1.8256565243998506,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 1764.5166460064102
+            }
+          },
+          "IBS": {
+            "memory": {
+              "tau_cycles": 79.47654516147472,
+              "effective_samples": 15.765657622060004,
+              "reliable": true,
+              "lag1": 0.9887502251941853
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.018943651814487428,
+                0.09417119621592462,
+                -0.07738789736051288
+              ],
+              "step_standard_errors": [
+                0.06619505687467393,
+                0.05804474272864902,
+                0.06144880277859581
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.07346106880943948,
+              "relative_standard_error": 0.06904324823742482,
+              "upper_bound": 0.20306757324577393,
+              "tau_cycles": 132.34230295545362,
+              "effective_samples_per_half": 4.730157976854245,
+              "degrees_of_freedom": 7.459169050629538,
+              "critical_value": 1.8771785474322655,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 16737.323275226598
+            }
+          },
+          "TeBE": {
+            "memory": {
+              "tau_cycles": 15.955286980972938,
+              "effective_samples": 78.53196257104197,
+              "reliable": true,
+              "lag1": 0.9260947996449784
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.07261471071146985,
+                -0.004604412778761002,
+                -0.03365959918675543
+              ],
+              "step_standard_errors": [
+                0.08999831021479596,
+                0.08016604994142597,
+                0.08834290219235076
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0008253823191031748,
+              "relative_standard_error": 0.004656972566352041,
+              "upper_bound": 0.008625128896368399,
+              "tau_cycles": 23.292003917530913,
+              "effective_samples_per_half": 26.87617614252744,
+              "degrees_of_freedom": 51.720272131490425,
+              "critical_value": 1.674853451708224,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "TrBE": {
+            "memory": {
+              "tau_cycles": 87.1999971956518,
+              "effective_samples": 14.369266517160856,
+              "reliable": true,
+              "lag1": 0.9710312786716808
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.25889623232388814,
+                -0.5784947868197534,
+                -0.13513288324333494
+              ],
+              "step_standard_errors": [
+                0.2423618219921407,
+                0.2597066735421919,
+                0.28001822838580487
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.06513031977821769,
+              "relative_standard_error": 0.031090908843562682,
+              "upper_bound": 0.12443391825893438,
+              "tau_cycles": 143.12394497052833,
+              "effective_samples_per_half": 4.373831367832294,
+              "degrees_of_freedom": 6.699864788365591,
+              "critical_value": 1.907425697303004,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 4348.160730442658
+            }
+          },
+          "TrIBE": {
+            "memory": {
+              "tau_cycles": 52.18619870953055,
+              "effective_samples": 24.010179529921764,
+              "reliable": true,
+              "lag1": 0.9714278394009723
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.11173940618942879,
+                -0.11262798816883723,
+                -0.01273045378476656
+              ],
+              "step_standard_errors": [
+                0.09584305896604624,
+                0.10304734486209585,
+                0.10354810814403494
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.02405215119203349,
+              "relative_standard_error": 0.036412258725879366,
+              "upper_bound": 0.08903904550659511,
+              "tau_cycles": 90.65211113011476,
+              "effective_samples_per_half": 6.90552037008261,
+              "degrees_of_freedom": 11.804264665381497,
+              "critical_value": 1.784753173479275,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 4166.709166348965
+            }
+          },
+          "TrBR": {
+            "memory": {
+              "tau_cycles": 175.6895403797481,
+              "effective_samples": 7.131898673601598,
+              "reliable": false,
+              "lag1": 0.992445620121586
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.8551272521788267,
+                0.7012013530361312,
+                -0.1778475305312366
+              ],
+              "step_standard_errors": [
+                0.28136344924736945,
+                0.4320712144653191,
+                0.44838846153325057
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.030825407353358467,
+              "relative_standard_error": 0.09379259609161396,
+              "upper_bound": 0.3091353898374765,
+              "tau_cycles": 452.68506329450145,
+              "effective_samples_per_half": 1.382859852817246,
+              "degrees_of_freedom": 1.9541096585330568,
+              "critical_value": 2.967291599565841,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 25705.08215863878
+            }
+          },
+          "C3G": {
+            "memory": {
+              "tau_cycles": 9.851604671026928,
+              "effective_samples": 127.18740163062061,
+              "reliable": true,
+              "lag1": 0.8440917923209476
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.03473558694462575,
+                -0.04718470484330872,
+                -0.00909924701800513
+              ],
+              "step_standard_errors": [
+                0.06224245981408567,
+                0.05543299479352701,
+                0.05513944906615671
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.012948758220785322,
+              "relative_standard_error": 0.009270186813875458,
+              "upper_bound": 0.02835965617738798,
+              "tau_cycles": 13.759127493932633,
+              "effective_samples_per_half": 45.49707096442325,
+              "degrees_of_freedom": 87.69750990082863,
+              "critical_value": 1.662415037152853,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "C4G": {
+            "memory": {
+              "tau_cycles": 19.018009542776586,
+              "effective_samples": 65.88491803948611,
+              "reliable": true,
+              "lag1": 0.9222675095094911
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.08440892592878058,
+                0.05546622250410671,
+                0.07826403172363783
+              ],
+              "step_standard_errors": [
+                0.09159886814170672,
+                0.08538093747321085,
+                0.09129311451354205
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.03143759068055936,
+              "relative_standard_error": 0.0203385761094579,
+              "upper_bound": 0.06582232057559732,
+              "tau_cycles": 34.56310655788174,
+              "effective_samples_per_half": 18.11179787764904,
+              "degrees_of_freedom": 34.222558817157264,
+              "critical_value": 1.6906163789434738,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": false,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 42.70925649230638,
+              "effective_samples": 29.337902434000803,
+              "reliable": true,
+              "lag1": 0.8354785484579146
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.3549840796963508,
+                0.10065313037790702,
+                -0.3316631463622315
+              ],
+              "step_standard_errors": [
+                0.2456324822623379,
+                0.24545150254953552,
+                0.22281014358093018
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.004827002913737643,
+              "relative_standard_error": 0.0057119831397367555,
+              "upper_bound": 0.015310228943567285,
+              "tau_cycles": 113.93427052438152,
+              "effective_samples_per_half": 5.494395997963038,
+              "degrees_of_freedom": 8.906593685488025,
+              "critical_value": 1.8353040920062618,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          }
+        }
+      },
+      "tot_runoff.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {},
+        "columns": {
+          "Surf": {
+            "memory": {
+              "tau_cycles": 20.951761576053737,
+              "effective_samples": 59.80404060306238,
+              "reliable": true,
+              "lag1": 0.5438311477646514
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.058655736474079845,
+                0.006869701118901617,
+                -0.06701065555469654
+              ],
+              "step_standard_errors": [
+                0.036406773801484216,
+                0.038873444304204204,
+                0.04299443916714724
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.001696256834432252,
+              "relative_standard_error": 0.0012522658867128163,
+              "upper_bound": 0.0038279261034185243,
+              "tau_cycles": 41.47413937916882,
+              "effective_samples_per_half": 15.093742977447302,
+              "degrees_of_freedom": 27.472059342898564,
+              "critical_value": 1.7022497311508504,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "Drain": {
+            "memory": {
+              "tau_cycles": 37.288120139722274,
+              "effective_samples": 33.60319574451287,
+              "reliable": true,
+              "lag1": 0.7853881492599603
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.21422900847820614,
+                -0.06084137982814042,
+                0.14379229472794464
+              ],
+              "step_standard_errors": [
+                0.12270087247873857,
+                0.12043845746995618,
+                0.11278381781359151
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.004784955904669276,
+              "relative_standard_error": 0.006476918815442253,
+              "upper_bound": 0.016815282889444463,
+              "tau_cycles": 122.79240345857005,
+              "effective_samples_per_half": 5.098035239706106,
+              "degrees_of_freedom": 8.071489056867476,
+              "critical_value": 1.8574151270960062,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "Base": {
+            "memory": {
+              "tau_cycles": 53.147568190526655,
+              "effective_samples": 23.57586701818922,
+              "reliable": true,
+              "lag1": 0.8575856266577563
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.07043770165632157,
+                0.05276346960509315,
+                -0.008609008517725059
+              ],
+              "step_standard_errors": [
+                0.026600452190023157,
+                0.03327402682461948,
+                0.04146938706789078
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.003647086511359075,
+              "relative_standard_error": 0.011521026437120533,
+              "upper_bound": 0.025559164617658538,
+              "tau_cycles": 137.31938332848438,
+              "effective_samples_per_half": 4.558715491042755,
+              "degrees_of_freedom": 6.8248187654913774,
+              "critical_value": 1.9019206514186233,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 13.526163796773638,
+              "effective_samples": 92.63528217060886,
+              "reliable": true,
+              "lag1": 0.723761951653482
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.08513089873765978,
+                -0.0013326502951116481,
+                0.06817483862558049
+              ],
+              "step_standard_errors": [
+                0.08752433843913908,
+                0.0868887462848585,
+                0.08712327746993308
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0012483450727421444,
+              "relative_standard_error": 0.0013416477550295613,
+              "upper_bound": 0.0034965738886731123,
+              "tau_cycles": 23.938908273488334,
+              "effective_samples_per_half": 26.14989759968617,
+              "degrees_of_freedom": 50.29080090903714,
+              "critical_value": 1.6757221167052387,
+              "half_cycles": 626,
+              "relative_end_to_end_limit": 0.05,
+              "settled": true,
+              "record_cycles_for_bound": 1253.0
+            }
+          }
+        }
+      }
+    }
+  },
+  "coverage": {
+    "ranks": 16,
+    "cells": 1617,
+    "years": [
+      8600,
+      8601,
+      8602,
+      8603,
+      8604,
+      8605,
+      8606,
+      8607,
+      8608,
+      8609,
+      8610,
+      8611,
+      8612,
+      8613,
+      8614,
+      8615,
+      8616,
+      8617,
+      8618,
+      8619,
+      8620,
+      8621,
+      8622,
+      8623,
+      8624,
+      8625,
+      8626,
+      8627,
+      8628,
+      8629,
+      8630,
+      8631,
+      8632,
+      8633,
+      8634,
+      8635,
+      8636,
+      8637,
+      8638,
+      8639,
+      8640,
+      8641,
+      8642,
+      8643,
+      8644,
+      8645,
+      8646,
+      8647,
+      8648,
+      8649,
+      8650,
+      8651,
+      8652,
+      8653,
+      8654,
+      8655,
+      8656,
+      8657,
+      8658,
+      8659,
+      8660,
+      8661,
+      8662,
+      8663,
+      8664,
+      8665,
+      8666,
+      8667,
+      8668,
+      8669,
+      8670,
+      8671,
+      8672,
+      8673,
+      8674,
+      8675,
+      8676,
+      8677,
+      8678,
+      8679,
+      8680,
+      8681,
+      8682,
+      8683,
+      8684,
+      8685,
+      8686,
+      8687,
+      8688,
+      8689,
+      8690,
+      8691,
+      8692,
+      8693,
+      8694,
+      8695,
+      8696,
+      8697,
+      8698,
+      8699,
+      8700,
+      8701,
+      8702,
+      8703,
+      8704,
+      8705,
+      8706,
+      8707,
+      8708,
+      8709,
+      8710,
+      8711,
+      8712,
+      8713,
+      8714,
+      8715,
+      8716,
+      8717,
+      8718,
+      8719,
+      8720,
+      8721,
+      8722,
+      8723,
+      8724,
+      8725,
+      8726,
+      8727,
+      8728,
+      8729,
+      8730,
+      8731,
+      8732,
+      8733,
+      8734,
+      8735,
+      8736,
+      8737,
+      8738,
+      8739,
+      8740,
+      8741,
+      8742,
+      8743,
+      8744,
+      8745,
+      8746,
+      8747,
+      8748,
+      8749,
+      8750,
+      8751,
+      8752,
+      8753,
+      8754,
+      8755,
+      8756,
+      8757,
+      8758,
+      8759,
+      8760,
+      8761,
+      8762,
+      8763,
+      8764,
+      8765,
+      8766,
+      8767,
+      8768,
+      8769,
+      8770,
+      8771,
+      8772,
+      8773,
+      8774,
+      8775,
+      8776,
+      8777,
+      8778,
+      8779,
+      8780,
+      8781,
+      8782,
+      8783,
+      8784,
+      8785,
+      8786,
+      8787,
+      8788,
+      8789,
+      8790,
+      8791,
+      8792,
+      8793,
+      8794,
+      8795,
+      8796,
+      8797,
+      8798,
+      8799,
+      8800,
+      8801,
+      8802,
+      8803,
+      8804,
+      8805,
+      8806,
+      8807,
+      8808,
+      8809,
+      8810,
+      8811,
+      8812,
+      8813,
+      8814,
+      8815,
+      8816,
+      8817,
+      8818,
+      8819,
+      8820,
+      8821,
+      8822,
+      8823,
+      8824,
+      8825,
+      8826,
+      8827,
+      8828,
+      8829,
+      8830,
+      8831,
+      8832,
+      8833,
+      8834,
+      8835,
+      8836,
+      8837,
+      8838,
+      8839,
+      8840,
+      8841,
+      8842,
+      8843,
+      8844,
+      8845,
+      8846,
+      8847,
+      8848,
+      8849,
+      8850,
+      8851,
+      8852,
+      8853,
+      8854,
+      8855,
+      8856,
+      8857,
+      8858,
+      8859,
+      8860,
+      8861,
+      8862,
+      8863,
+      8864,
+      8865,
+      8866,
+      8867,
+      8868,
+      8869,
+      8870,
+      8871,
+      8872,
+      8873,
+      8874,
+      8875,
+      8876,
+      8877,
+      8878,
+      8879,
+      8880,
+      8881,
+      8882,
+      8883,
+      8884,
+      8885,
+      8886,
+      8887,
+      8888,
+      8889,
+      8890,
+      8891,
+      8892,
+      8893,
+      8894,
+      8895,
+      8896,
+      8897,
+      8898,
+      8899,
+      8900,
+      8901,
+      8902,
+      8903,
+      8904,
+      8905,
+      8906,
+      8907,
+      8908,
+      8909,
+      8910,
+      8911,
+      8912,
+      8913,
+      8914,
+      8915,
+      8916,
+      8917,
+      8918,
+      8919,
+      8920,
+      8921,
+      8922,
+      8923,
+      8924,
+      8925,
+      8926,
+      8927,
+      8928,
+      8929,
+      8930,
+      8931,
+      8932,
+      8933,
+      8934,
+      8935,
+      8936,
+      8937,
+      8938,
+      8939,
+      8940,
+      8941,
+      8942,
+      8943,
+      8944,
+      8945,
+      8946,
+      8947,
+      8948,
+      8949,
+      8950,
+      8951,
+      8952,
+      8953,
+      8954,
+      8955,
+      8956,
+      8957,
+      8958,
+      8959,
+      8960,
+      8961,
+      8962,
+      8963,
+      8964,
+      8965,
+      8966,
+      8967,
+      8968,
+      8969,
+      8970,
+      8971,
+      8972,
+      8973,
+      8974,
+      8975,
+      8976,
+      8977,
+      8978,
+      8979,
+      8980,
+      8981,
+      8982,
+      8983,
+      8984,
+      8985,
+      8986,
+      8987,
+      8988,
+      8989,
+      8990,
+      8991,
+      8992,
+      8993,
+      8994,
+      8995,
+      8996,
+      8997,
+      8998,
+      8999,
+      9000,
+      9001,
+      9002,
+      9003,
+      9004,
+      9005,
+      9006,
+      9007,
+      9008,
+      9009,
+      9010,
+      9011,
+      9012,
+      9013,
+      9014,
+      9015,
+      9016,
+      9017,
+      9018,
+      9019,
+      9020,
+      9021,
+      9022,
+      9023,
+      9024,
+      9025,
+      9026,
+      9027,
+      9028,
+      9029,
+      9030,
+      9031,
+      9032,
+      9033,
+      9034,
+      9035,
+      9036,
+      9037,
+      9038,
+      9039,
+      9040,
+      9041,
+      9042,
+      9043,
+      9044,
+      9045,
+      9046,
+      9047,
+      9048,
+      9049,
+      9050,
+      9051,
+      9052,
+      9053,
+      9054,
+      9055,
+      9056,
+      9057,
+      9058,
+      9059,
+      9060,
+      9061,
+      9062,
+      9063,
+      9064,
+      9065,
+      9066,
+      9067,
+      9068,
+      9069,
+      9070,
+      9071,
+      9072,
+      9073,
+      9074,
+      9075,
+      9076,
+      9077,
+      9078,
+      9079,
+      9080,
+      9081,
+      9082,
+      9083,
+      9084,
+      9085,
+      9086,
+      9087,
+      9088,
+      9089,
+      9090,
+      9091,
+      9092,
+      9093,
+      9094,
+      9095,
+      9096,
+      9097,
+      9098,
+      9099,
+      9100,
+      9101,
+      9102,
+      9103,
+      9104,
+      9105,
+      9106,
+      9107,
+      9108,
+      9109,
+      9110,
+      9111,
+      9112,
+      9113,
+      9114,
+      9115,
+      9116,
+      9117,
+      9118,
+      9119,
+      9120,
+      9121,
+      9122,
+      9123,
+      9124,
+      9125,
+      9126,
+      9127,
+      9128,
+      9129,
+      9130,
+      9131,
+      9132,
+      9133,
+      9134,
+      9135,
+      9136,
+      9137,
+      9138,
+      9139,
+      9140,
+      9141,
+      9142,
+      9143,
+      9144,
+      9145,
+      9146,
+      9147,
+      9148,
+      9149,
+      9150,
+      9151,
+      9152,
+      9153,
+      9154,
+      9155,
+      9156,
+      9157,
+      9158,
+      9159,
+      9160,
+      9161,
+      9162,
+      9163,
+      9164,
+      9165,
+      9166,
+      9167,
+      9168,
+      9169,
+      9170,
+      9171,
+      9172,
+      9173,
+      9174,
+      9175,
+      9176,
+      9177,
+      9178,
+      9179,
+      9180,
+      9181,
+      9182,
+      9183,
+      9184,
+      9185,
+      9186,
+      9187,
+      9188,
+      9189,
+      9190,
+      9191,
+      9192,
+      9193,
+      9194,
+      9195,
+      9196,
+      9197,
+      9198,
+      9199,
+      9200,
+      9201,
+      9202,
+      9203,
+      9204,
+      9205,
+      9206,
+      9207,
+      9208,
+      9209,
+      9210,
+      9211,
+      9212,
+      9213,
+      9214,
+      9215,
+      9216,
+      9217,
+      9218,
+      9219,
+      9220,
+      9221,
+      9222,
+      9223,
+      9224,
+      9225,
+      9226,
+      9227,
+      9228,
+      9229,
+      9230,
+      9231,
+      9232,
+      9233,
+      9234,
+      9235,
+      9236,
+      9237,
+      9238,
+      9239,
+      9240,
+      9241,
+      9242,
+      9243,
+      9244,
+      9245,
+      9246,
+      9247,
+      9248,
+      9249,
+      9250,
+      9251,
+      9252,
+      9253,
+      9254,
+      9255,
+      9256,
+      9257,
+      9258,
+      9259,
+      9260,
+      9261,
+      9262,
+      9263,
+      9264,
+      9265,
+      9266,
+      9267,
+      9268,
+      9269,
+      9270,
+      9271,
+      9272,
+      9273,
+      9274,
+      9275,
+      9276,
+      9277,
+      9278,
+      9279,
+      9280,
+      9281,
+      9282,
+      9283,
+      9284,
+      9285,
+      9286,
+      9287,
+      9288,
+      9289,
+      9290,
+      9291,
+      9292,
+      9293,
+      9294,
+      9295,
+      9296,
+      9297,
+      9298,
+      9299,
+      9300,
+      9301,
+      9302,
+      9303,
+      9304,
+      9305,
+      9306,
+      9307,
+      9308,
+      9309,
+      9310,
+      9311,
+      9312,
+      9313,
+      9314,
+      9315,
+      9316,
+      9317,
+      9318,
+      9319,
+      9320,
+      9321,
+      9322,
+      9323,
+      9324,
+      9325,
+      9326,
+      9327,
+      9328,
+      9329,
+      9330,
+      9331,
+      9332,
+      9333,
+      9334,
+      9335,
+      9336,
+      9337,
+      9338,
+      9339,
+      9340,
+      9341,
+      9342,
+      9343,
+      9344,
+      9345,
+      9346,
+      9347,
+      9348,
+      9349,
+      9350,
+      9351,
+      9352,
+      9353,
+      9354,
+      9355,
+      9356,
+      9357,
+      9358,
+      9359,
+      9360,
+      9361,
+      9362,
+      9363,
+      9364,
+      9365,
+      9366,
+      9367,
+      9368,
+      9369,
+      9370,
+      9371,
+      9372,
+      9373,
+      9374,
+      9375,
+      9376,
+      9377,
+      9378,
+      9379,
+      9380,
+      9381,
+      9382,
+      9383,
+      9384,
+      9385,
+      9386,
+      9387,
+      9388,
+      9389,
+      9390,
+      9391,
+      9392,
+      9393,
+      9394,
+      9395,
+      9396,
+      9397,
+      9398,
+      9399,
+      9400,
+      9401,
+      9402,
+      9403,
+      9404,
+      9405,
+      9406,
+      9407,
+      9408,
+      9409,
+      9410,
+      9411,
+      9412,
+      9413,
+      9414,
+      9415,
+      9416,
+      9417,
+      9418,
+      9419,
+      9420,
+      9421,
+      9422,
+      9423,
+      9424,
+      9425,
+      9426,
+      9427,
+      9428,
+      9429,
+      9430,
+      9431,
+      9432,
+      9433,
+      9434,
+      9435,
+      9436,
+      9437,
+      9438,
+      9439,
+      9440,
+      9441,
+      9442,
+      9443,
+      9444,
+      9445,
+      9446,
+      9447,
+      9448,
+      9449,
+      9450,
+      9451,
+      9452,
+      9453,
+      9454,
+      9455,
+      9456,
+      9457,
+      9458,
+      9459,
+      9460,
+      9461,
+      9462,
+      9463,
+      9464,
+      9465,
+      9466,
+      9467,
+      9468,
+      9469,
+      9470,
+      9471,
+      9472,
+      9473,
+      9474,
+      9475,
+      9476,
+      9477,
+      9478,
+      9479,
+      9480,
+      9481,
+      9482,
+      9483,
+      9484,
+      9485,
+      9486,
+      9487,
+      9488,
+      9489,
+      9490,
+      9491,
+      9492,
+      9493,
+      9494,
+      9495,
+      9496,
+      9497,
+      9498,
+      9499,
+      9500,
+      9501,
+      9502,
+      9503,
+      9504,
+      9505,
+      9506,
+      9507,
+      9508,
+      9509,
+      9510,
+      9511,
+      9512,
+      9513,
+      9514,
+      9515,
+      9516,
+      9517,
+      9518,
+      9519,
+      9520,
+      9521,
+      9522,
+      9523,
+      9524,
+      9525,
+      9526,
+      9527,
+      9528,
+      9529,
+      9530,
+      9531,
+      9532,
+      9533,
+      9534,
+      9535,
+      9536,
+      9537,
+      9538,
+      9539,
+      9540,
+      9541,
+      9542,
+      9543,
+      9544,
+      9545,
+      9546,
+      9547,
+      9548,
+      9549,
+      9550,
+      9551,
+      9552,
+      9553,
+      9554,
+      9555,
+      9556,
+      9557,
+      9558,
+      9559,
+      9560,
+      9561,
+      9562,
+      9563,
+      9564,
+      9565,
+      9566,
+      9567,
+      9568,
+      9569,
+      9570,
+      9571,
+      9572,
+      9573,
+      9574,
+      9575,
+      9576,
+      9577,
+      9578,
+      9579,
+      9580,
+      9581,
+      9582,
+      9583,
+      9584,
+      9585,
+      9586,
+      9587,
+      9588,
+      9589,
+      9590,
+      9591,
+      9592,
+      9593,
+      9594,
+      9595,
+      9596,
+      9597,
+      9598,
+      9599,
+      9600,
+      9601,
+      9602,
+      9603,
+      9604,
+      9605,
+      9606,
+      9607,
+      9608,
+      9609,
+      9610,
+      9611,
+      9612,
+      9613,
+      9614,
+      9615,
+      9616,
+      9617,
+      9618,
+      9619,
+      9620,
+      9621,
+      9622,
+      9623,
+      9624,
+      9625,
+      9626,
+      9627,
+      9628,
+      9629,
+      9630,
+      9631,
+      9632,
+      9633,
+      9634,
+      9635,
+      9636,
+      9637,
+      9638,
+      9639,
+      9640,
+      9641,
+      9642,
+      9643,
+      9644,
+      9645,
+      9646,
+      9647,
+      9648,
+      9649,
+      9650,
+      9651,
+      9652,
+      9653,
+      9654,
+      9655,
+      9656,
+      9657,
+      9658,
+      9659,
+      9660,
+      9661,
+      9662,
+      9663,
+      9664,
+      9665,
+      9666,
+      9667,
+      9668,
+      9669,
+      9670,
+      9671,
+      9672,
+      9673,
+      9674,
+      9675,
+      9676,
+      9677,
+      9678,
+      9679,
+      9680,
+      9681,
+      9682,
+      9683,
+      9684,
+      9685,
+      9686,
+      9687,
+      9688,
+      9689,
+      9690,
+      9691,
+      9692,
+      9693,
+      9694,
+      9695,
+      9696,
+      9697,
+      9698,
+      9699,
+      9700,
+      9701,
+      9702,
+      9703,
+      9704,
+      9705,
+      9706,
+      9707,
+      9708,
+      9709,
+      9710,
+      9711,
+      9712,
+      9713,
+      9714,
+      9715,
+      9716,
+      9717,
+      9718,
+      9719,
+      9720,
+      9721,
+      9722,
+      9723,
+      9724,
+      9725,
+      9726,
+      9727,
+      9728,
+      9729,
+      9730,
+      9731,
+      9732,
+      9733,
+      9734,
+      9735,
+      9736,
+      9737,
+      9738,
+      9739,
+      9740,
+      9741,
+      9742,
+      9743,
+      9744,
+      9745,
+      9746,
+      9747,
+      9748,
+      9749,
+      9750,
+      9751,
+      9752,
+      9753,
+      9754,
+      9755,
+      9756,
+      9757,
+      9758,
+      9759,
+      9760,
+      9761,
+      9762,
+      9763,
+      9764,
+      9765,
+      9766,
+      9767,
+      9768,
+      9769,
+      9770,
+      9771,
+      9772,
+      9773,
+      9774,
+      9775,
+      9776,
+      9777,
+      9778,
+      9779,
+      9780,
+      9781,
+      9782,
+      9783,
+      9784,
+      9785,
+      9786,
+      9787,
+      9788,
+      9789,
+      9790,
+      9791,
+      9792,
+      9793,
+      9794,
+      9795,
+      9796,
+      9797,
+      9798,
+      9799,
+      9800,
+      9801,
+      9802,
+      9803,
+      9804,
+      9805,
+      9806,
+      9807,
+      9808,
+      9809,
+      9810,
+      9811,
+      9812,
+      9813,
+      9814,
+      9815,
+      9816,
+      9817,
+      9818,
+      9819,
+      9820,
+      9821,
+      9822,
+      9823,
+      9824,
+      9825,
+      9826,
+      9827,
+      9828,
+      9829,
+      9830,
+      9831,
+      9832,
+      9833,
+      9834,
+      9835,
+      9836,
+      9837,
+      9838,
+      9839,
+      9840,
+      9841,
+      9842,
+      9843,
+      9844,
+      9845,
+      9846,
+      9847,
+      9848,
+      9849,
+      9850,
+      9851,
+      9852
+    ],
+    "rank_cell_counts_by_output": {
+      "anpp.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "lai.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "fpc.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "cmass.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "aaet.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "cpool.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "dens.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "agpp.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "nsources.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "cflux.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "firert.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "tot_runoff.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "awater.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "maet.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "mevap.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "mintercep.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "nmass.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "npool.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "nflux.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "ngases.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "soil_npool.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "soil_nflux.out": [
+        102,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ]
+    }
+  },
+  "output_sha256": {
+    "anpp.out": "bf6cf7d2587570545a55c2a61b596096d14de55e4143a55a77964469f9e6ca8f",
+    "lai.out": "c2382c8454ed8d448cc0c876cf84622b01ef514858ec5b03cf7700f1d7f14438",
+    "fpc.out": "a28bbaba88fbfa08bbd77786ff354cd4caa9ef567688b3393fd1dbbb4ece16e7",
+    "cmass.out": "4e54691daabdb35b5da19d75c3060db74d7660d586cc54111548fea1d1c87f6b",
+    "aaet.out": "228697a3649ba2cfad1f0e27026d95edb665e81ea555a94ec13698f67d60c1a9",
+    "cpool.out": "09566d238dd027ac22b49aa35bdb82bc989527af9b7ad86cebe20876466945f2",
+    "dens.out": "f9f993a500d304ecb715ff52cb5f1447dea729c0dfd2ff2b8d739ff4b739221e",
+    "agpp.out": "f6b6d7af7d01db4310fb3f4e9e753284f9479e1040e7807ad001f6137e3c9209",
+    "nsources.out": "56fd4cb91daf21fd05f24ddab7d5d814f92af23cd5cc27cc27d721d96d379058",
+    "cflux.out": "4c1c4bfd9f121b3df883508df695bc3e3083c326f932867e9500baffede5a41b",
+    "firert.out": "d6bbd7b16a41c744dcf02998c4c0307ef763a6eefe3e20df323f165046fc36c6",
+    "tot_runoff.out": "92f8638cff5fa5882ac95f2ece051015c913db1943abc381a034ff4442e1aa35",
+    "awater.out": "a4eae91e29752cd78e666ae4e3ca53d8add1630a5fbf2264053eaa0a6abc504d",
+    "maet.out": "aaae5c9146e5e8d4ab7cd54e6e07821e0a6393d74f9832ee8d01152266e29657",
+    "mevap.out": "182ce80fc072896e715eda2e8edc5a02fbd04be77ea1177541a532a64399cdb2",
+    "mintercep.out": "76258f2ce53104736f110536b7dcf454b9c6251d22def3c43bdd72521f9649ed",
+    "nmass.out": "b1388ad8a620f7071be78a94e543fa8a83b5e07b5e974792ec59946f2e1941f5",
+    "npool.out": "86f84bd665056a689442e2b975a54860921f11f9ffe30b3c77a22e0c8a0b9089",
+    "nflux.out": "78d52da3d057618eaff518a7e4ee608fd5728fde55ea3ae61fcab68327da36e1",
+    "ngases.out": "64070abf62e6d3beaff84ee287b904053e850cbe4cd2a1b6e759b4604b30b05e",
+    "soil_npool.out": "a0a1a421613dd2f97e817321beda551ae36ed6f5dc5bce17807779c4ac18d667",
+    "soil_nflux.out": "64395eddbb4f0e71d6d2640da09ec5798ac960ddf327d57324e89a15d6c80e53"
+  },
+  "stability": {
+    "anpp.out": {
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": {
+          "statistic": "maximum_over_detrended_windows_of_this_run",
+          "windows": 124,
+          "first_year": 8603,
+          "last_year": 9842,
+          "false_refusal_rate": 0.008,
+          "per_field_false_refusal_rate": 0.05,
+          "family_size": 7,
+          "family_false_refusal_bound": 0.056,
+          "family_false_refusal_if_independent": 0.05467377732629519,
+          "family_note": "the union bound holds whatever the dependence between the assessed quantities; the independent value is smaller and the two bracket the truth from the conservative side. A refusal through this half has to be read against them",
+          "cycles_for_family_rate_at_the_declared_ceiling": 1400
+        },
+        "record_cycles": 1253,
+        "drift": [
+          {
+            "field": "anpp.out total productivity",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.2727,
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "tightest half-width over centre of the ten pre-registered prediction bands",
+            "relative_drift": 0.002951207657489109,
+            "relative_standard_error": 0.004011288906723058,
+            "upper_bound": 0.010084217253403556,
+            "tau_cycles": 87.03114323380461,
+            "effective_samples_per_half": 7.192827495305718,
+            "degrees_of_freedom": 12.337513553017631,
+            "critical_value": 1.7782338200470373,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0010220376312115266,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "assessed": [
+          "anpp.out total productivity"
+        ],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "BNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.10368993707859023,
+            "relative_standard_error": 0.04352408231694371,
+            "upper_bound": 0.20145455544743737,
+            "tau_cycles": 229.11874239340762,
+            "effective_samples_per_half": 2.7322077341238575,
+            "degrees_of_freedom": 3.3933099848789534,
+            "critical_value": 2.2462189474076024,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.015525767869945173,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 11640.648870673807
+          },
+          {
+            "field": "BINE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.06311877901749571,
+            "relative_standard_error": 0.0399895308974753,
+            "upper_bound": 0.15257470386522481,
+            "tau_cycles": 196.95043640966247,
+            "effective_samples_per_half": 3.1784646503544796,
+            "degrees_of_freedom": 3.433735453793795,
+            "critical_value": 2.2369836014599715,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.011796030873865283,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 7169.671575226097
+          },
+          {
+            "field": "BNS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.00853623532969596,
+            "relative_standard_error": 0.02284433554377761,
+            "upper_bound": 0.04997029922840934,
+            "tau_cycles": 104.88889236438101,
+            "effective_samples_per_half": 5.968220141226146,
+            "degrees_of_freedom": 9.930101042165447,
+            "critical_value": 1.8137565795823414,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0057394950069172964,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1705.0232633131811
+          },
+          {
+            "field": "TeNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.14958753904773237,
+            "relative_standard_error": 0.08161698794169014,
+            "upper_bound": 0.288508928303901,
+            "tau_cycles": 40.96573940291245,
+            "effective_samples_per_half": 15.281061909882059,
+            "degrees_of_freedom": 27.535171862360823,
+            "critical_value": 1.702113650106993,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.021479438716508356,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 22436.186790758486
+          },
+          {
+            "field": "TeBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.008615435232702726,
+            "relative_standard_error": 0.02422255198298573,
+            "upper_bound": 0.05274238164754731,
+            "tau_cycles": 108.4022990627744,
+            "effective_samples_per_half": 5.774785271274471,
+            "degrees_of_freedom": 9.52237911084948,
+            "critical_value": 1.8217298675151978,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.006094858533102577,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 2006.6237037558753
+          },
+          {
+            "field": "IBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.059715941177528285,
+            "relative_standard_error": 0.05531289973400153,
+            "upper_bound": 0.16072783659352965,
+            "tau_cycles": 110.59297506590681,
+            "effective_samples_per_half": 5.660395695358963,
+            "degrees_of_freedom": 9.309880174760384,
+            "critical_value": 1.8261905613657077,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.014506517320696058,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 12054.005132757455
+          },
+          {
+            "field": "TeBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.003718474913771433,
+            "relative_standard_error": 0.005847114467187394,
+            "upper_bound": 0.013598981253699082,
+            "tau_cycles": 33.299423662696846,
+            "effective_samples_per_half": 18.799124163258917,
+            "degrees_of_freedom": 34.8207164214138,
+            "critical_value": 1.6898089468531332,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0014693038369997934,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "TrBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.0477478392683512,
+            "relative_standard_error": 0.05783977594868737,
+            "upper_bound": 0.2202981748120118,
+            "tau_cycles": 312.4602140532897,
+            "effective_samples_per_half": 2.0034550699412774,
+            "degrees_of_freedom": 1.9393291344971824,
+            "critical_value": 2.9832469561558965,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.01563435726579307,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 12143.130312287141
+          },
+          {
+            "field": "TrIBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.007244612831755934,
+            "relative_standard_error": 0.036715210760248806,
+            "upper_bound": 0.07235111309993908,
+            "tau_cycles": 83.81509571481114,
+            "effective_samples_per_half": 7.4688216324422605,
+            "degrees_of_freedom": 12.778470716750181,
+            "critical_value": 1.7732841217589659,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.009179882933058575,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 3949.730382141491
+          },
+          {
+            "field": "TrBR",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.022474289763223017,
+            "relative_standard_error": 0.10089418741185911,
+            "upper_bound": 0.33933796808848127,
+            "tau_cycles": 473.39507693138313,
+            "effective_samples_per_half": 1.3223627166928404,
+            "degrees_of_freedom": 1.8096960208386832,
+            "critical_value": 3.140554341666803,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.025450340163886958,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 28647.7094466001
+          },
+          {
+            "field": "C3G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.01076141769888293,
+            "relative_standard_error": 0.007453997527231436,
+            "upper_bound": 0.02321773631876882,
+            "tau_cycles": 20.242000047311652,
+            "effective_samples_per_half": 30.925797773779735,
+            "degrees_of_freedom": 59.001398321357506,
+            "critical_value": 1.6710924003368186,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0018925666350079898,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "C4G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.03470341377210871,
+            "relative_standard_error": 0.01997108388495343,
+            "upper_bound": 0.06859162601326863,
+            "tau_cycles": 38.6846873550223,
+            "effective_samples_per_half": 16.18211346145799,
+            "degrees_of_freedom": 30.2219587172114,
+            "critical_value": 1.69686394771452,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0052192068939525185,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.002951207657489109,
+            "relative_standard_error": 0.004011288906723058,
+            "upper_bound": 0.010084217253403556,
+            "tau_cycles": 87.03114323380461,
+            "effective_samples_per_half": 7.192827495305718,
+            "degrees_of_freedom": 12.337513553017631,
+            "critical_value": 1.7782338200470373,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0010220376312115266,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [
+          {
+            "trending_cell_fraction": 0.09684519442406456,
+            "trending_cell_fraction_limit": 0.135343618513324,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "anpp.out total productivity"
+          }
+        ],
+        "verdict": "PASS"
+      }
+    },
+    "lai.out": {
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": {
+          "statistic": "maximum_over_detrended_windows_of_this_run",
+          "windows": 124,
+          "first_year": 8603,
+          "last_year": 9842,
+          "false_refusal_rate": 0.008,
+          "per_field_false_refusal_rate": 0.05,
+          "family_size": 7,
+          "family_false_refusal_bound": 0.056,
+          "family_false_refusal_if_independent": 0.05467377732629519,
+          "family_note": "the union bound holds whatever the dependence between the assessed quantities; the independent value is smaller and the two bracket the truth from the conservative side. A refusal through this half has to be read against them",
+          "cycles_for_family_rate_at_the_declared_ceiling": 1400
+        },
+        "record_cycles": 1253,
+        "drift": [
+          {
+            "field": "lai.out total leaf area",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.2727,
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "tightest half-width over centre of the ten pre-registered prediction bands",
+            "relative_drift": 0.0065626791013167025,
+            "relative_standard_error": 0.0036799332651079454,
+            "upper_bound": 0.012836089609146815,
+            "tau_cycles": 44.12788738719006,
+            "effective_samples_per_half": 14.186040553161002,
+            "degrees_of_freedom": 26.358382518978594,
+            "critical_value": 1.7047620312337624,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0009706217396399337,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "assessed": [
+          "lai.out total leaf area"
+        ],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "BNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.09614268805090728,
+            "relative_standard_error": 0.03762482547748686,
+            "upper_bound": 0.1714688956017082,
+            "tau_cycles": 173.52044264913673,
+            "effective_samples_per_half": 3.6076440933578633,
+            "degrees_of_freedom": 5.151459573963828,
+            "critical_value": 2.002034736237461,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.01297261332793909,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 9639.545212409359
+          },
+          {
+            "field": "BINE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.058725719329520636,
+            "relative_standard_error": 0.043717409603814296,
+            "upper_bound": 0.15136431632405892,
+            "tau_cycles": 184.64327425517766,
+            "effective_samples_per_half": 3.3903211613051543,
+            "degrees_of_freedom": 4.085914913319553,
+            "critical_value": 2.1190321621081516,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.012304046723145697,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 7854.439399933259
+          },
+          {
+            "field": "BNS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.008963070490127989,
+            "relative_standard_error": 0.023896130089491825,
+            "upper_bound": 0.05247528056482286,
+            "tau_cycles": 108.10539408332588,
+            "effective_samples_per_half": 5.790645372584178,
+            "degrees_of_freedom": 9.56361980272945,
+            "critical_value": 1.8208894039218968,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.006004530736905713,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1869.169216400282
+          },
+          {
+            "field": "TeNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.13549037076697407,
+            "relative_standard_error": 0.08051953046044255,
+            "upper_bound": 0.2731909682677113,
+            "tau_cycles": 45.43038052612091,
+            "effective_samples_per_half": 13.779325481107767,
+            "degrees_of_freedom": 24.258295650744696,
+            "critical_value": 1.7101515211689717,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.021121003404734204,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 20666.531674530223
+          },
+          {
+            "field": "TeBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.01492781538135801,
+            "relative_standard_error": 0.024427103231277055,
+            "upper_bound": 0.058774193317726396,
+            "tau_cycles": 95.82405329933619,
+            "effective_samples_per_half": 6.53280651826003,
+            "degrees_of_freedom": 11.060328413807383,
+            "critical_value": 1.7949888499356084,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.006198306121209465,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 2156.001793522028
+          },
+          {
+            "field": "IBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.05268471369160526,
+            "relative_standard_error": 0.05522392301378086,
+            "upper_bound": 0.15298441820695757,
+            "tau_cycles": 106.10546831249822,
+            "effective_samples_per_half": 5.8997901800529835,
+            "degrees_of_freedom": 9.79923302366646,
+            "critical_value": 1.8162364975469603,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.014312420894488058,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 11440.306690920628
+          },
+          {
+            "field": "TeBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.002748281833158351,
+            "relative_standard_error": 0.006288955326035044,
+            "upper_bound": 0.013355088726167677,
+            "tau_cycles": 30.959313904586587,
+            "effective_samples_per_half": 20.22008633425364,
+            "degrees_of_freedom": 37.44681544690361,
+            "critical_value": 1.6865769182839034,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0015748533238204633,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "TrBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.05717852442257561,
+            "relative_standard_error": 0.057135773716836216,
+            "upper_bound": 0.2057233209516912,
+            "tau_cycles": 280.9805033775024,
+            "effective_samples_per_half": 2.227912586372435,
+            "degrees_of_freedom": 2.4239247055046476,
+            "critical_value": 2.599856217320181,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.015802352554397363,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 12523.66591832996
+          },
+          {
+            "field": "TrIBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.015610361064530188,
+            "relative_standard_error": 0.03507999077396936,
+            "upper_bound": 0.0772828920114794,
+            "tau_cycles": 76.4426066382058,
+            "effective_samples_per_half": 8.189150364309096,
+            "degrees_of_freedom": 14.37676611367373,
+            "critical_value": 1.7580543662147283,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.00881254955300375,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 3777.023998295301
+          },
+          {
+            "field": "TrBR",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.021475592870996707,
+            "relative_standard_error": 0.10004786128073144,
+            "upper_bound": 0.3296931000754127,
+            "tau_cycles": 465.878916378661,
+            "effective_samples_per_half": 1.3436967804123474,
+            "degrees_of_freedom": 1.855844136595474,
+            "critical_value": 3.080700609277059,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.02521160228906874,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 27514.591177470043
+          },
+          {
+            "field": "C3G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.011482224842829583,
+            "relative_standard_error": 0.007530339481761311,
+            "upper_bound": 0.02403135758231658,
+            "tau_cycles": 16.880024408446722,
+            "effective_samples_per_half": 37.08525443166724,
+            "degrees_of_freedom": 71.39957683714617,
+            "critical_value": 1.666476361375386,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0019104111207937492,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "C4G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.03264905811095963,
+            "relative_standard_error": 0.019753836142445084,
+            "upper_bound": 0.06599312587615812,
+            "tau_cycles": 32.56987803022777,
+            "effective_samples_per_half": 19.220213211084666,
+            "degrees_of_freedom": 36.25896048376191,
+            "critical_value": 1.6879793638437681,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.005107692447289416,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.0065626791013167025,
+            "relative_standard_error": 0.0036799332651079454,
+            "upper_bound": 0.012836089609146815,
+            "tau_cycles": 44.12788738719006,
+            "effective_samples_per_half": 14.186040553161002,
+            "degrees_of_freedom": 26.358382518978594,
+            "critical_value": 1.7047620312337624,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0009706217396399337,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [
+          {
+            "trending_cell_fraction": 0.1304635761589404,
+            "trending_cell_fraction_limit": 0.14521452145214522,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "lai.out total leaf area"
+          }
+        ],
+        "verdict": "PASS"
+      }
+    },
+    "fpc.out": {
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": {
+          "statistic": "maximum_over_detrended_windows_of_this_run",
+          "windows": 124,
+          "first_year": 8603,
+          "last_year": 9842,
+          "false_refusal_rate": 0.008,
+          "per_field_false_refusal_rate": 0.05,
+          "family_size": 7,
+          "family_false_refusal_bound": 0.056,
+          "family_false_refusal_if_independent": 0.05467377732629519,
+          "family_note": "the union bound holds whatever the dependence between the assessed quantities; the independent value is smaller and the two bracket the truth from the conservative side. A refusal through this half has to be read against them",
+          "cycles_for_family_rate_at_the_declared_ceiling": 1400
+        },
+        "record_cycles": 1253,
+        "drift": [
+          {
+            "field": "fpc.out tree cover",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.05,
+            "read_by": [
+              "exoplasim/scripts/build_surface_albedo.py",
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "biosphere/scripts/derive_cover_tolerance.py, and it is the chain the tolerance below was derived through",
+            "relative_drift": 0.0054541126069802045,
+            "relative_standard_error": 0.008070304489426007,
+            "upper_bound": 0.019556180554375944,
+            "tau_cycles": 70.40746763433307,
+            "effective_samples_per_half": 8.891102336632558,
+            "degrees_of_freedom": 15.776451872233661,
+            "critical_value": 1.747402215848579,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0020419669081989957,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "fpc.out grass cover",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.05,
+            "read_by": [
+              "exoplasim/scripts/build_surface_albedo.py",
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "biosphere/scripts/derive_cover_tolerance.py, and it is the chain the tolerance below was derived through",
+            "relative_drift": 0.0019984502939734933,
+            "relative_standard_error": 0.008487914728013513,
+            "upper_bound": 0.016315499887785537,
+            "tau_cycles": 31.848502701717273,
+            "effective_samples_per_half": 19.65555510922798,
+            "degrees_of_freedom": 37.289838595707316,
+            "critical_value": 1.686757001287967,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.002120935137513289,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "fpc.out C4 grass cover",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.2727,
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "tightest half-width over centre of the ten pre-registered prediction bands",
+            "relative_drift": 0.03129039693329478,
+            "relative_standard_error": 0.020600825807719707,
+            "upper_bound": 0.06633359217249157,
+            "tau_cycles": 41.65517759898668,
+            "effective_samples_per_half": 15.02814382467615,
+            "degrees_of_freedom": 28.0352468301758,
+            "critical_value": 1.701057790900068,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.005340713160749451,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "fpc.out boreal needleleaf cover",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.2727,
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "tightest half-width over centre of the ten pre-registered prediction bands",
+            "relative_drift": 0.0011686768490757782,
+            "relative_standard_error": 0.018540881686769903,
+            "upper_bound": 0.03519787644623802,
+            "tau_cycles": 114.3712576844681,
+            "effective_samples_per_half": 5.473403131816853,
+            "degrees_of_freedom": 8.904222565967364,
+            "critical_value": 1.8353603767098219,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.004633494336069267,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "assessed": [
+          "fpc.out tree cover",
+          "fpc.out grass cover",
+          "fpc.out C4 grass cover",
+          "fpc.out boreal needleleaf cover"
+        ],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "BNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.08302169804434958,
+            "relative_standard_error": 0.042195757349776514,
+            "upper_bound": 0.17585000091206832,
+            "tau_cycles": 222.35207062105508,
+            "effective_samples_per_half": 2.815354938011189,
+            "degrees_of_freedom": 3.6091352367472784,
+            "critical_value": 2.199943991957058,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.013693071944175225,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 10058.720674443028
+          },
+          {
+            "field": "BINE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.07166633316734389,
+            "relative_standard_error": 0.04164955688903473,
+            "upper_bound": 0.1680635324557238,
+            "tau_cycles": 211.5281381105729,
+            "effective_samples_per_half": 2.9594171517397303,
+            "degrees_of_freedom": 3.1284700694644507,
+            "critical_value": 2.314483189946226,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.012749627454682678,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 8231.241388421711
+          },
+          {
+            "field": "BNS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.012585676650267899,
+            "relative_standard_error": 0.02564273809884265,
+            "upper_bound": 0.0597211905358823,
+            "tau_cycles": 115.6004490424749,
+            "effective_samples_per_half": 5.415203878403532,
+            "degrees_of_freedom": 8.787926410857532,
+            "critical_value": 1.8381622782998277,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0064778682548505655,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 2123.9369476125453
+          },
+          {
+            "field": "TeNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.14427744870088105,
+            "relative_standard_error": 0.07774004323649507,
+            "upper_bound": 0.2777356307822547,
+            "tau_cycles": 50.079029403134726,
+            "effective_samples_per_half": 12.500242266293109,
+            "degrees_of_freedom": 22.123407917184647,
+            "critical_value": 1.7167237954238965,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.02071187296499838,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 21431.875125264887
+          },
+          {
+            "field": "TeBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.026922165234598477,
+            "relative_standard_error": 0.02693982581941355,
+            "upper_bound": 0.07608863241697375,
+            "tau_cycles": 110.16116393411502,
+            "effective_samples_per_half": 5.682583386413717,
+            "degrees_of_freedom": 9.363323975961533,
+            "critical_value": 1.8250477011972592,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.007028830603938714,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 2034.188139769674
+          },
+          {
+            "field": "IBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.05841170693861674,
+            "relative_standard_error": 0.056621076788088365,
+            "upper_bound": 0.16334372978722683,
+            "tau_cycles": 122.22634455016991,
+            "effective_samples_per_half": 5.121645438255314,
+            "degrees_of_freedom": 8.215910691770276,
+            "critical_value": 1.8532325558083544,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.014856178504835985,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 12115.471826251702
+          },
+          {
+            "field": "TeBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.003735672925994082,
+            "relative_standard_error": 0.006184516545128146,
+            "upper_bound": 0.014175515751099238,
+            "tau_cycles": 32.705534490229965,
+            "effective_samples_per_half": 19.140491349774553,
+            "degrees_of_freedom": 36.191973533893616,
+            "critical_value": 1.688061265407907,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0015524726584132517,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "TrBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.06673793289618984,
+            "relative_standard_error": 0.03348687356743524,
+            "upper_bound": 0.13075091170439024,
+            "tau_cycles": 145.350119911836,
+            "effective_samples_per_half": 4.306841992147708,
+            "degrees_of_freedom": 6.608877394985927,
+            "critical_value": 1.9115842116252586,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.01011248000290482,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 4475.729278098588
+          },
+          {
+            "field": "TrIBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.02911293396381678,
+            "relative_standard_error": 0.040966005628246045,
+            "upper_bound": 0.10281856082608133,
+            "tau_cycles": 97.45602653571191,
+            "effective_samples_per_half": 6.423409841879894,
+            "degrees_of_freedom": 10.783499532573844,
+            "critical_value": 1.7991899803734965,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.010429332191738545,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 5336.438121429646
+          },
+          {
+            "field": "TrBR",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.021035938300019267,
+            "relative_standard_error": 0.0937142123214817,
+            "upper_bound": 0.29604971539648217,
+            "tau_cycles": 432.7229705608239,
+            "effective_samples_per_half": 1.4466530380596214,
+            "degrees_of_freedom": 1.9854800542480038,
+            "critical_value": 2.9346005294591024,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.02361598864762455,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 23823.290732518595
+          },
+          {
+            "field": "C3G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.011155963364381755,
+            "relative_standard_error": 0.007119124611830554,
+            "upper_bound": 0.02307782123786034,
+            "tau_cycles": 23.09755295590043,
+            "effective_samples_per_half": 27.102438132524508,
+            "degrees_of_freedom": 52.111556385076376,
+            "critical_value": 1.674624131970784,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.001818279448429583,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "C4G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.03129039693329478,
+            "relative_standard_error": 0.020600825807719707,
+            "upper_bound": 0.06633359217249157,
+            "tau_cycles": 41.65517759898668,
+            "effective_samples_per_half": 15.02814382467615,
+            "degrees_of_freedom": 28.0352468301758,
+            "critical_value": 1.701057790900068,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.005340713160749451,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.0033666329999786832,
+            "relative_standard_error": 0.00494190600429312,
+            "upper_bound": 0.012105689840580367,
+            "tau_cycles": 82.06094603437121,
+            "effective_samples_per_half": 7.628476519607756,
+            "degrees_of_freedom": 13.252413135541149,
+            "critical_value": 1.7683575594132939,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0012537535458704227,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [
+          {
+            "trending_cell_fraction": 0.4184514003294893,
+            "trending_cell_fraction_limit": 0.503731343283582,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "fpc.out tree cover"
+          },
+          {
+            "trending_cell_fraction": 0.4656758669497523,
+            "trending_cell_fraction_limit": 0.5185434929197572,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "fpc.out grass cover"
+          },
+          {
+            "trending_cell_fraction": 0.37327188940092165,
+            "trending_cell_fraction_limit": 0.524390243902439,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "fpc.out C4 grass cover"
+          },
+          {
+            "trending_cell_fraction": 0.1421232876712329,
+            "trending_cell_fraction_limit": 0.2984441301272984,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "fpc.out boreal needleleaf cover"
+          }
+        ],
+        "verdict": "PASS"
+      }
+    },
+    "cpool.out": {
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": {
+          "statistic": "maximum_over_detrended_windows_of_this_run",
+          "windows": 124,
+          "first_year": 8603,
+          "last_year": 9842,
+          "false_refusal_rate": 0.008,
+          "per_field_false_refusal_rate": 0.05,
+          "family_size": 7,
+          "family_false_refusal_bound": 0.056,
+          "family_false_refusal_if_independent": 0.05467377732629519,
+          "family_note": "the union bound holds whatever the dependence between the assessed quantities; the independent value is smaller and the two bracket the truth from the conservative side. A refusal through this half has to be read against them",
+          "cycles_for_family_rate_at_the_declared_ceiling": 1400
+        },
+        "record_cycles": 1253,
+        "drift": [
+          {
+            "field": "cpool.out soil carbon",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.05,
+            "read_by": [
+              "pedology/scripts/build_soil.py"
+            ],
+            "derivation": "priced through the water-capacity chain, which cannot ask for tighter; loop B's own criterion is undeclared",
+            "relative_drift": 0.007810811227497249,
+            "relative_standard_error": 0.002523929132173154,
+            "upper_bound": 0.015208163999543596,
+            "tau_cycles": 470.2291540432509,
+            "effective_samples_per_half": 1.3312658192656883,
+            "degrees_of_freedom": 1.9891389641851247,
+            "critical_value": 2.930887669447785,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.001352101894478289,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "assessed": [
+          "cpool.out soil carbon"
+        ],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "VegC",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.025912406509147282,
+            "relative_standard_error": 0.02866977486060992,
+            "upper_bound": 0.0924135097605474,
+            "tau_cycles": 244.2798840837351,
+            "effective_samples_per_half": 2.5626342600744705,
+            "degrees_of_freedom": 3.1108923582623698,
+            "critical_value": 2.319554428826979,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.007709239658120798,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1381.879381012653
+          },
+          {
+            "field": "LitterC",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.011528649922301012,
+            "relative_standard_error": 0.015830204760161934,
+            "upper_bound": 0.0387632165811905,
+            "tau_cycles": 53.438779082387796,
+            "effective_samples_per_half": 11.714339488087507,
+            "degrees_of_freedom": 21.086421217397703,
+            "critical_value": 1.7204178386515634,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.003997372742457166,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "SoilC",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.007810811227497249,
+            "relative_standard_error": 0.002523929132173154,
+            "upper_bound": 0.015208163999543596,
+            "tau_cycles": 470.2291540432509,
+            "effective_samples_per_half": 1.3312658192656883,
+            "degrees_of_freedom": 1.9891389641851247,
+            "critical_value": 2.930887669447785,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.001352101894478289,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.012182276745921962,
+            "relative_standard_error": 0.008592458328842976,
+            "upper_bound": 0.03728020394589683,
+            "tau_cycles": 426.97770440903923,
+            "effective_samples_per_half": 1.4661187072201314,
+            "degrees_of_freedom": 1.999057051443752,
+            "critical_value": 2.9209250995988767,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0027864283427568633,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [
+          {
+            "trending_cell_fraction": 0.0006591957811470006,
+            "trending_cell_fraction_limit": 0.0032959789057350032,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "cpool.out soil carbon"
+          }
+        ],
+        "verdict": "PASS"
+      }
+    },
+    "npool.out": {
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": null,
+        "record_cycles": 1253,
+        "drift": [],
+        "assessed": [],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "VegN",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.01095692778698883,
+            "relative_standard_error": 0.020397790007545376,
+            "upper_bound": 0.06211572360349603,
+            "tau_cycles": 268.2127260900406,
+            "effective_samples_per_half": 2.3339682986923154,
+            "degrees_of_freedom": 2.6010755981811426,
+            "critical_value": 2.5080558137711475,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0052487551970980964,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1357.4195144162286
+          },
+          {
+            "field": "LitterN",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.002320512179322591,
+            "relative_standard_error": 0.007514355735718881,
+            "upper_bound": 0.015029116492977248,
+            "tau_cycles": 34.7798064697908,
+            "effective_samples_per_half": 17.99895006729649,
+            "degrees_of_freedom": 33.77243463822327,
+            "critical_value": 1.6912433694408873,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0018792031112213137,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "SoilN",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.01185187553411738,
+            "relative_standard_error": 0.004209293975836073,
+            "upper_bound": 0.024160658310758292,
+            "tau_cycles": 490.6254634566562,
+            "effective_samples_per_half": 1.2759223616107795,
+            "degrees_of_freedom": 1.995788743826177,
+            "critical_value": 2.9241917640585022,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0021312710740552313,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.011742815114302998,
+            "relative_standard_error": 0.004242683539731243,
+            "upper_bound": 0.024156492007231495,
+            "tau_cycles": 481.0282966895434,
+            "effective_samples_per_half": 1.3013787428061048,
+            "degrees_of_freedom": 1.994083837179054,
+            "critical_value": 2.9259021505325027,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.002104978061846084,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [],
+        "verdict": "PASS"
+      }
+    },
+    "aaet.out": {
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": null,
+        "record_cycles": 1253,
+        "drift": [],
+        "assessed": [],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "BNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.10543868022936069,
+            "relative_standard_error": 0.04959380299875591,
+            "upper_bound": 0.22085110163361354,
+            "tau_cycles": 245.19323134216378,
+            "effective_samples_per_half": 2.5530884216229675,
+            "degrees_of_freedom": 3.0850295180954905,
+            "critical_value": 2.327154088327286,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.017011852230105262,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 13507.579777244417
+          },
+          {
+            "field": "BINE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.07964991465654057,
+            "relative_standard_error": 0.037272912404643276,
+            "upper_bound": 0.15788274452504075,
+            "tau_cycles": 171.07371367652001,
+            "effective_samples_per_half": 3.6592413091802714,
+            "degrees_of_freedom": 4.230409498772044,
+            "critical_value": 2.098919156603237,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.011869249971153597,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 7848.875138238107
+          },
+          {
+            "field": "BNS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.010767497751001526,
+            "relative_standard_error": 0.026633023590105043,
+            "upper_bound": 0.059906830554554896,
+            "tau_cycles": 118.23327766265885,
+            "effective_samples_per_half": 5.294617660740933,
+            "degrees_of_freedom": 8.515736365634156,
+            "critical_value": 1.8450527270140702,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.006704513508426402,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 2271.6422284266328
+          },
+          {
+            "field": "TeNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.13859896965424998,
+            "relative_standard_error": 0.07762418042451286,
+            "upper_bound": 0.2712315828403563,
+            "tau_cycles": 45.254231575188186,
+            "effective_samples_per_half": 13.832960547787112,
+            "degrees_of_freedom": 24.80746238211147,
+            "critical_value": 1.708650738220515,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.020474151610016193,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 24937.44405099563
+          },
+          {
+            "field": "TeBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.013009757328609288,
+            "relative_standard_error": 0.02436292193114965,
+            "upper_bound": 0.057488084705656854,
+            "tau_cycles": 108.81422515873808,
+            "effective_samples_per_half": 5.7529242990683604,
+            "degrees_of_freedom": 9.334769579649558,
+            "critical_value": 1.8256565243998506,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0061719051920612975,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1764.5166460064102
+          },
+          {
+            "field": "IBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.07346106880943948,
+            "relative_standard_error": 0.06904324823742482,
+            "upper_bound": 0.20306757324577393,
+            "tau_cycles": 132.34230295545362,
+            "effective_samples_per_half": 4.730157976854245,
+            "degrees_of_freedom": 7.459169050629538,
+            "critical_value": 1.8771785474322655,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.018244127386273408,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 16737.323275226598
+          },
+          {
+            "field": "TeBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.0008253823191031748,
+            "relative_standard_error": 0.004656972566352041,
+            "upper_bound": 0.008625128896368399,
+            "tau_cycles": 23.292003917530913,
+            "effective_samples_per_half": 26.87617614252744,
+            "degrees_of_freedom": 51.720272131490425,
+            "critical_value": 1.674853451708224,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0011642033761501518,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "TrBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.06513031977821769,
+            "relative_standard_error": 0.031090908843562682,
+            "upper_bound": 0.12443391825893438,
+            "tau_cycles": 143.12394497052833,
+            "effective_samples_per_half": 4.373831367832294,
+            "degrees_of_freedom": 6.699864788365591,
+            "critical_value": 1.907425697303004,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.00951870743917702,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 4348.160730442658
+          },
+          {
+            "field": "TrIBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.02405215119203349,
+            "relative_standard_error": 0.036412258725879366,
+            "upper_bound": 0.08903904550659511,
+            "tau_cycles": 90.65211113011476,
+            "effective_samples_per_half": 6.90552037008261,
+            "degrees_of_freedom": 11.804264665381497,
+            "critical_value": 1.784753173479275,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.009236340358659062,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 4166.709166348965
+          },
+          {
+            "field": "TrBR",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.030825407353358467,
+            "relative_standard_error": 0.09379259609161396,
+            "upper_bound": 0.3091353898374765,
+            "tau_cycles": 452.68506329450145,
+            "effective_samples_per_half": 1.382859852817246,
+            "degrees_of_freedom": 1.9541096585330568,
+            "critical_value": 2.967291599565841,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.023888166545420145,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 25705.08215863878
+          },
+          {
+            "field": "C3G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.012948758220785322,
+            "relative_standard_error": 0.009270186813875458,
+            "upper_bound": 0.02835965617738798,
+            "tau_cycles": 13.759127493932633,
+            "effective_samples_per_half": 45.49707096442325,
+            "degrees_of_freedom": 87.69750990082863,
+            "critical_value": 1.662415037152853,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0023394953849644913,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "C4G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.03143759068055936,
+            "relative_standard_error": 0.0203385761094579,
+            "upper_bound": 0.06582232057559732,
+            "tau_cycles": 34.56310655788174,
+            "effective_samples_per_half": 18.11179787764904,
+            "degrees_of_freedom": 34.222558817157264,
+            "critical_value": 1.6906163789434738,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0052462470632558406,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.004827002913737643,
+            "relative_standard_error": 0.0057119831397367555,
+            "upper_bound": 0.015310228943567285,
+            "tau_cycles": 113.93427052438152,
+            "effective_samples_per_half": 5.494395997963038,
+            "degrees_of_freedom": 8.906593685488025,
+            "critical_value": 1.8353040920062618,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0014733937818329466,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [],
+        "verdict": "PASS"
+      }
+    },
+    "tot_runoff.out": {
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": null,
+        "record_cycles": 1253,
+        "drift": [],
+        "assessed": [],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "Surf",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.001696256834432252,
+            "relative_standard_error": 0.0012522658867128163,
+            "upper_bound": 0.0038279261034185243,
+            "tau_cycles": 41.47413937916882,
+            "effective_samples_per_half": 15.093742977447302,
+            "degrees_of_freedom": 27.472059342898564,
+            "critical_value": 1.7022497311508504,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0003223382535220899,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Drain",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.004784955904669276,
+            "relative_standard_error": 0.006476918815442253,
+            "upper_bound": 0.016815282889444463,
+            "tau_cycles": 122.79240345857005,
+            "effective_samples_per_half": 5.098035239706106,
+            "degrees_of_freedom": 8.071489056867476,
+            "critical_value": 1.8574151270960062,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0016619695884957783,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Base",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.003647086511359075,
+            "relative_standard_error": 0.011521026437120533,
+            "upper_bound": 0.025559164617658538,
+            "tau_cycles": 137.31938332848438,
+            "effective_samples_per_half": 4.558715491042755,
+            "degrees_of_freedom": 6.8248187654913774,
+            "critical_value": 1.9019206514186233,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0028966739743433636,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.0012483450727421444,
+            "relative_standard_error": 0.0013416477550295613,
+            "upper_bound": 0.0034965738886731123,
+            "tau_cycles": 23.938908273488334,
+            "effective_samples_per_half": 26.14989759968617,
+            "degrees_of_freedom": 50.29080090903714,
+            "critical_value": 1.6757221167052387,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0003385881986679762,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [],
+        "verdict": "PASS"
+      }
+    }
+  },
+  "closure": {
+    "resolution": {
+      "minimum_resolution_margin": 10.0,
+      "form": "the residual an exactly conserving model reports, given the written precision of the columns differenced",
+      "carbon": {
+        "pool_quantum": 1e-06,
+        "flux_quantum": 1e-05,
+        "pool_to_flux_units": 1.0,
+        "pool_addend_quanta": {},
+        "resolution_bound": 4.6e-05,
+        "absolute_floor": 0.01,
+        "margin": 217.3913043478261
+      },
+      "nitrogen": {
+        "pool_quantum": 1e-07,
+        "flux_quantum": 1e-05,
+        "pool_to_flux_units": 10000.0,
+        "pool_addend_quanta": {
+          "soil_npool.out:NO2": 0.0001,
+          "soil_npool.out:NO": 0.0001,
+          "soil_npool.out:N2O": 0.0001,
+          "soil_npool.out:N2": 0.0001
+        },
+        "resolution_bound": 0.0014449999999999999,
+        "absolute_floor": 2.0,
+        "margin": 1384.083044982699
+      },
+      "water": {
+        "storage_quantum": 0.0001,
+        "runoff_quantum": 0.0001,
+        "evaporation_quanta": {
+          "maet.out": 0.012,
+          "mevap.out": 0.012,
+          "mintercep.out": 0.012
+        },
+        "resolution_bound_mm": 0.18060000000000004,
+        "absolute_floor_mm": 2.0,
+        "margin": 11.074197120708746
+      },
+      "unresolvable": []
+    },
+    "carbon": {
+      "maximum_absolute_residual": 3.1999999999999856e-05,
+      "limit_at_maximum_residual": 0.01,
+      "absolute_floor": 0.01,
+      "binding_limit": "mixed floor and relative throughput",
+      "failed_cells": 0,
+      "cells": 1617,
+      "named_failures": []
+    },
+    "nitrogen": {
+      "maximum_absolute_residual": 0.0010599999986578013,
+      "limit_at_maximum_residual": 2.0,
+      "absolute_floor": 2.0,
+      "binding_limit": "absolute floor",
+      "failed_cells": 0,
+      "cells": 1617,
+      "named_failures": []
+    },
+    "water": {
+      "form": "end-minus-start water store - (precipitation - transpiration - soil evaporation - interception - runoff)",
+      "interpretation": "Over ten complete forcing cycles, the change in the gridcell water store less precipitation and plus transpiration, soil evaporation, canopy interception and runoff is zero if the model conserves water. Both sides are annual endpoints and annual sums of a daily budget, so this is a cycle-boundary closure and not a claim of bitwise daily hydrology closure.",
+      "maximum_absolute_residual_mm": 0.020475638148077735,
+      "limit_at_maximum_residual_mm": 3.9199508781907406,
+      "failed_cells": 0,
+      "cells": 1617,
+      "named_failures": [],
+      "driver": {
+        "cells": 1617,
+        "cycle_years": 1,
+        "year_length_days": 183,
+        "co2_ppm": 450.0,
+        "ndep_kg_n_ha_earth_year": 0.5,
+        "sha256": "f4bf4a1f4b495ae9d58392ada09f57bb707ec20406f39f394190af5c09921733",
+        "provenance_sha256": "072d84c6c9310d786a44fc08234e6dcb9d42133f981a42bba26e33a3f3189f61"
+      }
+    }
+  },
+  "verdict": "PASS"
+}

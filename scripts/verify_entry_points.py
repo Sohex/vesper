@@ -610,7 +610,11 @@ def main() -> None:
         raise SystemExit(1 if problems else 0)
 
     roots = [ROOT / r for r in a.roots] if a.roots else SCRIPT_DIRS
-    jobs = a.jobs if a.jobs else max(1, (os.cpu_count() or 4) // 4)
+    # Under a scheduler allocation os.cpu_count() is both SMT siblings of
+    # every core this job holds, so a quarter of it still oversubscribes.
+    allocated = os.environ.get("SLURM_CPUS_PER_TASK")
+    usable = int(allocated) if allocated and allocated.isdigit() else (os.cpu_count() or 4)
+    jobs = a.jobs if a.jobs else max(1, usable // 4)
     problems, refusals = verify(roots, jobs, a.verbose)
     # This gate's own two self-checks belong to the repository's `scripts/`, not
     # to any directory that happens to be named one: `<component>/scripts` is

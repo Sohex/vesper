@@ -73,6 +73,30 @@ from pathlib import Path
 COUNTER: str | None = None
 
 
+
+def _sibling_stride() -> int:
+    """Distance in CPU id from a core's first thread to its SMT sibling.
+
+    Read from the kernel's own topology, because this is a fact about the
+    machine and not about what this job was given. `os.cpu_count() // 2` was
+    both: correct only when the process can see every CPU, which under a
+    scheduler allocation it cannot.
+    """
+    import pathlib
+    for cpu in sorted(pathlib.Path("/sys/devices/system/cpu").glob("cpu[0-9]*")):
+        f = cpu / "topology/thread_siblings_list"
+        if not f.is_file():
+            continue
+        ids = []
+        for part in f.read_text().strip().replace("-", ",").split(","):
+            if part.isdigit():
+                ids.append(int(part))
+        if len(ids) >= 2:
+            return abs(ids[1] - ids[0])
+    raise SystemExit(
+        "no SMT sibling list under /sys/devices/system/cpu, so the omp@ "
+        "placement cannot name a core's second thread. Run without omp@.")
+
 def launcher(spec: str, threads: int) -> tuple[list[str], dict]:
     """How to start one arm, and the environment it needs.
 
@@ -108,7 +132,11 @@ def launcher(spec: str, threads: int) -> tuple[list[str], dict]:
         order = [int(c) for c in spec.split(":")[0].split("@", 1)[1].split(",")]
         if len(order) != threads or sorted(order) != sorted(set(order)):
             raise SystemExit(f"omp@ needs {threads} distinct cores, got {len(order)}")
-        nsib = os.cpu_count() // 2
+        # The sibling stride is a property of the MACHINE, not of this job's
+        # allocation, so it is read from the topology rather than from
+        # os.cpu_count(): under a whole-cores cpuset the visible count is
+        # the allocation's, and half of it is not where sibling `c` lives.
+        nsib = _sibling_stride()
         env["OMP_PLACES"] = ",".join(f"{{{c},{c + nsib}}}" for c in order)
     else:
         env["OMP_PLACES"] = "cores"
