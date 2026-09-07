@@ -34,7 +34,21 @@ nonnegative_outputs:
   - aaet.out
   - cpool.out
   - dens.out
-  - agpp.out
+  # agpp.out is NOT here, and the rule above is why rather than an exception to
+  # it. Despite the name, that column is not a gross flux: `canexch.cpp:3074`
+  # sets `assim = phot.net_assimilation()` and `canexch.cpp:3132` reports that
+  # same value as `Fluxes::GPP`, and `guess.h:917` defines net assimilation as
+  # `agd_g - rd_g`, gross photosynthesis less LEAF respiration. It is therefore
+  # a signed net-flux table, which this list deliberately excludes, and an
+  # individual holding leaf through a period whose respiration exceeds its
+  # assimilation reports a negative year legitimately.
+  #
+  # NOTHING REPLACES IT, and the obvious candidate is not available: `agpp`
+  # less `anpp` looks like the plant respiration and is not an identity,
+  # because `growth.cpp:1574` and `:1675` report further `Fluxes::NPP` for a
+  # carbon-conservation correction with no matching GPP entry. A check on that
+  # difference would fire on the model's own bookkeeping. What this leaves
+  # uncovered is world-fxfr.
   - tot_runoff.out
   - awater.out
   - maet.out
@@ -45,6 +59,7 @@ nonnegative_outputs:
   - ngases.out
   - soil_npool.out
 negative_roundoff_tolerance: 1.0e-9
+
 fraction_outputs:
   # fpc.out is deliberately absent: its columns and Total are additive sums of
   # overlapping cohort/PFT projective covers (`commonoutput.cpp` accumulates
