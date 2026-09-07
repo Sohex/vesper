@@ -7233,6 +7233,81 @@ def check_dust_optics_distribution_restatement() -> list[str]:
     return problems
 
 
+def check_embm_freshwater_adjustment_is_not_inherited() -> list[str]:
+    """genie-embm's Atlantic-Pacific freshwater adjustment, and what arms it.
+
+    `initialise_embm.F` builds a per-cell precipitation-minus-evaporation field
+    from three fluxes in Sv, and `definition.xml` ships them NONZERO: extra1a
+    -0.03, extra1b 0.17, extra1c 0.18, scaled by scl_fwf 1.00. Each description
+    calls it an "Atlantic to Pacific freshwater flux adjustment" over a named
+    latitude band, with a warning to exercise caution on other grids because the
+    bands are indices on Earth's 36x36 one. It is Earth's basin geometry and
+    Earth's basin budget, and it is compiled into every executable this project
+    builds because `MODULE_NAMES` in genie-main/makefile is fixed.
+
+    ITS ARMING SWITCH DOES NOT LOOK LIKE ONE. `flag_ebatmos` reads as a choice
+    of atmosphere. The adopted path is EMBM-free -- with it false, embm does not
+    execute and the surface flux comes from `surflux_goldstein_seaice` -- so
+    none of this is in the world's numbers today, which is why world-5ms5 is a
+    PRECONDITION rather than a defect.
+
+    Two arms, because a precondition that can only pass vacuously is not one:
+
+    1. The vendored defaults are still the ones the finding rests on. An
+       upstream pull that moved them would leave `notes/audits/tuned-values.md`
+       section 19 describing a tree that no longer exists, and nothing else
+       reads those numbers.
+    2. No project configuration arms EMBM without pinning the adjustment. The
+       moment one sets `flag_ebatmos` true it must also set the three fluxes to
+       zero, or declare a Vesper basin adjustment with its argument. Inheriting
+       Earth's is not in the disposition space.
+    """
+    import re
+
+    problems: list[str] = []
+    definition = (ROOT / "vendor" / "cgenie" / "genie-main" / "src" / "xml-config"
+                  / "xml" / "definition.xml")
+    if not definition.is_file():
+        return [f"{definition.relative_to(ROOT)} is absent, so the EMBM "
+                "freshwater defaults world-5ms5 rests on cannot be checked"]
+    text = definition.read_text(encoding="utf-8", errors="ignore")
+    for name, recorded in (("extra1a", -0.03), ("extra1b", 0.17),
+                           ("extra1c", 0.18), ("scl_fwf", 1.00)):
+        found = re.search(
+            rf'<param name="{name}">\s*<value datatype="real">\s*([-\d.eE+]+)',
+            text)
+        if found is None:
+            problems.append(
+                f"definition.xml no longer declares {name} in the form this "
+                "check reads; tuned-values.md section 19 describes it")
+        elif float(found.group(1)) != recorded:
+            problems.append(
+                f"definition.xml ships {name} = {found.group(1)} where "
+                f"notes/audits/tuned-values.md section 19 records {recorded}. "
+                "The finding is stale, not the file: re-read the section")
+
+    # Project configuration that turns the EMBM atmosphere on has to pin the
+    # adjustment in the same breath. Nothing does today, and the check is here
+    # so that the day something does, it cannot do it quietly.
+    armed = []
+    for path in sorted((ROOT / "ocean").rglob("*.yaml")):
+        body = path.read_text(encoding="utf-8", errors="ignore")
+        if re.search(r"flag_ebatmos\s*:\s*(true|1|yes)\b", body, re.I):
+            pinned = all(
+                re.search(rf"{k}\s*:\s*(-?0(\.0+)?|0)\b", body) for k in
+                ("extra1a", "extra1b", "extra1c"))
+            if not (pinned or re.search(r"scl_fwf\s*:\s*(0(\.0+)?)\b", body)):
+                armed.append(str(path.relative_to(ROOT)))
+    for path in armed:
+        problems.append(
+            f"{path} sets flag_ebatmos true without pinning extra1a, extra1b "
+            "and extra1c to zero or scl_fwf to zero. That arms genie-embm's "
+            "Atlantic-Pacific freshwater adjustment, which is Earth's basin "
+            "budget on Earth's 36x36 grid indices. Pin them, or declare a "
+            "Vesper basin adjustment with its argument. world-5ms5")
+    return problems
+
+
 def check_withdrawn_closure_has_no_consumer() -> list[str]:
     """The withdrawn saturated fraction is refused where it would be read, and
     the two components state the one support field the same way.
@@ -7640,6 +7715,8 @@ def main() -> None:
                lambda: check_withdrawn_closure_has_no_consumer()),
               ("the dust optics distribution agrees with its declaration",
                lambda: check_dust_optics_distribution_restatement()),
+              ("EMBM's freshwater adjustment is not inherited unnoticed",
+               lambda: check_embm_freshwater_adjustment_is_not_inherited()),
               ("the LPJ plant functional types are declared once and read",
                lambda: check_lpj_pft_set_is_declared_once(files)),
               ("every unclosed issue carries exactly one batch:<n>",
