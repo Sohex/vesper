@@ -474,11 +474,18 @@ been closed under `LITH-24` as DECLARED with brackets and a reported spread.
 ## What this audit did not cover
 
 Stated so the coverage is not overread. I did not audit `maps/` beyond the lapse
-rate it shares with finding 3, the LPJ-GUESS PFT parameter values themselves (now
-carried by `world-orok`, which found the exclusion bites hardest at the polar cap, where
-water CAPTURE rather than cold or supply is what holds the cover at 0.030), the
+rate it shares with finding 3, the LPJ-GUESS PFT parameter values themselves, the
 Mie code behind `analysis/dust_optics.json`, the hydrography solver internals, or
 Orogen's own generation constants.
+
+**The LPJ-GUESS PFT exclusion has since been closed.**
+[`lpj-pft-set-implicit-earth.md`](lpj-pft-set-implicit-earth.md) is that sweep
+and `world-orok` is its task. It found the shipped set ANTICORRELATED where this
+world is not: every type with a 30 degC photosynthetic optimum requires a
+coldest month above +15.5 degC except C3G, because Earth's cold places are
+low-energy places and nothing in Earth's flora was selected for a -68.8 degC
+winter under a +31.1 degC summer. C3G is the one row that spans both by
+accident, and it carries 0.0274 of the polar cap's 0.0300 cover.
 
 The vendored model itself was also out of scope, and this audit says so in its
 opening: it hunts in this project's own configuration and analysis layer.
