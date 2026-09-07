@@ -358,6 +358,36 @@ def main() -> None:
                             "to": float(spinup["cycles"]),
                             "written": float(spinup["cycles"])})
 
+    # THE RESPIRATION PATH IS NAMED, NOT INHERITED. `global.ins` ships
+    # `acclimated_respiration 1` and `global_p.ins` ships 0, so which one this
+    # file carries was decided by which source it happened to import. Nothing
+    # ran on the wrong path -- `run_lpj_guess.py` writes 0 into the run
+    # instruction and `plib` takes the later declaration -- but an inherited 1
+    # that happens to be overridden is not a stated choice, and a reader of this
+    # artifact could not tell the difference. WORLD-VNBC.
+    #
+    # The DECISION is `biosphere/config/respiration_acclimation.yaml`'s
+    # `path.runs`, taken under world-uhfh, and `acclimation_gate.py` already
+    # holds `run_lpj_guess.py` to the same line. Reading it here puts the
+    # generated file on that one declaration too, so the three cannot disagree.
+    declared = yaml.safe_load(
+        (PROJECT_ROOT / "biosphere" / "config" / "respiration_acclimation.yaml")
+        .read_text(encoding="utf-8"))
+    runs_acclimated = bool(declared["path"]["runs"])
+    rescaled, applied_resp = re.subn(
+        r"^([ \t]*)\bacclimated_respiration\b([ \t]+)([0-9]+)[^\n]*$",
+        lambda m: (f"{m.group(1)}acclimated_respiration{m.group(2)}"
+                   f"{int(runs_acclimated)}"
+                   "\t! NAMED from biosphere/config/respiration_acclimation.yaml"
+                   " path.runs, not inherited from the source instruction file"),
+        rescaled, flags=re.MULTILINE)
+    if not applied_resp:
+        raise SystemExit(
+            "the source instruction file declares no acclimated_respiration, so "
+            "the respiration path cannot be named here. "
+            "biosphere/config/respiration_acclimation.yaml expects to govern it; "
+            "world-vnbc.")
+
     # The shipped file's own inline comments on rescaled lines are replaced,
     # because several of them state the Earth unit and would now be wrong. The
     # upstream annotation is in the vendored source the header names.
