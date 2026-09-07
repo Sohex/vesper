@@ -72,6 +72,33 @@ and salt as well as water, which is why it is the CONSERVING matrix that carries
 the move and the intensive one that does not. An intensive state in an orphaned
 source cell has nothing to conserve, so it is dropped and counted.
 
+## A vector is not two scalars
+
+The ocean returns a surface VELOCITY, so this module carries a vector semantics
+beside the three scalar ones. `Crossing.apply_vector` lifts the two components
+into the sphere's own three cartesian components at the SOURCE cells' frames,
+remaps those three with the same weights, and projects onto the DESTINATION
+cells' frames. Remapping "east" and "north" as independent scalars instead
+averages components in frames that are not the same frame; the error vanishes at
+the equator, grows with latitude, and is worst exactly where an ocean grid and a
+Gaussian grid disagree most, which is where sea ice is.
+
+THE SIZE OF THAT IS SET BY THE DESTINATION CELL'S LONGITUDE SPAN and not by
+latitude, because the frame rotates by the span whatever row the cell is in.
+Measured against a rigid rotation it is a median 0.50 per cent of the local
+speed at T21 onto 36 x 36, 0.17 at T42 onto the same, and 0.070 at T85 onto
+72 x 72, and it is not smaller at the equator.
+
+THE CHECK THAT DISCRIMINATES IS NOT A FULL-SPHERE INTEGRAL, which is the part
+that is not obvious. A rigid rotation has an analytically zero cartesian
+integral over the sphere -- the rotation vector crossed into the integral of
+position, and that integral is the origin -- and the crossing must return it.
+So does the COMPONENTWISE remap, to round-off: both grids are uniform in
+longitude, so the frame error is a pure phase and it cancels around every row.
+Taken over a region that is not zonally symmetric it does not cancel and the two
+separate by four orders. `ocean/scripts/build_ocean_grid.py` runs both forms and
+`ocean/notes/vector-crossing.md` carries the measurement.
+
 ## Where the radius went
 
 Every weight is a ratio of areas, so the planetary radius cancels and nothing
@@ -355,6 +382,56 @@ class Crossing:
         else:
             out = (self._conserving @ flat) / self.dst_area
         return out.reshape(self.dst.shape), coverage.reshape(self.dst.shape)
+
+    def apply_vector(self, east, north, semantics: str):
+        """Remap a tangent VECTOR field. Returns (east, north, coverage, radial).
+
+        A vector does not remap like a scalar, and remapping the east and north
+        components as two independent scalars is the error this exists to
+        prevent: "east" at one longitude is not "east" at another, so the two
+        numbers being averaged are components in different frames. What sets the
+        size of it is the destination cell's LONGITUDE SPAN rather than its
+        latitude, and a full-sphere integral cannot see it at all; the module
+        docstring above has the measurement and the check that can.
+
+        So direction is carried by the geometry rather than by the labels. The
+        field is lifted into the sphere's own three cartesian components at the
+        SOURCE cells' frames, each of the three is remapped by the SAME weights
+        under the SAME semantics as an ordinary scalar -- the lift is linear, so
+        whatever `apply` conserves it conserves componentwise -- and the result
+        is projected onto the DESTINATION cells' frames. Both frames come from
+        `GridSpec.cell_frames`, so neither grid is ever asked what the other
+        calls a direction.
+
+        `radial` is what the projection discarded: the part of the mapped vector
+        that no longer lies in the destination cell's tangent plane, in the same
+        units as the components. It is not an error to be corrected away and it
+        is not renormalised, because scaling the horizontal part back up to the
+        original magnitude would destroy the conservation the lift just bought.
+        It is the honest measure of how far the two grids' tangent planes are
+        apart over a cell, it is zero when the two grids coincide, and it belongs
+        in the ledger beside the coverage. It is also what lets a caller rebuild
+        the mapped cartesian vector exactly, which is what the acceptance
+        integral is taken over.
+        """
+        e_s, n_s, _ = self.src.cell_frames()
+        e_d, n_d, u_d = self.dst.cell_frames()
+        u = np.asarray(east, dtype=np.float64)
+        v = np.asarray(north, dtype=np.float64)
+        if u.shape != self.src.shape or v.shape != self.src.shape:
+            raise ValueError(
+                f"the two components are {u.shape} and {v.shape} and the source "
+                f"grid is {self.src.shape}")
+        cart = e_s * u.ravel()[:, None] + n_s * v.ravel()[:, None]
+        out = np.empty((self.dst.ncell, 3))
+        coverage = None
+        for k in range(3):
+            got, coverage = self.apply(cart[:, k].reshape(self.src.shape), semantics)
+            out[:, k] = got.ravel()
+        return ((out * e_d).sum(axis=1).reshape(self.dst.shape),
+                (out * n_d).sum(axis=1).reshape(self.dst.shape),
+                coverage,
+                (out * u_d).sum(axis=1).reshape(self.dst.shape))
 
     # -- what it cost --------------------------------------------------------
 

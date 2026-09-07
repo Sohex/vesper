@@ -30,6 +30,8 @@ The component's pipeline scripts are:
 - `carbon_feedback_gate.py`: OCN-16's fail-closed prescribed-CO2 boundary and
   conservative reopening contract; it activates no carbon cycle.
 - `transport_loop_gate.py`: OCN-5's declaration and source/graph gate.
+- `build_ocean_grid.py`: the ocean grid's identity, the mesh placed on it, and
+  the tangent-vector crossing onto it. It declares no cell wet.
 - `build_spatial_support.py`: OCN-11's wet mask, volume, connectivity,
   bathymetry and atmosphere/ocean crossing.
 - `build_forcing.py`: OCN-10's chronological heat, momentum, freshwater, salt
@@ -62,6 +64,23 @@ in this maintained fork is deleted or kept.
 `exoplasim/scripts/verify_ocean_flux_channel.py` remains the independent OCN-2
 instrument for surface code 903. Its published invocation for the pipeline row
 uses `check ... --output exoplasim/analysis/ocean_flux_channel_report.json`.
+
+`ocean/scripts/build_ocean_grid.py` owns the two crossings onto a grid no
+exporter writes. The MESH is placed against GOLDSTEIN's cell boundaries by
+`lib/gridding.py:spec_cells`, binned in the sine of latitude because the ocean's
+rows are uniform in the sine; `region_cells` is the door for a grid the export
+ships and the two are not interchangeable; `ocean/notes/mesh-placement.md` has
+what the wrong door moves. Writing the ocean's own bathymetry
+through this placement is what puts the ocean model's longitude frame in the
+generator's rather than in one it brought with it, which is the condition the
+placement's own rule-3 argument rests on. The VECTOR crossing is
+`lib/remap.py:Crossing.apply_vector`, which the surface-velocity return needs
+because remapping east and north as two scalars averages components in frames
+that are not the same frame. Its acceptance is taken over a longitude wedge and
+NOT over the sphere: on the whole sphere both grids are uniform in longitude, the
+frame error is a phase that cancels around every row, and the componentwise
+control passes the integral too. `ocean/notes/vector-crossing.md` has the
+measurement and what the lift is worth per cell.
 
 `analysis/ocean_remap.py` owns the exact Gaussian-to-GOLDSTEIN crossing. Its
 JSON report embeds the SPAT-1 contracts and SPAT-10 assessment, while its NPZ
