@@ -224,11 +224,17 @@ At 32 degrees obliquity the polar summer runs well above freezing and both
 polar caps are land, so no permanent snow is drawn; the obliquity is the
 load-bearing number and it is a decision, while the summer temperature is a
 result and lives in `world_state.json`. That the caps are then BARE is the
-biosphere model's answer and not the climate's: poleward of 75 degrees the
-accepted run holds a few per cent of ground cover and less in the south, where
-the climate classification the map used to tint from called the same ground
-forest. The two disagree, the map now draws the one that simulated this world,
-and `world-drow` carries the disagreement.
+biosphere model's answer, and it is the only answer here about vegetation:
+poleward of 75 degrees the accepted run holds a few per cent of ground cover
+and less in the south, where the classification the map used to tint from
+called the same ground continental mixed forest. Those are not two estimates
+of vegetation. `analyze_climatology.py:biome_for` is a lookup from a Koppen
+letter to a biome NAME, so the classification never modelled a plant and
+cannot be wrong about one; what it asserts is that the polar climate is Koppen
+Dsa, a cold winter with a warmest month above 22 C, which on Earth carries
+forest. Earth has no Dsa with a polar night, and Koppen encodes no daylength,
+so the mapping is blind there by construction. `world-drow` carries what is
+actually open: whether this model's polar cover is limited by the light season.
 
 ## The graticule
 
