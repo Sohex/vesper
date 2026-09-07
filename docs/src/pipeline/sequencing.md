@@ -595,6 +595,45 @@ as a bound on them, so a step change worth about half a kelvin settles in eight
 to seventeen orbits -- which is where the ten to twenty this project has
 repeatedly seen comes from.
 
+**Buying that length and MEASURING that the transient went are two things, and
+the second is the reconvergence verdict.** `assess_convergence.py` asks it of
+any run whose manifest says it began from a conversion or a seeded restart: it
+fits the decay at the relaxation time the modelled slab and the run's own
+radiative damping imply, over the whole post-conversion record with that time
+FIXED, and bounds what is left to travel against the same 0.15 K the offset
+criterion is held to. Fixing the time rather than fitting it is what makes the
+test cheap, and it is conservative rather than convenient because every large
+correction to that time SHORTENS it: the damping it uses is an equilibrium
+response and a transient sees a stronger one, and the heat capacity is a full
+ocean mixed-layer column applied to a planet that has land. The regime where
+that argument fails is a state whose sea ice is still reorganising, where the
+model's measured response is far larger than away from the transition, so the
+verdict CARRIES the sea-ice criterion rather than assuming it.
+
+It costs more than the length does, and for a reason the length does not have:
+a settling block supports no claim, so nothing about it has to be resolvable,
+while a VERDICT has to be able to see its own threshold. The record length is
+therefore the larger of the orbits the transient needs to decay -- the
+logarithm above, which `lib/run_lengths.py` owns and the criterion calls -- and
+the orbits the statistic needs before its standard error is a third of the
+allowance, which does not depend on the conversion at all and is 21 at the
+declared inputs. That is why one criterion covers both conversion kinds: they
+differ in the size of the departure, the fit MEASURES it, and the orbits it
+buys go as its logarithm.
+
+**The reconvergence verdict is not a convergence verdict.** It says a
+conversion's transient has gone, which is what makes a surprise after the next
+conversion attributable to the support alone. It does not say the run is at the
+climate the world's numbers may be taken from: a run whose climatology is going
+to be read is held to all the convergence criteria, and at the operating support
+that is what settles it. That is why the three steps of the route above are
+COMMISSIONING rather than reconvergences. A run too short for the convergence
+window that began from a conversion now gets the reconvergence verdict alone,
+with the convergence criteria recorded as unasked rather than failed, which is
+a different statement and the honest one.
+`exoplasim/notes/convergence-lengths.md` carries both arithmetics and what each
+rests on.
+
 **What a settling block does NOT establish**, and this is why it carries its own
 name: that the state is equilibrated, that its climate is the rung's climate, or
 that any mean taken on it carries an interval. Steps 1, 2 and 3 are all

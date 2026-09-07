@@ -91,11 +91,7 @@ Widening is close to free in orbits and buys a verdict that means what it says.
 The ten-orbit window was measured to flap for twenty orbits after the state had
 stopped moving, which is the same order as the extra orbits a window of this
 width needs before it can return anything at all. What changes is that the
-verdict at the end is a verdict. The cost lands hardest on a reconvergence,
-which settles in ten to twenty orbits and would now be assessed over more
-orbits than it took to settle; that is the correct answer rather than an
-awkward one, because a window shorter than the approach it follows is
-assessing orbits that are still moving.
+verdict at the end is a verdict.
 
 `assess_convergence.py` computes this per run rather than carrying the table:
 `resolving_power.window_orbits_for_offset_criterion`, from the run's OWN
@@ -103,6 +99,132 @@ residual scatter and its own autocorrelation, so it follows the resolution up
 the ladder instead of being a number swept once at T21. Where tau had to be
 taken from inside the window, the report says so and the required window is
 labelled a lower bound.
+
+**All of that is the answer for a COLD START.** It is the wrong test for a
+reconvergence, and applying it there charged the whole cold-start window to
+decide something the record can answer directly.
+
+## A reconvergence is a different question, and a cheaper one
+
+The cold-start criteria ask whether a state is TRENDLESS. The state was
+established from scratch, its equilibrium is unknown, and the only evidence
+about it is the run, so the answer has to come out of a slope fitted to noise
+and multiplied by the relaxation time. A reconvergence asks whether the
+transient a conversion introduced has DECAYED, and its record carries three
+things the trendless test neither has nor uses.
+
+- **The transient's start is stamped.** The run began from a converted or
+  seeded restart and `run_exoplasim.py` records that in `initial_state`, so
+  orbit zero IS the conversion and the whole record is the transient.
+- **The departure is bounded and is measured where the signal is largest.**
+  The state was at a climate when the conversion moved it, so the record spans
+  the departure from its full size downward.
+- **The relaxation time is derived from the planet.** The modelled slab's heat
+  capacity over the run's own radiative damping, both from outside the record.
+  Nothing here takes a tau from inside the window it corrects.
+
+So the shape of the decay is known before the fit. `assess_convergence.py`
+fits `T(n) = L + D exp(-n/tau_relax)` over the whole post-conversion record
+with `tau_relax` FIXED, which is a two-parameter ordinary least squares that
+cannot fail to converge, and thresholds `|D exp(-(n-1)/tau_relax)| +
+half_width` against the SAME 0.15 K allowance the offset criterion is held to.
+The estimator is different; the bar is not.
+
+**Fixing the relaxation time is conservative, not convenient.** Fitting a decay
+at a tau above the truth reports MORE left to travel than there is, so what
+matters is whether the derived tau is a ceiling. Every large correction to it
+points the same way. The damping is the model's own EQUILIBRIUM response,
+measured between two converged runs several kelvin apart (`lib/sensitivity.py`);
+during a transient the modelled sea ice has not finished moving, less of the
+positive ice-albedo feedback is engaged, and the damping acting on the departure
+is stronger. The heat capacity is a full ocean mixed-layer column applied to the
+whole planet, where land carries a soil column of a few per cent of it. The
+reservoirs that lengthen it -- sea ice and snow as latent heat, the soil column,
+the atmosphere and its vapour, the ones `close_state_energy.py` enumerates --
+are together a small fraction of that column and only over the fraction of the
+planet that has them.
+
+The one regime where the argument fails is a state whose sea ice is
+reorganising: the model's measured response across the ice transition is far
+larger than away from it, and the relaxation time goes with it. So the
+reconvergence verdict CARRIES the sea-ice criterion rather than assuming it,
+and a run whose ice is still moving is refused instead of assessed on a
+relaxation time its own regime does not have. The record may also cross an
+I/O-regime join, and a step there enters the fitted level and the fitted
+amplitude the way it enters the cold-start asymptote, so the verdict carries
+that on the same terms: a step at or above the allowance means the fit cannot
+decide the criterion whatever it returns.
+
+## What a reconvergence costs
+
+Two requirements, and the record length is the larger:
+
+- **The statistic must resolve its own threshold,** at the same factor of three
+  the cold-start window is priced against. That length does not depend on the
+  conversion, and `assess_convergence.py` derives it from the same three
+  nominal inputs the cold-start window comes from.
+- **The transient must fall under the allowance,** which takes
+  `tau_relax * ln(D / 0.15)` orbits and is LOGARITHMIC in the departure.
+  `lib/run_lengths.py:settling_orbits` is this project's one statement of that
+  relation and the criterion calls it rather than restating it; what the
+  criterion adds is the offset between a decay TIME and a record LENGTH, since
+  a record of n orbits has decayed for n - 1 of them.
+
+That second term is why ONE criterion covers both conversion kinds. A timestep
+change at constant resolution and a resolution conversion differ in D, the fit
+MEASURES D, and the orbits it buys go as its logarithm. A second criterion would
+have to differ in the MODEL of the transient, and it does not: both are the same
+slab relaxing at the same rate from a displaced state.
+
+**Measured 2026-09-07, on synthetic series whose relaxation, departure and noise
+are set.** AR(1) noise at the declared 0.145 K scatter and lag-1 0.615, the
+declared 11.8-orbit relaxation, 200 trials at each length, and
+`scripts/smoke_test.py` runs the check as a gate.
+
+| what is set | the reconvergence criterion | the cold-start statistic on the same series |
+| --- | --- | --- |
+| 1.0 K departure, 30 orbits, 0.086 K left | passes 1.00 | passes 0.00 |
+| 1.0 K departure, 15 orbits, 0.305 K left | passes 0.01 | |
+| 0.3 K departure at the derived floor | passes 0.95 | |
+| 1.0 K departure at the derived floor | passes 0.04 | |
+
+The statistic covers the TRUE remaining departure in 0.81 to 0.87 of trials,
+against the 0.841 a one-sided one-standard-error bound has by construction, and
+it still covers it when the true relaxation is 0.7 of the derived one, which is
+the direction the ceiling argument has to survive. On the same series at the
+same length the cold-start statistic refuses: it is reading a slope across a
+transient it has no reason to know is there, so its verdict is not merely
+noisier, it is answering a question the record does not pose.
+
+## The ten-to-twenty band is superseded by the derivation, not corroborated by it
+
+Ten to twenty orbits was recorded above as operational experience. The
+derivation does not reproduce it at this tree's declared inputs. The floor alone
+is 21 orbits, and a departure of 0.4 to 1.1 K adds a transient term of 13 to 25,
+so the record length the criterion asks for is 21 to 25 orbits across that whole
+band of departures.
+
+**The difference is the declared orbit scatter and nothing else.** The floor
+grows with it, and the experience was accumulated when that bound was 0.07 K,
+the T21 baseline's stationary spread. It is now 0.145 K, a bound over every
+settled production report and set by the noisiest of them. The transient term
+does not depend on the scatter at all, which is why the band moved by so much
+less than the floor did. The band was experience and the floor is derived from
+three inputs that each carry a citation, so the floor governs and the experience
+is what was seen at half the scatter.
+
+**A reconvergence is still much cheaper than a cold start**, which is the point
+the band was standing in for: 21 orbits against the cold-start window's 61, and
+the saving comes from asking a different question rather than from accepting a
+looser answer on the same one.
+
+**The reconvergence verdict is not a convergence verdict.** It says a
+conversion's transient has gone, which is what makes a surprise after the next
+conversion attributable to the support alone. It does not say the run is at the
+climate the world's numbers may be taken from: a run whose climatology is going
+to be read is held to all the convergence criteria, and at the operating support
+that is what settles it.
+
 
 ## What the storage criterion needs, in its own units
 
@@ -191,14 +313,64 @@ commit message.
 
 **The resolving row prices the statistic the verdict was taken on.** The offset
 criterion has two estimators -- the exponential fit where the series supports
-one, the drift fallback where it does not -- and its row priced the fallback
+one, the drift form where it does not -- and its row priced the drift form
 unconditionally, so on a run where the fit was used the row described a
 statistic the verdict had not taken and a reader could not tell which case a row
 was. Both now come out of the branch that chooses the estimator, and every row
 carries `statistic_error_source`; the offset row also carries
 `statistic_source`, and `resolving_power.offset_statistic_source` repeats it
-beside the window figures, which are the fallback form's arithmetic and price a
-verdict only where the fallback was taken.
+beside the window figures, which are the drift form's arithmetic and price a
+verdict only where that form was taken.
+
+## The estimator is chosen by whether it can decide the criterion
+
+That row was the answer to "which estimator was priced". The question it did not
+ask is which estimator should have been TAKEN, and the branch answering that was
+inverted.
+
+`fit_usable` asked four things: that the asymptote and its half width were
+finite, that the offset was under 20 K and that the half width was under 5 K.
+Those are sanity bounds on a fit that has blown up, and they say nothing about
+whether the fit can see a 0.15 K threshold. A half width of 0.19 K clears them
+by a factor of 26 and then becomes the criterion's own error, so `|offset| +
+half_width` fails on the estimator rather than on the run. A fit that collapses
+outright trips the 20 K bound instead, routes to the drift form and its much
+tighter error, and PASSES on the same data.
+
+**So the criterion was easier to pass the worse the fit was.** The
+flux-to-kelvin bracket's two arms are the demonstration and
+`notes/audits/flux-slope-bracket.md` carries it: identical in build, staged
+surface, executable, structure and window indices, differing only in the flux
+they were given, and passing on opposite windows with every other criterion
+passing on all four assessments.
+
+**The repair introduces no number.** The bar is the one this file already
+declares and every report already prints beside every verdict: a threshold
+discriminates when the standard error of the statistic it tests is at most a
+third of it. The fit decides the offset criterion only where its own half width
+meets that bar, and only where the fitted relaxation time is identifiable from
+the series; otherwise the drift form, whose error the verdict window is derived
+to resolve. The report records the choice and the reason it was made under
+`resolving_power.offset_statistic_selection`.
+
+**The fitted tau's own standard error is not the right instrument here**, and
+it is what the finding was first written on: 40.35 orbits against a tau of
+39.99 on one arm, 17.41 against 9.88 on the other. Both readings are real. But
+the statistic this criterion tests is the ASYMPTOTE against the window mean, so
+the question is whether the asymptote is determined, and the half width is that
+answer with tau's uncertainty already inside it -- it comes off the same
+covariance and is then widened by the overshoot a tau comparable to the span
+implies. Gating on tau would also drop fits whose tau is loose and whose
+asymptote is tight, and it would empty the ceiling test's evidence set below.
+
+**No fit on any run in this project clears the bar today**, and that is the
+finding rather than a hidden default. The tightest asymptote half width on disk
+is 0.0198 K, which is 0.059 against the 0.05 the bar allows, so every run takes
+the drift form. The free three-parameter exponential does not resolve a 0.15 K
+offset on this model's series. The branch stays because the condition is a
+criterion and not a verdict about the model: a longer or quieter series can
+clear it, and where it does the fit is the better estimator, because it does not
+rest on the derived relaxation time being a ceiling.
 
 The two numbers a row reports are not the same question. `verdict_interval` is
 what the criterion added to `|statistic|`; `statistic_standard_error` is what
@@ -285,9 +457,9 @@ remaining offset and can only refuse a run. Three arguments were given for
 expecting a ceiling and all three are arguments.
 
 `exoplasim/scripts/check_relaxation_ceiling.py` takes the comparison the reports
-have been accumulating. An artifact is evidence only when the exponential fit
-was USED rather than the drift fallback, the fitted tau is finite and positive,
-and it is no longer than the span it was fitted over. On an evidence artifact the ceiling is falsified when the fitted tau
+have been accumulating. An artifact is evidence only when its fitted tau is
+identifiable from its own series: finite, positive, and no longer than the span
+it was fitted over. On an evidence artifact the ceiling is falsified when the fitted tau
 exceeds the derived one by more than the fit's own standard error, and by any
 amount where no such error is recorded. The unbracketed case counts AGAINST the
 ceiling deliberately: the criterion's conservatism rests on the claim, so a
@@ -330,11 +502,19 @@ which is the span itself. The raw number is kept under
 silent. No verdict moved: the raw tau still widens the asymptote's interval by
 the overshoot it implies, which is how such a fit refuses through the criterion.
 
-A degenerate fit is excluded twice over on some runs, and neither exclusion
-depends on its size: the assessment took the drift fallback, so the tau is from
-a fit it had already discarded, and the fit is degenerate by the rule above.
-Read at face value the largest of them would refute the ceiling by four orders
-of magnitude; read correctly it is not evidence in either direction.
+**Which estimator the offset criterion took is not read here, and reading it was
+a coupling rather than a rule.** The evidence test was "the fit was USED rather
+than the drift form", on the argument that a tau from a fit the assessment
+discarded is not a measurement of anything. That held while the assessment
+discarded a fit only for being degenerate. It now also declines a fit whose
+ASYMPTOTE cannot resolve 0.15 K, which says nothing at all about whether the
+series determined tau, so reading the estimator choice would throw away every
+fit in the tree and empty the bracket. An artifact that predates the
+identifiability verdict is still judged by the fallback signature, which is what
+the old rule was reaching for. A degenerate fit is excluded by the
+identifiability rule above whatever its size: read at face value the largest of
+them would refute the ceiling by four orders of magnitude; read correctly it is
+not evidence in either direction.
 
 **The ceiling argument does not survive as stated, and it is not refuted
 either.** The artifact's verdict is what says which, and it is falsified today

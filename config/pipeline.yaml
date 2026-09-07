@@ -86,7 +86,12 @@ loops:
       alone. It carries NO SETTLING BLOCK, because dt 45 is at or below every
       rung's measured ceiling and a settling block exists only to change dt
       before a conversion; `lib/run_lengths.py:settling_orbits` still prices one
-      for the fallback. It is an ATTEMPT: the ceilings license each rung to
+      for the fallback, and `assess_convergence.py`'s RECONVERGENCE verdict is
+      what MEASURES that the transient decayed rather than buying the length it
+      should take. That verdict is not a convergence verdict and does not
+      settle a support: a run whose climatology will be read is held to all the
+      convergence criteria, which is why all three steps below are
+      commissioning and not reconvergences. It is an ATTEMPT: the ceilings license each rung to
       START clean at 45 and endurance there is established only for T21, so a
       rung that will not hold 45 for a commissioning span drops the route back
       to the four-entry form that reconverges T21 at 30 and runs both
