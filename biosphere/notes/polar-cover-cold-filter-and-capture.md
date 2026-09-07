@@ -207,6 +207,56 @@ before it drains. **That bounds an adapted flora at about 49 of 79 mm, roughly
 ceiling and not a prediction, and it is the number a sizing arm should be judged
 against: not "more than now" but "how much of 62%".
 
+### Both terms leave in season, so the ceiling survives its timing test
+
+The bound above is a mass argument and says nothing about WHEN either term
+leaves. A term departing under frozen ground is recoverable by nothing, which
+would make 62% an overstatement rather than a ceiling. Measured on the driver
+LPJ-GUESS read, by `biosphere/scripts/polar_water_timing.py`:
+
+| | share |
+| --- | --- |
+| bare-soil evaporation in months above 0 degC | 99.6% |
+| bare-soil evaporation in months above 5 degC | 96.8% |
+| bare-soil evaporation strictly before the thaw month | 0.0% |
+| transpiration in months above 0 degC | 99.0% |
+| precipitation DELIVERED in months above 0 degC | 39.9% |
+
+The 29.14 mm leaves while the ground is thawed and while the two survivors are
+transpiring. It is genuinely on the table.
+
+**Thaw and the growth threshold arrive together.** Over the 224 of 234 cells
+reaching both, the first month above 5 degC follows the first month above
+freezing by 0.018 months, which is 0.27 days. There is no interval in which
+water is liquid and growth is still barred, so no phenology trigger moved
+earlier recovers anything: earlier is frozen. All 77.85 mm crosses the surface
+inside the 3.39-month warm window, 45.85 mm of it as the melt of the pack that
+accumulated below freezing and 32.00 mm delivered warm.
+
+`tot_runoff.out` is annual, so the 20.07 mm drainage term's month is inferred
+from the surface flux rather than measured.
+
+### What the timing does bind is the RATE
+
+The water is not spread across the growing season. It crosses the surface in
+one interval of about fifteen days:
+
+| | share of the annual total in its single largest month |
+| --- | --- |
+| bare-soil evaporation | 83.5% |
+| transpiration | 45.0% |
+| precipitation | 30.0% |
+
+Transpiration is spread across the season and the water is not. So the
+mismatch at the cap is not between the calendar of the melt and the calendar of
+leaf-out, which coincide; it is that the year's water passes the surface in
+about fifteen days and the canopy that would intercept it is not deployed
+within them. At LAI 0.067 there is nothing to shade the soil during the one
+month that matters. The trait that binds is therefore the RATE a canopy can be
+built inside that window, and the stored carbon and nitrogen that fund it
+before there is any photosynthesis to pay for it -- an allocation and storage
+trait rather than a water-uptake trait.
+
 One caveat travels with the runoff figures. `landmod.f90` records LSHY-5: the
 climate model's soil layers carry no water phase, so melt water there always
 infiltrates whatever the soil temperature, while LPJ-GUESS carries an ice
@@ -214,14 +264,20 @@ fraction per layer and reduces available liquid under freezing. The two columns
 disagree about whether water that reached the ground is liquid, and the numbers
 above are LPJ's side of that disagreement.
 
-## The cost of each term is still not separated
+## What the seven-fold gap still bundles
 
-The seven-fold gap between the cap and equally dry warm ground bundles three
-things this comparison cannot pull apart: the loss of ten of twelve types, a
-growing season of 3.39 months against twelve, and the melt-pulse timing.
-Separating them needs arms with `tcmin_surv` relaxed and with the capture-side
-parameters moved, and neither has been run. Until they are, no single number
-here is the price of the cold.
+The gap between the cap and equally dry warm ground bundles the loss of ten of
+twelve types with a growing season of 3.39 months against twelve. The third
+term it was thought to bundle, the melt-pulse timing, is separated above and is
+not a cost: the pulse arrives inside the growing season and the two survivors
+transpire through it.
+
+Separating the remaining two is not what decides whether this world carries
+plant functional types of its own. A `tcmin_surv`-relaxed arm admits ten types
+still carrying Earth's phenology, establishment and allocation parameters, so a
+null result from it cannot distinguish "the cap has no headroom" from "these ten
+are wrong here for other reasons", and it cannot return the answer it would be
+bought for.
 
 ## What this rules out
 
