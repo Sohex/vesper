@@ -53,6 +53,7 @@ import argparse
 import hashlib
 import uuid
 import json
+import os
 import platform
 import re
 import shutil
@@ -610,14 +611,33 @@ def merge_outputs(run_dir: Path, ranks: int,
     return counts
 
 
+def default_ranks() -> int:
+    """MPI ranks to launch when the caller names none.
+
+    `$SLURM_CPUS_PER_TASK` is what the scheduler actually granted. `nproc` is
+    not the fallback and never the answer: under a whole-cores allocation the
+    visible CPU list holds both SMT siblings of every core, so it reports twice
+    the usable count and would put two ranks on each core's FPU. Outside the
+    scheduler this is the machine's 16 physical cores, which is what the flag
+    used to hardcode unconditionally -- and that hardcoding is what would have
+    run a 16-rank job inside an 8-core allocation.
+    """
+    granted = os.environ.get("SLURM_CPUS_PER_TASK")
+    if granted and granted.isdigit() and int(granted) > 0:
+        return int(granted)
+    return 16
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--nyear", type=int, default=50,
                         help="simulation years after spin-up")
     parser.add_argument("--npatch", type=int, default=5,
                         help="replicate patches per gridcell")
-    parser.add_argument("--ranks", type=int, default=16,
-                        help="MPI ranks. 16 physical cores on this machine.")
+    parser.add_argument("--ranks", type=int, default=default_ranks(),
+                        help="MPI ranks. Defaults to $SLURM_CPUS_PER_TASK, "
+                             "which is what the scheduler granted this job; "
+                             "16 only when running outside it.")
     parser.add_argument("--nfix-a", type=float, default=NFIX_A_CENTRAL,
                         help=f"Cleveland fixation slope. LPJ-GUESS declares the "
                              f"bracket {NFIX_A_BRACKET[0]} to {NFIX_A_BRACKET[1]} "
@@ -961,9 +981,19 @@ def main() -> None:
     for rank in range(1, args.ranks + 1):
         (run_dir / f"run{rank}").mkdir(exist_ok=True)
 
-    command = ["mpirun", "-np", str(args.ranks), "--bind-to", "core",
-               str(args.binary.resolve()), "-parallel", "-input", "vesper",
-               str(instruction.resolve())]
+    # `--oversubscribe` UNDER THE SCHEDULER AND NOT OTHERWISE. qrun submits with
+    # --ntasks=1, so OpenMPI sees one slot and refuses -np 8 without it; run
+    # outside Slurm there is no such constraint and the flag would hide a
+    # genuine oversubscription. The rank count stays `args.ranks` rather than
+    # coming from $QRUN_MPIRUN_FLAGS, because the run directories, the merge and
+    # the manifest are all keyed on that one number and a second source for it
+    # is how they would come to disagree.
+    command = ["mpirun", "-np", str(args.ranks)]
+    if os.environ.get("SLURM_JOB_ID"):
+        command.append("--oversubscribe")
+    command += ["--bind-to", "core",
+                str(args.binary.resolve()), "-parallel", "-input", "vesper",
+                str(instruction.resolve())]
     print(" ".join(command))
     started = time.time()
     result = subprocess.run(command, cwd=run_dir, capture_output=True, text=True)
