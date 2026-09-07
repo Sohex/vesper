@@ -140,6 +140,26 @@ def coupling_cells(coupling: Path):
     return basin, r, c, area, nlat, nlon
 
 
+def longitude_difference(a, b) -> np.ndarray:
+    """The signed shortest difference between two longitudes, in degrees.
+
+    On a circle `a - b` is defined only up to a whole turn, so anything
+    comparing two longitudes has to pick a branch, and a caller that picks its
+    own has written a second copy of the convention this module owns. That is
+    the defect `check_one_grid_convention` exists for, and it does not become a
+    different defect because the expression is a difference rather than a
+    column.
+
+    This is for comparing two longitudes that are meant to be THE SAME ONE --
+    a coordinate against its own reconstruction, a folded coordinate against
+    what it was folded from. It is NOT a way to reconcile two grids' labels,
+    which is what `CLAUDE.md` rule 3 forbids; a mapping between two conventions
+    is the index and there is no arithmetic that produces it.
+    """
+    return np.remainder(np.asarray(a, dtype=np.float64)
+                        - np.asarray(b, dtype=np.float64) + 180.0, 360.0) - 180.0
+
+
 def require_same_rows(a, b, what: str = "the two grids") -> None:
     """Refuse two latitude axes that are not the same Gaussian latitudes.
 
@@ -1387,7 +1407,7 @@ def goldstein_grid(nlon: int, nlat: int, igrid: int = GOLDSTEIN_EQUAL_AREA,
 # where the answer is unknown is not a check.
 
 
-_CHECKS = 44
+_CHECKS = 45
 
 
 def _selftest() -> int:
@@ -1570,6 +1590,21 @@ def _selftest() -> int:
           bool((edge >= 0).all() and (edge < nlon).all()
                and edge[0] == 0 and edge[1] == nlon - 1),
           f"{edge}")
+
+    # THE LONGITUDE DIFFERENCE, which is an identity in both directions: a
+    # longitude differs from itself by nothing however many whole turns are
+    # added to it, and two longitudes a hair either side of the seam differ by a
+    # hair rather than by a turn. The second is what a caller writing its own
+    # subtraction gets wrong.
+    probe_lon = rng.uniform(-180.0, 180.0, 1000)
+    turns = rng.integers(-3, 4, 1000) * 360.0
+    seam = float(np.abs(longitude_difference(np.array([179.999]),
+                                             np.array([-179.999]))[0]))
+    check("a longitude differs from itself by nothing, and the seam does not wrap",
+          float(np.abs(longitude_difference(probe_lon + turns, probe_lon)).max()) <= 1e-9
+          and abs(seam - 0.002) <= 1e-9,
+          f"whole turns {np.abs(longitude_difference(probe_lon + turns, probe_lon)).max():.3g}, "
+          f"across the seam {seam:.6g}")
 
     # GRID SPECS. A crossing between two grids is only as good as the two
     # partitions of the sphere it is built from, and each of these has an

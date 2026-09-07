@@ -142,6 +142,26 @@ CONTROL_FLOOR = 1e3 * remap_lib.CLOSURE_TOLERANCE
 # orders below the narrowest column either grid has.
 PLACEMENT_SLACK = 1e-9
 
+# The bar on the mesh's own longitude reproducing from its cartesian
+# coordinates. The export stores both in float32, whose ulp at 180 degrees is
+# about 1e-05, and the round trip goes through an arctangent; 1e-03 is two
+# orders above that and four below the narrowest column either grid has, which
+# is the disagreement it would have to catch.
+COORDINATE_SLACK_DEG = 1e-3
+
+
+def _igrid_of(spec: gridding.GridSpec) -> int:
+    """The `igrid` arm a GOLDSTEIN spec was built at, off its own constructor.
+
+    `GridSpec.source` records what constructed the edges, so the arm is read
+    back from the spec rather than passed alongside it and allowed to disagree.
+    """
+    for arm in (gridding.GOLDSTEIN_EQUAL_AREA, gridding.GOLDSTEIN_EQUAL_ANGLE,
+                gridding.GOLDSTEIN_ATMOSPHERE_ROWS):
+        if f"igrid={arm}" in spec.source:
+            return arm
+    raise ValueError(f"{spec.name} was not built by goldstein_grid: {spec.source}")
+
 
 def check_row(name, residual, bar, comparator="<=", detail=""):
     ok = residual <= bar if comparator == "<=" else residual >= bar
@@ -318,6 +338,39 @@ def placement(ocn: gridding.GridSpec, export, radius_km: float) -> dict:
                    | (folded < ocn.lon_edges[col] - PLACEMENT_SLACK)
                    | (folded > ocn.lon_edges[col + 1] + PLACEMENT_SLACK)).sum())
 
+    # RULE 3, CHECKED RATHER THAN INHERITED. The placement compares a mesh
+    # coordinate against edges built from the ocean model's own setup, and that
+    # is sound only if the two are in ONE frame. Three things say so, and each
+    # of them can fail.
+    #
+    # First, `lon` is the generator's own coordinate and not a label: it
+    # reproduces from the mesh's cartesian `x, y, z`, which are y-up, so the
+    # polar axis is `y` and the longitude is `atan2(x, z)`. A label read off a
+    # file reproduces from nothing.
+    #
+    # Second, the fold into the spec's window is a WHOLE number of turns, which
+    # is a rotation of nothing: the same physical longitude, renumbered. It is
+    # the same shift `lib/remap.py:_periodic_overlap` applies between the same
+    # two constructors, and a reconciliation that moved a region by any other
+    # amount would show up here as a residue.
+    #
+    # Third, `phi0` is a parameter of the ocean grid and not a naming of the
+    # atmosphere's: rotating it by exactly one ocean column has to move every
+    # region exactly one column and change nothing else. A placement that read
+    # one grid's column number as the other's cannot do that, and this is
+    # `analysis/ocean_remap.py`'s origin check in the mesh's form.
+    reproduced = np.rad2deg(np.arctan2(np.asarray(export.x, dtype=np.float64),
+                                       np.asarray(export.z, dtype=np.float64)))
+    coordinate_gap = float(np.abs(gridding.longitude_difference(lon, reproduced)).max())
+    fold_residue = float(np.abs(gridding.longitude_difference(folded, lon)).max())
+    rolled = gridding.goldstein_grid(
+        ocn.nlon, ocn.nlat, igrid=_igrid_of(ocn),
+        lon_origin_deg=float(ocn.lon_edges[0]) + turn / ocn.nlon,
+        atmosphere_rows=ocn.sin_edges if _igrid_of(ocn) ==
+        gridding.GOLDSTEIN_ATMOSPHERE_ROWS else None)
+    rolled_col = gridding.spec_cells(rolled, lat, lon) % ocn.nlon
+    origin_moved = int((rolled_col != (col - 1) % ocn.nlon).sum())
+
     ledger = gridding.transfer_ledger(cell, ocn.ncell, area)
     counts = np.bincount(cell, minlength=ocn.ncell)
     landed = np.bincount(cell, weights=area, minlength=ocn.ncell)
@@ -336,6 +389,19 @@ def placement(ocn: gridding.GridSpec, export, radius_km: float) -> dict:
             check_row("no ocean cell is empty of mesh",
                       int((counts == 0).sum()), 0.0,
                       detail="an empty cell is a cell whose content would have to be invented"),
+            check_row("the mesh longitude reproduces from the mesh's own cartesian coordinates",
+                      coordinate_gap, COORDINATE_SLACK_DEG,
+                      detail="atan2(x, z) on a y-up frame; a label read off a file "
+                             "reproduces from nothing, which is what makes this a frame "
+                             "and not a naming"),
+            check_row("the fold into the ocean's window is a whole number of turns",
+                      fold_residue, PLACEMENT_SLACK,
+                      detail="the same shift lib/remap.py:_periodic_overlap applies, and a "
+                             "rotation of nothing rather than a reconciliation"),
+            check_row("rotating phi0 by one ocean column moves every region one column",
+                      origin_moved, 0.0,
+                      detail="phi0 is a parameter of the ocean grid, never a label to match "
+                             "against the atmosphere's"),
             check_row("the mesh area in a cell is the cell's own area",
                       float(np.abs(ratio - 1.0).max()), 0.02,
                       detail="the mesh is a discrete sample of the sphere, so this closes to "
