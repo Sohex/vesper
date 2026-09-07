@@ -591,9 +591,12 @@ residual smaller than what the instrument judging the NEXT state can see is one
 that state cannot be held responsible for. `lib/run_lengths.py` carries the
 derivation. The relaxation time is bracketed by the fits that are evidence
 rather than taken from the derived value, because that value is not established
-as a bound on them, so a step change worth about half a kelvin settles in eight
-to seventeen orbits -- which is where the ten to twenty this project has
-repeatedly seen comes from.
+as a bound on them, and that bracket is READ from
+`exoplasim/analysis/convergence/relaxation_ceiling.json` rather than declared:
+it moves the moment a report does, so no length belongs in this sentence.
+`lib/run_lengths.py:settling_bracket` is what answers "how many orbits" for a
+given step, and the bracket is wide because the fits it is taken over disagree
+by more than their own errors.
 
 **Buying that length and MEASURING that the transient went are two things, and
 the second is the reconvergence verdict.** `assess_convergence.py` asks it of
