@@ -1,0 +1,643 @@
+{
+  "source_build": "canonical-10m-carve2",
+  "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
+  "forcing": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "climatology_stage": "bootstrap",
+  "forcing_sha256": "13ddb89058fe9901588f73482a3b79a726cbecf758d7dd98762cd19a3b417602",
+  "config_sha256": "05f4423825925f52ec582604267971bf9cd8d1f87d0c28e1825b64776d13ad73",
+  "sigma": 0.0,
+  "operator_noise": 0.0,
+  "noise_seed": 0,
+  "unassigned_policy": "exclude",
+  "evaporation_interval": {
+    "used": "the bin mean of the per-bin Penman",
+    "other_end": "one Penman evaluation on annual-mean air",
+    "why_the_bin_mean_is_used": "the sink is linear in ET_max and nonlinear in the depth, and a steady-state solve holds the depth fixed through the year, so the annual mean of ET_max is the only input the solver can take. The evaporating body is the ground, whose seasonal heat storage is a ground heat flux of a few W/m2 against a net radiation cycle an order larger, so the no-storage end of cv._INTERVAL_BRACKET is the near one rather than a bound",
+    "et_max_land_median_mm_per_year_bin_mean": 481.6571020230013,
+    "et_max_land_median_mm_per_year_annual": 416.45640619448506,
+    "capacity_ratio_bin_over_annual": 1.2351281032837838,
+    "ratio_percentiles": {
+      "5": 0.9969726076481707,
+      "25": 1.0119216814680363,
+      "50": 1.1532309764214168,
+      "75": 2.462253688344087,
+      "95": 10.547668086727175
+    },
+    "land_fraction_bin_below_annual": 0.06392934286638743,
+    "regions_scored": 2478674,
+    "regions_unpinned_by_the_bin_mean": 283014,
+    "regions_unpinned_share_of_recharging_land": 0.09345000688458042,
+    "unpinned_note": "the local balance cannot take the cell's recharge under the annual evaluation and can under the bin mean, so the table leaves the surface. That moves at_surface and the seepage a pinned cell returns, which is a different kind of change from a depth shift",
+    "sign_is_not_one_signed": "Penman is not convex in temperature alone: the Delta/(Delta+gamma) energy weighting saturates and the aerodynamic term is a product of wind with a deficit, so the curvature of the composite changes sign. The bin mean falls BELOW the annual evaluation on the warm cells with the smallest seasonal swing",
+    "depth_shift_m_at_lambda": {
+      "0.5": {
+        "median": 0.07128377384778031,
+        "p95": 1.177952400528461
+      },
+      "1.0": {
+        "median": 0.14256754769556063,
+        "p95": 2.355904801056922
+      },
+      "2.0": {
+        "median": 0.28513509539112125,
+        "p95": 4.711809602113844
+      }
+    },
+    "depth_shift_note": "d = lambda ln(ET_max A / supply) in the local-sink regime, so the shift is lambda ln f exactly. Read it against the lambda bracket in groundwater.yaml, which multiplies the same depth by four"
+  },
+  "gravity_m_s2": 12.81,
+  "conductivity_vs_earth": 1.3062564688247262,
+  "geometry": {
+    "faces": 30000009,
+    "voronoi_area_over_sphere": 1.0,
+    "export_cell_area_over_sphere": 1.0006854371073761,
+    "note": "flux uses the Voronoi area its own faces bound; water volumes use the export's cell_area so the reduction identity against surface_water.py is exact"
+  },
+  "laplace_beltrami": {
+    "criterion": 0.1,
+    "relative_rms": {
+      "1": 0.07723551909067441,
+      "2": 0.13145330677633235,
+      "3": 0.1378566312863166,
+      "4": 0.138711308617855
+    }
+  },
+  "closure": {
+    "recharge_m3_s": 1653405.4675872272,
+    "discharge_m3_s": 1682102.1598609784,
+    "seepage_m3_s": 98863.93811041096,
+    "to_ocean_m3_s": 3852.7347675315386,
+    "to_groundwater_et_m3_s": 1131092.439554131,
+    "to_baseflow_m3_s": 448293.047428905,
+    "relative_residual": 0.017356113086784145,
+    "tolerance": 1e-10,
+    "passes": false
+  },
+  "converged": false,
+  "convergence": {
+    "criterion_residual": 1e-12,
+    "criterion_flip_fraction": 0.0,
+    "final_residual": 0.011169328571403653,
+    "criterion_note": "the water balance residual on free cells over total land recharge, and a still active set. Not the head step: a bar on the step can be met by a shrinking step rather than by convergence",
+    "trace_columns": [
+      "pass",
+      "free_cells",
+      "cells_flipped",
+      "residual",
+      "infeasible_pinned_cells"
+    ],
+    "seepage_clipped_m3_s": 17810.59320528079,
+    "trace": [
+      [
+        0,
+        3722159,
+        423476,
+        0.10538222598786914,
+        411382,
+        0.8584891258787746
+      ],
+      [
+        1,
+        3716075,
+        412090,
+        0.3549834253870485,
+        1943,
+        0.0023862318397157886
+      ],
+      [
+        2,
+        3717248,
+        5918,
+        0.13314455104868556,
+        4740,
+        0.00897711572029013
+      ],
+      [
+        3,
+        3717951,
+        15465,
+        0.05462142576520712,
+        10827,
+        0.021802274558200906
+      ],
+      [
+        4,
+        3717991,
+        17933,
+        0.030436262391009158,
+        7026,
+        0.013840479472280311
+      ],
+      [
+        5,
+        3717849,
+        11052,
+        0.01871519986382961,
+        3986,
+        0.00833050108527343
+      ],
+      [
+        6,
+        3717747,
+        7179,
+        0.012400543964661458,
+        3343,
+        0.006904829394693435
+      ],
+      [
+        7,
+        3717835,
+        7364,
+        0.009484966522227835,
+        4057,
+        0.008043246827025594
+      ],
+      [
+        8,
+        3717809,
+        8995,
+        0.009001800030384675,
+        5064,
+        0.010282046093967824
+      ],
+      [
+        9,
+        3717873,
+        10415,
+        0.009718789173658213,
+        5370,
+        0.010644941594513627
+      ],
+      [
+        10,
+        3717830,
+        10993,
+        0.00977676316042843,
+        5719,
+        0.01187827259884661
+      ],
+      [
+        11,
+        3717864,
+        11647,
+        0.010177020645205549,
+        5906,
+        0.012205977313131642
+      ],
+      [
+        12,
+        3717780,
+        11457,
+        0.010743837392593766,
+        5640,
+        0.011124491157351707
+      ],
+      [
+        13,
+        3717807,
+        12799,
+        0.010454335937482585,
+        7281,
+        0.014928593899706669
+      ],
+      [
+        14,
+        3717867,
+        14549,
+        0.011620844478722017,
+        7350,
+        0.015571361168257372
+      ],
+      [
+        15,
+        3717887,
+        14314,
+        0.012529557644050988,
+        6911,
+        0.014550500504501988
+      ],
+      [
+        16,
+        3717772,
+        12812,
+        0.012207671527234546,
+        5958,
+        0.012168288891221849
+      ],
+      [
+        17,
+        3717767,
+        11455,
+        0.011371726689812975,
+        5610,
+        0.011611280403888183
+      ],
+      [
+        18,
+        3717818,
+        11766,
+        0.010986448856729392,
+        6374,
+        0.013249377683161995
+      ],
+      [
+        19,
+        3717974,
+        12240,
+        0.011066633775731275,
+        5763,
+        0.011769367111730114
+      ],
+      [
+        20,
+        3717809,
+        10472,
+        0.010675592588439031,
+        4696,
+        0.009784844053329297
+      ],
+      [
+        21,
+        3717734,
+        9604,
+        0.010078942886095439,
+        5001,
+        0.010025119309937732
+      ],
+      [
+        22,
+        3717765,
+        10116,
+        0.009755896782224225,
+        5330,
+        0.010781173976752509
+      ],
+      [
+        23,
+        3717918,
+        12099,
+        0.00987731902878467,
+        6800,
+        0.013778124206808311
+      ],
+      [
+        24,
+        3717887,
+        12613,
+        0.011053860718185458,
+        5777,
+        0.011163064277182853
+      ],
+      [
+        25,
+        3717789,
+        11669,
+        0.010387778828650817,
+        5907,
+        0.012222078232083496
+      ],
+      [
+        26,
+        3717742,
+        11870,
+        0.010611126868056738,
+        6142,
+        0.0130876401070926
+      ],
+      [
+        27,
+        3717859,
+        12936,
+        0.011291213046173275,
+        6853,
+        0.014321559167668604
+      ],
+      [
+        28,
+        3717856,
+        13432,
+        0.011862057531520101,
+        6667,
+        0.013809826079758246
+      ],
+      [
+        29,
+        3717882,
+        12550,
+        0.011702322216747022,
+        5840,
+        0.01206962115527874
+      ],
+      [
+        30,
+        3717777,
+        11236,
+        0.011167948278962541,
+        5495,
+        0.011249717496283373
+      ],
+      [
+        31,
+        3717814,
+        10977,
+        0.010421417258441354,
+        5491,
+        0.011102940223463878
+      ],
+      [
+        32,
+        3717761,
+        10326,
+        0.010321753186739367,
+        4955,
+        0.010365626299773738
+      ],
+      [
+        33,
+        3717819,
+        11303,
+        0.010291744421492381,
+        6497,
+        0.013295045951811264
+      ],
+      [
+        34,
+        3717906,
+        12900,
+        0.010866158553225893,
+        6459,
+        0.012664557303454584
+      ],
+      [
+        35,
+        3717900,
+        12527,
+        0.010884288770071516,
+        5972,
+        0.012156104553977832
+      ],
+      [
+        36,
+        3717742,
+        11458,
+        0.010849871464380842,
+        5538,
+        0.011413875489623018
+      ],
+      [
+        37,
+        3717732,
+        10624,
+        0.01056740038638951,
+        5227,
+        0.010849510282603168
+      ],
+      [
+        38,
+        3717811,
+        11764,
+        0.010345601285003747,
+        6772,
+        0.014328240717305681
+      ],
+      [
+        39,
+        3717984,
+        14354,
+        0.011575729990828038,
+        7498,
+        0.015147454802718896
+      ],
+      [
+        40,
+        3717838,
+        13441,
+        0.012106072621682121,
+        5910,
+        0.011933315729719422
+      ],
+      [
+        41,
+        3717743,
+        10659,
+        0.011062249176715357,
+        4804,
+        0.010262657788655778
+      ],
+      [
+        42,
+        3717736,
+        9733,
+        0.010274471063860906,
+        5142,
+        0.010737473895179086
+      ],
+      [
+        43,
+        3717887,
+        12145,
+        0.009988538438014841,
+        7070,
+        0.014319325781673808
+      ],
+      [
+        44,
+        3717892,
+        12731,
+        0.01119704899947542,
+        5642,
+        0.010924438068294233
+      ],
+      [
+        45,
+        3717811,
+        10987,
+        0.010686403916027891,
+        5375,
+        0.010810768743249401
+      ],
+      [
+        46,
+        3717779,
+        10882,
+        0.010179167685321736,
+        5654,
+        0.011486893883490662
+      ],
+      [
+        47,
+        3717864,
+        12137,
+        0.010285660189821,
+        6489,
+        0.013594627247864553
+      ],
+      [
+        48,
+        3717808,
+        13123,
+        0.011338944737634212,
+        6721,
+        0.013462769977278025
+      ],
+      [
+        49,
+        3717833,
+        12075,
+        0.011318476605073062,
+        5348,
+        0.01064735773786991
+      ],
+      [
+        50,
+        3717765,
+        10167,
+        0.010291014416430369,
+        4948,
+        0.010758057268556349
+      ],
+      [
+        51,
+        3717832,
+        10957,
+        0.01017405308887332,
+        6038,
+        0.01271713246611226
+      ],
+      [
+        52,
+        3717799,
+        12326,
+        0.010787444007666236,
+        6380,
+        0.013011483701450796
+      ],
+      [
+        53,
+        3717829,
+        13929,
+        0.011256934983712767,
+        7645,
+        0.015821806067832334
+      ],
+      [
+        54,
+        3717863,
+        13893,
+        0.012382961386659308,
+        6331,
+        0.012796018811810072
+      ],
+      [
+        55,
+        3717884,
+        11580,
+        0.01141165018389165,
+        5166,
+        0.010484264011290512
+      ],
+      [
+        56,
+        3717739,
+        9486,
+        0.010273414435891488,
+        4387,
+        0.009053536578628561
+      ],
+      [
+        57,
+        3717744,
+        9549,
+        0.009713896405212561,
+        5316,
+        0.010588702646112861
+      ],
+      [
+        58,
+        3717836,
+        12254,
+        0.009788012750254193,
+        7150,
+        0.014674950082776663
+      ],
+      [
+        59,
+        3717986,
+        14322,
+        0.011169328571403653,
+        7060,
+        0.014697922834749272
+      ]
+    ]
+  },
+  "cost": {
+    "phase_seconds": {
+      "factor_solve": 543.273,
+      "transmissivity": 97.717,
+      "assembly": 86.878,
+      "anchor": 47.042,
+      "partition": 38.152,
+      "residual": 28.532,
+      "release": 17.62,
+      "setup": 2.809,
+      "active_set": 0.416
+    },
+    "matrix_repeat": {
+      "passes_assembled": 60,
+      "pattern_repeats": 0,
+      "value_repeats": 0,
+      "blocks": 13892,
+      "largest_block_cells": 530123,
+      "block_factorisations": 834776,
+      "block_factorisations_reused": 0
+    },
+    "host_load_average": [
+      3.19189453125,
+      3.2392578125,
+      2.97998046875
+    ],
+    "peak_resident_gb": 11.52,
+    "phase_note": "wall seconds inside solve(), by phase. `setup` is everything before the first pass; `partition` cuts the free set into the blocks GW-17's fixed heads leave it in; `assembly` builds the matrix; `factor_solve` is the per-block factorisation and back-substitution; `release` and `residual` are the two water balances per pass; `transmissivity` is the unconfined form's reassembly of T from the head and is absent from a confined run. The load average is this host's at the moment the report was written"
+  },
+  "outer_iterations": 60,
+  "water_table": {
+    "median_depth_m_land": 5.30371403041563,
+    "at_surface_fraction_land": 0.14350414855897756,
+    "unassigned_land_fraction": 0.014012879522224984,
+    "aquifer_thickness": {
+      "source": "constant",
+      "constant_m": 100.0
+    },
+    "saturated_column_drained": {
+      "50": 0.05303714030415631,
+      "75": 0.33868767576623415,
+      "95": 1.0,
+      "99": 1.0
+    },
+    "unconfined": true,
+    "at_transmissivity_floor": 600346,
+    "transmissivity_note": "T = K (h - z_bottom): the saturated column is solved for, so a cell at the minimum saturated thickness carries a LOWER BOUND on its depth rather than a value, and at_transmissivity_floor counts them"
+  },
+  "git_commit": "357fb84a52f6518ba653e43c4ee13d8d20021f19",
+  "basin_exchange": {
+    "what_this_is": "a measurement, not a change: Qg is reported per basin and is NOT wired into carve_verdict.py",
+    "both_arms_use_mesh_resolved_catchment_depth": true,
+    "why": "the surface arm is recomputed on the mesh rather than taken from the coupling matrix, so the only difference between the two arms is the groundwater term",
+    "basins_scored": 4462,
+    "total_abs_exchange_m3_s": 49740.95711709035,
+    "total_recharge_m3_s": 135948.33189315657,
+    "exchange_over_recharge": 0.36588133465427414,
+    "basins_gaining": 3630,
+    "basins_losing": 757,
+    "basins_shifted_over_10_percent": 3176,
+    "median_abs_fractional_shift": 4.581218937117349,
+    "carve_verdicts": {
+      "criterion": "carve_verdict.py's own: overflow when the aridity index is at or below basins.nc's critical_aridity_index",
+      "would_carve_surface_only": 310,
+      "would_carve_with_groundwater": 316,
+      "flipped": 40,
+      "flipped_to_carve": 23,
+      "flipped_to_hold": 17
+    }
+  }
+}
