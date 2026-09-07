@@ -75,10 +75,13 @@ do not renumber.
    code and seed, the carve list, `config/planet.yaml`, the code, the build
    recipe in `source/README.md`, and the decisions and findings about
    MECHANISMS. A build is DISPOSABLE until a climate run has consumed it --
-   and **until the canonical climatology lineage is declared, so is every run,
-   climatology and build that has been consumed.** A defect in the model is
-   therefore never weighed against the cost of the output it invalidates.
-   `docs/src/reference/builds.md` has the argument.
+   and **the canonical climatology lineage is now DECLARED, for the CLIMATE and
+   no further.** So the two halves run under different rules: a defect in the
+   CLIMATE model is from here on weighed against what it invalidates, while
+   everything outside that lineage -- the biosphere above all -- stays
+   disposable, and a defect there is never weighed against the cost of the
+   output it invalidates. `docs/src/reference/builds.md` names the chain, says
+   why the biosphere is excluded, and is where moving the line gets recorded.
 8. **The gates come in two tiers, and the tier is the cost.** Before every
    commit, the fast one -- every check in it is a static read:
 
@@ -281,9 +284,12 @@ the definitions, the collisions and their cost history are in
   the build it produced.
 - **segment** -- a contiguous block of orbits added to a run; its purpose is
   DECLARED by the caller, and diagnostics stay out of climatologies.
-- **canonical climatology lineage** -- the run chain the world's numbers will
-  finally rest on. It DOES NOT EXIST YET; until it is declared, every build, run
-  and climatology is disposable whatever has consumed it.
+- **canonical climatology lineage** -- the run chain the world's numbers rest
+  on. DECLARED 2026-09-07 for the CLIMATE only: `canonical-10m-carve2`, its
+  bootstrap and baseline runs, and their climatology. The biosphere is outside
+  it and stays disposable, because the accepted LPJ run predates work known to
+  move it. The build names carry the word for the same reason -- the line began
+  at `canonical-10m-base` -- and there is no second sense of it.
 - **carve verdict / carve list** -- the finding with its evidence / the
   instruction Orogen consumes.
 - **marginal / bracketed / disputed** -- a landform / a disagreement between

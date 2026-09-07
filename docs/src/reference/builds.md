@@ -90,28 +90,53 @@ answer to a generator change is to regenerate rather than to migrate; after
 that, runs and verdicts start depending on it, and it is not. What must
 survive either way is the recipe, in `source/README.md`.
 
-## Before the canonical lineage, everything is disposable
+## The canonical lineage, and where it stops
 
-The clause above -- a build stops being disposable once a climate run has
-consumed it -- describes the settled state. **This project is not in it.** Until
-there is a CANONICAL CLIMATOLOGY LINEAGE, a build and every run that consumed it
-are alike disposable, and no result outside that lineage is worth preserving,
-migrating, or carrying a caveat for.
+**Declared 2026-09-07.** The chain the world's published climate numbers rest on
+is the active build and the two runs that carried it to a settled climatology:
 
-That is the same rule applied honestly, not a lower standard. A run becomes
-durable because things depend on it; while the model itself is still being
-corrected, nothing should depend on any run, because the next correction makes
-it WRONG rather than old. The current instance is `world-0ov`: the dynamical
-core loses 0.85 W/m2 and the surface silently supplies it, so every climatology
-now on disk carries a sensible heat flux inflated by about a tenth. The answer
-is not to re-commission them. It is that they were never durable.
+    build        canonical-10m-carve2
+    bootstrap    run_5994d1f9624e   123 orbits, terrain-only surface fields
+    baseline     run_67323a923013   128 orbits, full surface fields
+    climatology  baseline_regular_climatology.nc, orbits 70-126, 57 retained
 
-What this changes in practice is the shape of the question. "Do we re-run after
-fixing this" has one answer, no, and it is replaced by "what does the canonical
-lineage need". A defect found in the model is therefore never weighed against
-the cost of the runs it invalidates, which is the trade that quietly keeps
-known-wrong models in service.
+`canonical-10m-base` and `canonical-10m-carve1` are earlier generations of the
+same line -- the name says what the line is for -- and their runs are what the
+carve verdicts were read from. They are superseded rather than outside it:
+superseded means wrong for the world as it now stands, not merely old.
 
-**The lineage begins when the model is declared settled, not when a run looks
-good.** Declaring it is a decision, it is recorded here when it is taken, and it
-is the point from which output starts being worth keeping.
+**IT STOPS AT THE CLIMATE.** The biosphere is NOT in it. The accepted LPJ run
+`lpj_1e6a2b9ca51a4eff9592992cad96677b` is a real accepted artifact and its
+numbers hold against its own contract, but it was integrated without work
+already known to move its results materially -- the fire component is being
+rewritten, and the tail its current effects layer emits is recorded on `fire-8`.
+A run that a planned change will move is not a run the world's numbers can rest
+on, whatever its verdict said.
+
+The two halves are therefore under different rules, deliberately:
+
+- **Climate output on this lineage is worth keeping.** A defect found in the
+  climate model is from here on weighed against what it invalidates, which is
+  the trade this document spent its life refusing. That is what having a lineage
+  costs, and it is paid knowingly.
+- **The biosphere remains disposable** on the old terms: a defect in it is never
+  weighed against the cost of the output it invalidates, and the question after
+  any change stays "what is now worthless" rather than "what needs updating".
+
+The line moves when the biosphere's pending work lands, and moving it is another
+decision recorded here.
+
+## What the lineage cost to reach
+
+A run becomes durable because things depend on it, and while a model is still
+being corrected nothing should depend on any run, because the next correction
+makes it WRONG rather than old. That held for this project's whole life until
+today, and it is why climatologies were re-cut rather than migrated each time
+the core moved -- `world-0ov`'s dry adiabatic sink being the last such
+correction, resolved with a declared energy fixer that `config/planet.yaml`
+labels a correction and not physics.
+
+Declaring the lineage does not repeal that reasoning. It says the climate model
+is settled enough that the trade now runs the other way. For anything not yet in
+the lineage the old question stands: not "do we re-run after fixing this", but
+"what does the canonical lineage need".

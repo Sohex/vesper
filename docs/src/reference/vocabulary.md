@@ -28,7 +28,11 @@ term, and a base generated at `--glacial 0` runs no glacial erosion at all
 ice-mask pass and not the base underneath it.
 
 Do NOT call a build `canonical` on the strength of having no outstanding trigger
-today. `canonical` is reserved below and names a LINEAGE that does not exist yet.
+today. `canonical` is reserved below and names the LINEAGE: a build carries the
+word because it is a generation of the line that lineage runs on, which is why
+`canonical-10m-base` began it and `precarve-craton` does not carry it. The
+lineage was declared on 2026-09-07 for the climate; the reservation is unchanged
+by that, and a build outside the line still does not get the word.
 
 **generation** -- the act. One pass of World Orogen, consuming the planet code,
 the seed and a carve list, producing a build. It is the only thing in this
@@ -111,12 +115,22 @@ rather than the planet, and those are kept out of convergence windows and
 climatologies. See `exoplasim/scripts/segments.py`.
 
 **canonical climatology lineage** -- the chain of runs the world's published
-numbers will finally rest on. **It does not exist yet.** Until it is declared,
-every build, every run and every climatology is disposable no matter what has
-consumed it, and a defect found in the model is never weighed against the cost of
-the output it invalidates. Declaring it is a decision, recorded in
-`docs/src/reference/builds.md`, and it is the point from which output starts
-being worth keeping.
+numbers rest on. **Declared 2026-09-07 for the CLIMATE and no further**:
+`canonical-10m-carve2`, its bootstrap `run_5994d1f9624e`, its baseline
+`run_67323a923013`, and the baseline climatology those produced. Climate output
+on that chain is worth keeping, and a defect in the climate model is now weighed
+against what it invalidates.
+
+The biosphere is NOT in it, and that boundary is the working part of the term. An
+accepted LPJ run exists and its numbers hold against its own contract, but it
+predates work already known to move them, so it stays disposable on the old
+terms: a defect there is never weighed against the output it invalidates. Two
+halves of one world under two rules is the intended state, not an oversight, and
+the line moves by another decision recorded in `docs/src/reference/builds.md`.
+
+The build names carry the same word for the same reason: `canonical-10m-base`
+began the line this lineage runs on. A build outside it is named for what it is
+-- `precarve-craton` -- and there is no second meaning to disambiguate.
 
   The word exists because "baseline" was doing this job badly. A baseline run is
   a POSITION IN ONE BUILD'S COMMISSIONING; the lineage is a statement about the
