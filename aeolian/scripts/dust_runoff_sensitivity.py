@@ -91,6 +91,15 @@ def main() -> None:
     ap.add_argument("--climatology", type=Path, default=None)
     ap.add_argument("--output", type=Path, default=OUT)
     args = ap.parse_args()
+    # PINNED TO THE BASELINE DELIBERATELY, and not through
+    # `best_available_climatology` as the aerosol producers are. This is a
+    # sensitivity study, so its reference has to be a NAMED climatology that
+    # does not change stage underneath a result: a verdict perturbed against
+    # the bootstrap on one pass and the baseline on the next is two studies
+    # reported as one. The docstring's "the baseline climatology's
+    # precipitation and evaporation" is that choice, and this is where it is
+    # made. `aeolian/scripts/build_dust_source_fields.py` states the opposite
+    # exception for the opposite reason.
     if args.climatology is None:
         args.climatology = climatology_path()
 
