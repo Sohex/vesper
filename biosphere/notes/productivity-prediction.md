@@ -478,6 +478,32 @@ pole is, and a warm arid pole beyond it. The registered predictions assumed an
 Earth-shaped gradient in which the cold band IS the high-latitude band, which is
 where line 10's boreal ceiling and line 8's grass expectation both come from.
 
+**The trough is checked rather than asserted, and it has two causes rather than
+one.** Read on the atmosphere model's own land, so that neither the cover
+figures' support nor an ocean cell can carry it:
+
+| band | land fraction | mean elevation | GDD5 | warmest-month insolation |
+| --- | --- | --- | --- | --- |
+| 75-90 | 0.87 | 221 m | 953 | 398.1 W/m2 |
+| 60-75 | 0.73 | 419 m | 833 | 353.4 |
+| **45-60** | **0.42** | 338 m | **359** | **208.7** |
+| 30-45 | 0.54 | 554 m | 1364 | 273.2 |
+| 15-30 | 0.63 | 501 m | 2853 | 271.9 |
+| 0-15 | 0.55 | 667 m | 2809 | 219.4 |
+
+Warmest-month insolation tracks the trough exactly: 45 to 60 degrees receives
+less than any other band, the tropics included. That is geometry -- a 32-degree
+obliquity puts the solstice subsolar point at 32 degrees, so this band lies past
+it and short of polar day, and takes neither the overhead sun of the band
+equatorward nor the continuous sun of the band poleward. ELEVATION IS RULED OUT
+as a cause: at 338 m the trough is the second-lowest band on the planet, which
+works against it. But its land fraction of 0.42 is the lowest of any band, so
+maritime moderation contributes and the trough is not obliquity alone.
+
+The GDD5 figures in this section's own table are on the LPJ cell set, which is
+the support its cover figures are on; read on the model's land alone they are
+systematically higher, as above. The trough survives either reading.
+
 Line 6's barren excess is the same fact counted differently: everything
 poleward of 45 degrees is between 85% and 97% bare. Why that ground is bare is
 settled separately in
