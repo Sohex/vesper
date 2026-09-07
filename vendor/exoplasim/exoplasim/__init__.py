@@ -770,7 +770,7 @@ class Model(object):
         Parameters
         ----------
         threshold : float, optional
-            The maximum annual energetic drift allowed on the given baseline in W/m\ :math:`^2`
+            The maximum annual energetic drift allowed on the given baseline in W/m\\ :math:`^2`
         baseline : int, optional
             The number of years over which to assess energy balance
             
@@ -1590,7 +1590,7 @@ class Model(object):
                     How many timesteps should elapse between high-cadence outputs.
             threshold : float, optional 
                Energy balance threshold model should run to, if using :py:func:`runtobalance() <exoplasim.Model.runtobalance>`.
-               Default is <0.05 W/m\ :math:`^2`\ /yr average drift in TOA and surface energy balance
+               Default is <0.05 W/m\\ :math:`^2`\\ /yr average drift in TOA and surface energy balance
                over 45-year timescales.
             resources : list, optional 
                A list of paths to any additional files that should be available in the
@@ -1643,7 +1643,7 @@ class Model(object):
     **Radiation**
     
             flux : float, optional
-               Incident stellar flux in W/m\ :math:`^2`\ . Default 1367 for Earth.
+               Incident stellar flux in W/m\\ :math:`^2`\\ . Default 1367 for Earth.
             startemp : float, optional
                Effective blackbody temperature for the star. Not used if not set.
             starradius : float, optional
@@ -1721,7 +1721,7 @@ class Model(object):
     **Planet Parameters**
     
             gravity : float, optional 
-              Surface gravity, in m/s\ :math:`^2`\ . Defaults to 9.80665 m/s\ :math:`^2`\ .
+              Surface gravity, in m/s\\ :math:`^2`\\ . Defaults to 9.80665 m/s\\ :math:`^2`\\ .
             radius : float, optional 
               Planet radius in Earth radii. Default is 1.0.
             orography : float, optional 
@@ -1950,12 +1950,12 @@ Notes
         
         Cesaro: :math:`f(n)=1-\\frac{n}{N+1}` [3]_
         
-        Exponential: :math:`f(n)=\exp\left[-\kappa\left(\\frac{n}{N}\\right)^\gamma\\right]` [4]_
+        Exponential: :math:`f(n)=\\exp\\left[-\\kappa\\left(\\frac{n}{N}\\right)^\\gamma\\right]` [4]_
         
-        Lander-Hoskins: :math:`f(n)=\exp\left[-\left(\\frac{n(n+1)}{n_0(n_0+1}\\right)^2\\right]` [4]_ [5]_
+        Lander-Hoskins: :math:`f(n)=\\exp\\left[-\\left(\\frac{n(n+1)}{n_0(n_0+1}\\right)^2\\right]` [4]_ [5]_
         
-        :math:`\kappa` is exposed to the user through ``filterkappa``, 
-        :math:`\gamma` is exposed through ``filterpower``, and :math:`n_0` is
+        :math:`\\kappa` is exposed to the user through ``filterkappa``, 
+        :math:`\\gamma` is exposed through ``filterpower``, and :math:`n_0` is
         exposed through ``filterLHN0``.
         
         Physics filters can be applied at two different points; either at the transform from gridpoint

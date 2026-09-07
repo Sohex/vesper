@@ -244,8 +244,8 @@ def convert(spectrumfile, name, plot=False, numwavelengths=2048, normalize=False
     #plt.plot(wc,fc)
     #plt.xscale('log')
     #plt.yscale('log')
-    #plt.xlabel("$\lambda$ [$\mu$m]")
-    #plt.ylabel("$F_\lambda$ [W/m$^2$/$\mu$m]")
+    #plt.xlabel(r"$\lambda$ [$\mu$m]")
+    #plt.ylabel(r"$F_\lambda$ [W/m$^2$/$\mu$m]")
     #plt.show()
     w2 = np.concatenate([np.geomspace(0.2,0.75,num=int(numw/2)+1)[:-1],np.geomspace(0.75,100.0,num=int(numw/2))])
     if plot:
@@ -268,8 +268,8 @@ def convert(spectrumfile, name, plot=False, numwavelengths=2048, normalize=False
         #plt.plot(wc,fc)
         plt.xscale('log')
         plt.yscale('log')
-        plt.xlabel("$\lambda$ [$\mu$m]")
-        plt.ylabel("$F_\lambda$ [W/m$^2$/$\mu$m]")
+        plt.xlabel(r"$\lambda$ [$\mu$m]")
+        plt.ylabel(r"$F_\lambda$ [W/m$^2$/$\mu$m]")
         plt.show()
     wvref = np.loadtxt(Path(__file__).parent.resolve()/"wvref.txt")
     # Rebinned from the SOURCE rather than from f2. wvref carries only 41
@@ -284,8 +284,8 @@ def convert(spectrumfile, name, plot=False, numwavelengths=2048, normalize=False
         plt.plot(wvref,f3)
         plt.xscale('log')
         plt.yscale('log')
-        plt.xlabel("$\lambda$ [$\mu$m]")
-        plt.ylabel("$\lambda F_\lambda$ [W/m$^2$]")
+        plt.xlabel(r"$\lambda$ [$\mu$m]")
+        plt.ylabel(r"$\lambda F_\lambda$ [W/m$^2$]")
         plt.show()
     
 def main():
@@ -336,8 +336,8 @@ def main():
     #plt.plot(wc,fc)
     #plt.xscale('log')
     #plt.yscale('log')
-    #plt.xlabel("$\lambda$ [$\mu$m]")
-    #plt.ylabel("$F_\lambda$ [W/m$^2$/$\mu$m]")
+    #plt.xlabel(r"$\lambda$ [$\mu$m]")
+    #plt.ylabel(r"$F_\lambda$ [W/m$^2$/$\mu$m]")
     #plt.show()
     w2 = np.concatenate([np.geomspace(0.2,0.75,num=int(numw/2)+1)[:-1],np.geomspace(0.75,100.0,num=int(numw/2))])
     if args.plot:
@@ -360,8 +360,8 @@ def main():
         #plt.plot(wc,fc)
         plt.xscale('log')
         plt.yscale('log')
-        plt.xlabel("$\lambda$ [$\mu$m]")
-        plt.ylabel("$F_\lambda$ [W/m$^2$/$\mu$m]")
+        plt.xlabel(r"$\lambda$ [$\mu$m]")
+        plt.ylabel(r"$F_\lambda$ [W/m$^2$/$\mu$m]")
         plt.show()
     wvref = np.loadtxt(Path(__file__).parent.resolve()/"wvref.txt")
     # Rebinned from the SOURCE rather than from f2. wvref carries only 41
@@ -376,8 +376,8 @@ def main():
         plt.plot(wvref,f3)
         plt.xscale('log')
         plt.yscale('log')
-        plt.xlabel("$\lambda$ [$\mu$m]")
-        plt.ylabel("$\lambda F_\lambda$ [W/m$^2$]")
+        plt.xlabel(r"$\lambda$ [$\mu$m]")
+        plt.ylabel(r"$\lambda F_\lambda$ [W/m$^2$]")
         plt.show()
 
 if __name__=="__main__" and (Path(sys.argv[0]).name!="sphinx-build" and 

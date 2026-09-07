@@ -3665,7 +3665,7 @@ def _writecsvs(filename,variables,meta,extension=None,logfile=None):
     return files,dirname+"/"
     
 def csv(rdataset,filename="most_output.tar.gz",logfile=None,extracompression=False):
-    '''Write a dataset to CSV/TXT-type output, optionally compressed.
+    r'''Write a dataset to CSV/TXT-type output, optionally compressed.
     
     If a tarball format (e.g. \*.tar or \*.tar.gz) is used, output files will be packed into a tarball.
     gzip (.gz), bzip2 (.bz2), and lzma (.xz) compression types are supported. If a tarball format is 
@@ -3862,7 +3862,7 @@ def hdf5(rdataset,filename="most_output.hdf5",append=False,logfile=None):
 def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=None,mode='grid',
                 zonal=False, substellarlon=180.0, physfilter=False,timeaverage=True,stdev=False,
                 times=12,interpolatetimes=True,radius=1.0,gravity=9.80665,gascon=287.0,mars=False):
-    '''Convert a raw output file into a postprocessed formatted file.
+    r'''Convert a raw output file into a postprocessed formatted file.
     
     Output format is determined by the file extension of outfile. Current supported formats are 
     NetCDF (\*.nc), HDF5 (\*.hdf5, \*.he5, \*.h5), numpy's ``np.savez_compressed`` format (\*.npz), and CSV format. If NumPy's 

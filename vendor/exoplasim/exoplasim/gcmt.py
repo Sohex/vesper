@@ -752,11 +752,11 @@ def spatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
 def latmean(variable,latitudes):
     """Compute meriodional mean (i.e. the variable that changes is latitude).
     
-    Compute the area-weighted mean of a latitude array :math:`x`\ , such that:
+    Compute the area-weighted mean of a latitude array :math:`x`\\ , such that:
 
     .. math::
 
-        \\bar{x} = \\frac{\sum_{i=1}^N |\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})|x_i}{\sum_{i=1}^N |\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})|}
+        \\bar{x} = \\frac{\\sum_{i=1}^N |\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})|x_i}{\\sum_{i=1}^N |\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})|}
     
     Parameters
     ----------
@@ -797,11 +797,11 @@ def latmean(variable,latitudes):
 def latsum(variable,latitudes,dlon=360.0,radius=6.371e6):
     """Compute meriodional sum (i.e. the variable that changes is latitude).
     
-    Compute the area-weighted sum of a latitude array :math:`x` given a longitude span :math:`\\Delta\\theta` and planet radius :math:`R`\ , such that:
+    Compute the area-weighted sum of a latitude array :math:`x` given a longitude span :math:`\\Delta\\theta` and planet radius :math:`R`\\ , such that:
 
     .. math::
 
-        X = \sum_{i=1}^N |\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})|\\Delta\\theta R^2x_i
+        X = \\sum_{i=1}^N |\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})|\\Delta\\theta R^2x_i
     
     Parameters
     ----------
@@ -848,11 +848,11 @@ def latsum(variable,latitudes,dlon=360.0,radius=6.371e6):
 def lonmean(variable,longitudes):
     """Compute zonal mean (i.e. the variable that changes is longitude).
     
-    Compute the area-weighted mean of a longitude array :math:`x`\ , such that:
+    Compute the area-weighted mean of a longitude array :math:`x`\\ , such that:
 
     .. math::
 
-        \\bar{x} = \\frac{\sum_{i=1}^N |\\theta_{i-1/2}-\\theta_{i+1/2}|x_i}{\sum_{i=1}^N |\\theta_{i-1/2}-\\theta_{i+1/2}|}
+        \\bar{x} = \\frac{\\sum_{i=1}^N |\\theta_{i-1/2}-\\theta_{i+1/2}|x_i}{\\sum_{i=1}^N |\\theta_{i-1/2}-\\theta_{i+1/2}|}
     
     Parameters
     ----------
@@ -874,11 +874,11 @@ def lonmean(variable,longitudes):
 def lonsum(variable,longitudes,dsinlat=2.0,radius=6.371e6):
     """Compute zonal sum (i.e. the variable that changes is longitude).
     
-    Compute the area-weighted sum of a longitude array :math:`x` given a latitude span :math:`\\Delta\\sin\\phi` and planet radius :math:`R`\ , such that:
+    Compute the area-weighted sum of a longitude array :math:`x` given a latitude span :math:`\\Delta\\sin\\phi` and planet radius :math:`R`\\ , such that:
 
     .. math::
 
-        X = \sum_{i=1}^N |\\theta_{i-1/2}-\\theta_{i+1/2}|\\Delta\\sin\\phi R^2x_i
+        X = \\sum_{i=1}^N |\\theta_{i-1/2}-\\theta_{i+1/2}|\\Delta\\sin\\phi R^2x_i
     
     Parameters
     ----------
@@ -911,7 +911,7 @@ def cspatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
                ignoreNaNs=True,lev=None,radius=6.371e6,poles=False):
     """Compute spatial means or sums of data, but optionally don't go all the way to the poles.
 
-    Sometimes, saying that the latitudes covered go all the way to :math:`\pm90^\circ` results in
+    Sometimes, saying that the latitudes covered go all the way to :math:`\\pm90^\\circ` results in
     errors, and accurate accounting requires excluding the poles themselves. This function
     is identical to spatialmath, except that it provides that option.
 
