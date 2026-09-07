@@ -358,14 +358,21 @@ aquifer:
   # 100 m and 0.03 per cent at this world's thickest cover, so it is one number
   # meaning two things across the field GW-18 supplies.
   #
-  # THE DECISION PROCEDURE, declared before the first unconfined solve of the
-  # real case. `at_transmissivity_floor` on the report is the count of cells
-  # sitting on this bound, whose depth is therefore a lower bound and not a
-  # value. If that count is zero the floor binds nothing, the choice of value
-  # cannot reach any result, and the disposition is IRREDUCIBLE with this
-  # argument. If it is not zero the floor is a live model-form parameter, the
-  # disposition is a BRACKET expressed as a fraction of the aquifer thickness,
-  # and it is swept.
+  # THE DECISION PROCEDURE WAS DECLARED BEFORE THE RUN AND THE RUN DECIDED IT.
+  # The procedure: if `at_transmissivity_floor` is zero the floor binds nothing
+  # and the disposition is IRREDUCIBLE; if it is not zero the floor is a live
+  # model-form parameter and the disposition is a BRACKET expressed as a
+  # fraction of the aquifer thickness.
+  #
+  # MEASURED 2026-09-06 on canonical-10m-carve2, the unconfined arm:
+  # `at_transmissivity_floor` is 600,346 cells, 16 per cent of the free set. The
+  # floor BINDS, so the disposition is a bracket and the value is a live
+  # parameter -- and it is not swept here, because the same run refused the
+  # unconfined form on this mesh for non-convergence. A bracket on a number that
+  # only enters a solve which does not converge would be measuring the wrong
+  # thing; the sweep belongs with whatever makes the unconfined arm converge.
+  # Until then this is a DECLARED value with a bracket owed, not an irreducible
+  # one, and it is recorded as owed rather than left looking settled.
   #
   # AND IT IS WHERE TO LOOK FIRST IF THE UNCONFINED SOLVE DOES NOT CONVERGE.
   # Niswonger names arithmetic averaging of a dewatering cell's conductance as a

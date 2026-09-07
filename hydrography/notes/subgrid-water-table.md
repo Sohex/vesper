@@ -258,6 +258,77 @@ the observed plateau sat at 0.3 and 0.7 of the un-inflated bound at 400 m and
 denominator is a planet's recharge and the floor is many orders below the bar;
 the guard exists so that a configuration which crosses it says so.
 
+### The run, 2026-09-06: the unconfined form is REFUSED on this mesh
+
+All three commands have now been run on `canonical-10m-carve2`, on an idle host
+at load 1.4 to 3.2.
+
+**Materiality, from the confined control, against the bar of 0.05 pre-registered
+on 2026-08-30.** `saturated_column_drained` on land: median **0.05529**, 75th
+0.4347, 95th 1.0, 99th 1.0. The bar is MET, narrowly. The confined
+transmissivity is wrong by 5.5 per cent of the saturated column on typical land
+and the head correction is half of that, so the term is material by the
+criterion declared for it.
+
+**Convergence: it does not.** `--unconfined --uniqueness-check` ran the full
+pass budget of 60 and did not converge: final residual **1.117e-02** against a
+bar of 1e-12, leak 1.470e-02, 7,060 pinned cells infeasible. The water table was
+correctly not written. The residual does not fall slowly, it LIMIT-CYCLES --
+over the last ten passes 1.03e-02, 1.02e-02, 1.08e-02, 1.13e-02, 1.24e-02,
+1.14e-02, 1.03e-02, 9.71e-03, 9.79e-03, 1.12e-02 -- while the active set flips
+between 9,486 and 14,322 cells a pass.
+
+That is the pre-registered refusal, in the words declared on 2026-08-30: a solve
+that does not converge in the pass budget refuses the unconfined arm on this
+mesh regardless of what the Earth criterion says. **The predictor was also
+right**: the saturated column runs from `min_saturated_thickness_m` at 1 m to
+the 100 m thickness, a contrast of 100 against the value of 25 above which
+non-convergence was predicted.
+
+**And the mechanism is the one the literature names.** 600,346 cells -- 16 per
+cent of the free set -- sit on `min_saturated_thickness_m`, so their saturated
+column is a numerical bound rather than a solved thickness. Niswonger, Panday
+and Ibaraki (2011) state that with ARITHMETIC averaging water flows out of such
+a dry cell into an adjacent partially saturated one, which is inconsistent with
+flow continuity and can cause model-convergence failure, and prescribe upstream
+weighting instead. `groundwater.py` takes the arithmetic mean of the two
+saturated columns at a face, deliberately, because over a flat base that is what
+makes the Kirchhoff identity exact. The two choices were recorded as disagreeing
+before the run; the run says which one this mesh is in.
+
+**The Earth arm PASSES, and the margin is the thing to read.** `earth_calibration.py
+--stage diagnostics --region us --confinement unconfined` at the four declared
+thicknesses:
+
+| D | form | median d | sd | r(mod,obs) | rho recharge | rho elevation |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 100 | confined | 3.54 | 57.85 | +0.2599 | -0.892 | +0.713 |
+| 100 | unconfined | 3.52 | 34.59 | +0.1953 | -0.889 | +0.705 |
+| 1000 | confined | 3.67 | 135.72 | +0.4157 | -0.810 | +0.688 |
+| 1000 | unconfined | 3.66 | 117.74 | +0.3826 | -0.810 | +0.686 |
+| 5000 | confined | 4.15 | 226.07 | +0.4347 | -0.699 | +0.658 |
+| 5000 | unconfined | 4.15 | 218.13 | +0.4352 | -0.698 | +0.656 |
+| 20000 | confined | 9.44 | 335.61 | +0.4038 | -0.644 | +0.668 |
+| 20000 | unconfined | 9.39 | 332.66 | +0.4051 | -0.643 | +0.667 |
+
+against an observed rho of -0.367 on recharge and +0.379 on elevation. The
+criterion declared on 2026-08-25 is satisfied at 5,000 m and at 20,000 m, three
+of three at one thickness, so **it passes as declared and is not softened.**
+
+What it is worth is a separate question and the answer is: almost nothing. At
+5,000 m the Pearson improves by 0.0005 and the two Spearmans by about 0.001 and
+0.002, while the confined arm is still 0.28 from the observed elevation
+correlation and 0.33 from the observed recharge one. The criterion asks for one
+thickness where the unconfined form moves all three the right way; it does not
+ask by how much, and the amount is three orders below the gap it would have to
+close. The harness now records the margin beside the verdict for that reason.
+
+**So the two halves point opposite ways and the refusal wins.** The term is
+material on Vesper by its own pre-registered bar, and it moves the Earth
+dependence structure in the right direction at large thickness by its own
+pre-registered criterion, but it cannot be solved on this mesh at the thickness
+the model runs. `aquifer.transmissivity` stays `confined`.
+
 ### What must be run before this can be turned on
 
 The risk in this change has always been convergence rather than algebra. Two
