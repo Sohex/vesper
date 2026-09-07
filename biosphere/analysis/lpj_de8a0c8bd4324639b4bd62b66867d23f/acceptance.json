@@ -1,18 +1,19 @@
 {
   "contract_version": "vesper-lpj-acceptance/1",
-  "generated": "2026-08-31T08:13:33+00:00",
+  "generated": "2026-09-07T01:26:09+00:00",
   "run_id": "lpj_de8a0c8bd4324639b4bd62b66867d23f",
   "source_build": "canonical-10m-carve2",
   "manifest_sha256": "408b2e52716fa5589951d32264811b7b166c45f243f7034a17bcedef44d71023",
-  "contract_sha256": "c1a86db8be4fc40ef74d93d5a0e16e4b0d1bc3c9e4b4f804b6ab8b6d5e587e62",
+  "contract_sha256": "d8899d1fa113d18c0d1c9a34ff6bbe103533a58f68cf17138dacc6236cc55e0d",
+  "continuation": null,
   "verdict": "FAIL",
-  "refusal": "nitrogen closure fails in 4 cells",
+  "refusal": "missing output /home/cfutro/docs/world/biosphere/runs/lpj_de8a0c8bd4324639b4bd62b66867d23f/awater.out",
   "timescales": {
     "estimator": "lib/autocorrelation.py:integrated_time",
     "relaxation_estimator": "lib/lpj_output.py:relaxation_time",
     "reliable_span_multiple": 10.0,
     "drift_tolerance": 0.05,
-    "contract_version": "vesper-lpj-equilibrium-window/5",
+    "contract_version": "vesper-lpj-equilibrium-window/6",
     "tables": {
       "anpp.out": {
         "record_cycles": 1253,
@@ -1721,45 +1722,6 @@
             "read_by": [
               "pedology/scripts/build_soil.py"
             ]
-          },
-          "cpool.out total carbon": {
-            "memory": {
-              "tau_cycles": 134.5119142271224,
-              "effective_samples": 9.315159978203258,
-              "reliable": false,
-              "lag1": 0.9931136205592291
-            },
-            "relaxation": {
-              "block_cycles": 313,
-              "steps": [
-                0.05415722722431937,
-                -0.033007604900804566,
-                0.07244037493010502
-              ],
-              "step_standard_errors": [
-                0.029006061382793942,
-                0.021593782712787217,
-                0.024368646533755603
-              ],
-              "admissible": false,
-              "reason": "successive block differences change sign, so the series is not a monotone approach"
-            },
-            "drift": {
-              "relative_drift": 0.005847875909273938,
-              "relative_standard_error": 0.009072313414710799,
-              "upper_bound": 0.03245119611664464,
-              "tau_cycles": 372.7383017869918,
-              "effective_samples_per_half": 1.6794624995575025,
-              "degrees_of_freedom": 1.9876822250957853,
-              "critical_value": 2.932363443731264,
-              "half_cycles": 626,
-              "relative_end_to_end_limit": 0.05,
-              "settled": true,
-              "record_cycles_for_bound": 1253.0
-            },
-            "read_by": [
-              "biosphere/config/lpj_acceptance.yaml closure.carbon"
-            ]
           }
         },
         "columns": {
@@ -1913,48 +1875,7 @@
       "npool.out": {
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
-        "fields": {
-          "npool.out total nitrogen": {
-            "memory": {
-              "tau_cycles": 87.92027318132702,
-              "effective_samples": 14.251548074876988,
-              "reliable": true,
-              "lag1": 0.985562465942296
-            },
-            "relaxation": {
-              "block_cycles": 313,
-              "steps": [
-                0.0015245020459533354,
-                0.0015500222278862497,
-                0.0013673275758168124
-              ],
-              "step_standard_errors": [
-                0.0003319520090557887,
-                0.0003290793089316781,
-                0.0003174250524879704
-              ],
-              "admissible": false,
-              "ratio": 1.0167400115996272,
-              "reason": "a ratio of 1.017 is not a contraction"
-            },
-            "drift": {
-              "relative_drift": 0.00826005498941619,
-              "relative_standard_error": 0.0028719386967019623,
-              "upper_bound": 0.016694746360567517,
-              "tau_cycles": 478.18190783886143,
-              "effective_samples_per_half": 1.3091252298297964,
-              "degrees_of_freedom": 1.9831917825834429,
-              "critical_value": 2.9369329438812324,
-              "half_cycles": 626,
-              "relative_end_to_end_limit": 0.05,
-              "settled": true,
-              "record_cycles_for_bound": 1253.0
-            },
-            "read_by": [
-              "biosphere/config/lpj_acceptance.yaml closure.nitrogen"
-            ]
-          }
-        },
+        "fields": {},
         "columns": {
           "VegN": {
             "memory": {
@@ -2107,47 +2028,7 @@
       "aaet.out": {
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
-        "fields": {
-          "aaet.out total evapotranspiration": {
-            "memory": {
-              "tau_cycles": 61.721277539339326,
-              "effective_samples": 20.30094077688808,
-              "reliable": true,
-              "lag1": 0.858964041043286
-            },
-            "relaxation": {
-              "block_cycles": 313,
-              "steps": [
-                -0.322240867302483,
-                0.46879159331463427,
-                -0.4244257598479493
-              ],
-              "step_standard_errors": [
-                0.2516864495975798,
-                0.2819976660498615,
-                0.28367326823218636
-              ],
-              "admissible": false,
-              "reason": "successive block differences change sign, so the series is not a monotone approach"
-            },
-            "drift": {
-              "relative_drift": 0.0019449338939331999,
-              "relative_standard_error": 0.005995553153715522,
-              "upper_bound": 0.01305057921170295,
-              "tau_cycles": 120.1681069688656,
-              "effective_samples_per_half": 5.209368906528507,
-              "degrees_of_freedom": 8.248415299409938,
-              "critical_value": 1.852313712019622,
-              "half_cycles": 626,
-              "relative_end_to_end_limit": 0.05,
-              "settled": true,
-              "record_cycles_for_bound": 1253.0
-            },
-            "read_by": [
-              "biosphere/config/lpj_acceptance.yaml closure.water"
-            ]
-          }
-        },
+        "fields": {},
         "columns": {
           "BNE": {
             "memory": {
@@ -2622,47 +2503,7 @@
       "tot_runoff.out": {
         "record_cycles": 1253,
         "forcing_cycle_years": 1,
-        "fields": {
-          "tot_runoff.out total runoff": {
-            "memory": {
-              "tau_cycles": 11.102991559885359,
-              "effective_samples": 112.85246802555776,
-              "reliable": true,
-              "lag1": 0.7007926172440483
-            },
-            "relaxation": {
-              "block_cycles": 313,
-              "steps": [
-                -0.05323529353651679,
-                -0.042384726182078225,
-                0.0853809662116447
-              ],
-              "step_standard_errors": [
-                0.06968332560057564,
-                0.07100780644172869,
-                0.07223190509701326
-              ],
-              "admissible": false,
-              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
-            },
-            "drift": {
-              "relative_drift": 0.00039570894123021734,
-              "relative_standard_error": 0.0010964835533558662,
-              "upper_bound": 0.0022289899235006954,
-              "tau_cycles": 21.14017031938693,
-              "effective_samples_per_half": 29.61187116954856,
-              "degrees_of_freedom": 57.13430316251757,
-              "critical_value": 1.6719639584739696,
-              "half_cycles": 626,
-              "relative_end_to_end_limit": 0.05,
-              "settled": true,
-              "record_cycles_for_bound": 1253.0
-            },
-            "read_by": [
-              "biosphere/config/lpj_acceptance.yaml closure.water"
-            ]
-          }
-        },
+        "fields": {},
         "columns": {
           "Surf": {
             "memory": {
