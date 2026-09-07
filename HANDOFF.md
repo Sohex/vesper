@@ -1,163 +1,159 @@
 # Handoff
 
-Written 2026-08-31 at the close of a long session (232 commits). This file is a
-MAP for the next session: state, the decisions waiting, and the context that
-would otherwise be re-derived. Everything here cites a row, a note or a file;
-nothing here is the record itself. Delete or rewrite this file when its content
-is consumed -- it describes one moment.
+Written 2026-09-07 at the close of a fan-out session: 231 commits, 24 merges,
+55 rows closed. This file is a MAP for the next session: state, the decisions
+waiting, and the context that would otherwise be re-derived. Everything here
+cites a row, a note or a file; nothing here is the record itself. Delete or
+rewrite this file when its content is consumed -- it describes one moment.
 
 ## State at handoff
 
-- Tree clean at `681f3265c`. `smoke_test.py` 74/0, `verify_entry_points.py`
-  219/219, all ten ExoPlaSim binaries and the LPJ-GUESS binary verify against
-  the source they were built from.
-- `check_consistency.py`: 62 checks, 10 failures. They are NOT one class and
-  the count is up from 6 because three of them are new information, not new
-  damage. Read them as four groups:
-  - **carve2-transition staleness, pre-existing** -- namelist drift and staged
-    surface drift on superseded runs, and one ocean gate report that re-stales
-    whenever `continue_exoplasim.py` changes, exactly as the previous handoff
-    predicted.
-  - **recordless runs, newly legible** -- three failures name
-    `run_432e5e46adef` as "in no run index at all". That wording is new because
-    `exoplasim/runs/INDEX.json` became a ledger this session (`world-ww6z`); the
-    runs were already gone. `world-qc1k` carries the enumeration.
-  - **toolchain drift** -- the host's cmake moved 4.4.2 to 4.4.3 mid-session, so
-    the ExoPlaSim binaries report their build toolchain as moved. The LPJ binary
-    was rebuilt and is current; the ExoPlaSim ten were not. One
-    `rebuild_binaries.py` clears it and nothing is blocked meanwhile.
-  - **generated inputs stale under this session's own config changes** -- the
-    three-point wet-soil albedo key moved under `vesper_provenance.json` and
-    the driver provenance. Resting state under the working agreement:
-    regenerate when a step needs them.
-- `bd ready` is the work list. This file annotates only rows whose context is
+- Tree clean. `smoke_test.py` 83/0, `verify_entry_points.py` 222/222, model
+  source compiles, all ten ExoPlaSim binaries and the LPJ-GUESS binary verify
+  against the source they were built from.
+- `check_consistency.py`: 65 checks, 4 failures, and none of the four is a
+  defect anybody needs to chase:
+  - **two are carve2-transition staleness** on runs rule 7 already calls
+    disposable -- namelist float round-trip and staged surface fields on
+    superseded runs.
+  - **two are the flux bracket refusing to certify itself.** The arms exist and
+    the slope measured cleanly; the declaration is deliberately not moved onto
+    them. `world-jejw` is why, and it is the first thing to read below.
+- `bd ready` is the work list, 135 rows. This file annotates only what is
   expensive to rebuild.
 
-## The two decisions waiting, and neither is mine to take
+## The one defect that matters most, and it is an instrument
 
-**1. Buy the 2.5-hour LPJ acceptance run, with `--save-state`?**
+**`world-jejw` (P1): the offset criterion is decided by a fit whose own tau is
+not determined.** `assess_convergence.py` selects its statistic on
+`fit_usable`, which never consults the fit's own tau standard error even though
+it computes and records it. The consequence is inverted: a fit that fails
+COMPLETELY routes to the drift fallback and PASSES, while one that half
+succeeds FAILS.
 
-The equilibrium problem is SOLVED. `lpj_de8a0c8b` -- the derived 8600-cycle
-spin-up with a 1253-cycle record -- is the first LPJ run this project has made
-that passes every equilibrium check. `assess_lpj_run.py` evaluates stability
-before closure, so reaching a closure refusal means every assessed quantity
-settled.
+It is demonstrated rather than suspected. Two arms differing only in flux ratio
+were bought on the configured build -- `run_c919391cf715` at 0.945 and
+`run_9d5dbf9bd3d9` at 1.000, 130 orbits each, matched in build, geography,
+executable, window and I/O regime -- and **there is no window on which both
+pass**: cold passes at 15-69 and fails at 75-129, warm the reverse, every other
+criterion passing on all four assessments. Two runs that differ only in flux
+cannot have a settling verdict that flips with the window.
 
-What stands between here and a first ACCEPTED run is conservation, and both
-defects are diagnosed with their fixes committed. The run that would attempt
-acceptance has not been bought.
+The slope itself is fine: **173.8 K per unit flux ratio**, asymptotes 173.78,
+window means 173.22, last-ten 173.05, agreeing to 0.73, and two of the three
+estimators use no fit at all. What is missing is a criterion that can certify
+it. Fixing this changes verdicts tree-wide and needs a declared sigma
+threshold, which is why the agent that found it did not take it: the repair
+unblocks its own row.
 
-If it is bought, pass `--save-state`. It is deliberately ungated -- writing a
-state changes no number in the run that writes it -- costs about 300 MB, and if
-`world-glu7` is later repaired that run becomes continuable rather than
-re-bought. Buying those 2.5 hours WITHOUT it is the only irreversible choice
-available. `world-gqyp` carries the argument.
+Also touching this: `world-nmtp`, and the note in `lib/rungs.py` that
+`run_14906cb7b914`'s fitted relaxation is degenerate and supports nothing, are
+the same estimator and the same blind spot.
 
-**2. Finish the water closure's second clause first?**
+## The acceptance run, which is specified and not yet bought
 
-`world-24xd` pre-registered two conditions. The first is met: the failing
-gridcells went 1578 to 81 of 1617 once soil evaporation, canopy interception and
-`maet.out` replaced the survivors-only transpiration. The second -- that what
-remains is bounded and does not grow with window length -- is UNMEASURED. It is
-a read on tables already on disk in `biosphere/runs/lpj_2ffc33a5`, about twenty
-minutes, no new run. Worst remaining residual 68.07 mm against a 17.80 mm limit,
-and the three worst cells are tropical, which is where the burnt-fraction
-correlation would live if the remainder is still turnover.
+**Nothing blocks it now.** `world-24xd` is resolved -- water closes stock
+against flux like carbon and nitrogen, via a new retained table `awater.out`,
+and a fresh short run refused 0 of 1617 gridcells at every window from 1 to 29
+cycles. `world-glu7` is resolved and the restart is continuous on main's own
+binary, 23 tables, `continuous: true`. The binary carries every merged change.
 
-Doing this before the acceptance run is cheap insurance: if the pairing is
-wrong, the acceptance run refuses on water and the whole spin-up is re-bought.
+`world-qcse` carries the specification: 8600 spin-up, 1253 retained, npatch 5,
+16 ranks, `--save-state`, about 2.3 hours. Pass `--save-state`: it is ungated,
+changes no number in the run that writes it, and `world-gqyp` is now resolved,
+so a state file is continuable rather than dead weight.
 
-## What the biosphere's instruments now are, because they were all replaced
+## What the fan-out changed under you
 
-Do not read older notes on these as current; all four were rebuilt this session.
+Read this before trusting any pre-2026-09-06 measurement of these:
 
-- **The equilibrium test** is `vesper-lpj-equilibrium-window/6`: an upper
-  confidence bound on each field's end-to-end drift over the WHOLE record,
-  passed when the bound is inside the tolerance. Intersection-union makes the
-  run-level false-acceptance rate equal the per-field one, so there is no
-  window, no memory-adequacy guard and no multiplicity correction left to be
-  self-referential. `biosphere/notes/equilibrium-trend-null.md`.
-- **The tolerance is scoped to what a consumer reads**, and a reader that
-  imposes no drift tolerance is not a consumer for that purpose: the closure's
-  conservation identities hold at any state of drift, so their four pool and
-  flux totals left the assessed set and keep reported bounds as diagnostics.
-  Contract 6 is that change, and it supersedes every acceptance artifact on
-  disk. `world-mxmr`, `world-cqoc`.
-- **The cover tolerance is derived through its consumer**, by
-  `biosphere/scripts/derive_cover_tolerance.py`, which declares nothing and
-  reads every link from the artifact that owns it. The bar is the climate arm's
-  own offset tolerance over its own resolving factor. `world-mqzk`.
-- **The spin-up is derived and needs no relaxation time**: the requirement is
-  bounded over all tau, so 6.86325 times the record satisfies it at every tau.
-  8600 cycles. `world-nhhm`.
-- **The closure stocks were incomplete.** `npool.out` Total is not the nitrogen
-  stock -- four of six soil mineral pools are missing from it and their gas is
-  reported only when it leaves, so nitrogen resident in them at a cycle boundary
-  is on neither side. `notes/audits/closure-stocks-are-incomplete.md`.
+- **The water closure was holding a store to a conservation tolerance.** The
+  residual telescopes -- 5.20x over a thirtyfold window against 5.48 predicted
+  for a store and 30 for a missing flux -- and the burnt-fraction correlation
+  went +0.66 to -0.028. Refusals FELL as the window lengthened.
+- **Every restart this project ever took was an arbitrary-day restart.**
+  `plib.cpp` stored an integer parameter as `(int)(num + 0.5)`, which rounds
+  negatives toward zero, so the `-1` year-boundary sentinel arrived as 0.
+  Failure-modes class 40.
+- **The photon currency is this star's**: `VESPER_CQ` 4.864175e-06 mol/J,
+  +5.7 per cent, and `FRADPAR` 0.4624 -> 0.4913 -- the second because the solar
+  reference was integrated over a truncated spectrum.
+- **Soil stoichiometry moved**: `NMASS_SAT` 0.05 -> 0.002 kgN/m2, the C:N ramps
+  read NO3 + NH4 rather than NH4 alone, microbial C:P 80 -> 63.31.
+- **The area weight is the Gauss-Legendre quadrature**, 28 sites. Nothing moved
+  past its own scatter, but every generated JSON in that path changes in its
+  fifth or sixth significant figure.
+- **The acceptance contract is `vesper-lpj-equilibrium-window/6`**: four
+  quantities left the assessed set, which removes the only refusal standing on
+  the record on disk.
+- **The run index's payload-gone flags were false.** `register()` read a row's
+  absence as a deletion, so registering from a worktree marked 33 of 34 runs
+  gone. `upsert()` replaced it.
 
-## Open P1s with context
+## Decisions taken, so they are not re-argued
 
-- `world-glu7` -- a run resumed from an LPJ state file is not the run it
-  continues, at the 1e-4 level, everywhere, from the first resumed year. No pool
-  is lost; something is not carried exactly. `Soil` is fully triaged at 0 lost,
-  and every OTHER Serializable class is untriaged -- `Individual` streams 100 of
-  139, `Patch` 50 of 67 -- which is where it most likely lives. `--one-day` is
-  the instrument that localises it. Blocks `world-gqyp`.
-- `world-24xd` -- see decision 2 above.
-- `world-ccx6` -- `build_soil.py` takes no `--grid` and its climatology
-  declaration carries no rung. Blocks the escalation route above T21, and
-  `world-512r` settled the policy question in front of it: the soil WAITS for a
-  climate at its rung, because a remapped climatology is not a less determined
-  climate, it is another world's. The rung is not a stage.
-- `world-qcse` -- its original question is answered and its title's premise was
-  corrected twice. Keep it open only until an accepted run exists.
-- `fire-7`, `pcar-1` -- untouched this session.
+- **The broadband radiation scheme stays.** The band-resolved candidate
+  measured 8.6x per column on the corner this model runs, trebling a T85
+  commissioning from 5.2-10.6 hours to 16-33.
+  `docs/src/reference/design-intent.md` carries it. The three holes it would
+  have closed are now rows in their own right -- `world-2kp9`, `world-skiq`,
+  `world-6fjn` -- and the route to them is gap fill inside the present scheme.
+  A future proposal to swap has to beat the measurement rather than restate the
+  holes; `world-0603` carries the ratio it would need.
+- **`surf_ocn_sic` stays; `config2xml.py` and `dzu` are deleted.** The
+  distinction that decided all three is whether the deadness is mainline cGENIE
+  or Vesper-created.
 
-## Rows whose context is on the row (read comments before starting)
+## Rows whose context is expensive to rebuild
 
-- `world-90y6` closed GRADED, and its finding is not what the row asked. North
-  of 40 degrees two converted arms are THE SAME ARM from initial fields 0.0326
-  apart; south of 40 they separate ordered with the initial ice. The global
-  verdict is the southern margin alone, and two mechanisms of opposite character
-  were being averaged. `notes/audits/resolution-ladder.md`.
-- `world-3y2v` -- T85 still has no endurance row, and it is blocked on
-  `world-j1po` (no T85 staged surface family, no restart template) rather than
-  on the arm's price. Buying only CONVERTED arms there repeats the two-point
-  ambiguity world-90y6 had to buy a third arm to escape; a cold arm needs the
-  soil chain first.
-- `world-l11x` closed: `assess_lpj_run.py` is 8.6x faster with a bit-identical
-  report. Parallelism was measured and DECLINED with the numbers on the row, so
-  the decision can be re-taken if run sizes grow.
-- `world-bga1` and `world-ov4u` -- the two directions of the worktree link
-  hazard, both closed. A per-file linked file is a symlink INTO the main
-  checkout: `references/pdf/` now exists so papers land in one wholly-ignored
-  directory, and `link_worktree.py` keeps a ledger that reports a linked file
-  whose target moved. `notes/audits/worktree-write-through.md` enumerates 594
-  per-file links across 11.6 GB.
+- `world-ccx6` closed: the soil takes `--grid` and the climatology declaration
+  answers per rung, refusing a rung with nothing declared rather than serving
+  another. `world-j1po` is now blocked only on there being no climatology above
+  T21 -- not on a carrier.
+- `world-s6wz` (P2): a worktree that satisfies rule 4 commits a manifest
+  describing binaries only it has. Cleared here by rebuilding in main, but the
+  gap is real and the row weighs whether the manifest should be tracked at all.
+- `world-giqf` (P2): 285 declared members outside `Soil` are unstreamed and
+  ungated. `Soil` has a gate; no other class does.
+- `world-0xpg` (P2): 17 gridcells sit at the 10000 mm snowpack cap in all 30
+  retained cycles, where the melt term is zero and snowfall reaches the soil as
+  liquid water below freezing. Conserving, which is why the closure passes, and
+  not what the surface is.
+- `world-x0u5`: the canopy snow capacity is 19 to 31 times smaller than
+  Hedstrom and Pomeroy measure. The row's question changed on reading the
+  paper -- `forcap` is being asked to be an optical saturation scale AND a mass
+  capacity, and those are two quantities. Free to fix properly: the store is
+  inert until bio-33 and `forintc` ships at zero.
+- `world-g5xe`: 195 tracked JSON files carry absolute paths and nine name
+  worktree directories that no longer exist.
+- `wet-12` declared the reduced wetland form, and the recorded one was
+  circular: it named the withdrawn saturated fraction as the part that forfeits
+  least. Extent has no floor, and the reduced form is a smaller partition rather
+  than a coarser one.
 
-## Traps found this session worth knowing before they bite again
+## Traps this session paid for
 
-- **A check that can only agree with itself.** Four separate agents found
-  defects in their OWN work by trying to buy a measurement rather than by
-  reading, and the recurring shape is a test holding its own copy of the number
-  it is testing. The sharpest: a save-point self-test that restated the rule
-  instead of calling the function, and so passed over a state file written
-  thousands of simulated years early.
-- **`date.year` counts through the spin-up.** A run of `--nyear 1253` behind
-  `nyear_spinup 8600` ends at simulated year 9852. Anything computing a year
-  from `--nyear` alone is wrong by the spin-up, silently.
-- **Rule 3 in the form that does not announce itself.** The land column states
-  file keys rows by a CLIMATOLOGY's longitude convention while the export's
-  `lon.bin` calls the same column something else. Matching them does not match
-  zero cells -- it matches ALL of them half a planet away, agreeing on 0.5955.
-  `lib/gridding.py` now owns that label axis and refuses a label not on it.
-- **A gate must not RUN what it only needs to START.** 27 of 212 entry points
-  build no argparse parser, so `--help` was an argument nothing read and
-  starting them once rewrote nine tracked artifacts.
-  `docs/src/practice/failure-modes.md` class 38.
-- **`pgrep -f <pattern>` matches your own command line.** It cost this session
-  twelve minutes of believing a finished profile was still running. Use
-  `pgrep -x`, or wait on an artifact.
-- **Check a row's existing labels before adding one.** Three rows were
-  double-labelled today and the gate caught each; `bd export` also lags the
-  live database, so a batch-label failure is sometimes only a stale export.
+- **A check that can only agree with itself**, again. `stability_check` wrote an
+  abort message then a bare Fortran `stop`, which exits 0 -- so aborted and
+  finished were the same status, and a 200-step bed was measuring its own
+  length. Failure-modes class 38, in a new place.
+- **A count of one kind of operation is not a cost.** An instruction count said
+  the band-resolved scheme was cheaper at every corner; measured, it is 8.6x.
+  The excluded terms were most of the cost. Second time on that row.
+- **A timing with no rung attached** cost a 7x mispricing. Every per-orbit
+  figure in the tree now carries its rung, its rank count and its date.
+  `native_runtime_seconds` is CPU-seconds, not wall: about 14x the wall span on
+  T21 at 16 threads.
+- **An ordering keyword, not an algorithm**, was the groundwater cost:
+  `permc_spec="MMD_AT_PLUS_A"` took 154 s on one block and 11 s on a larger one.
+  Removing it took a 35-minute, 29 GB bound to 301 s at 16 GB.
+- **A generated input is upstream of the binary that compiles against it.**
+  Rule 4's rebuild is not the first step of a close-out: the LPJ build failed
+  because `vesper.h` had not been regenerated ahead of it.
+- **Held material is invisible unless something indexes it.** Four pedology
+  PDFs sat on disk with no `INDEX.md` row while three rows recorded them as
+  unreachable; two source trees the same; and a worktree's per-file-linked
+  directory nearly took the flux bracket's convergence reports and did take the
+  T21 wetness field. Run `link_worktree.py --check` before a worktree dies.
+- **Zenodo 403s this host** on IP reputation, on open-access records. A browser
+  or different egress gets past it.
