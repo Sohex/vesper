@@ -474,7 +474,9 @@ been closed under `LITH-24` as DECLARED with brackets and a reported spread.
 ## What this audit did not cover
 
 Stated so the coverage is not overread. I did not audit `maps/` beyond the lapse
-rate it shares with finding 3, the LPJ-GUESS PFT parameter values themselves, the
+rate it shares with finding 3, the LPJ-GUESS PFT parameter values themselves (now
+carried by `world-orok`, which found the exclusion bites hardest at the polar cap, where
+water CAPTURE rather than cold or supply is what holds the cover at 0.030), the
 Mie code behind `analysis/dust_optics.json`, the hydrography solver internals, or
 Orogen's own generation constants.
 

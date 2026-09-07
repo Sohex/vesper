@@ -1,4 +1,4 @@
-# The simulated polar caps are cold-filtered first and water-limited second
+# The simulated polar caps are cold-filtered, then limited by water CAPTURE and not supply
 
 Measured 2026-09-07 on `lpj_1e6a2b9ca51a4eff9592992cad96677b`, the accepted
 LPJ-GUESS run, against `exoplasim/analysis/climatology/baseline_regular_climatology.nc`
@@ -12,7 +12,11 @@ defect:
 
 1. **The seasonal extreme removes ten of the twelve plant functional types
    outright**, and this is the model behaving correctly.
-2. **Water then sets what the two survivors achieve**, which is very little.
+2. **The two survivors then capture almost none of the water that arrives.**
+   Supply is NOT what is short: cells elsewhere on the planet with LESS
+   precipitation than the cap support seven times its cover. What is short is
+   the fraction of arriving water that reaches a plant, and that is a property
+   of the plants rather than of the world.
 
 ## The seasonal range is about 100 degC, and it is a hard filter
 
@@ -46,7 +50,28 @@ That is the signature of a hard filter rather than of a gradient, and it is the
 answer to whether the seasonal extremes are killing the vegetation: for ten of
 twelve types, yes, and correctly.
 
-## The two survivors are water-limited, and that is measured separately
+## The growing season is thermally generous, so warmth is not short either
+
+Growing degree-days above 5 degC, per simulation year, against the
+`gdd5min_est` thresholds in `biosphere/generated/vesper_pfts.ins` -- BNS and
+IBS 175.356, BNE and BINE 250.509, TeBS 551.119, TeNE and TeBE 1002.03, both
+grasses 0:
+
+| band | mean GDD5 | median | share below BNS's 175.4 |
+| --- | --- | --- | --- |
+| poleward of 75 deg | 844.4 | 752.1 | 6.8% |
+| 60 to 75 deg | 658.4 | 708.8 | 19.4% |
+| 45 to 60 deg | 196.6 | 135.4 | 55.3% |
+| equatorward of 15 deg | 2917.5 | 3001.4 | 0% |
+
+The cap clears BNS's threshold by nearly five times, and clears BNE's and
+TeBS's as well. **The 45-to-60 band is the genuinely cold-limited one**, at a
+quarter of the cap's degree-days -- which is the 32-degree obliquity's
+signature, since a high obliquity moves annual insolation poleward. So at the
+cap neither cold-season survival for the two survivors, nor growing-season
+warmth, nor light is what holds the cover down.
+
+## The two survivors capture almost no water, and that is measured separately
 
 Neither survivor declares a cold limit, so within the polar band the filter is
 uniform and any variation across it is something else. It is water. Sorting the
@@ -90,18 +115,40 @@ causes independent of it:
   because there is no canopy shading the surface. Canopy interception is
   0.01 mm against the tropics' 53.11: there is effectively no canopy.
 
-## How much each term costs
+## Supply is not the constraint. Capture is.
 
-Cells equatorward of 60 degrees with under 120 mm per simulation year -- as dry
-as the cap, but with a coldest month of +8.7 degC -- reach a mean cover of
-**0.220**, against the polar **0.030**. So at equal water, being polar costs a
-factor of about seven.
+Transpiration as a share of the precipitation that arrived, by band, with the
+warm band chosen to be AS DRY AS THE CAP:
 
-That factor is NOT attributable to the cold filter alone. It bundles three
-things this comparison cannot separate: the loss of ten of twelve types, a
-growing season of 3.39 months against twelve, and the melt-pulse timing that
-delivers the year's water before there is leaf to use it. Separating them needs
-an arm with `tcmin_surv` relaxed, which nothing here has run.
+| band | cells | precip | transpired | captured | cover | coldest month |
+| --- | --- | --- | --- | --- | --- | --- |
+| poleward of 75 deg | 234 | 77.3 | 3.7 | **4.7%** | 0.030 | -68.8 degC |
+| under 120 mm, equatorward of 60 | 81 | **73.9** | 58.3 | **78.9%** | **0.220** | +8.7 degC |
+| 120 to 250 mm, equatorward of 60 | 278 | 187.0 | 86.6 | 46.3% | 0.344 | -11.0 degC |
+| equatorward of 15 deg | 264 | 632.1 | 314.9 | 49.8% | 0.839 | +18.0 degC |
+
+**The warm dry band receives LESS water than the cap -- 73.9 mm against
+77.3 -- captures seventeen times as much of it, and carries seven times the
+cover.** So the cap is not short of water in the sense a mass balance would
+mean. It is short of plants able to intercept water that arrives frozen, in a
+dark season, and departs as a melt pulse.
+
+That reading replaces "the cap is water-limited", which is true only if
+"water" is read as delivered-to-root rather than delivered-to-ground. The three
+places the polar supply goes are all traits rather than boundary conditions:
+the 58% that runs off is a timing mismatch against phenology, the 38% that
+evaporates off bare soil is the absence of a canopy to shade it, and the 4.7%
+that gets through is what Earth-shaped roots and Earth-shaped phenology manage
+on a regime Earth does not have.
+
+## The cost of each term is still not separated
+
+The seven-fold gap between the cap and equally dry warm ground bundles three
+things this comparison cannot pull apart: the loss of ten of twelve types, a
+growing season of 3.39 months against twelve, and the melt-pulse timing.
+Separating them needs arms with `tcmin_surv` relaxed and with the capture-side
+parameters moved, and neither has been run. Until they are, no single number
+here is the price of the cold.
 
 ## What this rules out
 
@@ -115,6 +162,8 @@ an arm with `tcmin_surv` relaxed, which nothing here has run.
   is 0.245 at the poles against 0.224 in the tropics -- per leaf, polar
   photosynthesis runs slightly faster. There is simply almost no leaf: LAI
   0.067 against 4.36.
+- **Not the growing-season warmth.** Polar GDD5 is 844.4 against BNS's
+  threshold of 175.356.
 - **Not the light season.** The polar summer receives more light than the
   tropics ever do. At 32 degrees obliquity the summer pole stands under
   1306.56 x sin(32 deg) = 692 W/m2 at the top of the atmosphere continuously,
