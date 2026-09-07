@@ -392,6 +392,74 @@ scored from the central arm, which is what they are registered against.
 
 ## Result
 
-Not yet run. To be filled in with actual values, hit or miss per line, and the
-mechanism behind any miss. Lines 1 to 4 are filled in as spans over the declared
-`nfix_a` bracket; a single-arm number is not a result for them.
+Scored 2026-09-07 on `lpj_1e6a2b9ca51a4eff9592992cad96677b`, the first LPJ-GUESS
+run to pass acceptance, by `biosphere/scripts/score_prediction.py`. The artifact
+is `biosphere/analysis/lpj_1e6a2b9ca51a4eff9592992cad96677b/prediction_score.json`.
+
+**1 of 6 quoted lines hit.** Lines 1 to 4 are not quoted: the declared `nfix_a`
+bracket is not carried, and a single arm at its midpoint is not a result for
+them. Their central values are recorded below as central values and nothing
+more.
+
+| # | prediction | central | run | hit band | verdict |
+| --- | --- | --- | --- | --- | --- |
+| 1 | land-mean NPP relative to Earth | 1.0x | 1.206x | 0.7-1.4 | NOT QUOTED |
+| 2 | land-mean NPP, gC/m2 per Earth year | 400 | 464.5 | 280-560 | NOT QUOTED |
+| 3 | total NPP relative to Earth | 2.1x | 2.119x | 1.6-2.8 | NOT QUOTED |
+| 4 | total NPP, PgC per Earth year | 125 | 121.8 | 90-175 | NOT QUOTED |
+| 5 | tree cover, land fraction with tree FPC > 0.1 | 55% | 72.3% | 40-70% | miss |
+| 6 | effectively barren land, LAI < 0.5 | 15% | 35.5% | 8-25% | miss |
+| 7 | water-limited rather than temperature-limited land | 60% | 50.2% | 50-70% | **HIT** |
+| 8 | grass cover exceeds tree cover | yes | no | yes | **CLEAR MISS** |
+| 9 | C4 grasses above 10% of land | >10% | 6.7% | >10% | miss |
+| 10 | boreal needleleaf below 10% of land | <10% | 17.8% | <10% | miss |
+
+All four productivity centrals land inside their bands, and line 3 is within
+1% of its registered value. The arms that would make them quotable are running
+as `lpj_4327ec50458d4ceaa790da8338b8502a` at `nfix_a` 0.102 and
+`lpj_fdbdd95aaf69460ab7ad6561a5c585fe` at 0.367; `world-myvb` carries them, and
+this section is completed when they land.
+
+### The mechanism behind the five structural misses
+
+They are one miss, not five. The world came out **more forested AND more
+barren than predicted, with the grassland middle thin**: land-mean tree cover
+0.248 against grass 0.096, a ratio of 0.388, and grass exceeds tree in 728 of
+1617 gridcells while losing decisively in aggregate because the tropical belt
+carries 0.677 tree cover against 0.163 grass.
+
+Underneath it is a latitude structure Earth does not have. Growing-season
+warmth is NOT monotonic in latitude here, because a 32-degree obliquity moves
+annual insolation poleward. Growing degree-days above 5 degC per simulation
+year, and the cover they carry:
+
+| band | cells | GDD5 | tree | grass | bare |
+| --- | --- | --- | --- | --- | --- |
+| 0-15 | 264 | 2918 | 0.677 | 0.163 | 0.164 |
+| 15-30 | 190 | 2725 | 0.380 | 0.117 | 0.503 |
+| 30-45 | 278 | 1116 | 0.413 | 0.153 | 0.435 |
+| 45-60 | 311 | **197** | 0.073 | 0.078 | 0.849 |
+| 60-75 | 340 | 658 | 0.035 | 0.050 | 0.914 |
+| 75-90 | 234 | 844 | 0.003 | 0.027 | 0.970 |
+
+There is a **cold trough at 45 to 60 degrees**, colder in degree-days than the
+pole is, and a warm arid pole beyond it. The registered predictions assumed an
+Earth-shaped gradient in which the cold band IS the high-latitude band, which is
+where line 10's boreal ceiling and line 8's grass expectation both come from.
+
+Line 6's barren excess is the same fact counted differently: everything
+poleward of 45 degrees is between 85% and 97% bare. Why that ground is bare is
+settled separately in
+[`polar-cover-cold-filter-and-capture.md`](polar-cover-cold-filter-and-capture.md),
+and it is not a productivity failure -- at the cap, cold removes ten of the
+twelve types outright and the two survivors capture 4.7% of the water that
+arrives, against 78.9% on warm ground receiving less.
+
+**The candidate mechanism for the thin grass is that the PFT set has no type
+for this world's marginal ground, and it is a candidate rather than a finding.**
+Earth's grasses, C4 especially, are calibrated to Earth's semi-arid regimes;
+line 9 misses low and line 6 misses high, which is the signature of marginal
+land going bare where Earth's would go grassy. `world-orok` carries it, and the
+sizing arms named there are what would settle it. Nothing in this document is
+adjusted for it: rule 3 records the miss and the mechanism, and does not move
+the band.
