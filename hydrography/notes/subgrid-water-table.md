@@ -315,13 +315,23 @@ against an observed rho of -0.367 on recharge and +0.379 on elevation. The
 criterion declared on 2026-08-25 is satisfied at 5,000 m and at 20,000 m, three
 of three at one thickness, so **it passes as declared and is not softened.**
 
-What it is worth is a separate question and the answer is: almost nothing. At
-5,000 m the Pearson improves by 0.0005 and the two Spearmans by about 0.001 and
-0.002, while the confined arm is still 0.28 from the observed elevation
-correlation and 0.33 from the observed recharge one. The criterion asks for one
-thickness where the unconfined form moves all three the right way; it does not
-ask by how much, and the amount is three orders below the gap it would have to
-close. The harness now records the margin beside the verdict for that reason.
+What it is worth is a separate question, the harness now records it, and the
+answer is: almost nothing.
+
+| D | rho elevation | rho recharge | Pearson | confined is this far from observed |
+| ---: | ---: | ---: | ---: | --- |
+| 100 m | +0.0078 | +0.0035 | -0.0646 | 0.334 elevation, 0.526 recharge |
+| 1,000 m | +0.0022 | -0.0003 | -0.0330 | 0.309, 0.443 |
+| 5,000 m | +0.0016 | +0.0010 | **+0.0005** | 0.279, 0.333 |
+| 20,000 m | +0.0006 | +0.0005 | **+0.0013** | 0.289, 0.277 |
+
+The two thicknesses that pass do so by margins of 0.0005 to 0.0016 against gaps
+of 0.28 to 0.33 -- between two and three orders below the distance they would
+have to close. The criterion asks for one thickness where the unconfined form
+moves all three the right way and does not ask by how much, so it passes and is
+not softened. But a sign at this margin is not a result, and the two thicknesses
+where the term is LARGE enough to move the Pearson at all, 5,000 m and
+20,000 m, are fifty and two hundred times the thickness the model runs.
 
 **So the two halves point opposite ways and the refusal wins.** The term is
 material on Vesper by its own pre-registered bar, and it moves the Earth

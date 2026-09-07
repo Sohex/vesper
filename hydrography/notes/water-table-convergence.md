@@ -600,9 +600,14 @@ bootstrap climatology, host load average 1.35 to 3.2 throughout:
 | | before | after |
 | --- | --- | --- |
 | passes | did not finish ONE | 26, converged |
-| wall | over 19 min for pass 0, killed | **301.4 s** |
-| peak resident | over 20.5 GB and climbing | 16.37 GB |
+| wall | 35 min on pass 0 and killed | **301.4 s** |
+| peak resident | 29.0 GB and climbing | 16.37 GB |
 | closure | no result | 2.635e-13 against 1e-10 |
+
+The before arm was stopped at 35 minutes and 29.0 GB rather than left to finish:
+the host has 61 GB and it was inside 13 GB of exhausting it, which would have
+taken other work down with it. So the before figure is a BOUND and is written as
+one. It is a bound on one pass of twenty-six.
 
 The before arm is the solver as it stood before this work: one monolithic
 `spsolve` per pass at `permc_spec="MMD_AT_PLUS_A"`. It is the same arm that had
