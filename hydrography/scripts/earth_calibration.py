@@ -929,11 +929,33 @@ def stage_diagnostics(tag: Path, region: str, confinement: str | None,
             "pearson_against_observed_higher_than_confined":
                 bool(u["pearson"] > c["pearson"]),
         }
+        # THE MARGIN BY WHICH EACH CONDITION IS MET, beside the verdict. The
+        # criterion is a set of inequalities and an inequality can be satisfied
+        # by any amount, so a PASS on its own does not say whether the
+        # unconfined form moved the agreement or merely failed to move it
+        # backwards. This does not change what passes; it says what the pass is
+        # worth, which is the difference between reporting a result and
+        # reporting a sign.
+        margins = {
+            "rho_elevation": abs(c["rho_elevation"] - obs_rho_elev)
+                             - abs(u["rho_elevation"] - obs_rho_elev),
+            "rho_recharge": abs(c["rho_recharge"] - obs_rho_rech)
+                            - abs(u["rho_recharge"] - obs_rho_rech),
+            "pearson": u["pearson"] - c["pearson"],
+        }
         per_D.append({"thickness_m": D, "conditions": conds,
+                      "margins": {k: float(v) for k, v in margins.items()},
+                      "confined_distance_to_observed": {
+                          "rho_elevation": float(abs(c["rho_elevation"] - obs_rho_elev)),
+                          "rho_recharge": float(abs(c["rho_recharge"] - obs_rho_rech))},
                       "all_three": all(conds.values())})
     out["unconfined_criterion"] = {
         "declared_in": "hydrography/config/groundwater.yaml aquifer.unconfined_criterion",
-        "declared_on": crit["declared_on"],
+        # Stringified because YAML reads a bare date as a `datetime.date` and
+        # `json` will not serialise one. The sweep ran its four thicknesses and
+        # then lost the whole artifact to this, which is a run's worth of work
+        # thrown away at the last line.
+        "declared_on": str(crit["declared_on"]),
         "observed_rho_recharge": obs_rho_rech,
         "observed_rho_elevation": obs_rho_elev,
         "per_thickness": per_D,
@@ -946,7 +968,17 @@ def stage_diagnostics(tag: Path, region: str, confinement: str | None,
     print(f"    UNCONFINED CRITERION: "
           f"{'PASS' if out['unconfined_criterion']['passes'] else 'MISS'} -- "
           + ", ".join(f"{d['thickness_m']:.0f} m "
-                      f"{sum(d['conditions'].values())}/3" for d in per_D))
+                      + ("REFUSED" if "conditions" not in d
+                         else f"{sum(d['conditions'].values())}/3")
+                      for d in per_D))
+    for d in per_D:
+        if "margins" in d:
+            print(f"      {d['thickness_m']:>6.0f} m margins: "
+                  + "  ".join(f"{k} {v:+.4f}" for k, v in d["margins"].items())
+                  + "   confined is "
+                  + "  ".join(f"{k} {v:.3f}" for k, v in
+                              d["confined_distance_to_observed"].items())
+                  + " from observed")
 
     # attribution and the drain scan both need the DEM inside each cell
     d_ = nc.Dataset(str(CACHE / R["dem"]))
