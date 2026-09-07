@@ -27,11 +27,18 @@ an executable whose sha has moved under unchanged sources is attributed to the
 toolchain rather than left as unknown provenance.
 
 So: **after any change under `vendor/exoplasim`, rebuild everything.** This
-script is that operation, and it writes `exoplasim/binary_manifest.json` mapping
+script is that operation, and it writes a manifest mapping
 every executable's sha256 to the sources it was built from and the subtree
 commit it came from. `scripts/check_consistency.py` reads that manifest and
 fails when a binary on disk is absent from it or was built from a source that
 has since changed.
+
+**WHICH manifest depends on which checkout you are in**, and `_binary_manifest`
+below says why: the tracked `exoplasim/binary_manifest.json` describes the MAIN
+checkout, and a rebuild in a worktree writes an untracked
+`binary_manifest.local.json` beside it. The binaries are per-tree because
+`link_worktree.py` does not link `vendor/exoplasim`, so the record of them has
+to be per-tree as well.
 
 Hashing the files rather than trusting the subtree commit is deliberate: a
 commit says what was committed, the shas say what is on disk, and an
@@ -62,7 +69,50 @@ PKG = ROOT / "vendor" / "exoplasim" / "exoplasim"
 SRC = PKG / "plasim" / "src"
 RUN = PKG / "plasim" / "run"
 BIN = PKG / "plasim" / "bin"
-MANIFEST = ROOT / "exoplasim" / "binary_manifest.json"
+def _binary_manifest() -> Path:
+    """Where this CHECKOUT records what its binaries were built from.
+
+    THE BINARIES ARE PER-TREE AND UNTRACKED, because `link_worktree.py`
+    deliberately does not link `vendor/exoplasim`: a rebuild in a worktree must
+    not overwrite the main checkout's executables, and an edit to model source
+    must not be hidden. The manifest describing them was TRACKED all the same,
+    so a worktree's rule 4 rebuild committed a record that travelled on merge
+    while the binaries it describes did not. Merging one such commit left the
+    main checkout's ten executables reported `NOT IN MANIFEST (provenance
+    unknown)` -- and unknown is worse than stale, because stale names what to
+    rebuild and unknown names nothing. world-s6wz.
+
+    So the tracked manifest describes the MAIN CHECKOUT and a rebuild anywhere
+    else writes an untracked one beside it. Rule 4 is still satisfiable in a
+    worktree, `--verify` still answers about the binaries the tree it runs in
+    actually has, and nothing a worktree writes can travel.
+
+    Reconstructing the record from the executables instead was the other
+    candidate and is not available: an entry carries the sha of every source
+    file the binary was compiled from, and no amount of reading the binary
+    recovers those. Keying the tracked file by tree was the third, and it would
+    put worktree paths that die with the worktree into a tracked artifact, which
+    is `world-g5xe`'s defect by construction.
+    """
+    tracked = ROOT / "exoplasim" / "binary_manifest.json"
+    try:
+        git_dir = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--absolute-git-dir"],
+            capture_output=True, text=True, check=True).stdout.strip()
+        common = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--path-format=absolute",
+             "--git-common-dir"],
+            capture_output=True, text=True, check=True).stdout.strip()
+    except (subprocess.CalledProcessError, OSError):
+        # Not a checkout this can ask about -- a tarball, a container. Treat it
+        # as the main tree, which is what it is when there is only one.
+        return tracked
+    if git_dir and common and Path(git_dir) != Path(common):
+        return tracked.with_name("binary_manifest.local.json")
+    return tracked
+
+
+MANIFEST = _binary_manifest()
 
 # Precision is declared, never inferred. It reaches the compiler through
 # build_model.py, which refuses a value it does not recognise rather than

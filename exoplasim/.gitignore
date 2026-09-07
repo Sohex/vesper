@@ -1,0 +1,7 @@
+# A rule 4 rebuild outside the MAIN checkout writes here instead of over the
+# tracked manifest. The binaries are per-tree and untracked because
+# link_worktree.py does not link vendor/exoplasim; the record describing them
+# has to be per-tree too, or a worktree's rebuild commits a manifest that
+# travels on merge while the binaries do not, and leaves the main checkout's
+# executables with provenance unknown. world-s6wz.
+binary_manifest.local.json
