@@ -60,9 +60,20 @@ const double FRACT_TO_PERCENT   = 100.;
 const double PERCENT_TO_FRACT   = 0.01;
 const double R_EARTH            = 6371.2213; // mean earth-radius[km]
 
+// DECLARED DIVERGENCE FROM MAINLINE: negligible_exponent_sign, owner world-n0oc.
+// Stock LPJ-GUESS 4.1.1 reads `fabs(dval) < pow(10.0, limit)`. With a POSITIVE
+// limit that is a threshold of 10^limit rather than 10^-limit, so
+// negligible(x, 10) is true for every |x| below 1e10 -- which is every physical
+// quantity this model carries. roundoff() directly below uses pow(10.0, limit)
+// as a MULTIPLIER to keep `limit` decimals, which is the convention the name and
+// the comment above both intend. The three call sites are all in
+// Soil::nmass_subtract, where the sign error made every clamp unreachable,
+// including the fail() on nitrogen conservation, which had therefore never once
+// been able to fire. Measured on a 3-year bed before the repair: 1,656,771
+// overdraws past a dead clamp.
 inline bool negligible(double dval, int limit = 0) {
 	// Returns true if |dval| < EPSILON, otherwise false
-	return limit ? fabs(dval) < pow(10.0, limit) : fabs(dval) < 1.0e-30;
+	return limit ? fabs(dval) < pow(10.0, -limit) : fabs(dval) < 1.0e-30;
 }
 
 inline double roundoff(double dval, int limit) {

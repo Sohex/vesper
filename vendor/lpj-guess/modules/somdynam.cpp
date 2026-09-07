@@ -1611,7 +1611,23 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 		patch.fluxes.report_flux(Fluxes::NH3_SOIL, nflux);
 	}
 	}
-	soil.nmass_inc(nmin_inc,NH4);
+	// DECLARED DIVERGENCE FROM MAINLINE: immobilisation_draws_the_tested_pool,
+	// owner world-n0oc. Stock LPJ-GUESS 4.1.1 reads
+	//     soil.nmass_inc(nmin_inc,NH4);
+	// while the nitrogen-limitation loop above accepts the day's decomposition on
+	//     (tot_net_min + nmin_mass + EPS >= 0.0)
+	// where nmin_mass is soil.nmass_avail(NO), i.e. NH4 PLUS NO3. So the criterion
+	// counts nitrate as available and the withdrawal never bills it: whenever
+	// immobilisation demand exceeds ammonium but fits the total, ammonium goes
+	// negative by exactly the difference. Measured before the repair, one such
+	// day: demand 6.127406e-06 against NH4 4.404868e-06, deficit 1.722538e-06,
+	// with NO3 1.833630e-06 sitting untouched -- just enough to satisfy the test.
+	// The loop is not at fault and raising its five-try cap would change nothing:
+	// it exits at one iteration 260,999,758 times in 261,000,000, and 6.8 per cent
+	// of those exits still hand back a negative increment.
+	// NO routes through nmass_subtract's proportional split, so the draw now falls
+	// on the same pool the criterion tested.
+	soil.nmass_inc(nmin_inc,NO);
 
 	// If no nitrogen limitation or during free nitrogen years set soil
 	// available nitrogen to its saturation level.

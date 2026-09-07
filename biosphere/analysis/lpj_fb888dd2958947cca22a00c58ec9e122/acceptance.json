@@ -1,0 +1,15 @@
+{
+  "contract_version": "vesper-lpj-acceptance/1",
+  "generated": "2026-09-07T06:20:26+00:00",
+  "run_id": "lpj_fb888dd2958947cca22a00c58ec9e122",
+  "source_build": "canonical-10m-carve2",
+  "manifest_sha256": "edbeb2a45ce027e3d9979a74ba972e90ba3a7e5111ac4d1cb0d9efe2b5693b3a",
+  "contract_sha256": "d8899d1fa113d18c0d1c9a34ff6bbe103533a58f68cf17138dacc6236cc55e0d",
+  "continuation": null,
+  "verdict": "FAIL",
+  "refusal": "ngases.out has a negative physical value -19.9018",
+  "timescales": {
+    "measured": false,
+    "reason": "a drift bound needs at least six cycles to halve"
+  }
+}

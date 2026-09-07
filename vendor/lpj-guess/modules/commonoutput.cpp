@@ -441,15 +441,25 @@ void CommonOutput::define_output_tables() {
 
 	// NGASES
 	ColumnDescriptors ngases_columns;
-	ngases_columns += ColumnDescriptor("NH3_fire",         9, 4);
-	ngases_columns += ColumnDescriptor("NH3_soil",         9, 4);
-	ngases_columns += ColumnDescriptor("NOx_fire",          9, 4);
-	ngases_columns += ColumnDescriptor("NOx_soil",          9, 4);
-	ngases_columns += ColumnDescriptor("N2O_fire",         9, 4);
-	ngases_columns += ColumnDescriptor("N2O_soil",         9, 4);
-	ngases_columns += ColumnDescriptor("N2_fire",          9, 4);
-	ngases_columns += ColumnDescriptor("N2_soil",          9, 4);
-	ngases_columns += ColumnDescriptor("Total",            9, 4);
+	// DECLARED DIVERGENCE FROM MAINLINE: ngases_column_width, owner world-v5xp.
+	// Stock LPJ-GUESS 4.1.1 declares every ngases column at width 9, precision 4.
+	// That leaves exactly four characters for the integer part, so a flux reaching
+	// 1000 fills the field, its separating space disappears and the row loses a
+	// field: measured, `36.07011074.07171151.9746` for N2_fire, N2_soil and Total.
+	// The reader refuses such a row rather than mis-parsing it, so this was caught
+	// rather than silent, but a table this world can make unparseable is not one a
+	// consumer can read. Width 11 is what six other columns in this same file
+	// already use; it carries 99999.9999 and -9999.9999 against a measured maximum
+	// of 1074. The other (9,4) tables are latent and world-v5xp holds the sweep.
+	ngases_columns += ColumnDescriptor("NH3_fire",         11, 4);
+	ngases_columns += ColumnDescriptor("NH3_soil",         11, 4);
+	ngases_columns += ColumnDescriptor("NOx_fire",          11, 4);
+	ngases_columns += ColumnDescriptor("NOx_soil",          11, 4);
+	ngases_columns += ColumnDescriptor("N2O_fire",         11, 4);
+	ngases_columns += ColumnDescriptor("N2O_soil",         11, 4);
+	ngases_columns += ColumnDescriptor("N2_fire",          11, 4);
+	ngases_columns += ColumnDescriptor("N2_soil",          11, 4);
+	ngases_columns += ColumnDescriptor("Total",            11, 4);
 
 	// SOIL N TRANSFORMATION - pools
 	ColumnDescriptors soil_npool_columns;
