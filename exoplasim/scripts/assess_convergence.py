@@ -2250,9 +2250,21 @@ def main() -> None:
     plt.close(fig)
     # One writer for this key. There were two, and this one silently clobbered
     # the other, losing the report path and the failure list every time.
+    # ONE VOCABULARY, AND THE PAYLOAD READS IT RATHER THAN RECOMPUTING IT.
+    # These two facts were written twice under different names -- the file said
+    # `completed_orbits` and `sufficiently_equilibrated_for_worldbuilding`, this
+    # said `orbits` and `pass` -- from two evaluations of the same expressions.
+    # `json.load` on the file then returned None for both of the stdout's names
+    # with no error, and None is falsy, so a converged run read as not converged
+    # and nothing complained. That cost a diagnosis on run_ec32946bec89 for a
+    # defect that was not there. The file's names are kept because they say what
+    # they mean: `pass` does not say pass what. world-1ppl.
     payload = {"metrics": metrics, "criteria": criteria,
-               "pass": all(criteria.values()), "failed_criteria": failed,
-               "report": str(report_path.resolve()), "orbits": len(files),
+               "sufficiently_equilibrated_for_worldbuilding":
+                   report["sufficiently_equilibrated_for_worldbuilding"],
+               "failed_criteria": failed,
+               "report": str(report_path.resolve()),
+               "completed_orbits": report["completed_orbits"],
                "window_orbits": w, "window_start_year_index": window_start,
                "window_end_year_index": window_end,
                "assessed_purpose": args.assess,
