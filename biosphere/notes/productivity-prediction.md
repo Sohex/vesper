@@ -271,14 +271,29 @@ and not of any measured charge separation, so that row is not a straightforward
 extension of the one above it and the honest upper range stays where the
 declared window is.
 
-It also adds a caveat that cuts the other way from every argument in this
-section. The ~110 meV given up between 680 and 727 nm is read as the energy
-headroom PSII needs to mitigate photodamage under VARIABLE light intensity,
-which is why far-red oxygenic photosynthesis is found in nature only in "rare,
-deep-shade environments". This world's summer pole stands under 390.67 W/m2,
-which is neither deep shade nor stable. Whether a far-red-shifted photosystem is
-available to a HIGH-light world is a question none of the four window references
-asks, and it is not settled here.
+It also carries an observation that looks like a caveat and mostly is not. Both
+Nürnberg and Gan et al. (2014) place far-red oxygenic photosynthesis in filtered
+light -- "rare, deep-shade environments" in one, mats, stromatolites and shaded
+or sandy soils in the other -- while this world's summer pole stands under
+398 W/m2. **That restriction does not transfer, and treating it as a caveat
+would itself be the implicit-Earth error.** Where far-red photosynthesis is
+FOUND on Earth is where it WINS: below a canopy or a mat that has already
+stripped out the red a chlorophyll a photosystem would have taken. It is a
+statement about competition under a G2V spectrum, not about what the chemistry
+can do. Under a K2.5V, far-red is not a shade niche; it is a large share of the
+incident band.
+
+What does survive is narrower and is energetic rather than ecological: the
+~110 meV given up between 680 and 727 nm is read as headroom PSII needs against
+photodamage under VARIABLE light. A flora evolved under this world's light would
+be selected for photoprotection, so the argument bounds nothing here without a
+model of that, and neither the declared window nor anything downstream of it
+rests on the observation. **This is recorded as closed rather than open**: the
+window is anchored on Lehmer's optimisation and on Nürnberg's demonstrated
+745 nm donor, neither of which is a claim about irradiance, and the whole window
+question is worth about 19% of photon supply against predictions that hold
+across the full 0.7 to 1.4 band. Chasing it would not move a registered
+verdict.
 
 **Caveats that keep this out of the registered prediction.** Optimal is not the
 same as realised: Earth's chlorophyll a sits where it does partly because of the
