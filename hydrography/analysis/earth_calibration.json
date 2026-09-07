@@ -386,15 +386,283 @@
       "within_cell_variance_fraction": 0.4752440722071966
     },
     "us/unconfined/drain-none/cell-mean/15.19km": {
-      "cells": 6870,
-      "splits": 20,
-      "pearson": 0.25992525260704535,
-      "held_out_r2_mean": 0.06457537848631742,
-      "held_out_r2_sd": 0.021644989617806178,
-      "held_out_r2_min": -0.016748645999508094,
-      "held_out_r2_max": 0.08828051520495972,
-      "splits_clearing_bar": 9,
-      "bar": 0.07
+      "sink_sweep": [
+        {
+          "lambda_m": 1.0,
+          "median_depth_m": 3.5418676978508756,
+          "sd_m": 57.851372691865194,
+          "pearson": 0.25992525260704535,
+          "rho_recharge": -0.8924779365353522,
+          "rho_elevation": 0.7128760530416256
+        },
+        {
+          "lambda_m": 2.0,
+          "median_depth_m": 7.085618081932978,
+          "sd_m": 58.05642463369458,
+          "pearson": 0.2712770707243037,
+          "rho_recharge": -0.8931511955575451,
+          "rho_elevation": 0.7138936162687208
+        },
+        {
+          "lambda_m": 5.0,
+          "median_depth_m": 17.708498480194436,
+          "sd_m": 58.90776512301578,
+          "pearson": 0.3018147172602341,
+          "rho_recharge": -0.8947150185862012,
+          "rho_elevation": 0.7165295539694302
+        },
+        {
+          "lambda_m": 10.0,
+          "median_depth_m": 35.401949250954715,
+          "sd_m": 61.05531357955194,
+          "pearson": 0.3398459977956875,
+          "rho_recharge": -0.896278765077398,
+          "rho_elevation": 0.7191110177249106
+        }
+      ],
+      "transmissivity_sweep": [
+        {
+          "form": "confined",
+          "thickness_m": 100.0,
+          "median_depth_m": 3.5418676978508756,
+          "sd_m": 57.851372691865194,
+          "pearson": 0.25992525260704535,
+          "rho_recharge": -0.8924779365353522,
+          "rho_elevation": 0.7128760530416256
+        },
+        {
+          "form": "unconfined",
+          "thickness_m": 100.0,
+          "median_depth_m": 3.5237300084859555,
+          "sd_m": 34.59060794572731,
+          "pearson": 0.19529361567074166,
+          "rho_recharge": -0.888996442044871,
+          "rho_elevation": 0.7050560720206482
+        },
+        {
+          "form": "confined",
+          "thickness_m": 1000.0,
+          "median_depth_m": 3.6737889620769693,
+          "sd_m": 135.72043070424792,
+          "pearson": 0.4156723453930246,
+          "rho_recharge": -0.8098288837790488,
+          "rho_elevation": 0.6882913582973634
+        },
+        {
+          "form": "unconfined",
+          "thickness_m": 1000.0,
+          "median_depth_m": 3.664358980169311,
+          "sd_m": 117.73994813088491,
+          "pearson": 0.3826397233083533,
+          "rho_recharge": -0.8100904639553367,
+          "rho_elevation": 0.6861086178710144
+        },
+        {
+          "form": "confined",
+          "thickness_m": 5000.0,
+          "median_depth_m": 4.15401428324742,
+          "sd_m": 226.0704226859219,
+          "pearson": 0.4346738679639067,
+          "rho_recharge": -0.6994465634066205,
+          "rho_elevation": 0.6580959640967258
+        },
+        {
+          "form": "unconfined",
+          "thickness_m": 5000.0,
+          "median_depth_m": 4.145709342650434,
+          "sd_m": 218.13111074472036,
+          "pearson": 0.43518446935513944,
+          "rho_recharge": -0.6984649252098898,
+          "rho_elevation": 0.6564760171766151
+        },
+        {
+          "form": "confined",
+          "thickness_m": 20000.0,
+          "median_depth_m": 9.442896552904074,
+          "sd_m": 335.6061656995908,
+          "pearson": 0.4037672589857367,
+          "rho_recharge": -0.6436635818290785,
+          "rho_elevation": 0.667975372658475
+        },
+        {
+          "form": "unconfined",
+          "thickness_m": 20000.0,
+          "median_depth_m": 9.38927507413905,
+          "sd_m": 332.66367975885487,
+          "pearson": 0.40511427404420614,
+          "rho_recharge": -0.6431455656102001,
+          "rho_elevation": 0.6673801229056154
+        }
+      ],
+      "attribution": {
+        "the model alone": {
+          "pearson": 0.25992525260704535,
+          "spearman": 0.3818747603519541
+        },
+        "delta alone (bore within cell)": {
+          "pearson": 0.0044382888893819104,
+          "spearman": 0.054561958142578956
+        },
+        "model + delta": {
+          "pearson": 0.11420652196682343,
+          "spearman": 0.1270783782708568
+        },
+        "model + 0.2 delta": {
+          "pearson": 0.25921321578708734,
+          "spearman": 0.23593394827057634
+        }
+      },
+      "drain_scan": [
+        {
+          "percentile": "minimum",
+          "median_depth_m": 40.35114363724696,
+          "pearson": 0.1674543795396244,
+          "spearman": 0.3009595920930862
+        },
+        {
+          "percentile": "p5",
+          "median_depth_m": 31.027876773586968,
+          "pearson": 0.1577309388195706,
+          "spearman": 0.28496204136067077
+        },
+        {
+          "percentile": "p10",
+          "median_depth_m": 25.52108520047686,
+          "pearson": 0.1527859039563555,
+          "spearman": 0.2742444381816766
+        },
+        {
+          "percentile": "p25",
+          "median_depth_m": 14.185709177675214,
+          "pearson": 0.13908676847435386,
+          "spearman": 0.24455397071519688
+        },
+        {
+          "percentile": "p50",
+          "median_depth_m": 0.4038570225428124,
+          "pearson": 0.04849503094639337,
+          "spearman": 0.0036761585013661306
+        }
+      ],
+      "unconfined_criterion": {
+        "declared_in": "hydrography/config/groundwater.yaml aquifer.unconfined_criterion",
+        "declared_on": "2026-08-25",
+        "observed_rho_recharge": -0.36688892879390683,
+        "observed_rho_elevation": 0.3791197931577426,
+        "per_thickness": [
+          {
+            "thickness_m": 100.0,
+            "conditions": {
+              "rho_elevation_closer_to_observed_than_confined": true,
+              "rho_recharge_closer_to_observed_than_confined": true,
+              "pearson_against_observed_higher_than_confined": false
+            },
+            "margins": {
+              "rho_elevation": 0.007819981020977362,
+              "rho_recharge": 0.003481494490481074,
+              "pearson": -0.0646316369363037
+            },
+            "confined_distance_to_observed": {
+              "rho_elevation": 0.333756259883883,
+              "rho_recharge": 0.5255890077414453
+            },
+            "all_three": false
+          },
+          {
+            "thickness_m": 1000.0,
+            "conditions": {
+              "rho_elevation_closer_to_observed_than_confined": true,
+              "rho_recharge_closer_to_observed_than_confined": false,
+              "pearson_against_observed_higher_than_confined": false
+            },
+            "margins": {
+              "rho_elevation": 0.002182740426349028,
+              "rho_recharge": -0.0002615801762878567,
+              "pearson": -0.03303262208467134
+            },
+            "confined_distance_to_observed": {
+              "rho_elevation": 0.30917156513962085,
+              "rho_recharge": 0.442939954985142
+            },
+            "all_three": false
+          },
+          {
+            "thickness_m": 5000.0,
+            "conditions": {
+              "rho_elevation_closer_to_observed_than_confined": true,
+              "rho_recharge_closer_to_observed_than_confined": true,
+              "pearson_against_observed_higher_than_confined": true
+            },
+            "margins": {
+              "rho_elevation": 0.001619946920110693,
+              "rho_recharge": 0.0009816381967306942,
+              "pearson": 0.0005106013912327123
+            },
+            "confined_distance_to_observed": {
+              "rho_elevation": 0.2789761709389832,
+              "rho_recharge": 0.33255763461271365
+            },
+            "all_three": true
+          },
+          {
+            "thickness_m": 20000.0,
+            "conditions": {
+              "rho_elevation_closer_to_observed_than_confined": true,
+              "rho_recharge_closer_to_observed_than_confined": true,
+              "pearson_against_observed_higher_than_confined": true
+            },
+            "margins": {
+              "rho_elevation": 0.0005952497528595169,
+              "rho_recharge": 0.0005180162188783699,
+              "pearson": 0.0013470150584694585
+            },
+            "confined_distance_to_observed": {
+              "rho_elevation": 0.2888555795007324,
+              "rho_recharge": 0.2767746530351716
+            },
+            "all_three": true
+          }
+        ],
+        "passes": true,
+        "note": "Two of three at one thickness and the third at another is a MISS. Raising D uniformly already moves the dependence structure without the agreement following, which is GW-21; the criterion is that ONE thickness moves both."
+      },
+      "subdued_replica": [
+        {
+          "alpha": 1.0,
+          "sd_m": 36.33557244834476,
+          "pearson": 0.25992525260704535,
+          "spearman": 0.3818747603519541,
+          "r2": -0.547658195529799
+        },
+        {
+          "alpha": 0.9,
+          "sd_m": 35.502937593499404,
+          "pearson": 0.26709830883287655,
+          "spearman": 0.29374519274349453,
+          "r2": -0.554030678110474
+        },
+        {
+          "alpha": 0.8,
+          "sd_m": 36.73044332819996,
+          "pearson": 0.25921321578708734,
+          "spearman": 0.23593394827057634,
+          "r2": -0.6739576208840647
+        },
+        {
+          "alpha": 0.4,
+          "sd_m": 56.467817306416485,
+          "pearson": 0.17131852733308578,
+          "spearman": 0.1531522421702559,
+          "r2": -2.2892099939075807
+        },
+        {
+          "alpha": 0.0,
+          "sd_m": 86.04543859381884,
+          "pearson": 0.11420652196682343,
+          "spearman": 0.1270783782708568,
+          "r2": -5.721333730017743
+        }
+      ]
     }
   }
 }

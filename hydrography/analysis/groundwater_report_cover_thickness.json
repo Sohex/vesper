@@ -64,12 +64,12 @@
   },
   "closure": {
     "recharge_m3_s": 1653405.4675872272,
-    "discharge_m3_s": 1653405.4675876629,
-    "seepage_m3_s": 98536.50153499194,
-    "to_ocean_m3_s": 2808.3163966711054,
-    "to_groundwater_et_m3_s": 1103741.1926932877,
-    "to_baseflow_m3_s": 448319.4569627121,
-    "relative_residual": 2.6347205378006173e-13,
+    "discharge_m3_s": 1653405.4675873523,
+    "seepage_m3_s": 104753.63528395022,
+    "to_ocean_m3_s": 7059.264142354717,
+    "to_groundwater_et_m3_s": 1079084.0548630408,
+    "to_baseflow_m3_s": 462508.51329800655,
+    "relative_residual": 7.561971826824861e-14,
     "tolerance": 1e-10,
     "passes": true
   },
@@ -77,7 +77,7 @@
   "convergence": {
     "criterion_residual": 1e-12,
     "criterion_flip_fraction": 0.0,
-    "final_residual": 4.140799673949059e-13,
+    "final_residual": 1.5483282495987015e-13,
     "criterion_note": "the water balance residual on free cells over total land recharge, and a still active set. Not the head step: a bar on the step can be met by a shrinking step rather than by convergence",
     "trace_columns": [
       "pass",
@@ -90,209 +90,209 @@
     "trace": [
       [
         0,
-        3722178,
-        427231,
-        0.10781635438768959,
-        414861,
-        0.8646090787273458
+        3727639,
+        466604,
+        0.24193976949918555,
+        429778,
+        0.8726788954278825
       ],
       [
         1,
-        3715837,
-        414830,
-        0.35788921425489,
-        1079,
-        0.0008647234401226313
+        3702303,
+        429747,
+        0.3955710763782595,
+        9377,
+        0.021350941165200105
       ],
       [
         2,
-        3716885,
-        1048,
-        0.13194868847334346,
-        723,
-        0.00017584564139425495
+        3711649,
+        9346,
+        0.16189273298186227,
+        3315,
+        0.0020213208412160257
       ],
       [
         3,
-        3717577,
-        692,
-        0.04914176885281959,
-        246,
-        2.8285781968718423e-05
+        3714933,
+        3284,
+        0.06589766693403325,
+        1847,
+        0.001478988778938835
       ],
       [
         4,
-        3717792,
-        215,
-        0.018738362463965146,
-        120,
-        1.3189873592241229e-05
+        3716749,
+        1816,
+        0.02680074511143498,
+        1305,
+        0.0008918920104971617
       ],
       [
         5,
-        3717881,
-        89,
-        0.007417351446830337,
-        60,
-        3.2215743371429328e-06
+        3718023,
+        1274,
+        0.01182808565091249,
+        480,
+        0.00016398339582735118
       ],
       [
         6,
-        3717910,
-        29,
-        0.003096941894065621,
-        37,
-        1.0529772375009079e-07
+        3718472,
+        449,
+        0.005270882379491211,
+        241,
+        6.709071786301902e-05
       ],
       [
         7,
-        3717916,
-        6,
-        0.0013751487705899925,
-        31,
-        7.651301393260883e-23
+        3718682,
+        210,
+        0.0024071053481149254,
+        120,
+        3.106746722431796e-05
       ],
       [
         8,
-        3717916,
-        0,
-        0.0006408086046570267,
-        32,
-        7.66085128210135e-09
+        3718771,
+        89,
+        0.0011156898422012343,
+        56,
+        5.939264018131617e-06
       ],
       [
         9,
-        3717917,
-        1,
-        0.0003062206341531719,
-        32,
-        2.4094589657785733e-09
+        3718796,
+        25,
+        0.0005213302060910952,
+        41,
+        2.107997513898506e-06
       ],
       [
         10,
-        3717918,
-        1,
-        0.00014800346252760632,
-        31,
-        7.651301393260883e-23
+        3718806,
+        10,
+        0.0002478674011954212,
+        33,
+        2.3955257046732587e-07
       ],
       [
         11,
-        3717918,
-        0,
-        7.10788869068027e-05,
-        31,
-        7.651301393260883e-23
+        3718808,
+        2,
+        0.00011654504191043487,
+        33,
+        1.4153444422702968e-07
       ],
       [
         12,
-        3717918,
-        0,
-        3.408554236219838e-05,
+        3718810,
+        2,
+        5.426502198628874e-05,
         31,
         7.651301393260883e-23
       ],
       [
         13,
-        3717918,
+        3718810,
         0,
-        1.6333732885191778e-05,
+        2.4415829835010914e-05,
         31,
         7.651301393260883e-23
       ],
       [
         14,
-        3717918,
+        3718810,
         0,
-        7.631591334267553e-06,
+        1.0871995972868557e-05,
         31,
         7.651301393260883e-23
       ],
       [
         15,
-        3717918,
+        3718810,
         0,
-        3.465148965599432e-06,
+        4.74735050758646e-06,
         31,
         7.651301393260883e-23
       ],
       [
         16,
-        3717918,
+        3718810,
         0,
-        1.4980115270638846e-06,
+        1.9096757954891836e-06,
         31,
         7.651301393260883e-23
       ],
       [
         17,
-        3717918,
+        3718810,
         0,
-        6.306293028435255e-07,
+        7.53756950077788e-07,
         31,
         7.651301393260883e-23
       ],
       [
         18,
-        3717918,
+        3718810,
         0,
-        2.485287259769059e-07,
+        2.6075421332261546e-07,
         31,
         7.651301393260883e-23
       ],
       [
         19,
-        3717918,
+        3718810,
         0,
-        8.540811253556922e-08,
+        8.793282503748997e-08,
         31,
         7.651301393260883e-23
       ],
       [
         20,
-        3717918,
+        3718810,
         0,
-        2.6050921168920373e-08,
+        2.653238754806517e-08,
         31,
         7.651301393260883e-23
       ],
       [
         21,
-        3717918,
+        3718810,
         0,
-        8.044493292467539e-09,
+        7.62434900199601e-09,
         31,
         7.651301393260883e-23
       ],
       [
         22,
-        3717918,
+        3718810,
         0,
-        1.8810968552403078e-09,
+        1.3174823931348557e-09,
         31,
         7.651301393260883e-23
       ],
       [
         23,
-        3717918,
+        3718810,
         0,
-        2.2058033768338354e-10,
+        1.6106831809676952e-10,
         31,
         7.651301393260883e-23
       ],
       [
         24,
-        3717918,
+        3718810,
         0,
-        1.5817441288398365e-11,
+        8.963421267326117e-12,
         31,
         7.651301393260883e-23
       ],
       [
         25,
-        3717918,
+        3718810,
         0,
-        4.140799673949059e-13,
+        1.5483282495987015e-13,
         31,
         7.651301393260883e-23
       ]
@@ -300,44 +300,48 @@
   },
   "cost": {
     "phase_seconds": {
-      "factor_solve": 214.527,
-      "assembly": 35.216,
-      "anchor": 18.278,
-      "partition": 15.071,
-      "residual": 8.058,
-      "release": 7.123,
-      "setup": 1.944,
+      "factor_solve": 216.722,
+      "assembly": 35.535,
+      "anchor": 18.621,
+      "partition": 15.251,
+      "residual": 8.11,
+      "release": 7.171,
+      "setup": 1.935,
       "active_set": 0.23
     },
     "matrix_repeat": {
       "passes_assembled": 26,
-      "pattern_repeats": 16,
+      "pattern_repeats": 13,
       "value_repeats": 0,
-      "blocks": 13861,
-      "largest_block_cells": 530116,
-      "block_factorisations": 259851,
-      "block_factorisations_reused": 100710
+      "blocks": 14975,
+      "largest_block_cells": 527403,
+      "block_factorisations": 296145,
+      "block_factorisations_reused": 95344
     },
     "host_load_average": [
-      1.3857421875,
-      2.0791015625,
-      2.82666015625
+      2.6865234375,
+      2.00439453125,
+      2.484375
     ],
-    "peak_resident_gb": 16.37,
+    "peak_resident_gb": 16.33,
     "phase_note": "wall seconds inside solve(), by phase. `setup` is everything before the first pass; `partition` cuts the free set into the blocks GW-17's fixed heads leave it in; `assembly` builds the matrix; `factor_solve` is the per-block factorisation and back-substitution; `release` and `residual` are the two water balances per pass; `transmissivity` is the unconfined form's reassembly of T from the head and is absent from a confined run. The load average is this host's at the moment the report was written"
   },
   "outer_iterations": 26,
   "water_table": {
-    "median_depth_m_land": 5.52871000230175,
-    "at_surface_fraction_land": 0.14185724595562857,
+    "median_depth_m_land": 5.819188467305657,
+    "at_surface_fraction_land": 0.14166342476272498,
     "unassigned_land_fraction": 0.014012879522224984,
     "aquifer_thickness": {
-      "source": "constant",
-      "constant_m": 100.0
+      "source": "cover_thickness",
+      "floor_m": 100.0,
+      "at_floor_land_fraction": 0.42869066507235837,
+      "land_median_m": 332.40586519241333,
+      "land_p95_m": 1285.5329036712637,
+      "land_max_m": 2953.1006813049316
     },
     "saturated_column_drained": {
-      "50": 0.055287100023017496,
-      "75": 0.4347484067088552,
+      "50": 0.01819607710202531,
+      "75": 0.15041545658361824,
       "95": 1.0,
       "99": 1.0
     },
@@ -351,20 +355,20 @@
     "both_arms_use_mesh_resolved_catchment_depth": true,
     "why": "the surface arm is recomputed on the mesh rather than taken from the coupling matrix, so the only difference between the two arms is the groundwater term",
     "basins_scored": 4462,
-    "total_abs_exchange_m3_s": 35749.14430634587,
+    "total_abs_exchange_m3_s": 36673.27752059882,
     "total_recharge_m3_s": 135948.33189315657,
-    "exchange_over_recharge": 0.2629612574756824,
-    "basins_gaining": 2718,
-    "basins_losing": 1667,
-    "basins_shifted_over_10_percent": 2312,
-    "median_abs_fractional_shift": 0.11882855159552774,
+    "exchange_over_recharge": 0.26975893716313337,
+    "basins_gaining": 2712,
+    "basins_losing": 1671,
+    "basins_shifted_over_10_percent": 2544,
+    "median_abs_fractional_shift": 0.16871971544377506,
     "carve_verdicts": {
       "criterion": "carve_verdict.py's own: overflow when the aridity index is at or below basins.nc's critical_aridity_index",
       "would_carve_surface_only": 310,
-      "would_carve_with_groundwater": 292,
-      "flipped": 22,
+      "would_carve_with_groundwater": 289,
+      "flipped": 25,
       "flipped_to_carve": 2,
-      "flipped_to_hold": 20
+      "flipped_to_hold": 23
     }
   }
 }
