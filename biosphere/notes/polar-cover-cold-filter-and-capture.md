@@ -172,6 +172,48 @@ evaporates off bare soil is the absence of a canopy to shade it, and the 4.7%
 that gets through is what Earth-shaped roots and Earth-shaped phenology manage
 on a regime Earth does not have.
 
+## What an adapted flora could win, bounded
+
+Schwinning and Sala (2004) give the mechanism behind the partition above:
+shallow pulses "wet only the uppermost cm of the soil, where a large fraction of
+soil moisture is lost by direct evaporation, due to high temperatures and low
+root densities", while "the deeper the pulse depth, the larger the fraction of
+precipitation leaving the soil via transpiration". Their handle on it is that
+initial infiltration into dry soil runs 0.24 to 1 cm per millimetre applied,
+set by a saturated volumetric water content between 0.1 for sand and 0.4 for
+clay.
+
+**Pulse depth is therefore NOT what holds this cap at 4.7%.** A melt pulse of
+roughly 39 mm infiltrates 9 to 39 cm on that relation, which reaches the model's
+0 to 40 cm root layer. The run's own runoff decomposition says the same thing
+from the other side:
+
+| polar runoff, mm per simulation year | |
+| --- | --- |
+| surface | 24.95 |
+| drainage below the root zone | 20.07 |
+| baseflow | 0.01 |
+
+Twenty millimetres passes BELOW the roots, so the water reaches root depth and
+leaves rather than never arriving. The surface share, 55.4% against the
+tropics' 50.9%, is not a strong frozen-ground shedding signature either. What is
+distinctive is the baseflow: 0.01 against the tropics' 39.19, a dead deep store
+under a column sitting at -31.85 degC the year round.
+
+So the capturable terms are the 29.14 mm a canopy would stop evaporating off
+bare soil and the 20.07 mm a deeper or faster root system would intercept
+before it drains. **That bounds an adapted flora at about 49 of 79 mm, roughly
+62% capture**, against 4.7% today and 78.9% in the warm dry band. It is a
+ceiling and not a prediction, and it is the number a sizing arm should be judged
+against: not "more than now" but "how much of 62%".
+
+One caveat travels with the runoff figures. `landmod.f90` records LSHY-5: the
+climate model's soil layers carry no water phase, so melt water there always
+infiltrates whatever the soil temperature, while LPJ-GUESS carries an ice
+fraction per layer and reduces available liquid under freezing. The two columns
+disagree about whether water that reached the ground is liquid, and the numbers
+above are LPJ's side of that disagreement.
+
 ## The cost of each term is still not separated
 
 The seven-fold gap between the cap and equally dry warm ground bundles three

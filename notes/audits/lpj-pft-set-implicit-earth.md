@@ -131,11 +131,21 @@ the maximum anywhere on polar land is 0.154 m. So `zsnowz` is zero, `zdiff1`
 collapses to the bare soil conductivity, and the model gives the root zone no
 conductive shelter at all.
 
-Physically it should have a little. 0.070 m of snow at the model's own
-`snowdiff` = 0.3170 W/m/K is 0.22 m2K/W, which under a winter ground flux of 5
-to 20 W/m2 is worth a few kelvin -- not the tens that Earth's boreal pack of
-half a metre and more buys, because this cap is snow-poor precisely for the
-reason everything else here is: it is arid. So the real root zone sits a few K
+Physically it should have a little, and Zhang (2005) says how little. Yershov
+(1998), reviewed there, gives an increase of 5 to 15 cm of snow per 1 degC of
+mean annual ground warming, which puts this cap's 0.070 m pack at about **0.5 to
+1.4 K** -- less than the "few kelvin" a bare conductive-resistance estimate
+gives, and small enough that the model's snow-blindness is a minor error rather
+than a large one. Kudryavtsev (1992), in the same review, adds that the SIGN is
+not assured: "when snow cover is relatively thin with high albedo, snow cover
+results in a cooler soil surface", with the insulating effect rising to an
+optimum near 40 cm. At 7 cm the albedo term can dominate the conductive one.
+
+The contrast with Earth is the whole point: with a sufficient pack the mean
+annual ground surface temperature runs 6 to 8 degC above the mean annual air
+temperature, and that is the buffer Earth's boreal roots sit inside. This cap is
+snow-poor precisely for the reason everything else here is -- it is arid -- so
+it has neither the buffer nor much of a correction to it. So the real root zone sits a few K
 above -79.5 rather than at it, the overshoot against -20 to -30 degC is 45 to
 60 K either way, and the conclusion holds and strengthens. The number does not,
 and an
