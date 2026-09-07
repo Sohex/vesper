@@ -445,7 +445,10 @@ from `biosphere/generated/vesper_pfts.ins` because that is the file LPJ-GUESS
 itself parses and so the one statement of them that cannot disagree with the
 run -- the tree/grass split and the group conjunctions like boreal-needleleaf
 that four consumers used to restate, with a refusal for a type whose lifeform
-does not resolve rather than a silent count as tree),
+does not resolve rather than a silent count as tree, and the DECLARED NUMERIC
+of any type with its group references expanded in the order LPJ-GUESS reads
+them, because ten of the twelve state no cold limit of their own and a
+same-named group beside a PFT resolves to the group),
 `lpj_table.py` (the column-wise reader for an LPJ-GUESS `.out` table: the
 sorted, integer-keyed table every check reads, and the CERTIFY-OR-DECLINE
 contract -- it validates the ordinary case in vectorised passes and raises

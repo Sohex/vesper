@@ -83,6 +83,49 @@ def _blocks(path: Path) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
     return _parse(path.read_text(encoding="utf-8"))
 
 
+# A numeric statement in a block: `key value`, with the comment already stripped.
+_NUMERIC = re.compile(r"^([A-Za-z_]\w*)\s+(-?[\d.]+(?:[eE][-+]?\d+)?)$")
+
+
+def parameters(name: str, path: Path | None = None) -> dict[str, float]:
+    """Every numeric parameter one type resolves to, group references expanded.
+
+    A PFT block states some values itself and inherits the rest by naming a
+    group, which may name further groups; a later statement overrides an
+    earlier one, which is the order LPJ-GUESS itself reads them in. So a
+    consumer that greps the block for `tcmin_surv` finds nothing for the ten
+    types that inherit it, and one that greps the whole file finds whichever
+    copy comes last.
+
+    A GROUP AND A PFT MAY SHARE A NAME, and `pft "C3G" ( C3G )` is exactly that
+    -- the type carries no statements of its own and refers to the group beside
+    it. So the lookup takes which of the two a reference means rather than
+    preferring one, and preferring the PFT resolved C3G to an empty block that
+    reported no cold limit for the type holding most of the polar cover.
+    """
+    groups, pfts = _blocks(Path(path or DEFAULT_PFT_FILE))
+    if name not in pfts and name not in groups:
+        raise SystemExit(f"no plant functional type or group named {name!r}")
+    return _parameters(name, groups, pfts, as_group=False, seen=frozenset())
+
+
+def _parameters(name, groups, pfts, as_group, seen) -> dict[str, float]:
+    lines = groups.get(name, []) if as_group else pfts.get(name, groups.get(name, []))
+    resolved: dict[str, float] = {}
+    for line in lines:
+        statement = line.split("!")[0].strip()
+        if not statement:
+            continue
+        if statement in groups and statement not in seen:
+            resolved.update(_parameters(statement, groups, pfts, True,
+                                        seen | {statement}))
+            continue
+        matched = _NUMERIC.match(statement)
+        if matched:
+            resolved[matched.group(1)] = float(matched.group(2))
+    return resolved
+
+
 def lifeforms(path: Path | None = None) -> dict[str, str]:
     """{plant functional type: "tree" or "grass"} for every declared type.
 
@@ -230,6 +273,17 @@ def _selftest() -> int:
                    forms('group "G" (\n\tgrass\n)\n\npft "G" (\n\tG\n)\n') == {"G": "grass"}))
     checks.append(("a type with no resolvable lifeform is refused",
                    refuses(lambda: forms('pft "X" (\n\tinclude 1\n)\n'))))
+    # The value every consumer of a bioclimatic limit reads. C3G states none of
+    # these itself, so a resolver that stopped at the PFT block would report the
+    # type holding most of the polar cover as having no cold limit at all.
+    c3g = parameters("C3G")
+    checks.append(("an inherited limit resolves through the same-named group",
+                   c3g.get("tcmin_surv") == -1000.0 and c3g.get("pstemp_high") == 30.0))
+    checks.append(("a type stating its own value overrides the group's",
+                   parameters("BNS").get("tcmin_surv") == -1000.0
+                   and parameters("BNE").get("tcmin_surv") == -31.0))
+    checks.append(("an unknown type is refused rather than resolving to nothing",
+                   refuses(lambda: parameters("NOSUCHPFT"))))
     checks.append(("a lifeform is followed through nested groups",
                    forms('group "common" (\n\ttree\n)\n\n'
                          'group "boreal" (\n\tcommon\n)\n\n'
