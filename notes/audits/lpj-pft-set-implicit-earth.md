@@ -72,6 +72,48 @@ That row is the one that wins. Poleward of 75 degrees, of 0.0300 total cover,
 **C3G carries 0.0274 and BNS 0.0027**, and the other ten types are at exactly
 zero.
 
+## The cold threshold is Earth's STATISTIC as much as Earth's number
+
+Larcher (2005), fetched for this row, gives hardened frost resistance BY TISSUE
+rather than by climate index, and it reframes the filter above.
+
+| hardened boreal and alpine conifers | threshold with injury |
+| --- | --- |
+| leaves | -40 to below -70 degC |
+| shoot buds | -40 to below -70 degC |
+| twigs and stems | -50 to below -70 degC |
+| **roots** | **-20 to -30 degC** |
+
+So a -69 degC winter is INSIDE Earth's own boreal envelope for the aerial
+parts, not beyond it, and `tcmin_surv` of -31 is not a tissue threshold at all
+-- it is a coldest-month MEAN, an index calibrated on Earth where a monthly mean
+of -31 implies absolute minima far below it. Two Earth-derived things are
+therefore imported at once: the number, and the statistic that relates it to
+what tissue experiences.
+
+On this world the statistic does not carry over, and it happens not to matter
+here for the reason worth recording: at the cap the coldest-month mean is
+-68.75 degC and the coldest-month MINIMUM is -69.59, a gap of **0.84 K**. The
+polar night is so uniformly cold that mean and minimum coincide, where on Earth
+they differ by tens of kelvin. The mean-based criterion is accidentally safe
+here and would not be at a lower latitude.
+
+**The root threshold is the one that bites.** Soil temperature at the cap
+reaches -63.91 degC against a boreal conifer root tolerance of -20 to -30, and
+what protects roots on Earth is snow: the cap carries a deepest monthly cover of
+**0.023 m**. Aerial tissue could survive this winter; roots could not, and
+nothing in the model represents that separately, because `tcmin_surv` is one
+number for a whole plant.
+
+Larcher's section 4 closes the argument the other way. The deepest hardening
+comes from a month or more at -10 to -60 degC, and willow, birch, pine and black
+currant hardened that way survive -196 degC. Extreme cold tolerance is available
+to woody plants; what limits it is the hardening schedule and what selection has
+asked for, not physics. Deep supercooling alone caps at -30 to -50 degC before
+homogeneous nucleation, and beyond that survival is by freezing TOLERANCE --
+extracellular ice and cellular dehydration. Two mechanisms, not one scale, and
+LPJ carries one number for both.
+
 ## The temperature response is a contributing suppression, not the binding one
 
 BNS is the only tree that survives the polar winter, and its occupancy tracks

@@ -224,7 +224,7 @@ on the k25v spectrum:
 | --- | --- |
 | 400-700 nm (Earth's, what is registered above) | 0.81x |
 | **400-750 nm (Lehmer K2V optimum)** | **0.99x** |
-| 400-800 nm (chlorophyll f limit) | 1.16x |
+| 400-800 nm (chlorophyll f ABSORPTION, not photochemistry) | 1.16x |
 | 400-900 nm | 1.47x |
 | 400-1100 nm | 2.06x |
 
@@ -248,6 +248,31 @@ of the four window references contains it (REF-9). Nothing oxygenic reaches
 1.1 um without a three- or four-photon scheme nobody has observed. So the bottom two rows of that table are unavailable
 to a world with a 21% oxygen atmosphere, and the honest range is 0.81x to 1.16x,
 not 0.81x to 2.06x.
+
+**Amendment 2026-09-07: the demonstrated photochemical limit is 745 nm, and
+the 800 nm row is pigment absorption rather than photochemistry.** Nürnberg et
+al. (2018) measured the photosystems of *Chroococcidiopsis thermalis* grown
+under 750 nm light and found charge separation running on chlorophyll f at
+**745 nm in PSI** and at **727 nm in PSII**, with the longer-wavelength
+chlorophylls f acting as antenna that pass energy uphill to those. Chlorophyll f
+absorbs beyond 760 nm and photochemistry still uses 727 nm, which the authors
+read as a possible "second red limit" for PSII.
+
+That CONFIRMS the declared 400-750 nm window, which encloses the longest
+demonstrated photochemically active donor rather than reaching past it. It
+WEAKENS the 400-800 nm row above, which is the reach of a pigment's absorption
+and not of any measured charge separation, so that row is not a straightforward
+extension of the one above it and the honest upper range stays where the
+declared window is.
+
+It also adds a caveat that cuts the other way from every argument in this
+section. The ~110 meV given up between 680 and 727 nm is read as the energy
+headroom PSII needs to mitigate photodamage under VARIABLE light intensity,
+which is why far-red oxygenic photosynthesis is found in nature only in "rare,
+deep-shade environments". This world's summer pole stands under 390.67 W/m2,
+which is neither deep shade nor stable. Whether a far-red-shifted photosystem is
+available to a HIGH-light world is a question none of the four window references
+asks, and it is not settled here.
 
 **Caveats that keep this out of the registered prediction.** Optimal is not the
 same as realised: Earth's chlorophyll a sits where it does partly because of the
