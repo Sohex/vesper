@@ -70,7 +70,6 @@ from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: F401  (adds lib/ to s
 
 COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 DECLARATION = COMPONENT_ROOT / "config" / "land_column_properties.yaml"
-REPORT = ANALYSIS / "land_column_properties_report.json"
 
 # THE FILE THAT RESTATES THE SATURATION MAPPING IN COMPILED FORM. Read here,
 # never written: `scan_restatements` says which copies of the declared pair have
@@ -1828,9 +1827,13 @@ def main(argv: list[str] | None = None) -> int:
     report = build_report(decl, config, args.soil_map, gravity,
                           None if args.no_emit else args.states)
     report["declaration_written"] = written
-    REPORT.parent.mkdir(parents=True, exist_ok=True)
-    REPORT.write_text(json.dumps(report, indent=2, sort_keys=False) + "\n",
-                      encoding="utf-8")
+    # PER RUNG. The per-cell state summary is a property of the grid it was
+    # emitted on, and a single-slot name meant a second rung overwrote the
+    # first's record silently. WORLD-G22O.
+    report_path = builds.land_column_report(config)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=False) + "\n",
+                           encoding="utf-8")
 
     hard = report["declaration_failures"] + report["checker_defects"]
     if not args.quiet:
@@ -1973,7 +1976,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"    {row['property'] + '.' + row['field']:<48} {row['owner']}")
         for problem in hard:
             print(f"  FAIL {problem}")
-        print(f"\nwrote {REPORT.relative_to(PROJECT_ROOT)}")
+        print(f"\nwrote {report_path.relative_to(PROJECT_ROOT)}")
 
     if hard:
         return 1

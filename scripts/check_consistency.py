@@ -2179,7 +2179,7 @@ def main() -> int:
                     f"is {got[:16]}, build is {want[:16]}")
         else:
             rep.add(OK, f"terrain {path.name}", got[:16])
-    for path in (ROOT / "pedology" / "analysis" / "soil_report.json",):
+    for path in (builds.soil_report(),):
         got = json_terrain(path)
         if got is not None:
             rep.add(OK if got == want else FAIL, f"terrain {path.name}",

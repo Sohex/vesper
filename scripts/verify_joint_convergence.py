@@ -107,6 +107,7 @@ sys.path.insert(0, str(ROOT / "lib"))
 
 import yaml                                  # noqa: E402
 
+import builds                                # noqa: E402
 import rungs                                 # noqa: E402
 from paths import declared_climatology, rel  # noqa: E402
 
@@ -865,7 +866,7 @@ def gather(args, root: Path = ROOT) -> list[Verdict]:
                            rel(applied_path), rel(retaken_path)))
 
     # -- B
-    soil_report = read_json(root / "pedology" / "analysis" / "soil_report.json")
+    soil_report = read_json(builds.soil_report())
     criteria = yaml.safe_load(
         (root / "pedology" / "config" / "pedogenesis.yaml").read_text(
             encoding="utf-8"))["convergence"]

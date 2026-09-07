@@ -51,7 +51,7 @@ separately as a base-cation supply, and this module refuses a supply whose
 implied fresh solution falls outside the derived silicate bracket.
 
 Writes `data/<source_build>/soilmap_<rung>.txt`, which is LPJ-GUESS's own
-`SoilInput` format, and `analysis/soil_report.json`. The soil map is per build
+`SoilInput` format, and `analysis/soil_report_<rung>.json`. The soil map is per build
 because texture derives from lithology, and per rung because it is one row per
 LAND CELL of a climate grid.
 
@@ -74,7 +74,7 @@ is refused when it is anything else.
 `pedogenesis.yaml`'s `exchange` block and `build_soil.py:exchange_properties`
 derive the colloid surface a gridcell presents and who is sitting on it. The
 soil map carries the capacity as its `cec` column, in cmol(+) per kg of fine
-earth, and `soil_report.json` carries the base saturation, the exchangeable
+earth, and `soil_report_<rung>.json` carries the base saturation, the exchangeable
 pool per element and the bound those imply.
 
 **Four quantities, kept apart, because they fail in different ways.**
@@ -346,7 +346,7 @@ retention closure with its family stated, correlated uncertainty cases, and the
 aquifer boundary the contract deliberately does not own. It runs no model.
 
 **It is also the only place those states are derived.** It writes
-`analysis/land_column_properties_report.json` and
+`analysis/land_column_properties_report_<rung>.json` and
 `data/<build>/land_column_states_<res>.txt`, one row per land cell carrying
 saturation, field capacity, the wilting point, the closure's exponent, the
 plant-available capacity of the whole declared column, and the
@@ -425,7 +425,7 @@ structure to share. The source audit and the work required are in
 `../biosphere/notes/soil-land-surface-hydraulic-consistency-audit.md` and
 LSHY-1 through LSHY-7.
 
-The checked-in `analysis/soil_report.json` predates that source correction and
+The checked-in `analysis/soil_report_<rung>.json` predates that source correction and
 still says LPJ-GUESS does not consume regolith depth. The report generator now
 states the narrower truth above. The derived report was not hand-edited or
 regenerated during the no-execution audit; the next authorized `soil` step
@@ -620,7 +620,7 @@ slope in a desert still loses material to wind, dry ravel and creep, so
 `dry_erosion_baseline` floors the moisture term.
 
 Under the saturating form neither clip carries an appreciable share of land,
-against a quarter on each under the logarithm. `soil_report.json` holds the
+against a quarter on each under the logarithm. `soil_report_<rung>.json` holds the
 distribution; nothing here restates it.
 
 **Three keys set the LEVEL of that field and each is bracketed rather than
@@ -672,7 +672,7 @@ water capacity tracks depth and texture as it must.
 | plant-available water | 100-200 mm root zone |
 | regolith depth | 0.5-2 m |
 
-The Vesper side of that comparison lives in `analysis/soil_report.json`, which
+The Vesper side of that comparison lives in `analysis/soil_report_<rung>.json`, which
 is where a land mean belongs. The soil pH column has a second limit on it that
 the water and depth columns do not: Slessarev et al. (2016) measure the global
 soil pH distribution as BIMODAL, clustered on a calcite buffer near 8.2 and a

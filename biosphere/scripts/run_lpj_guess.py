@@ -67,12 +67,16 @@ import yaml
 from _paths import (CONFIG, GENERATED, GUESS_BINARY, GUESS_SOURCE, PROJECT_ROOT,
                     RUNS)
 
+import builds
 import orbit
 
 COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 ANALYSIS = COMPONENT_ROOT / "analysis"
 SEED_CONFIG = COMPONENT_ROOT / "config" / "stochastic_seeds.yaml"
-SOIL_REPORT = PROJECT_ROOT / "pedology" / "analysis" / "soil_report.json"
+# Per rung, through lib/builds.py. A T21 run started after a T42 soil used to
+# record the T42 report as the soil it grew on, and check_consistency would
+# pass because the BUILD matched and only the rung differed. WORLD-G22O.
+SOIL_REPORT = builds.soil_report()
 
 # Output files worth keeping. LPJ-GUESS writes one per quantity, per rank.
 #

@@ -1684,7 +1684,7 @@ def main() -> None:
 
 
     ANALYSIS.mkdir(parents=True, exist_ok=True)
-    report_path = ANALYSIS / "soil_report.json"
+    report_path = builds.soil_report(config)
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
     # THE INSTRUMENT CHECK. The relation is a regression over real soils, so a

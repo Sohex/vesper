@@ -48,7 +48,7 @@ import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 # Aliased because `climatology` is a local Path in main().
 from gridding import gaussian_area_weights  # noqa: E402
 from paths import rel  # noqa: E402
-from builds import component_data, land_column_states
+from builds import component_data, land_column_states, soil_report
 
 import orbit
 
@@ -240,7 +240,7 @@ def main() -> None:
     # because it moves whenever the soil or the climatology does.
     exponent = 0.65   # Berner (1994) GEOCARB II, from Dunne (1978) + Peters (1984)
     weathering_shift = (column_runoff_mm / max(model_runoff_mm, 1e-9)) ** exponent
-    report_path = ANALYSIS / "soil_report.json"
+    report_path = soil_report()
     current_w = None
     if report_path.is_file():
         current_w = json.loads(report_path.read_text())["land_means"].get(

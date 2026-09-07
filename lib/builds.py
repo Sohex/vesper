@@ -254,6 +254,38 @@ def soilmap(config: dict | None = None) -> Path:
     return component_data("pedology", config) / f"soilmap_{res}.txt"
 
 
+def soil_report(config: dict | None = None) -> Path:
+    """Pedology's soil report for the configured RUNG.
+
+    The report carries per-rung content -- land_cells, every land mean, the
+    exchange complex and the ANUT-8 bound -- so a single-slot
+    `pedology/analysis/soil_report.json` is one path for whatever rung last ran,
+    and a soil built at T42 drops its report on top of T21's. The map it
+    describes is already per-rung through `soilmap` above; the record of how it
+    was made was not. WORLD-G22O.
+
+    IT IS NOT PER BUILD, and that asymmetry is deliberate rather than an
+    oversight: `pedology/analysis/` is the component's own analysis directory
+    and the report names its `source_build` inside, where `check_consistency.py`
+    reads it. What a second rung overwrites is the other rung's, on the same
+    build, which is the case a build namespace cannot separate.
+    """
+    res = rungs.model_grid(_config(config))[0]
+    return PROJECT_ROOT / "pedology" / "analysis" / f"soil_report_{res}.json"
+
+
+def land_column_report(config: dict | None = None) -> Path:
+    """The land column property contract's report, for the configured RUNG.
+
+    `soil_report`'s sibling and single-slot for the same reason: its per-cell
+    state summary is a property of the grid it was emitted on, and
+    `land_column_properties.py --soil-map` at another rung wrote over it.
+    """
+    res = rungs.model_grid(_config(config))[0]
+    return (PROJECT_ROOT / "pedology" / "analysis"
+            / f"land_column_properties_report_{res}.json")
+
+
 def land_column_states(config: dict | None = None) -> Path:
     """The land column property contract's per-cell states, for the build AND RUNG.
 

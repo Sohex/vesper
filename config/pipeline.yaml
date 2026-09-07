@@ -1039,7 +1039,7 @@ steps:
     loop: A
     cost: minutes
     needs: [bootstrap_climatology, hydrography, rootable_fraction]
-    writes: [pedology/analysis/soil_report.json, "pedology/data/{build}/soilmap_{res}.txt"]
+    writes: ["pedology/analysis/soil_report_{res}.json", "pedology/data/{build}/soilmap_{res}.txt"]
     gate: >
       BIO-19's mode-bearing soil artifact. The caller must state --state and
       --iteration: bootstrap/0 builds the baseline surface input; baseline/0
@@ -1081,7 +1081,7 @@ steps:
     script: pedology/scripts/land_column_properties.py
     cost: seconds
     needs: [soil]
-    writes: [pedology/analysis/land_column_properties_report.json, "pedology/data/{build}/land_column_states_{res}.txt"]
+    writes: ["pedology/analysis/land_column_properties_report_{res}.json", "pedology/data/{build}/land_column_states_{res}.txt"]
     gate: >
       the one vertically explicit hydraulic and thermal description of the land
       column, and the only place its retention states are derived. It emits
