@@ -3514,7 +3514,7 @@ def expected_namelist_keys(config: dict) -> dict:
                   "planet_namelist": {}, "landmod_namelist": {},
                   "glacier_namelist": {}, "oceanmod_namelist": {},
                   "rainmod_namelist": {}, "hurricane_namelist": {},
-                  "fluxmod_namelist": {}}
+                  "fluxmod_namelist": {}, "carbonmod_namelist": {}}
     # CLIM-54 and CLIM-55, unconditional and not derived from a config key.
     # `declare_storm_diagnostics` says why both halves of hurricanemod are off;
     # they are checked here so that off is a state this project asserts rather
@@ -3523,6 +3523,30 @@ def expected_namelist_keys(config: dict) -> dict:
     # because a diagnostic whose indices are fitted to Earth is not a setting.
     want["hurricane_namelist"]["NSTORMDIAG"] = 0.0
     want["hurricane_namelist"]["HC_CAPTURE"] = 0.0
+    # WORLD-64BD, the same class and asserted for the same reason. NCARBON and
+    # NVEG are ARMING SWITCHES for Earth-fitted machinery, not settings, and
+    # what held them at zero was a library kwarg default rather than anything
+    # this project says: `exoplasim/__init__.py` writes NCARBON from
+    # `co2weathering` and NVEG from `self.vegetation`, whose default is False,
+    # and `run_exoplasim.py` passes neither. `carbonmod.f90` declares
+    # `ncarbon = 1`, so the model source and the staging disagree and the
+    # staging wins silently.
+    #
+    # NCARBON arms `carbonmod.f90`'s tune1 = 5.41 and tune2 = 2.20, whose own
+    # comment is "Tuning adjustment to make global average match" in a module
+    # fitted to Earth throughout. NVEG arms `simba.f90`, Earth-fitted
+    # throughout with turnover times scaled by the orbital period, and it
+    # reaches further than simba's own constants: `landmod.f90` takes
+    # dz0 = dz0clim directly at NVEG = 0, which is the stated ground on which
+    # `build_surface_roughness.py` derives the roughness field at all, so
+    # arming it would replace a derived field with simba's Earth-fitted terms.
+    #
+    # Nothing is wrong today -- every staged namelist in the tree reads zero
+    # for both. What was missing is the assertion that says so, which is the
+    # oceanmod precedent's exact shape: a dormant Earth constant that becomes
+    # live when someone throws a switch that looks unrelated.
+    want["carbonmod_namelist"]["NCARBON"] = 0.0
+    want["plasim_namelist"]["NVEG"] = 0.0
     for key, name, default in SHORTWAVE_GAS_KEYS:
         v = m.get(key)
         if v is not None and float(v) != default:
