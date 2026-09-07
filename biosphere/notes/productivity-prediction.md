@@ -242,9 +242,15 @@ chlorophyll f absorbs at 706 nm in vitro and was isolated from stromatolite
 cyanobacteria cultured under 720 nm light (Chen, Schliep, Willows, Cai, Neilan, Scheer (2010). *A Red-Shifted Chlorophyll.* Science 329(5997), 1318-1319. `10.1126/science.1191127`),
 and with chlorophyll d it lets some cyanobacteria work at 700-800 nm via
 far-red photoacclimation. The further claim that such pigments contribute over
-20% of gross photosynthesis in natural biofilms is DECLARED here pending its
-own source -- it is real literature this project has not yet fetched, and none
-of the four window references contains it (REF-9). Nothing oxygenic reaches
+20% of gross photosynthesis in natural biofilms IS WITHDRAWN. Gan et al. (2014)
+was fetched as its candidate source and is not it: what that paper measures is
+40% greater oxygen evolution in *Leptolyngbya* sp. JSC-1 acclimated to 710 nm
+against cells acclimated to 645 nm, under far-red actinic light, which is a
+comparison between acclimated and unacclimated cells rather than any pigment's
+share of a natural biofilm's production. No source in this project supports the
+withdrawn form, and the supported statement is the one above it: far-red
+oxygenic photosynthesis exists, uses chlorophylls d and f, and is demonstrated
+at 727 and 745 nm. Nothing oxygenic reaches
 1.1 um without a three- or four-photon scheme nobody has observed. So the bottom two rows of that table are unavailable
 to a world with a 21% oxygen atmosphere, and the honest range is 0.81x to 1.16x,
 not 0.81x to 2.06x.

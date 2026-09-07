@@ -85,6 +85,24 @@ fifteen, Spearman +0.531:
 | 70.5 - 83.3 | 0.0350 | 58 |
 | 83.3 - 145.9 | 0.0613 | 59 |
 
+### The quantity is TRANSPIRATION, and that is not this project's choice
+
+Noy-Meir (1973) states the desert water balance as `T = P - R - D - E` --
+transpiration as precipitation less runoff, drainage and soil evaporation -- and
+names T "the component driving the energy flow to the biotic subsystem". So
+reading a cap's productivity off its capture fraction rather than off its
+precipitation is the standard treatment of an arid system and not a framing
+invented here. At 154 mm per Earth year the cap sits in his ARID class, between
+extreme arid below 60-100 mm and semiarid above 150-250.
+
+His pulse taxonomy also classifies it. Where the interval between rain events is
+much shorter than the system's relaxation time -- "rain events clustered,
+markedly seasonal rainfall, slow response, e.g. in cool, winter-rainfall
+deserts" -- the input pulses accumulate into a single response, and "the total
+rain of the season may then be considered a single input pulse". That is his
+Figure 2b, and it is this cap: over half the annual precipitation arrives as
+snow through the dark season and leaves as one melt pulse.
+
 ### The water budget closes, so the partition is a measurement
 
 LPJ-GUESS's own annual water fluxes against the precipitation the climatology
