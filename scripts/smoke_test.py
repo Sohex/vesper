@@ -7077,101 +7077,105 @@ def check_penman_evaluation_interval() -> list[str]:
     return problems
 
 
-def check_lpj_lifeform_restatements() -> list[str]:
-    """Every statement of which LPJ-GUESS types are grass, against the PFT file.
+def check_lpj_pft_set_is_declared_once(files: list[Path]) -> list[str]:
+    """The plant functional types are declared in ONE place, and read everywhere.
 
-    The tree/grass split is stated in four places and read by four different
-    things: the surface albedo feedback, the acceptance contract's cover
-    quantities, the cover tolerance derivation, and the productivity
-    prediction's structural lines. Nothing derives it -- each restates the
-    pair -- so adding a plant functional type means finding all four, and
-    missing one splits cover silently rather than failing. That is exactly what
-    `world-orok` would trip over the day this world is given a type of its own.
+    `biosphere/generated/vesper_pfts.ins` is the file LPJ-GUESS itself parses,
+    so it is the only statement of which types exist that cannot disagree with
+    the run, and `lib/lpj_pfts.py` is the reader. Five places used to restate
+    parts of it: the surface albedo feedback, the productivity prediction's
+    tree/grass split AND its boreal-needleleaf set, the cover tolerance
+    derivation, and the acceptance contract. That is failure-modes class 1 --
+    one quantity, several consumers, and a fix that reaches some of them.
 
-    The AUTHORITY is `biosphere/generated/vesper_pfts.ins`, because it is the
-    file the model actually reads; a restatement naming a type that file does
-    not declare is refused for that reason rather than for disagreeing.
+    Three things are checked, because the restatement can come back three ways:
 
-    Groups and PFTs share a namespace there -- `group "C3G"` and `pft "C3G"`
-    both exist -- so the two are resolved separately. Keying them on one name
-    loses the group, and every grass then comes back with no lifeform at all.
+    1. **The acceptance contract still agrees.** `equilibrium_window.yaml` is
+       the one restatement that remains, and it remains because a YAML config
+       cannot call a Python reader. That is CLAUDE.md's second sanctioned
+       disposition -- a declaration with a check that fires -- and this is the
+       check.
+    2. **The map's palette covers every declared type.** It is a mapping from
+       type to colour, so it is irreducibly per-type and is not a restatement;
+       but a type added to the world would make the renderer refuse at render
+       time, and saying so at commit time is cheaper.
+    3. **Nothing has reintroduced a Python literal.** Any collection naming two
+       or more declared types is a set someone is classifying with, and it
+       belongs in `lib/lpj_pfts.py`.
     """
     import re
+
+    sys.path.insert(0, str(ROOT / "lib"))
+    import lpj_pfts
 
     source = ROOT / "biosphere" / "generated" / "vesper_pfts.ins"
     if not source.is_file():
         return [f"{source.relative_to(ROOT)} is absent; generate it with "
                 "biosphere/scripts/build_vesper_pfts.py"]
-    groups: dict[str, list[str]] = {}
-    pfts: dict[str, list[str]] = {}
-    body: list[str] | None = None
-    name = kind = ""
-    for raw in source.read_text(encoding="utf-8").splitlines():
-        line = raw.split("!")[0].rstrip()
-        opened = re.match(r'\s*(group|pft)\s+"([\w.]+)"', line)
-        if opened:
-            kind, name, body = opened.group(1), opened.group(2), []
-            continue
-        if body is not None and line.strip() == ")":
-            (groups if kind == "group" else pfts)[name] = body
-            body = None
-            continue
-        if body is not None and line.strip():
-            body.append(line.strip())
+    try:
+        declared = frozenset(lpj_pfts.grass(source))
+        every = frozenset(lpj_pfts.names(source))
+    except SystemExit as refusal:
+        return [str(refusal)]
 
-    def lifeform(block: list[str], seen: set[str] | None = None) -> str | None:
-        seen = seen or set()
-        for token in ("grass", "tree"):
-            if token in block:
-                return token
-        for statement in reversed(block):
-            if statement in groups and statement not in seen:
-                seen.add(statement)
-                found = lifeform(groups[statement], seen)
-                if found:
-                    return found
-        return None
+    problems: list[str] = []
 
-    resolved = {pft: lifeform(block) for pft, block in pfts.items()}
-    unresolved = sorted(pft for pft, form in resolved.items() if form is None)
-    if unresolved:
-        return [f"{source.relative_to(ROOT)} declares {', '.join(unresolved)} "
-                "with no lifeform this check can resolve, so the split it is "
-                "the authority for cannot be read"]
-    declared = frozenset(pft for pft, form in resolved.items() if form == "grass")
-
-    restatements = [
-        ("exoplasim/scripts/build_surface_albedo.py", r'GRASS_PFTS\s*=\s*\(([^)]*)\)'),
-        ("biosphere/scripts/score_prediction.py", r'GRASS_PFTS\s*=\s*\(([^)]*)\)'),
-        ("biosphere/scripts/derive_cover_tolerance.py", r'GRASS_COLUMNS\s*=\s*\(([^)]*)\)'),
-        ("biosphere/config/equilibrium_window.yaml", r'columns:\s*\[([^\]]*)\]'),
-    ]
-    problems = []
-    for relative, pattern in restatements:
-        path = ROOT / relative
-        if not path.is_file():
-            problems.append(f"{relative} is absent, so its statement of the "
-                            "grass split cannot be checked")
-            continue
-        found = re.search(pattern, path.read_text(encoding="utf-8"))
-        if found is None:
-            problems.append(f"{relative} no longer states the grass split in "
-                            "the form this check reads, so the four can drift "
-                            "apart unnoticed")
-            continue
+    contract = ROOT / "biosphere" / "config" / "equilibrium_window.yaml"
+    text = contract.read_text(encoding="utf-8")
+    found = re.search(r"columns:\s*\[([^\]]*)\]", text)
+    if found is None:
+        problems.append(
+            f"{contract.relative_to(ROOT)} no longer states its grass columns "
+            "in the form this check reads, so it can drift from "
+            f"{source.relative_to(ROOT)} unnoticed")
+    else:
         stated = frozenset(token.strip().strip('"\'')
-                           for token in found.group(1).split(",")
-                           if token.strip())
-        unknown = sorted(stated - set(resolved))
+                           for token in found.group(1).split(",") if token.strip())
+        unknown = sorted(stated - every)
         if unknown:
             problems.append(
-                f"{relative} names {', '.join(unknown)} as grass, and "
-                f"{source.relative_to(ROOT)} declares no such type")
+                f"{contract.relative_to(ROOT)} names {', '.join(unknown)} as "
+                f"grass and {source.relative_to(ROOT)} declares no such type")
         elif stated != declared:
             problems.append(
-                f"{relative} says the grass types are "
-                f"{', '.join(sorted(stated))} and "
-                f"{source.relative_to(ROOT)} says {', '.join(sorted(declared))}")
+                f"{contract.relative_to(ROOT)} says the grass types are "
+                f"{', '.join(sorted(stated))} and {source.relative_to(ROOT)} "
+                f"says {', '.join(sorted(declared))}")
+
+    palette_file = ROOT / "maps" / "build_basemap.py"
+    palette = re.search(r"PFT_RGB\s*=\s*\{(.*?)\n\}", palette_file.read_text(
+        encoding="utf-8"), re.S)
+    if palette is None:
+        problems.append("maps/build_basemap.py no longer declares PFT_RGB in "
+                        "the form this check reads")
+    else:
+        coloured = frozenset(re.findall(r'"(\w+)"\s*:', palette.group(1)))
+        uncoloured = sorted(every - coloured)
+        if uncoloured:
+            problems.append(
+                f"maps/build_basemap.py has no colour for {', '.join(uncoloured)}, "
+                "so the base map would refuse to draw this world")
+
+    # Files that legitimately name types: the reader itself, and the palette,
+    # which maps each type to a colour and so cannot avoid naming them.
+    exempt = {ROOT / "lib" / "lpj_pfts.py", palette_file, Path(__file__).resolve()}
+    # `files` is the walk every other lint here takes, over SCRIPT_DIRS. Not
+    # `ROOT.rglob`, which reaches into `.claude/worktrees/` and reports another
+    # checkout's copy of a file this tree has already fixed.
+    literal = re.compile(r"[\[({]([^\[\](){}]*)[\])}]")
+    for path in files:
+        if path.resolve() in exempt:
+            continue
+        for chunk in literal.findall(path.read_text(encoding="utf-8", errors="ignore")):
+            quoted = frozenset(re.findall(r'"(\w+)"|\'(\w+)\'', chunk))
+            named = every & frozenset(a or b for a, b in
+                                      re.findall(r'"(\w+)"|\'(\w+)\'', chunk))
+            if len(named) >= 2:
+                problems.append(
+                    f"{path.relative_to(ROOT)} names {', '.join(sorted(named))} "
+                    "in one literal, which is a set of plant functional types "
+                    "restated. Read it from lib/lpj_pfts.py instead.")
+                break
     return problems
 
 
@@ -7580,8 +7584,8 @@ def main() -> None:
                lambda: check_deposition_carrier_partitions_itself()),
               ("the withdrawn saturated fraction has no consumer keyed on it",
                lambda: check_withdrawn_closure_has_no_consumer()),
-              ("every statement of the LPJ grass split agrees with the PFT file",
-               lambda: check_lpj_lifeform_restatements()),
+              ("the LPJ plant functional types are declared once and read",
+               lambda: check_lpj_pft_set_is_declared_once(files)),
               ("every unclosed issue carries exactly one batch:<n>",
                lambda: check_every_open_issue_is_batched())]
     # Run and REPORT one at a time, rather than evaluating the list and then

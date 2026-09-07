@@ -426,6 +426,12 @@ height of the lowest model level),
 its support/build checks and no-fallback reader),
 `stochastic_seeds.py` (DEMO-5's manifest-recorded LPJ root and the stable
 cell/stand/patch/process substream derivation mirrored by the vendored C++),
+`lpj_pfts.py` (the plant functional types by NAME, LIFEFORM and GROUP, read
+from `biosphere/generated/vesper_pfts.ins` because that is the file LPJ-GUESS
+itself parses and so the one statement of them that cannot disagree with the
+run -- the tree/grass split and the group conjunctions like boreal-needleleaf
+that four consumers used to restate, with a refusal for a type whose lifeform
+does not resolve rather than a silent count as tree),
 `lpj_table.py` (the column-wise reader for an LPJ-GUESS `.out` table: the
 sorted, integer-keyed table every check reads, and the CERTIFY-OR-DECLINE
 contract -- it validates the ordinary case in vectorised passes and raises

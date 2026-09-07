@@ -61,6 +61,7 @@ from lpj_output import reduce_table, require_lpj_acceptance
 # the instruction file. Restating the ends here would be a second declaration of
 # one quantity, and the two would drift the moment either moved.
 from run_lpj_guess import NFIX_A_BRACKET
+import lpj_pfts
 
 COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 ANALYSIS = COMPONENT_ROOT / "analysis"
@@ -70,8 +71,14 @@ EARTH_LAND_AREA_KM2 = 149.0e6
 EARTH_TOTAL_NPP_PGC = (55.0, 60.0)
 EARTH_LAND_MEAN_NPP = (370.0, 400.0)
 
-GRASS_PFTS = ("C3G", "C4G")
-BOREAL_PFTS = ("BNE", "BINE", "BNS")
+# Read from the file LPJ-GUESS itself parses, never restated here.
+# Predictions 5, 8 and 9 are all tree-against-grass, so a missed type would
+# move a scored line silently. lib/lpj_pfts.py carries the argument.
+# Prediction 10 is "boreal NEEDLELEAF", which is the conjunction of two
+# groups the PFT file declares and not a list of three codes: IBS is
+# boreal too, and broadleaved, so an enumeration has to get the
+# intersection right by hand every time a type is added.
+# lib/lpj_pfts.py resolves it from the file the model reads.
 
 # Cover above which a PFT counts as present in a cell. The registration said
 # "tree FPC > 0.1" for prediction 5 and left 9 and 10 looser; the same threshold
@@ -223,11 +230,13 @@ def main() -> None:
     c4_grid = np.zeros(land.shape)
     boreal_grid = np.zeros(land.shape)
 
+    grass_pfts = lpj_pfts.grass()
     tree_idx = [i for i, n in enumerate(fpc_names)
-                if n not in GRASS_PFTS and n != "Total"]
-    grass_idx = [i for i, n in enumerate(fpc_names) if n in GRASS_PFTS]
+                if n not in grass_pfts and n != "Total"]
+    grass_idx = [i for i, n in enumerate(fpc_names) if n in grass_pfts]
     c4_idx = [i for i, n in enumerate(fpc_names) if n == "C4G"]
-    boreal_idx = [i for i, n in enumerate(fpc_names) if n in BOREAL_PFTS]
+    boreal_pfts = lpj_pfts.members("boreal", "needleleaved")
+    boreal_idx = [i for i, n in enumerate(fpc_names) if n in boreal_pfts]
     npp_total = npp_names.index("Total")
     lai_total = lai_names.index("Total")
 

@@ -96,6 +96,7 @@ import builds  # noqa: E402
 import gridding  # noqa: E402
 import rungs  # noqa: E402
 import sensitivity  # noqa: E402
+import lpj_pfts
 
 CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
 CONTRACT = PROJECT_ROOT / "biosphere" / "config" / "equilibrium_window.yaml"
@@ -111,7 +112,8 @@ AGREEMENT_FACTOR = 2.0
 # The two quantities the chain is about, by their contract ids.
 COVER_QUANTITIES = ("fpc.out tree cover", "fpc.out grass cover")
 
-GRASS_COLUMNS = ("C3G", "C4G")
+# Read from the file LPJ-GUESS itself parses, never restated here: this
+# prices the tolerance the acceptance contract carries.
 NOT_A_TYPE = ("Lon", "Lat", "Year", "Total")
 
 
@@ -199,9 +201,10 @@ def cover_means(run_dir: Path, nlat: int, nlon: int):
     for chunk in pd.read_csv(path, sep=r"\s+", chunksize=400_000):
         if columns is None:
             columns = list(chunk.columns)
+            grass_columns = lpj_pfts.grass()
             tree_cols = [c for c in columns
-                         if c not in NOT_A_TYPE and c not in GRASS_COLUMNS]
-            grass_cols = [c for c in GRASS_COLUMNS if c in columns]
+                         if c not in NOT_A_TYPE and c not in grass_columns]
+            grass_cols = [c for c in grass_columns if c in columns]
             if not tree_cols or not grass_cols:
                 raise SystemExit(f"{path} has no tree or no grass columns")
         rows, cols = gridding.model_label_cells(

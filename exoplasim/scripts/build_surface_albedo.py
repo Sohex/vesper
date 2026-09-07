@@ -175,6 +175,7 @@ from gridding import land_fraction_of_class, land_weighted, region_cells
 from provenance import config_stamp
 from orogen import Export, LAND
 from lpj_output import reduce_table, require_lpj_acceptance
+import lpj_pfts
 from rootable import read_rootable_partition
 
 sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
@@ -348,7 +349,10 @@ MODE_FOREST_FRACTION = {
 # LPJ-GUESS grass PFTs. Everything else in fpc.out except Lon, Lat, Year and
 # Total is a tree, so this is the list that has to be right rather than a list of
 # a dozen tree codes that would silently miss a newly added one.
-GRASS_PFTS = ("C3G", "C4G")
+# Read from the file LPJ-GUESS itself parses, never restated here: this
+# split reaches the surface albedo, and a grass type added to the world and
+# missed here would be mixed in at the TREE albedo without saying so.
+# lib/lpj_pfts.py carries the argument.
 
 
 def read_foliar_cover(path: Path, peers: list[Path] | None = None):
@@ -362,9 +366,10 @@ def read_foliar_cover(path: Path, peers: list[Path] | None = None):
     for peer in peers or ():
         require_lpj_acceptance(peer)
     reduced = reduce_table(path, peers or ())
-    grass = [i for i, name in enumerate(reduced.names) if name in GRASS_PFTS]
+    grass_pfts = lpj_pfts.grass()
+    grass = [i for i, name in enumerate(reduced.names) if name in grass_pfts]
     trees = [i for i, name in enumerate(reduced.names)
-             if name not in GRASS_PFTS and name != "Total"]
+             if name not in grass_pfts and name != "Total"]
     cover = {
         key: (sum(values[i] for i in trees), sum(values[i] for i in grass))
         for key, values in reduced.values.items()
