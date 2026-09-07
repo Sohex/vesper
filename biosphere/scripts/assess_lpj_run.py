@@ -45,6 +45,26 @@ class AcceptanceError(ValueError):
     pass
 
 
+class MissingInputError(AcceptanceError):
+    """The assessment could not be ATTEMPTED, as against reaching a verdict.
+
+    The two refusals are different in kind and only one of them is a result
+    about the run. A quantity that drifts or a record too short to resolve its
+    tolerance is something the assessment REACHED, and overwriting the previous
+    acceptance with it is right. A required output that is absent says nothing
+    about the run at all; it says this contract cannot be applied to it.
+
+    `write_failure` refuses to overwrite an existing acceptance artifact with
+    one of these, which is world-9a6i: re-assessing a 1253-cycle run under a
+    newly extended `required_outputs` replaced a 109 KB record of drift bounds,
+    memory times and resolving lengths with eight lines saying one table was
+    missing, and none of it could be recomputed because the tables the new
+    contract wants do not exist in that run and never will. It bites hardest
+    exactly when the contract moves, which is when the old records are most
+    wanted.
+    """
+
+
 class ClosureError(AcceptanceError):
     """A closure refusal that carries the per-cell report it refused on.
 
@@ -100,7 +120,7 @@ def read_table(path: Path) -> lpj_table.Table:
     BIO-14 has always worded it.
     """
     if not path.is_file():
-        raise AcceptanceError(f"missing output {path}")
+        raise MissingInputError(f"missing output {path}")
     try:
         return lpj_table.read(path)
     except lpj_table.RowParseRequired:
@@ -682,6 +702,20 @@ def _timescales_or_reason(run_dir: Path) -> dict:
         return {"measured": False, "reason": str(exc)}
 
 
+def _is_input_refusal(error: Exception) -> bool:
+    """Could the assessment not be ATTEMPTED, as against reaching a verdict?
+
+    `MissingInputError` says so by name. The read errors say so by being read
+    errors: a file that will not open, parse as JSON or parse as YAML is an
+    input this contract cannot be applied through, not a finding about the run.
+    Every other `AcceptanceError` -- a closure that fails, a window that still
+    trends, a coverage gap the tables themselves show -- IS a result, and
+    replacing the previous acceptance with it is correct.
+    """
+    return isinstance(error, (MissingInputError, OSError, json.JSONDecodeError,
+                             yaml.YAMLError))
+
+
 def write_failure(run_dir: Path, error: Exception, *,
                   contract_path: Path = CONFIG) -> dict:
     """Persist a refusal even when assessment cannot build a PASS report."""
@@ -720,6 +754,24 @@ def write_failure(run_dir: Path, error: Exception, *,
         report["closure"] = error.closure
     run_dir.mkdir(parents=True, exist_ok=True)
     target = run_dir / "acceptance.json"
+
+    # THE WRITE DOOR, and what it refuses is one class of refusal rather than
+    # all of them. An assessment that could not be ATTEMPTED must not replace
+    # one that was: it would turn "this cannot be assessed under the current
+    # contract" into "this was assessed and failed", and take the evidence with
+    # it. Creating the artifact where none exists is still right -- nothing is
+    # lost and the reason is worth recording. world-9a6i.
+    if _is_input_refusal(error) and target.is_file():
+        report["verdict"] = "NOT ASSESSED"
+        report["preserved"] = str(target)
+        report["refusal"] = (
+            f"{error}. The existing acceptance artifact is PRESERVED and this "
+            "refusal was not written over it: an assessment that could not be "
+            "attempted is not a result about the run. Read the artifact for "
+            "the contract it was taken under, and re-run the assessment only "
+            "once the inputs this contract requires exist.")
+        return report
+
     target.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     analysis_dir = ANALYSIS / report["run_id"]
     analysis_dir.mkdir(parents=True, exist_ok=True)
@@ -1068,7 +1120,8 @@ def main() -> None:
     except (AcceptanceError, EquilibriumWindowError, OSError,
             json.JSONDecodeError, yaml.YAMLError) as exc:
         report = write_failure(args.run, exc)
-        raise SystemExit(f"FAIL: {report['run_id']}: {report['refusal']}") from exc
+        raise SystemExit(f"{report['verdict']}: {report['run_id']}: "
+                         f"{report['refusal']}") from exc
     print(f"PASS: {report['run_id']} ({report['coverage']['cells']} cells, "
           f"{len(report['coverage']['years'])} years, "
           f"{report['coverage']['ranks']} ranks)")
