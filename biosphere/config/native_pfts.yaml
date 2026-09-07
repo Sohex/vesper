@@ -1,0 +1,96 @@
+# Plant functional types NATIVE to Vesper.
+#
+# This is a worldbuilding declaration for a simulated world. Everything below is
+# invented biology for Vesper, and it is kept in one file precisely so that it
+# cannot be mistaken for something LPJ-GUESS shipped.
+#
+# WHY THIS FILE EXISTS SEPARATELY FROM THE CONVERSION. Every parameter in
+# `vendor/lpj-guess/data/ins/global.ins` is an EARTH calibration, and
+# `build_vesper_pfts.py` converts it into model units. A type declared here has
+# no Earth calibration behind it: its values are stated in MODEL units already,
+# derived from this world's own measurements. So these blocks are appended
+# AFTER the conversion pass and are never rescaled. Rescaling them would apply
+# the year-length factor to a number already in the target unit, which is the
+# same trap the `nyear_spinup` DERIVED case in that script exists to avoid.
+#
+# THE HAZARD THIS ARRANGEMENT CREATES, and the guard for it. `leaflong` is a
+# YEAR_COUNT parameter, so a native `leaflong 0.2392` sitting beside a converted
+# `leaflong 5.98782` is indistinguishable by eye from an Earth value the
+# conversion missed. Any parameter here whose name falls in a conversion class
+# must therefore state `units: model` explicitly, and the generator refuses one
+# that does not. The emitted line carries the same statement as a comment.
+#
+# A type states ONLY what its derivation changes; everything else is inherited
+# from the type it names in `inherits`, so this file is the difference and not a
+# second copy of a parameter set that would drift from the first.
+
+contract: biosphere/notes/time-base-unit-contract.md
+
+types:
+
+  VPE:
+    title: Vesperian polar ephemeral
+    derivation: biosphere/notes/vesperian-polar-type.md
+    issue: world-upm5
+    # CANDIDATE, and inert until that row decides. `include 0` is LPJ-GUESS's
+    # own idiom for a declared type it does not instantiate: parameters.cpp
+    # validates the block in full and then drops the type before any
+    # simulation, so a malformed block still fails fast and an inert one
+    # changes no run.
+    include: 0
+    # C3G and not the bare `grass` group: the derivation is a modification of
+    # the cool grass, so naming it makes this file the list of changes.
+    inherits: C3G
+    parameters:
+
+      leaflong:
+        value: 0.2392
+        units: model
+        basis: >-
+          the leaf lives the 2.87-month growing season measured poleward of 75
+          degrees and no longer. SLA follows through ifcalcsla and the Reich
+          regression in guess.h:initsla() at 44.8 m2/kgC against C3G's 26.0,
+          and is deliberately NOT stated here because stating it would override
+          a derivation the model already performs.
+
+      pstemp_min:
+        value: 0.0
+        units: absolute
+        basis: >-
+          below the growing season's p5 of 8.46 degC and above the frozen
+          months, which carry no liquid water to work with.
+
+      pstemp_low:
+        value: 15.0
+        units: absolute
+        basis: the plateau opens at the growing season's p25 of 15.30 degC.
+
+      pstemp_high:
+        value: 46.0
+        units: absolute
+        basis: >-
+          the plateau closes at the growing season's p95 of 45.70 degC. C3G
+          declares 30 and the cap spends 30.5% of its season above it.
+
+      pstemp_max:
+        value: 55.0
+        units: absolute
+        basis: >-
+          above the season's measured maximum of 48.43 degC, so photosynthesis
+          is not switched off inside the season. C3G declares 45 and the cap
+          spends 7.6% of its season above it.
+
+      ltor_max:
+        units: absolute
+        basis: >-
+          BRACKETED, not derived. C3G's 0.5 encodes a long-season foraging
+          strategy of at least two units of root per unit leaf, and growth.cpp
+          scales it further down by water stress. Where the extractable water
+          passes in fifteen days that investment cannot be recovered, but no
+          measurement here fixes the replacement, so both ends are run.
+          build_vesper_pfts.py refuses an end this bracket does not declare and
+          writes the end it took into the generated header and the provenance.
+        bracket:
+          low: 1.0
+          high: 2.0
+          default: low

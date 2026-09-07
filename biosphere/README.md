@@ -334,6 +334,34 @@ bracket rather than treating the highest answer as truth.
 is about half an Earth year, so the shipped 500 gives this world roughly half the
 absolute vegetation and soil development that Earth practice assumes.
 
+### Types native to this world, which the conversion must not touch
+
+The conversion above exists because every parameter in `global.ins` is an EARTH
+calibration. A type declared in `config/native_pfts.yaml` has none: it is
+invented biology for Vesper, its values are derived from this world's own
+measurements and are in MODEL units already. So `build_vesper_pfts.py` appends
+those blocks AFTER the conversion pass and never rescales them. Rescaling one
+would apply the year-length factor to a number that is already in the target
+unit, which is the same trap the `nyear_spinup` DERIVED case avoids.
+
+That arrangement creates its own hazard, and the guard is the point of the
+file. `leaflong` is a year count, so a native `leaflong 0.2392` sits in the
+generated file beside a converted `leaflong 5.98782` and is indistinguishable
+by eye from an Earth value the conversion missed. Any native parameter whose
+name falls in a conversion class must therefore declare `units: model`, the
+generator refuses one that does not, and the emitted line carries the same
+statement. `--self-test` exercises that refusal and the others on fixtures.
+
+A native type states ONLY what its derivation changes and inherits the rest
+from the type it names, so the file is the difference and not a second copy
+that would drift. A `bracket` is a value no measurement fixes: `--native-arm`
+picks the end, the config names a default, and whichever was taken is written
+into the generated header and the provenance, so no run can take an end
+silently. `include 0` declares a candidate that `parameters.cpp` validates in
+full and then drops before any simulation, which is how a type reaches the file
+for review before it reaches a run -- and why `lib/lpj_pfts.py` separates
+`declared()` from `names()`, the latter being what a run's output tables carry.
+
 `build_vesper_pfts.py` therefore scales year *counts* UP by the reciprocal of the
 factor it scales annual *sums* DOWN by, and converts fractions applied once a year
 as rates rather than multiplying them. Confusing those directions would be worse
@@ -415,7 +443,8 @@ failing. The driver file records the year length it was built for and
 
 ```bash
 python biosphere/scripts/build_vesper_header.py   # vesper.h, installed into the tree
-python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled
+python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled,
+                                                  # native types appended unrescaled
 python biosphere/scripts/build_rootable_fraction.py # BIO-11 effective plant area
 python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridlist
 qrun -p build -- \

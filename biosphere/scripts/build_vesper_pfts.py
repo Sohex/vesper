@@ -62,6 +62,7 @@ import yaml
 from _paths import CONFIG, GENERATED, GUESS_SOURCE, PROJECT_ROOT
 from paths import rel  # noqa: E402
 
+import lpj_pfts
 import orbit
 import run_lengths
 
@@ -279,12 +280,192 @@ def _derived_spinup_cycles() -> dict:
             "brackets": derived["brackets"]}
 
 
+NATIVE_PFTS = PROJECT_ROOT / "biosphere" / "config" / "native_pfts.yaml"
+
+
+def native_blocks(declared: dict, arm: str | None, source_text: str) -> tuple[str, list[dict]]:
+    """Render the Vesper-native types, and refuse the ways they can go wrong.
+
+    THESE ARE NOT RESCALED, and that is the whole reason they are rendered here
+    rather than appended to the source before the conversion pass. A type
+    declared in this file has no Earth calibration behind it; its values are in
+    model units already. Passing them through the conversion would apply the
+    year-length factor to a number that is already in the target unit.
+
+    The hazard that creates is that `leaflong 0.2392` written natively is
+    indistinguishable by eye from an Earth value the conversion missed. So any
+    native parameter whose name falls in a conversion class must state
+    `units: model`, and the emitted line carries that statement too.
+    """
+    existing = set(re.findall(r'^\s*(?:pft|group)\s+"([\w.]+)"', source_text,
+                              re.MULTILINE))
+    rendered: list[str] = []
+    recorded: list[dict] = []
+    for name, spec in declared.get("types", {}).items():
+        if name in existing:
+            raise SystemExit(
+                f"native type {name!r} collides with a type or group already in "
+                "the source instruction file; a native type must not shadow one "
+                "whose parameters came through the Earth conversion")
+        inherits = spec["inherits"]
+        if inherits not in existing:
+            raise SystemExit(
+                f"native type {name!r} inherits {inherits!r}, which the source "
+                "instruction file does not declare")
+        lines = [f'pft "{name}" (',
+                 f"\t! {spec['title']} -- NATIVE to Vesper, invented biology.",
+                 f"\t! Derivation: {spec['derivation']}; issue {spec['issue']}.",
+                 f"\t! Declared in biosphere/config/native_pfts.yaml and NOT",
+                 f"\t! rescaled: its values are in model units already.",
+                 f"\t{inherits}",
+                 f"\tinclude {int(spec['include'])}"
+                 f"\t! NATIVE; {'reaches runs' if spec['include'] else 'declared but not instantiated'}"]
+        values: dict[str, float] = {}
+        ends: dict[str, str] = {}
+        for key, entry in spec["parameters"].items():
+            if "basis" not in entry:
+                raise SystemExit(f"native {name}.{key} states no basis")
+            if "bracket" in entry:
+                bracket = entry["bracket"]
+                chosen = arm or bracket["default"]
+                if chosen not in bracket or chosen == "default":
+                    raise SystemExit(
+                        f"native {name}.{key} has no bracket end named {chosen!r}; "
+                        f"it declares {sorted(k for k in bracket if k != 'default')}")
+                value = float(bracket[chosen])
+                ends[key] = chosen
+                note = (f"NATIVE, BRACKETED: end {chosen!r} of "
+                        f"{[bracket[k] for k in bracket if k != 'default']}")
+            else:
+                value = entry["value"]
+                note = "NATIVE"
+            kind = CLASS_OF.get(key)
+            if kind and entry.get("units") != "model":
+                raise SystemExit(
+                    f"native {name}.{key} is a {kind} parameter, so a reader "
+                    "cannot tell a native value from an Earth value the "
+                    "conversion missed. Declare units: model to state that it "
+                    "is already in model units.")
+            if kind:
+                note += f"; {UNIT[kind]}, already in model units, not rescaled"
+            text = f'"{value}"' if isinstance(value, str) else f"{value:g}"
+            lines.append(f"\t{key} {text}\t! {note}")
+            if not isinstance(value, str):
+                values[key] = float(value)
+        lines.append(")")
+        rendered.append("\n".join(lines))
+        recorded.append({"name": name, "inherits": inherits,
+                         "include": int(spec["include"]),
+                         "derivation": spec["derivation"],
+                         "issue": spec["issue"],
+                         "bracket_ends": ends,
+                         "arm_requested": arm,
+                         "values": values,
+                         "basis": {k: v["basis"] for k, v in spec["parameters"].items()}})
+    if not rendered:
+        return "", []
+    banner = ("\n\n"
+              "!///////////////////////////////////////////////////////////////////////////////\n"
+              "!// NATIVE TO VESPER. Everything below is invented biology for this world,\n"
+              "!// declared in biosphere/config/native_pfts.yaml and appended AFTER the Earth\n"
+              "!// conversion, so none of it is rescaled: these values are in model units\n"
+              "!// already. A type states only what its derivation changes and inherits the\n"
+              "!// rest from the type it names.\n"
+              "!///////////////////////////////////////////////////////////////////////////////\n\n")
+    return banner + "\n\n".join(rendered) + "\n", recorded
+
+
+
+def _selftest() -> int:
+    """Exercise the native-block guards on fixtures, writing nothing.
+
+    Each guard exists because the failure it catches is invisible in the
+    generated file: a native value in a conversion class reads exactly like an
+    Earth value the conversion missed, and a native type shadowing a shipped one
+    reads exactly like the shipped one.
+    """
+    source = 'group "C3G" (\n\tgrass\n)\n\npft "C3G" (\n\tC3G\n)\n'
+
+    def spec(**over):
+        base = {"title": "t", "derivation": "d.md",
+                "issue": "world-x", "include": 0, "inherits": "C3G",
+                "parameters": {"pstemp_low": {"value": 15.0, "units": "absolute",
+                                              "basis": "b"}}}
+        name = over.pop("name", "VPE")
+        base.update(over)
+        return {"types": {name: base}}
+
+    def refuses(declared, arm=None) -> bool:
+        try:
+            native_blocks(declared, arm, source)
+        except SystemExit:
+            return True
+        return False
+
+    checks: list[tuple[str, bool]] = []
+    text, records = native_blocks(spec(), None, source)
+    checks.append(("a well-formed native type renders and records",
+                   'pft "VPE"' in text and records[0]["values"]["pstemp_low"] == 15.0))
+    checks.append(("the block names the type it inherits from",
+                   "\n\tC3G\n" in text))
+    checks.append(("a native type shadowing a shipped one is refused",
+                   refuses(spec(name="C3G"))))
+    checks.append(("inheriting a type the source does not declare is refused",
+                   refuses(spec(inherits="NOSUCH"))))
+    checks.append(("a parameter with no basis is refused",
+                   refuses(spec(parameters={"pstemp_low": {"value": 1.0,
+                                                           "units": "absolute"}}))))
+    # THE ONE THAT MATTERS. leaflong is YEAR_COUNT, so a native value sitting
+    # beside a converted one is indistinguishable by eye.
+    checks.append(("a conversion-class parameter not declared in model units is refused",
+                   refuses(spec(parameters={"leaflong": {"value": 0.24,
+                                                         "units": "absolute",
+                                                         "basis": "b"}}))))
+    ok_text, _ = native_blocks(
+        spec(parameters={"leaflong": {"value": 0.24, "units": "model",
+                                      "basis": "b"}}), None, source)
+    checks.append(("the same parameter declared in model units states so on its line",
+                   "already in model units, not rescaled" in ok_text))
+    bracketed = spec(parameters={"ltor_max": {"bracket": {"low": 1.0, "high": 2.0,
+                                                          "default": "low"},
+                                              "units": "absolute", "basis": "b"}})
+    low, low_rec = native_blocks(bracketed, None, source)
+    high, high_rec = native_blocks(bracketed, "high", source)
+    checks.append(("a bracket takes its declared default when no arm is named",
+                   low_rec[0]["values"]["ltor_max"] == 1.0))
+    checks.append(("a named arm overrides the default",
+                   high_rec[0]["values"]["ltor_max"] == 2.0))
+    checks.append(("both renderings say which end they took",
+                   "end 'low'" in low and "end 'high'" in high))
+    checks.append(("an arm the bracket does not declare is refused",
+                   refuses(bracketed, "middle")))
+    checks.append(("no type declared renders nothing rather than an empty banner",
+                   native_blocks({"types": {}}, None, source) == ("", [])))
+
+    for label, ok in checks:
+        print(f"[{'ok' if ok else 'FAIL'}] {label}")
+    failed = sum(1 for _, ok in checks if not ok)
+    print(f"\n{failed} failures")
+    return 1 if failed else 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path,
                         default=GUESS_SOURCE / "data" / "ins" / "global.ins")
     parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("--native-arm", default=None,
+                        help="which end of a bracketed native parameter to emit; "
+                             "the config's declared default is used when absent, "
+                             "and whichever was taken is written into the header "
+                             "and the provenance either way")
+    parser.add_argument("--self-test", action="store_true",
+                        help="exercise the native-block guards on fixtures and "
+                             "write nothing")
     args = parser.parse_args()
+
+    if args.self_test:
+        raise SystemExit(_selftest())
 
     config = yaml.safe_load(CONFIG.read_text())
     orbital_days = orbit.orbital_year_days(config)
@@ -388,6 +569,15 @@ def main() -> None:
             "biosphere/config/respiration_acclimation.yaml expects to govern it; "
             "world-vnbc.")
 
+    # THE NATIVE TYPES GO ON AFTER EVERYTHING THE CONVERSION TOUCHES. They carry
+    # no Earth calibration, so their values are in model units already and the
+    # conversion must not reach them. Appending rather than merging is what makes
+    # that structural instead of remembered.
+    native_declared = yaml.safe_load(NATIVE_PFTS.read_text(encoding="utf-8"))
+    native_text, native_records = native_blocks(native_declared, args.native_arm,
+                                                text)
+    rescaled = rescaled + native_text
+
     # The shipped file's own inline comments on rescaled lines are replaced,
     # because several of them state the Earth unit and would now be wrong. The
     # upstream annotation is in the vendored source the header names.
@@ -408,6 +598,21 @@ def main() -> None:
             "\n!// the YEAR_COUNT factor to a number already in the target unit."
             f"\n!// Basis: {spinup.get('basis', '')}"
             f"\n!// It is a FLOOR: {spinup.get('floor_because', '')}")
+
+    if native_records:
+        native_summary = "\n".join(
+            [f"!// NATIVE to Vesper, appended after the conversion and NOT rescaled:"]
+            + [f"!//   {r['name']:6s} inherits {r['inherits']:6s} include "
+               f"{r['include']}  "
+               + (", ".join(f"{k} at {v}" for k, v in r["bracket_ends"].items())
+                  or "no bracket")
+               + f"  ({r['derivation']})"
+               for r in native_records]
+            + ["!// Declared in biosphere/config/native_pfts.yaml. Their values are in",
+               "!// model units already; rescaling one would apply the year-length",
+               "!// factor to a number that is already in the target unit."])
+    else:
+        native_summary = "!// no Vesper-native types are declared"
 
     header = f"""!///////////////////////////////////////////////////////////////////////////////
 !// GENERATED by biosphere/scripts/build_vesper_pfts.py. Do not edit.
@@ -432,6 +637,8 @@ def main() -> None:
 !//
 !// Inline comments on rescaled lines are regenerated, because the shipped ones
 !// state the Earth unit. The upstream annotation is in the source named above.
+!//
+{native_summary}
 !//
 !// generated {datetime.now(timezone.utc).isoformat(timespec="seconds")}
 !///////////////////////////////////////////////////////////////////////////////
@@ -464,6 +671,12 @@ def main() -> None:
         "deliberately_unscaled": DELIBERATELY_UNSCALED,
         "changes": changes,
         "spinup": spinup,
+        "native_pfts": {
+            "declaration": rel(NATIVE_PFTS),
+            "declaration_sha256": hashlib.sha256(NATIVE_PFTS.read_bytes()).hexdigest(),
+            "arm_requested": args.native_arm,
+            "types": native_records,
+        },
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "git_commit": subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
@@ -479,6 +692,34 @@ def main() -> None:
     for change in changes:
         print(f"   {change['class']:12s} {change['parameter']:14s} "
               f"{change['from']:>8g} -> {change['written']:g}")
+    for record in native_records:
+        print(f"native  {record['name']:6s} inherits {record['inherits']}, "
+              f"include {record['include']}, "
+              + (", ".join(f"{k} at the {v} end"
+                           for k, v in record["bracket_ends"].items())
+                 or "no bracket") + ": "
+              + ", ".join(f"{k} {v:g}" for k, v in record["values"].items()))
+
+    # THE CONTROL, and it reads the artifact rather than the intent: resolve the
+    # emitted type through the reader every consumer uses and require the
+    # declared values to come back. A block that inherits from the wrong place,
+    # or whose override is shadowed by a later group reference, passes every
+    # check above and fails here.
+    for record in native_records:
+        resolved = lpj_pfts.parameters(record["name"], path=output)
+        for key, want in record["values"].items():
+            got = resolved.get(key)
+            if got is None or abs(got - want) > 1e-9:
+                raise SystemExit(
+                    f"{record['name']}.{key} was declared {want:g} but resolves "
+                    f"to {got!r} in the file just written")
+        if resolved.get("include") != record["include"]:
+            raise SystemExit(
+                f"{record['name']} was declared include {record['include']} but "
+                f"resolves to {resolved.get('include')!r}")
+    if native_records:
+        print(f"        every native value resolves back out of the written file")
+
     print(f"\nwrote {rel(output)}")
     print(f"      {report_path.name}")
 

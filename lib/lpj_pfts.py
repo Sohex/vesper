@@ -165,8 +165,10 @@ def _lifeforms(groups: dict[str, list[str]], pfts: dict[str, list[str]],
 
 
 def grass(path: Path | None = None) -> tuple[str, ...]:
-    """The grass types, in the file's own declaration order."""
-    return tuple(name for name, form in lifeforms(path).items() if form == "grass")
+    """The grass types A RUN CARRIES, in the file's own declaration order."""
+    live = set(names(path))
+    return tuple(name for name, form in lifeforms(path).items()
+                 if form == "grass" and name in live)
 
 
 def trees(path: Path | None = None) -> tuple[str, ...]:
@@ -175,7 +177,9 @@ def trees(path: Path | None = None) -> tuple[str, ...]:
     For a caller that wants the set stated positively. A caller splitting a
     TABLE should take the complement of `grass()` instead; see the module note.
     """
-    return tuple(name for name, form in lifeforms(path).items() if form == "tree")
+    live = set(names(path))
+    return tuple(name for name, form in lifeforms(path).items()
+                 if form == "tree" and name in live)
 
 
 def groups(path: Path | None = None) -> tuple[str, ...]:
@@ -203,16 +207,20 @@ def members(*group_names: str, path: Path | None = None) -> tuple[str, ...]:
     boreal" rather than as an error.
     """
     path = Path(path or DEFAULT_PFT_FILE)
-    return _members(*_blocks(path), group_names=group_names, where=path)
+    return _members(*_blocks(path), group_names=group_names, where=path,
+                    live=set(names(path)))
 
 
 def _members(group_blocks: dict[str, list[str]], pfts: dict[str, list[str]],
-             *, group_names: tuple[str, ...], where: object) -> tuple[str, ...]:
+             *, group_names: tuple[str, ...], where: object,
+             live: set[str] | None = None) -> tuple[str, ...]:
     unknown = [name for name in group_names if name not in group_blocks]
     if unknown:
         raise SystemExit(
             f"{where} declares no group named {', '.join(unknown)}. It declares "
             f"{', '.join(group_blocks)}.")
+
+    live = set(pfts) if live is None else live
 
     def includes(block: list[str], seen: frozenset[str] = frozenset()) -> set[str]:
         reached = set()
@@ -223,12 +231,42 @@ def _members(group_blocks: dict[str, list[str]], pfts: dict[str, list[str]],
         return reached
 
     return tuple(name for name, block in pfts.items()
-                 if set(group_names) <= includes(block))
+                 if set(group_names) <= includes(block) and name in live)
+
+
+def declared(path: Path | None = None) -> tuple[str, ...]:
+    """Every type the file declares, whether or not a run instantiates it.
+
+    For a reader of the FILE. A reader of a RUN wants `names()`.
+    """
+    return tuple(_blocks(Path(path or DEFAULT_PFT_FILE))[1])
+
+
+def instantiated(name: str, path: Path | None = None) -> bool:
+    """Whether a run carries this type, from its resolved `include`.
+
+    LPJ-GUESS parses and validates every declared block and THEN drops the ones
+    whose `include` is 0, in `parameters.cpp` around the `pftlist.killobj()`
+    that removes them. So an inert type is fully checked and appears in no
+    output table, which is exactly the combination that makes it dangerous to a
+    consumer: the file says it exists and every run says it does not.
+    """
+    return bool(parameters(name, path).get("include", 1))
 
 
 def names(path: Path | None = None) -> tuple[str, ...]:
-    """Every declared type, in the file's own declaration order."""
-    return tuple(lifeforms(path))
+    """The types A RUN CARRIES: declared with `include` 1, in declaration order.
+
+    NOT every declared type. `biosphere/config/native_pfts.yaml` can declare a
+    Vesper-native candidate with `include 0`, which LPJ-GUESS validates in full
+    and then drops before any simulation, so it reaches no output table. A
+    consumer splitting a run's cover by lifeform that counted it would index a
+    column no run wrote, which is failure-modes class 1 -- one quantity, several
+    consumers -- and is the class this module exists to close. `declared()` is
+    the reader for the FILE.
+    """
+    path = Path(path or DEFAULT_PFT_FILE)
+    return tuple(name for name in lifeforms(path) if instantiated(name, path))
 
 
 def _selftest() -> int:
@@ -284,6 +322,22 @@ def _selftest() -> int:
                    and parameters("BNE").get("tcmin_surv") == -31.0))
     checks.append(("an unknown type is refused rather than resolving to nothing",
                    refuses(lambda: parameters("NOSUCHPFT"))))
+
+    # DECLARED IS NOT INSTANTIATED. A native candidate sits in the file with
+    # include 0; the model validates it and drops it before any simulation, so
+    # it appears in no output table and must not reach a consumer splitting a
+    # run's cover.
+    checks.append(("the live file declares more types than a run carries",
+                   set(names()) < set(declared())))
+    checks.append(("the inert candidate is declared but not carried",
+                   "VPE" in declared() and "VPE" not in names()
+                   and not instantiated("VPE")))
+    checks.append(("an inert grass does not reach the grass split",
+                   "VPE" not in grass() and set(grass()) == {"C3G", "C4G"}))
+    checks.append(("grass and trees still partition what a run carries",
+                   set(grass()) | set(trees()) == set(names())))
+    checks.append(("group membership is over what a run carries",
+                   all(name in names() for name in members("grass"))))
     checks.append(("a lifeform is followed through nested groups",
                    forms('group "common" (\n\ttree\n)\n\n'
                          'group "boreal" (\n\tcommon\n)\n\n'
