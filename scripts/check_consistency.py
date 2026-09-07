@@ -138,6 +138,7 @@ import json
 import math
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1171,6 +1172,81 @@ def _written_tolerance(value) -> float:
     places = len(mantissa.split(".")[1]) if "." in mantissa else 0
     shift = int(exponent) if exponent else 0
     return 0.5 * 10.0 ** (shift - places)
+
+
+def check_worktrees_against_main(rep: Report) -> None:
+    """Every worktree's branch, against what `main` already carries.
+
+    A worktree holding commits main does not have is the NORMAL state during a
+    fan-out and is a WARNING here rather than a failure: making it a per-commit
+    failure would paint the whole of every fan-out red, and a gate that is red
+    by design is one people stop reading. What it must not be is INVISIBLE.
+    This ran red-handed once -- `ocean-grid-crossing` sat with four commits and
+    1,797 lines of a component nobody had merged, while the session that
+    delegated it reported the branch as landed, and it surfaced only because an
+    unrelated lint happened to walk `.claude/worktrees/`.
+
+    A worktree whose branch is FULLY MERGED is a failure, because there is no
+    state of the work that wants it: the commits are in main, so the tree is a
+    second checkout that can only drift, and it is what a stale one hides
+    behind. `port-reconvergence` was exactly that.
+
+    This is in the pre-run tier and not in `smoke_test.py` on purpose. The
+    moment the answer is worth money is the moment before an expensive run:
+    buying a climate arm or a biosphere run on a main that is missing a
+    worktree's contribution is the waste this exists to prevent.
+
+    What lives only inside a worktree is a different question and is
+    `scripts/check_worktree_links.py`'s; this one is only about commits.
+    """
+    label = "worktrees against main"
+    try:
+        listing = subprocess.run(
+            ["git", "-C", str(ROOT), "worktree", "list", "--porcelain"],
+            capture_output=True, text=True, check=True).stdout
+    except (subprocess.CalledProcessError, OSError) as exc:
+        rep.add(WARN, label, f"not checked: {exc}")
+        return
+
+    trees: list[tuple[str, str]] = []
+    path = ""
+    for line in listing.splitlines():
+        if line.startswith("worktree "):
+            path = line.split(" ", 1)[1]
+        elif line.startswith("branch "):
+            branch = line.split(" ", 1)[1].replace("refs/heads/", "")
+            if Path(path).resolve() != ROOT.resolve():
+                trees.append((branch, path))
+    if not trees:
+        rep.add(OK, label, "no worktree but the main checkout")
+        return
+
+    ahead, merged = [], []
+    for branch, path in trees:
+        try:
+            count = subprocess.run(
+                ["git", "-C", str(ROOT), "rev-list", "--count", f"main..{branch}"],
+                capture_output=True, text=True, check=True).stdout.strip()
+        except (subprocess.CalledProcessError, OSError) as exc:
+            rep.add(WARN, label, f"{branch}: not checked: {exc}")
+            return
+        (ahead if int(count) else merged).append((branch, int(count)))
+
+    if merged:
+        rep.add(FAIL, label,
+                "; ".join(f"{b} is fully merged and its worktree is still here"
+                          for b, _ in merged)
+                + " -- remove it with `git worktree remove`, because a merged "
+                  "tree can only drift and is what an unmerged one hides behind")
+        return
+    if ahead:
+        rep.add(WARN, label,
+                "; ".join(f"{b} holds {n} commit(s) main does not have"
+                          for b, n in ahead)
+                + " -- expected mid-fan-out, and NOT a substitute for reading it "
+                  "before buying a run on main")
+        return
+    rep.add(OK, label, f"{len(trees)} worktree(s), each level with main")
 
 
 def check_derived_config_values(rep: "Report", config: dict) -> None:
@@ -3022,6 +3098,7 @@ def main() -> int:
     check_cold_start_currency(rep, config)
     check_eddy_wind(rep, config)
     check_water_path_currency(rep, config)
+    check_worktrees_against_main(rep)
     rep.show()
     return 1 if rep.failed else 0
 
