@@ -442,17 +442,26 @@ Scored 2026-09-07 on `lpj_1e6a2b9ca51a4eff9592992cad96677b`, the first LPJ-GUESS
 run to pass acceptance, by `biosphere/scripts/score_prediction.py`. The artifact
 is `biosphere/analysis/lpj_1e6a2b9ca51a4eff9592992cad96677b/prediction_score.json`.
 
-**1 of 6 quoted lines hit.** Lines 1 to 4 are not quoted: the declared `nfix_a`
-bracket is not carried, and a single arm at its midpoint is not a result for
-them. Their central values are recorded below as central values and nothing
-more.
+**3 of 10 quoted lines hit**, with the nitrogen bracket carried by two further
+accepted runs: `lpj_fdbdd95aaf69460ab7ad6561a5c585fe` at `nfix_a` 0.102 and
+`lpj_4327ec50458d4ceaa790da8338b8502a` at 0.367, each differing from the central
+run in that parameter alone and each PASS at 1617 cells over 1253 cycles. Lines
+1 to 4 are spans across those three arms, and a line is a HIT only when the
+WHOLE span lands in the band.
+
+**Carrying the bracket changed two verdicts, both in the direction a central
+value would have flattered.** Lines 3 and 4 pass comfortably at the midpoint --
+2.119x and 121.8 -- and miss once the low arm is included, because 1.550 falls
+below the band's 1.6 and 89.1 below its 90. Both miss at the LOW edge only, by
+3% and 1%. That is the whole argument for quoting a declared bracket rather
+than its midpoint: the midpoint claimed two hits the range does not support.
 
 | # | prediction | central | run | hit band | verdict |
 | --- | --- | --- | --- | --- | --- |
-| 1 | land-mean NPP relative to Earth | 1.0x | 1.206x | 0.7-1.4 | NOT QUOTED |
-| 2 | land-mean NPP, gC/m2 per Earth year | 400 | 464.5 | 280-560 | NOT QUOTED |
-| 3 | total NPP relative to Earth | 2.1x | 2.119x | 1.6-2.8 | NOT QUOTED |
-| 4 | total NPP, PgC per Earth year | 125 | 121.8 | 90-175 | NOT QUOTED |
+| 1 | land-mean NPP relative to Earth | 1.0x | **0.882-1.255x** | 0.7-1.4 | **HIT** |
+| 2 | land-mean NPP, gC/m2 per Earth year | 400 | **339.7-483.2** | 280-560 | **HIT** |
+| 3 | total NPP relative to Earth | 2.1x | **1.550-2.205x** | 1.6-2.8 | miss |
+| 4 | total NPP, PgC per Earth year | 125 | **89.1-126.8** | 90-175 | miss |
 | 5 | tree cover, land fraction with tree FPC > 0.1 | 55% | 72.3% | 40-70% | miss |
 | 6 | effectively barren land, LAI < 0.5 | 15% | 35.5% | 8-25% | miss |
 | 7 | water-limited rather than temperature-limited land | 60% | 50.2% | 50-70% | **HIT** |
@@ -460,11 +469,28 @@ more.
 | 9 | C4 grasses above 10% of land | >10% | 6.7% | >10% | miss |
 | 10 | boreal needleleaf below 10% of land | <10% | 17.8% | <10% | miss |
 
-All four productivity centrals land inside their bands, and line 3 is within
-1% of its registered value. The arms that would make them quotable are running
-as `lpj_4327ec50458d4ceaa790da8338b8502a` at `nfix_a` 0.102 and
-`lpj_fdbdd95aaf69460ab7ad6561a5c585fe` at 0.367; `world-myvb` carries them, and
-this section is completed when they land.
+### The measured nitrogen response, replacing the smoke-run table
+
+`world-myvb` registered a response of -10.8% at `nfix_a` 0.102 and +5.4% at
+0.367 against the midpoint, fitted before BIO-24 moved both halves of the
+relation. Measured now on the corrected time base, from three accepted runs
+differing in `nfix_a` alone:
+
+| `nfix_a` | land-mean NPP, gC/m2 per Earth year | against the midpoint |
+| --- | --- | --- |
+| 0.102 | 339.68 | **-26.9%** |
+| 0.234 | 464.49 | -- |
+| 0.367 | 483.25 | **+4.0%** |
+
+**The response is strongly asymmetric and the low end is two and a half times
+more sensitive than the smoke run said.** Dropping fixation to the bracket's
+floor costs 27% of land-mean productivity; raising it to the ceiling buys 4%.
+That shape is what puts lines 3 and 4 outside their bands: the ceiling is nearly
+saturated, so the span's width is almost entirely the floor's.
+
+The registered response is superseded rather than adjusted, on this document's
+own rule 1 -- the method is what is registered, re-derived on current artifacts
+and not re-tuned.
 
 ### The mechanism behind the five structural misses
 

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-07T11:40:31+00:00",
+  "generated": "2026-09-07T16:48:11+00:00",
   "run": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b",
   "run_manifest": {
     "run_id": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
@@ -1598,20 +1598,19 @@
       0.367
     ],
     "arms": {
-      "0.234": 464.4876626519652
+      "0.102": 339.6838040983181,
+      "0.234": 464.4876626519652,
+      "0.367": 483.24698332858634
     },
-    "bracket_carried": false,
-    "missing_ends": [
-      0.102,
-      0.367
-    ],
+    "bracket_carried": true,
+    "missing_ends": [],
     "land_mean_npp_span_gc_m2_earth_year": [
-      464.4876626519652,
-      464.4876626519652
+      339.6838040983181,
+      483.24698332858634
     ],
     "total_npp_span_pgc_earth_year": [
-      121.84051083173065,
-      121.84051083173065
+      89.10300862741222,
+      126.76129861120796
     ],
     "note": "productivity is a property of the declared fixation bracket; a single arm is not a quotation of it"
   },
@@ -1630,8 +1629,8 @@
     {
       "prediction": "1  land-mean NPP relative to Earth",
       "span_over_arms_supplied": [
-        1.206461461433676,
-        1.206461461433676
+        0.8822955950605664,
+        1.2551869696846398
       ],
       "hit_band": [
         0.7,
@@ -1641,14 +1640,14 @@
         0.5,
         2.0
       ],
-      "verdict": "NOT QUOTED: the declared nfix_a bracket is not carried",
-      "quoted": false
+      "verdict": "HIT",
+      "quoted": true
     },
     {
       "prediction": "2  land-mean NPP, gC/m2 per Earth year",
       "span_over_arms_supplied": [
-        464.4876626519652,
-        464.4876626519652
+        339.6838040983181,
+        483.24698332858634
       ],
       "hit_band": [
         280.0,
@@ -1658,14 +1657,14 @@
         200.0,
         800.0
       ],
-      "verdict": "NOT QUOTED: the declared nfix_a bracket is not carried",
-      "quoted": false
+      "verdict": "HIT",
+      "quoted": true
     },
     {
       "prediction": "3  total NPP relative to Earth",
       "span_over_arms_supplied": [
-        2.1189654057692286,
-        2.1189654057692286
+        1.5496175413462996,
+        2.204544323673182
       ],
       "hit_band": [
         1.6,
@@ -1675,14 +1674,14 @@
         1.2,
         3.5
       ],
-      "verdict": "NOT QUOTED: the declared nfix_a bracket is not carried",
-      "quoted": false
+      "verdict": "outside hit band, inside clear-miss band",
+      "quoted": true
     },
     {
       "prediction": "4  total NPP, PgC per Earth year",
       "span_over_arms_supplied": [
-        121.84051083173065,
-        121.84051083173065
+        89.10300862741222,
+        126.76129861120796
       ],
       "hit_band": [
         90.0,
@@ -1692,8 +1691,8 @@
         60.0,
         240.0
       ],
-      "verdict": "NOT QUOTED: the declared nfix_a bracket is not carried",
-      "quoted": false
+      "verdict": "outside hit band, inside clear-miss band",
+      "quoted": true
     },
     {
       "prediction": "5  tree cover, land fraction with tree FPC > 0.1",
@@ -1780,8 +1779,8 @@
       "quoted": true
     }
   ],
-  "hits": 1,
+  "hits": 3,
   "note": "Bands are transcribed from notes/productivity-prediction.md and are not to be edited to fit a result. A miss is the result. Lines 1 to 4 are quoted over the declared nfix_a bracket and are not scored until both ends are supplied.",
   "config_sha256": "824f71905363c728abf385f5fac2489c67db09844acf0876681d357835d0487f",
-  "git_commit": "0ce2943841abdcc80a42e9528da1067015025262"
+  "git_commit": "79d03da8ad080443dc75dc346362a79b66458520"
 }
