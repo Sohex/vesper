@@ -19,6 +19,19 @@
 #   qrun -p light           a long analysis that is not CPU-bound
 # and anything whose shape matches none of those overrides with -c/-m/-t.
 #
+# **Override `-t` too, not just -c/-m.** This is the one that has actually bitten:
+# a basemap build submitted as `-c 2 -m 12G` inherited this profile's 7-day
+# walltime and then would not start for hours, while 24 CPUs sat idle. Slurm
+# reserves resources for queued higher-priority work and will only slot a job
+# into the gap ahead of a reservation if it provably finishes first; a 7-day
+# limit never does, so a two-minute job waits behind everything. A short job
+# MUST carry a short `-t`. The limit is a promise about the worst case, not a
+# guess -- being generous with it is not free.
+#
 # Do not raise `mem` here to cover the one job that needs more; over-asking
 # makes every job in this repo wait longer. Override that job alone with -m.
+#
+# Nothing here uses the GPU. If a map render ever does, ask for `-p gpu-share`
+# rather than a whole card: shares carry no compute cap, so one share runs at
+# full speed and simply lets other GPU work proceed alongside.
 profile = "exoplasim"
