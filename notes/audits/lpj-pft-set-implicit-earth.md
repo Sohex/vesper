@@ -118,9 +118,26 @@ than one made here:
 | layer 2, 0.4-1.2 m (`tso2`) | -64.69 degC |
 | layer 5, 6.0-12.4 m (`tsod`) | -31.96 degC, and its annual mean -31.85 matches the surface's -31.74, which is what says the column is equilibrated |
 
-So the root zone runs at about **-79.5 degC** in the coldest month, colder than
-either figure an earlier draft reached, against a boreal conifer root tolerance
-of -20 to -30 degC. The conclusion holds and strengthens; the number does not,
+So the root zone runs at about **-79.5 degC** in the coldest month against a
+boreal conifer root tolerance of -20 to -30 degC.
+
+**That -79.5 is the MODEL's answer and it is snow-blind, for a reason worth
+recording.** `landmod.f90` mixes snow into the top `dztop` = 0.20 m as heat
+CAPACITY, and only the snow BEYOND that depth -- `zsnowz` -- enters the
+conductivity of the layer-1 solve. At `rhosnow` = 330 kg/m3 that threshold is
+0.20 m of snow, or 0.066 m water equivalent, and **no polar-land cell-month
+reaches it**: the deepest monthly pack is 0.0231 m w.e., 0.070 m of snow, and
+the maximum anywhere on polar land is 0.154 m. So `zsnowz` is zero, `zdiff1`
+collapses to the bare soil conductivity, and the model gives the root zone no
+conductive shelter at all.
+
+Physically it should have a little. 0.070 m of snow at the model's own
+`snowdiff` = 0.3170 W/m/K is 0.22 m2K/W, which under a winter ground flux of 5
+to 20 W/m2 is worth a few kelvin -- not the tens that Earth's boreal pack of
+half a metre and more buys, because this cap is snow-poor precisely for the
+reason everything else here is: it is arid. So the real root zone sits a few K
+above -79.5 rather than at it, the overshoot against -20 to -30 degC is 45 to
+60 K either way, and the conclusion holds and strengthens. The number does not,
 and an
 earlier draft of this note quoted -63.91 degC as "what roots see", which was
 `tsod` -- the layer 6 to 12.4 m down -- and was additionally averaged over 31
@@ -142,8 +159,8 @@ Why roots are the exception is his Fig. 8, which tracks bud and root hardening
 on separate courses in *Acer saccharum*: soil at 20 cm stayed between 0 and
 -7 degC while the air fell below -20. **Earth's roots are buffered by soil and
 snow and are therefore never selected for deep hardiness.** That buffer is what
-this cap does not have -- a root zone near -79.5 degC under 0.023 m of snow,
-against Earth's 0 to -7 -- so the root threshold binds
+this cap does not have -- a root zone near -79.5 degC under 0.070 m of snow,
+against Earth's 0 to -7 under half a metre and more -- so the root threshold binds
 here for a reason no Earth analogue has been selected against. Deep supercooling alone caps at -30 to -50 degC before
 homogeneous nucleation, and beyond that survival is by freezing TOLERANCE --
 extracellular ice and cellular dehydration. Two mechanisms, not one scale, and
