@@ -98,18 +98,46 @@ polar night is so uniformly cold that mean and minimum coincide, where on Earth
 they differ by tens of kelvin. The mean-based criterion is accidentally safe
 here and would not be at a lower latitude.
 
-**The root threshold is the one that bites.** Soil temperature at the cap
-reaches -63.91 degC against a boreal conifer root tolerance of -20 to -30, and
-what protects roots on Earth is snow: the cap carries a deepest monthly cover of
+**The root threshold is the one that bites, and the climate model does not
+report the layer it bites in.** `dsoilz` gives the soil column five layers of
+0.4, 0.8, 1.6, 3.2 and 6.4 m, so layer 1 spans 0 to 0.4 m and its midpoint is
+Larcher's 20 cm. That layer is output as code 183 and **the climatology does not
+carry it**; the shallowest it carries is layer 2, 0.4 to 1.2 m, as `tso2`. So the
+root-zone temperature is BRACKETED here rather than measured, between the
+surface minimum and layer 2:
+
+| on the model's own land, poleward of 75 deg | coldest month |
+| --- | --- |
+| surface | -79.53 degC |
+| **layer 1, 0-0.4 m, the root zone** | **not output; between the two** |
+| layer 2, 0.4-1.2 m (`tso2`) | -64.69 degC |
+| layer 5, 6.0-12.4 m (`tsod`) | -31.96 degC, and its annual mean -31.85 matches the surface's -31.74, which is what says the column is equilibrated |
+
+Either end of that bracket overshoots a boreal conifer root tolerance of -20 to
+-30 degC by 35 to 50 K, so the conclusion holds; the number does not, and an
+earlier draft of this note quoted -63.91 degC as "what roots see", which was
+`tsod` -- the layer 6 to 12.4 m down -- and was additionally averaged over 31
+cells the climate model calls ocean, where the soil array is fill. What protects
+roots on Earth is snow, and the cap carries a deepest monthly cover of
 **0.023 m**. Aerial tissue could survive this winter; roots could not, and
 nothing in the model represents that separately, because `tcmin_surv` is one
 number for a whole plant.
 
-Larcher's section 4 closes the argument the other way. The deepest hardening
-comes from a month or more at -10 to -60 degC, and willow, birch, pine and black
-currant hardened that way survive -196 degC. Extreme cold tolerance is available
-to woody plants; what limits it is the hardening schedule and what selection has
-asked for, not physics. Deep supercooling alone caps at -30 to -50 degC before
+Larcher's section 4 bounds what is physically available, with qualifiers that
+have to travel with it. The deepest hardening comes from a month or more of slow
+cooling at -10 to -60 degC, and willow, birch, pine and black currant hardened
+that way survive -196 degC -- but the organ is TWIGS, the protocol is
+ARTIFICIAL, and he says the state "may not commonly be attained in nature". So
+extreme freezing tolerance is available to woody TISSUE and the -69 degC air
+temperature is not a physical barrier. It says nothing about roots.
+
+Why roots are the exception is his Fig. 8, which tracks bud and root hardening
+on separate courses in *Acer saccharum*: soil at 20 cm stayed between 0 and
+-7 degC while the air fell below -20. **Earth's roots are buffered by soil and
+snow and are therefore never selected for deep hardiness.** That buffer is what
+this cap does not have -- a root zone somewhere between -79.5 and -64.7 degC
+under 0.023 m of snow, against Earth's 0 to -7 -- so the root threshold binds
+here for a reason no Earth analogue has been selected against. Deep supercooling alone caps at -30 to -50 degC before
 homogeneous nucleation, and beyond that survival is by freezing TOLERANCE --
 extracellular ice and cellular dehydration. Two mechanisms, not one scale, and
 LPJ carries one number for both.

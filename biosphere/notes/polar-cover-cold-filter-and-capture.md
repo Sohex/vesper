@@ -34,6 +34,19 @@ rather than in a fixed one, beside 264 tropical cells read the same way:
 | precipitation per simulation year | 77.27 mm | 632.14 mm |
 | share of it falling as snow | 52.85% | 0% |
 
+**THESE ARE THE FIGURES LPJ WAS FORCED WITH, AND THEY BLEND 31 CELLS THE
+CLIMATE MODEL CALLS OCEAN.** LPJ ran on BIO-11's 1617 rootable cells, of which
+234 lie poleward of 75 degrees, while the atmosphere model's own binary land
+mask holds only 203 of those; the driver was built at all 234 either way, so
+the table above is what the biosphere integrated and is the right support for
+every biosphere number in this note. Restricted to the model's land the summer
+is HARSHER, not milder: warmest month 34.46 degC rather than 31.11, insolation
+398.15 W/m2 rather than 390.67, precipitation 79.36 mm rather than 77.27 and
+48.9% of it snow rather than 55.7%. Nothing in the argument turns on the
+difference. What the distinction DOES decide is soil: temperature and moisture
+are undefined over the model's ocean, so any statement about the root zone must
+use the land mask, and an earlier draft of the companion audit did not.
+
 `tcmin_surv` is a survival limit on the coldest month's mean temperature, and
 at -68.75 degC it excludes every type that declares one. The most cold-tolerant
 finite limit in `biosphere/generated/vesper_pfts.ins` is -31 degC, held by BNE
