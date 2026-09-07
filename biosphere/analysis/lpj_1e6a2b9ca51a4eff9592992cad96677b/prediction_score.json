@@ -1,0 +1,1787 @@
+{
+  "generated": "2026-09-07T11:40:31+00:00",
+  "run": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b",
+  "run_manifest": {
+    "run_id": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
+    "generated": "2026-09-07T09:41:28+00:00",
+    "physical": {
+      "nyear": 1253,
+      "nyear_spinup": 8600,
+      "npatch": 5,
+      "root_seed": 20260828,
+      "ranks": 16,
+      "nfix_a": 0.234,
+      "nfix_b": -0.172,
+      "label": null,
+      "ntransform_profile": "vesper",
+      "ifbvoc": 0,
+      "run_peatland": 0,
+      "ifmethane": 0
+    },
+    "continuation": null,
+    "saved_state": {
+      "dir": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/state",
+      "covers_year": 9852,
+      "covers_day": "year boundary",
+      "sha256": {
+        "0.state": "356bf8e6e2133db2e2452a92dbee0ec42fe628e6c325257856fc33238758723f",
+        "1.state": "311f49b4f15dc48331493e7e2a8864ff574a050ba4e70f7d72192d40b07426ab",
+        "10.state": "a6f9a68a624345a1eaea8a25aa5ccbf2f915037f86bdfab77a62eddc21e8c823",
+        "11.state": "f0ac54f573d1f06e9375bfc7a937d4923462a7accfe4b7fa1c4f0ce645c5ae4e",
+        "12.state": "a60b3954d3aa5f8d4685bcdaaaf99343a45954b36d821ad70470173d5b3ad1a1",
+        "13.state": "3cfe797ac11d859840adf1a5176fd7869f34282d77c247aa29e6f084b17b98ec",
+        "14.state": "38e774191aa05f9a685e43cc9fb6f2e1da5fe19b760de86e379f85e1bbc74fd2",
+        "15.state": "5ddc762624f91bcb2495af9b538747e372a990b94f86e20909c5d7818033017e",
+        "2.state": "cb152db338a850915a213155c63ef4948e9531784bb82b48959803d114c4bd72",
+        "3.state": "7c36b481c485ba06a49414ec8d3ec23db34fce085a55d6c21f622ada32b60d57",
+        "4.state": "8f6f62722b768cd3cdf3a70a1b44af732a6c08771bfb33810e4388e6e99bb4c6",
+        "5.state": "a207ccce91e2135ff03ebe8b5b65b27cafa5f7ae030ed847a3c88c96181dc986",
+        "6.state": "05ee3a31051377afe0c1bb877de8c9a18baeb28ce5dcf829b418105f4b5e60e6",
+        "7.state": "d1a77b3c2197c1afae89199a4572ef698aae3cc4d95a42aac8dd9fa9834ec8ae",
+        "8.state": "1f6008c477ddf52e9c819f6f2dfed0b59efd7f98393a8664610d81d26307f212",
+        "9.state": "7f2d8ea279fca910d35b605472126481bf4ea9e8bedeb83de7d44fb52e2a754d",
+        "meta.bin": "e9bd947d220132b18293a238bf3398b6dcd934847d18af675e3181ecfd01e63f"
+      }
+    },
+    "wall_seconds": 8725.5,
+    "ranks": 16,
+    "settings": {
+      "title": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
+      "nyear": 1253,
+      "npatch": 5,
+      "nyear_spinup": 8600,
+      "root_seed": 20260828,
+      "nfix_a": 0.234,
+      "nfix_b": -0.172,
+      "ifbvoc": 0,
+      "outputs": [
+        "anpp.out",
+        "lai.out",
+        "fpc.out",
+        "cmass.out",
+        "aaet.out",
+        "cpool.out",
+        "dens.out",
+        "agpp.out",
+        "nsources.out",
+        "cflux.out",
+        "firert.out",
+        "tot_runoff.out",
+        "awater.out",
+        "maet.out",
+        "mevap.out",
+        "mintercep.out",
+        "nmass.out",
+        "nuptake.out",
+        "npool.out",
+        "nflux.out",
+        "ngases.out",
+        "soil_npool.out",
+        "soil_nflux.out"
+      ],
+      "run_peatland": 0,
+      "ifmethane": 0,
+      "ifsaturatewetlands": 0,
+      "wetland_runon": 0.0,
+      "state": {
+        "restart": false,
+        "save_state": true,
+        "state_year": 9853,
+        "state_day": -1,
+        "save_year": 9853,
+        "save_day": -1,
+        "state_path": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/state",
+        "save_path": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/state"
+      }
+    },
+    "cells_simulated": 1617,
+    "output_rows": {
+      "anpp.out": 2026101,
+      "lai.out": 2026101,
+      "fpc.out": 2026101,
+      "cmass.out": 2026101,
+      "aaet.out": 2026101,
+      "cpool.out": 2026101,
+      "dens.out": 2026101,
+      "agpp.out": 2026101,
+      "nsources.out": 2026101,
+      "cflux.out": 2026101,
+      "firert.out": 2026101,
+      "tot_runoff.out": 2026101,
+      "awater.out": 2026101,
+      "maet.out": 2026101,
+      "mevap.out": 2026101,
+      "mintercep.out": 2026101,
+      "nmass.out": 2026101,
+      "nuptake.out": 2026101,
+      "npool.out": 2026101,
+      "nflux.out": 2026101,
+      "ngases.out": 2026101,
+      "soil_npool.out": 2026101,
+      "soil_nflux.out": 2026101
+    },
+    "forcing": {
+      "format": "VESPDRV8",
+      "cells": 1617,
+      "intervals_per_year": 12,
+      "year_length_days": 183,
+      "cycle_years": 1,
+      "subdaily_samples": 0,
+      "header_padding": 0
+    },
+    "stochastic_randomness": {
+      "contract_version": "vesper-stochastic-streams/1",
+      "algorithm": "fnv1a64-components-le-v1",
+      "root_seed": 20260828,
+      "keys": [
+        "root_seed",
+        "longitude_microdegrees",
+        "latitude_microdegrees",
+        "stand_id",
+        "patch_id",
+        "process_id"
+      ],
+      "processes": {
+        "establishment": 1,
+        "fire_occurrence": 2,
+        "fire_mortality": 3,
+        "background_mortality": 4,
+        "disturbance": 5
+      },
+      "declaration": "biosphere/config/stochastic_seeds.yaml",
+      "declaration_sha256": "2b207d9a2425bff45d561a338e7c9f60e35e427b8763eb81a083af1d9e1a610e",
+      "invariance": "independent of MPI rank and grid-cell traversal order"
+    },
+    "inputs": {
+      "driver": {
+        "path": "/home/cfutro/docs/world/biosphere/generated/vesper_driver.bin",
+        "sha256": "f4bf4a1f4b495ae9d58392ada09f57bb707ec20406f39f394190af5c09921733"
+      },
+      "soilmap": {
+        "path": "/home/cfutro/docs/world/pedology/data/canonical-10m-carve2/soilmap_T21.txt",
+        "sha256": "c8086c4f8b32e08275db057deed6fadd1e66163f85b18f233f6d532b9aff7daa"
+      },
+      "pfts": {
+        "path": "/home/cfutro/docs/world/biosphere/generated/vesper_pfts.ins",
+        "sha256": "9d6e37808cca516ce8a55aeca6a2c8b7a4654795b469d7f48f1ba624db1036c1"
+      },
+      "vesper_h": {
+        "path": "/home/cfutro/docs/world/biosphere/generated/vesper.h",
+        "sha256": "776aaa093c7cdb75fb6d9456651d988707e5c12f56217a569600d322098549e4"
+      },
+      "binary": {
+        "path": "/home/cfutro/docs/world/vendor/lpj-guess/build/guess",
+        "sha256": "fab12ba9e641883f319c113935b75de670aa6d266589ce5c1d23845778604a42"
+      },
+      "global_soiln": {
+        "path": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/global_soiln.ins",
+        "sha256": "ea97e8e79609dcc29cf9ba0fe86c3b10731c0897dfeb305dee84c9aa4598a17e"
+      }
+    },
+    "ntransform_comparison": {
+      "profile": "vesper",
+      "binary_provenance": {
+        "contract_version": "vesper-lpj-guess-binary/1",
+        "generated": "2026-09-07T07:02:48+00:00",
+        "binary_sha256": "fab12ba9e641883f319c113935b75de670aa6d266589ce5c1d23845778604a42",
+        "subtree_commit": "2df6c68c0865f287ce7eca59eb366a67beb56d89",
+        "source_digest": "c94ca6d7e5382b292e718e169878eed2593a9f743cd50c82d5223356e9f7e5b6",
+        "toolchain": {
+          "versions": {
+            "c++": "c++ (GCC) 16.2.1 20260810",
+            "cmake": "cmake version 4.4.3",
+            "mpicxx": "g++ (GCC) 16.2.1 20260810"
+          },
+          "cache": {
+            "CMAKE_BUILD_TYPE": "Release",
+            "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+            "CMAKE_CXX_FLAGS": "",
+            "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG",
+            "UNIT_TESTS": "OFF",
+            "SYSTEM": "",
+            "MPI_CXX_COMPILER": "/usr/bin/mpicxx",
+            "NETCDF_INCLUDE_DIR": "/usr/include",
+            "NETCDF_C_LIBRARY": "/usr/lib/libnetcdf.so"
+          }
+        },
+        "configure_command": [
+          "cmake",
+          "-S",
+          "/home/cfutro/docs/world/vendor/lpj-guess",
+          "-B",
+          "/home/cfutro/docs/world/vendor/lpj-guess/build",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DUNIT_TESTS=OFF"
+        ],
+        "compile_command": [
+          "cmake",
+          "--build",
+          "/home/cfutro/docs/world/vendor/lpj-guess/build",
+          "--parallel",
+          "16"
+        ],
+        "source_count": 124
+      }
+    },
+    "config_sha256": "824f71905363c728abf385f5fac2489c67db09844acf0876681d357835d0487f",
+    "source_build": "canonical-10m-carve2",
+    "soil_driver_climate_contract": {
+      "soil_iteration": 0,
+      "soil_state": "baseline",
+      "climatology_stage": "baseline",
+      "climatology_sha256": "54ba7da74dcc87399983cacfe67adff80de34d3252c6f003261f439a5857f94b",
+      "soil_report": "pedology/analysis/soil_report.json",
+      "soil_report_sha256": "e735a2bcda7cc1ccbf784df84d709548ba321f4034b79ac198d62353b27ab573",
+      "driver_provenance": "biosphere/generated/vesper_driver_provenance.json",
+      "driver_provenance_sha256": "072d84c6c9310d786a44fc08234e6dcb9d42133f981a42bba26e33a3f3189f61"
+    },
+    "stellar_spectrum": "k25v",
+    "orbital_year_earth_days": 182.80142503147016,
+    "model_year_days": 183,
+    "earth_year_days": 365.2568983,
+    "earth_years_per_simulation_year": 0.5010172315751716,
+    "annual_flux_per_orbit_to_per_earth_year": 1.9959393349726775,
+    "reporting_interval": "one simulation year, which is one orbit of 183 absolute days",
+    "unit_note": "Every annual column in the .out files is a sum over one simulation year, which is one orbit and not one Earth year. Multiply such a flux by annual_flux_per_orbit_to_per_earth_year before comparing with anything quoted per Earth year, including notes/productivity-prediction.md. The name says which direction the factor goes, because the two directions differ by four in the answer and look identical in a script. The registry of which quantity is in which unit is biosphere/notes/time-base-unit-contract.md.",
+    "software": {
+      "platform": "Linux-7.2.2-1-cachyos-x86_64-with-glibc2.44",
+      "lpj_guess": "LPJ-GUESS-CNP v1.0 (b368b893c4324840b43c56866e901c6916858afb) + in-tree Vesper port; phosphorus limitation disabled"
+    },
+    "git_commit": "c0877707113589a5f13dd96d545cb6f116e050ba"
+  },
+  "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "cells_scored": 997,
+  "land_cells": 997,
+  "partial": false,
+  "annual_flux_per_orbit_to_per_earth_year": 1.9959393349726775,
+  "land_area_km2": 314136398.0806083,
+  "rootable_area_km2": 262311619.0774355,
+  "rootable_surface": {
+    "path": "biosphere/data/canonical-10m-carve2/rootable_fraction_T21.nc",
+    "sha256": "0cb7dd1f04fc3f85ac00451e5aaa804f4f9c38ccc0b588456867d903675b96e0",
+    "spatial_contract_identity": "701efb6e63b34b1c887f1a55fb8f225a09b6d5e50ebf77dc93386625c41197aa"
+  },
+  "equilibrium_windows": {
+    "anpp": {
+      "contract_version": "vesper-lpj-equilibrium-window/6",
+      "policy": "biosphere/config/equilibrium_window.yaml",
+      "policy_sha256": "55c79a68538ca692be67b398be4af6734fb27a161bc5734ba6dc7ffae3eea0d1",
+      "identity": {
+        "table": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/anpp.out",
+        "run_manifest": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/run_manifest.json",
+        "run_id": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
+        "root_seed": 20260828,
+        "npatch": 5
+      },
+      "forcing": {
+        "source": "run_manifest.forcing",
+        "format": "VESPDRV8",
+        "cells": 1617,
+        "intervals_per_year": 12,
+        "year_length_days": 183,
+        "cycle_years": 1,
+        "subdaily_samples": 0,
+        "header_padding": 0
+      },
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": {
+          "statistic": "maximum_over_detrended_windows_of_this_run",
+          "windows": 124,
+          "first_year": 8603,
+          "last_year": 9842,
+          "false_refusal_rate": 0.008,
+          "per_field_false_refusal_rate": 0.05,
+          "family_size": 7,
+          "family_false_refusal_bound": 0.056,
+          "family_false_refusal_if_independent": 0.05467377732629519,
+          "family_note": "the union bound holds whatever the dependence between the assessed quantities; the independent value is smaller and the two bracket the truth from the conservative side. A refusal through this half has to be read against them",
+          "cycles_for_family_rate_at_the_declared_ceiling": 1400
+        },
+        "record_cycles": 1253,
+        "drift": [
+          {
+            "field": "anpp.out total productivity",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.2727,
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "tightest half-width over centre of the ten pre-registered prediction bands",
+            "relative_drift": 0.002951207657489109,
+            "relative_standard_error": 0.004011288906723058,
+            "upper_bound": 0.010084217253403556,
+            "tau_cycles": 87.03114323380461,
+            "effective_samples_per_half": 7.192827495305718,
+            "degrees_of_freedom": 12.337513553017631,
+            "critical_value": 1.7782338200470373,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0010220376312115266,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "assessed": [
+          "anpp.out total productivity"
+        ],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "BNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.10368993707859023,
+            "relative_standard_error": 0.04352408231694371,
+            "upper_bound": 0.20145455544743737,
+            "tau_cycles": 229.11874239340762,
+            "effective_samples_per_half": 2.7322077341238575,
+            "degrees_of_freedom": 3.3933099848789534,
+            "critical_value": 2.2462189474076024,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.015525767869945173,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 11640.648870673807
+          },
+          {
+            "field": "BINE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.06311877901749571,
+            "relative_standard_error": 0.0399895308974753,
+            "upper_bound": 0.15257470386522481,
+            "tau_cycles": 196.95043640966247,
+            "effective_samples_per_half": 3.1784646503544796,
+            "degrees_of_freedom": 3.433735453793795,
+            "critical_value": 2.2369836014599715,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.011796030873865283,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 7169.671575226097
+          },
+          {
+            "field": "BNS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.00853623532969596,
+            "relative_standard_error": 0.02284433554377761,
+            "upper_bound": 0.04997029922840934,
+            "tau_cycles": 104.88889236438101,
+            "effective_samples_per_half": 5.968220141226146,
+            "degrees_of_freedom": 9.930101042165447,
+            "critical_value": 1.8137565795823414,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0057394950069172964,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1705.0232633131811
+          },
+          {
+            "field": "TeNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.14958753904773237,
+            "relative_standard_error": 0.08161698794169014,
+            "upper_bound": 0.288508928303901,
+            "tau_cycles": 40.96573940291245,
+            "effective_samples_per_half": 15.281061909882059,
+            "degrees_of_freedom": 27.535171862360823,
+            "critical_value": 1.702113650106993,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.021479438716508356,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 22436.186790758486
+          },
+          {
+            "field": "TeBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.008615435232702726,
+            "relative_standard_error": 0.02422255198298573,
+            "upper_bound": 0.05274238164754731,
+            "tau_cycles": 108.4022990627744,
+            "effective_samples_per_half": 5.774785271274471,
+            "degrees_of_freedom": 9.52237911084948,
+            "critical_value": 1.8217298675151978,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.006094858533102577,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 2006.6237037558753
+          },
+          {
+            "field": "IBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.059715941177528285,
+            "relative_standard_error": 0.05531289973400153,
+            "upper_bound": 0.16072783659352965,
+            "tau_cycles": 110.59297506590681,
+            "effective_samples_per_half": 5.660395695358963,
+            "degrees_of_freedom": 9.309880174760384,
+            "critical_value": 1.8261905613657077,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.014506517320696058,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 12054.005132757455
+          },
+          {
+            "field": "TeBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.003718474913771433,
+            "relative_standard_error": 0.005847114467187394,
+            "upper_bound": 0.013598981253699082,
+            "tau_cycles": 33.299423662696846,
+            "effective_samples_per_half": 18.799124163258917,
+            "degrees_of_freedom": 34.8207164214138,
+            "critical_value": 1.6898089468531332,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0014693038369997934,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "TrBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.0477478392683512,
+            "relative_standard_error": 0.05783977594868737,
+            "upper_bound": 0.2202981748120118,
+            "tau_cycles": 312.4602140532897,
+            "effective_samples_per_half": 2.0034550699412774,
+            "degrees_of_freedom": 1.9393291344971824,
+            "critical_value": 2.9832469561558965,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.01563435726579307,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 12143.130312287141
+          },
+          {
+            "field": "TrIBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.007244612831755934,
+            "relative_standard_error": 0.036715210760248806,
+            "upper_bound": 0.07235111309993908,
+            "tau_cycles": 83.81509571481114,
+            "effective_samples_per_half": 7.4688216324422605,
+            "degrees_of_freedom": 12.778470716750181,
+            "critical_value": 1.7732841217589659,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.009179882933058575,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 3949.730382141491
+          },
+          {
+            "field": "TrBR",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.022474289763223017,
+            "relative_standard_error": 0.10089418741185911,
+            "upper_bound": 0.33933796808848127,
+            "tau_cycles": 473.39507693138313,
+            "effective_samples_per_half": 1.3223627166928404,
+            "degrees_of_freedom": 1.8096960208386832,
+            "critical_value": 3.140554341666803,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.025450340163886958,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 28647.7094466001
+          },
+          {
+            "field": "C3G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.01076141769888293,
+            "relative_standard_error": 0.007453997527231436,
+            "upper_bound": 0.02321773631876882,
+            "tau_cycles": 20.242000047311652,
+            "effective_samples_per_half": 30.925797773779735,
+            "degrees_of_freedom": 59.001398321357506,
+            "critical_value": 1.6710924003368186,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0018925666350079898,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "C4G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.03470341377210871,
+            "relative_standard_error": 0.01997108388495343,
+            "upper_bound": 0.06859162601326863,
+            "tau_cycles": 38.6846873550223,
+            "effective_samples_per_half": 16.18211346145799,
+            "degrees_of_freedom": 30.2219587172114,
+            "critical_value": 1.69686394771452,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0052192068939525185,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.002951207657489109,
+            "relative_standard_error": 0.004011288906723058,
+            "upper_bound": 0.010084217253403556,
+            "tau_cycles": 87.03114323380461,
+            "effective_samples_per_half": 7.192827495305718,
+            "degrees_of_freedom": 12.337513553017631,
+            "critical_value": 1.7782338200470373,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0010220376312115266,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [
+          {
+            "trending_cell_fraction": 0.09684519442406456,
+            "trending_cell_fraction_limit": 0.135343618513324,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "anpp.out total productivity"
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "uncertainty": {
+        "temporal": {
+          "statistic": "sample_standard_deviation_over_annual_values",
+          "by_field_across_cells": {
+            "BNE": {
+              "mean": 0.0014737442869729275,
+              "median": 0.0,
+              "p95": 0.009133494825479512,
+              "maximum": 0.06785703061122247
+            },
+            "BINE": {
+              "mean": 0.0017775818591746024,
+              "median": 0.0,
+              "p95": 0.008677267790014872,
+              "maximum": 0.09333003092366159
+            },
+            "BNS": {
+              "mean": 0.0011663229098325594,
+              "median": 0.0,
+              "p95": 0.008084027376977491,
+              "maximum": 0.03686819531255216
+            },
+            "TeNE": {
+              "mean": 0.0003752738661333269,
+              "median": 0.0,
+              "p95": 0.0023928470253303047,
+              "maximum": 0.019249641713770492
+            },
+            "TeBS": {
+              "mean": 0.0014636342646200014,
+              "median": 0.0,
+              "p95": 0.008858895246968422,
+              "maximum": 0.06991944850869834
+            },
+            "IBS": {
+              "mean": 0.0016152809915358603,
+              "median": 0.0,
+              "p95": 0.00838074868712168,
+              "maximum": 0.09059442833767962
+            },
+            "TeBE": {
+              "mean": 0.003595381311375124,
+              "median": 0.0,
+              "p95": 0.03147109196372868,
+              "maximum": 0.0585800958064355
+            },
+            "TrBE": {
+              "mean": 0.010299108046552633,
+              "median": 0.0,
+              "p95": 0.0886010639901607,
+              "maximum": 0.1974303673183091
+            },
+            "TrIBE": {
+              "mean": 0.006054670685261155,
+              "median": 0.0,
+              "p95": 0.057974289548480516,
+              "maximum": 0.13714646960802296
+            },
+            "TrBR": {
+              "mean": 0.009907959365740768,
+              "median": 0.0,
+              "p95": 0.09785171970252458,
+              "maximum": 0.26232773163909134
+            },
+            "C3G": {
+              "mean": 0.006414221135646483,
+              "median": 0.003074847998379269,
+              "p95": 0.025077649428771616,
+              "maximum": 0.06385292246981916
+            },
+            "C4G": {
+              "mean": 0.005239679686304897,
+              "median": 0.0,
+              "p95": 0.03762089880107192,
+              "maximum": 0.14683789844785636
+            },
+            "Total": {
+              "mean": 0.013390158202078796,
+              "median": 0.005025115724137112,
+              "p95": 0.05695670392528819,
+              "maximum": 0.09627272779892672
+            }
+          }
+        },
+        "seed": {
+          "status": "not_measured",
+          "reason": "fewer than two root seeds at one patch count"
+        },
+        "patch_count": {
+          "status": "not_measured",
+          "reason": "fewer than two patch counts"
+        },
+        "ensemble_members": [
+          {
+            "path": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/anpp.out",
+            "root_seed": 20260828,
+            "npatch": 5
+          }
+        ]
+      },
+      "peers": []
+    },
+    "lai": {
+      "contract_version": "vesper-lpj-equilibrium-window/6",
+      "policy": "biosphere/config/equilibrium_window.yaml",
+      "policy_sha256": "55c79a68538ca692be67b398be4af6734fb27a161bc5734ba6dc7ffae3eea0d1",
+      "identity": {
+        "table": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/lai.out",
+        "run_manifest": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/run_manifest.json",
+        "run_id": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
+        "root_seed": 20260828,
+        "npatch": 5
+      },
+      "forcing": {
+        "source": "run_manifest.forcing",
+        "format": "VESPDRV8",
+        "cells": 1617,
+        "intervals_per_year": 12,
+        "year_length_days": 183,
+        "cycle_years": 1,
+        "subdaily_samples": 0,
+        "header_padding": 0
+      },
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": {
+          "statistic": "maximum_over_detrended_windows_of_this_run",
+          "windows": 124,
+          "first_year": 8603,
+          "last_year": 9842,
+          "false_refusal_rate": 0.008,
+          "per_field_false_refusal_rate": 0.05,
+          "family_size": 7,
+          "family_false_refusal_bound": 0.056,
+          "family_false_refusal_if_independent": 0.05467377732629519,
+          "family_note": "the union bound holds whatever the dependence between the assessed quantities; the independent value is smaller and the two bracket the truth from the conservative side. A refusal through this half has to be read against them",
+          "cycles_for_family_rate_at_the_declared_ceiling": 1400
+        },
+        "record_cycles": 1253,
+        "drift": [
+          {
+            "field": "lai.out total leaf area",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.2727,
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "tightest half-width over centre of the ten pre-registered prediction bands",
+            "relative_drift": 0.0065626791013167025,
+            "relative_standard_error": 0.0036799332651079454,
+            "upper_bound": 0.012836089609146815,
+            "tau_cycles": 44.12788738719006,
+            "effective_samples_per_half": 14.186040553161002,
+            "degrees_of_freedom": 26.358382518978594,
+            "critical_value": 1.7047620312337624,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0009706217396399337,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "assessed": [
+          "lai.out total leaf area"
+        ],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "BNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.09614268805090728,
+            "relative_standard_error": 0.03762482547748686,
+            "upper_bound": 0.1714688956017082,
+            "tau_cycles": 173.52044264913673,
+            "effective_samples_per_half": 3.6076440933578633,
+            "degrees_of_freedom": 5.151459573963828,
+            "critical_value": 2.002034736237461,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.01297261332793909,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 9639.545212409359
+          },
+          {
+            "field": "BINE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.058725719329520636,
+            "relative_standard_error": 0.043717409603814296,
+            "upper_bound": 0.15136431632405892,
+            "tau_cycles": 184.64327425517766,
+            "effective_samples_per_half": 3.3903211613051543,
+            "degrees_of_freedom": 4.085914913319553,
+            "critical_value": 2.1190321621081516,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.012304046723145697,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 7854.439399933259
+          },
+          {
+            "field": "BNS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.008963070490127989,
+            "relative_standard_error": 0.023896130089491825,
+            "upper_bound": 0.05247528056482286,
+            "tau_cycles": 108.10539408332588,
+            "effective_samples_per_half": 5.790645372584178,
+            "degrees_of_freedom": 9.56361980272945,
+            "critical_value": 1.8208894039218968,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.006004530736905713,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1869.169216400282
+          },
+          {
+            "field": "TeNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.13549037076697407,
+            "relative_standard_error": 0.08051953046044255,
+            "upper_bound": 0.2731909682677113,
+            "tau_cycles": 45.43038052612091,
+            "effective_samples_per_half": 13.779325481107767,
+            "degrees_of_freedom": 24.258295650744696,
+            "critical_value": 1.7101515211689717,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.021121003404734204,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 20666.531674530223
+          },
+          {
+            "field": "TeBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.01492781538135801,
+            "relative_standard_error": 0.024427103231277055,
+            "upper_bound": 0.058774193317726396,
+            "tau_cycles": 95.82405329933619,
+            "effective_samples_per_half": 6.53280651826003,
+            "degrees_of_freedom": 11.060328413807383,
+            "critical_value": 1.7949888499356084,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.006198306121209465,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 2156.001793522028
+          },
+          {
+            "field": "IBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.05268471369160526,
+            "relative_standard_error": 0.05522392301378086,
+            "upper_bound": 0.15298441820695757,
+            "tau_cycles": 106.10546831249822,
+            "effective_samples_per_half": 5.8997901800529835,
+            "degrees_of_freedom": 9.79923302366646,
+            "critical_value": 1.8162364975469603,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.014312420894488058,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 11440.306690920628
+          },
+          {
+            "field": "TeBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.002748281833158351,
+            "relative_standard_error": 0.006288955326035044,
+            "upper_bound": 0.013355088726167677,
+            "tau_cycles": 30.959313904586587,
+            "effective_samples_per_half": 20.22008633425364,
+            "degrees_of_freedom": 37.44681544690361,
+            "critical_value": 1.6865769182839034,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0015748533238204633,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "TrBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.05717852442257561,
+            "relative_standard_error": 0.057135773716836216,
+            "upper_bound": 0.2057233209516912,
+            "tau_cycles": 280.9805033775024,
+            "effective_samples_per_half": 2.227912586372435,
+            "degrees_of_freedom": 2.4239247055046476,
+            "critical_value": 2.599856217320181,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.015802352554397363,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 12523.66591832996
+          },
+          {
+            "field": "TrIBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.015610361064530188,
+            "relative_standard_error": 0.03507999077396936,
+            "upper_bound": 0.0772828920114794,
+            "tau_cycles": 76.4426066382058,
+            "effective_samples_per_half": 8.189150364309096,
+            "degrees_of_freedom": 14.37676611367373,
+            "critical_value": 1.7580543662147283,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.00881254955300375,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 3777.023998295301
+          },
+          {
+            "field": "TrBR",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.021475592870996707,
+            "relative_standard_error": 0.10004786128073144,
+            "upper_bound": 0.3296931000754127,
+            "tau_cycles": 465.878916378661,
+            "effective_samples_per_half": 1.3436967804123474,
+            "degrees_of_freedom": 1.855844136595474,
+            "critical_value": 3.080700609277059,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.02521160228906874,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 27514.591177470043
+          },
+          {
+            "field": "C3G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.011482224842829583,
+            "relative_standard_error": 0.007530339481761311,
+            "upper_bound": 0.02403135758231658,
+            "tau_cycles": 16.880024408446722,
+            "effective_samples_per_half": 37.08525443166724,
+            "degrees_of_freedom": 71.39957683714617,
+            "critical_value": 1.666476361375386,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0019104111207937492,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "C4G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.03264905811095963,
+            "relative_standard_error": 0.019753836142445084,
+            "upper_bound": 0.06599312587615812,
+            "tau_cycles": 32.56987803022777,
+            "effective_samples_per_half": 19.220213211084666,
+            "degrees_of_freedom": 36.25896048376191,
+            "critical_value": 1.6879793638437681,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.005107692447289416,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.0065626791013167025,
+            "relative_standard_error": 0.0036799332651079454,
+            "upper_bound": 0.012836089609146815,
+            "tau_cycles": 44.12788738719006,
+            "effective_samples_per_half": 14.186040553161002,
+            "degrees_of_freedom": 26.358382518978594,
+            "critical_value": 1.7047620312337624,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0009706217396399337,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [
+          {
+            "trending_cell_fraction": 0.1304635761589404,
+            "trending_cell_fraction_limit": 0.14521452145214522,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "lai.out total leaf area"
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "uncertainty": {
+        "temporal": {
+          "statistic": "sample_standard_deviation_over_annual_values",
+          "by_field_across_cells": {
+            "BNE": {
+              "mean": 0.013772406445962171,
+              "median": 0.0,
+              "p95": 0.08303293981987006,
+              "maximum": 0.6688985276025005
+            },
+            "BINE": {
+              "mean": 0.016166045116175965,
+              "median": 0.0,
+              "p95": 0.07358641908354809,
+              "maximum": 0.7860257265086825
+            },
+            "BNS": {
+              "mean": 0.009084296000300855,
+              "median": 0.0,
+              "p95": 0.06269375876028684,
+              "maximum": 0.3051255797982708
+            },
+            "TeNE": {
+              "mean": 0.003457712434043592,
+              "median": 0.0,
+              "p95": 0.02106018244539943,
+              "maximum": 0.1714776240659587
+            },
+            "TeBS": {
+              "mean": 0.019485541593089503,
+              "median": 0.0,
+              "p95": 0.12714996045489294,
+              "maximum": 0.8071809841876146
+            },
+            "IBS": {
+              "mean": 0.015820321739015347,
+              "median": 0.0,
+              "p95": 0.08581542803993371,
+              "maximum": 0.7971331334640542
+            },
+            "TeBE": {
+              "mean": 0.048316111867448615,
+              "median": 0.0,
+              "p95": 0.45910236637092977,
+              "maximum": 0.700836245358045
+            },
+            "TrBE": {
+              "mean": 0.10188610786103428,
+              "median": 0.0,
+              "p95": 0.8892252016343323,
+              "maximum": 1.921089509113854
+            },
+            "TrIBE": {
+              "mean": 0.05050073886338637,
+              "median": 0.0,
+              "p95": 0.5002620455082978,
+              "maximum": 1.060612899568323
+            },
+            "TrBR": {
+              "mean": 0.07108134383380418,
+              "median": 0.0,
+              "p95": 0.6974289390447822,
+              "maximum": 1.7563735576226138
+            },
+            "C3G": {
+              "mean": 0.07383945053484196,
+              "median": 0.039378269667611744,
+              "p95": 0.2809737048506357,
+              "maximum": 0.7547629489211077
+            },
+            "C4G": {
+              "mean": 0.04844518582445145,
+              "median": 0.0,
+              "p95": 0.35063598492229375,
+              "maximum": 1.1818622814447108
+            },
+            "Total": {
+              "mean": 0.15734003571818134,
+              "median": 0.05354120566177824,
+              "p95": 0.6605299168871627,
+              "maximum": 1.1468704008258683
+            }
+          }
+        },
+        "seed": {
+          "status": "not_measured",
+          "reason": "fewer than two root seeds at one patch count"
+        },
+        "patch_count": {
+          "status": "not_measured",
+          "reason": "fewer than two patch counts"
+        },
+        "ensemble_members": [
+          {
+            "path": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/lai.out",
+            "root_seed": 20260828,
+            "npatch": 5
+          }
+        ]
+      },
+      "peers": []
+    },
+    "fpc": {
+      "contract_version": "vesper-lpj-equilibrium-window/6",
+      "policy": "biosphere/config/equilibrium_window.yaml",
+      "policy_sha256": "55c79a68538ca692be67b398be4af6734fb27a161bc5734ba6dc7ffae3eea0d1",
+      "identity": {
+        "table": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/fpc.out",
+        "run_manifest": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/run_manifest.json",
+        "run_id": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
+        "root_seed": 20260828,
+        "npatch": 5
+      },
+      "forcing": {
+        "source": "run_manifest.forcing",
+        "format": "VESPDRV8",
+        "cells": 1617,
+        "intervals_per_year": 12,
+        "year_length_days": 183,
+        "cycle_years": 1,
+        "subdaily_samples": 0,
+        "header_padding": 0
+      },
+      "reported": {
+        "first_year": 8600,
+        "last_year": 9852,
+        "annual_values": 1253,
+        "complete_forcing_cycles": 1253,
+        "forcing_cycle_years": 1
+      },
+      "window": {
+        "first_year": 9843,
+        "last_year": 9852,
+        "annual_values": 10,
+        "complete_forcing_cycles": 10,
+        "forcing_cycle_years": 1
+      },
+      "trend": {
+        "rule": {
+          "relative_end_to_end_limit": 0.05,
+          "maximum_false_acceptance_rate": 0.05,
+          "drift_bound_estimator": "lib/lpj_output.py:drift_bound",
+          "memory_estimator": "lib/autocorrelation.py:integrated_time",
+          "slope_standard_errors": 2.0,
+          "absolute_scale_floor": 1e-12,
+          "cell_fraction": {
+            "null_statistic": "maximum_over_detrended_windows_of_this_run",
+            "per_field_false_refusal_rate": 0.05
+          }
+        },
+        "cell_fraction_null": {
+          "statistic": "maximum_over_detrended_windows_of_this_run",
+          "windows": 124,
+          "first_year": 8603,
+          "last_year": 9842,
+          "false_refusal_rate": 0.008,
+          "per_field_false_refusal_rate": 0.05,
+          "family_size": 7,
+          "family_false_refusal_bound": 0.056,
+          "family_false_refusal_if_independent": 0.05467377732629519,
+          "family_note": "the union bound holds whatever the dependence between the assessed quantities; the independent value is smaller and the two bracket the truth from the conservative side. A refusal through this half has to be read against them",
+          "cycles_for_family_rate_at_the_declared_ceiling": 1400
+        },
+        "record_cycles": 1253,
+        "drift": [
+          {
+            "field": "fpc.out tree cover",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.05,
+            "read_by": [
+              "exoplasim/scripts/build_surface_albedo.py",
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "biosphere/scripts/derive_cover_tolerance.py, and it is the chain the tolerance below was derived through",
+            "relative_drift": 0.0054541126069802045,
+            "relative_standard_error": 0.008070304489426007,
+            "upper_bound": 0.019556180554375944,
+            "tau_cycles": 70.40746763433307,
+            "effective_samples_per_half": 8.891102336632558,
+            "degrees_of_freedom": 15.776451872233661,
+            "critical_value": 1.747402215848579,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0020419669081989957,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "fpc.out grass cover",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.05,
+            "read_by": [
+              "exoplasim/scripts/build_surface_albedo.py",
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "biosphere/scripts/derive_cover_tolerance.py, and it is the chain the tolerance below was derived through",
+            "relative_drift": 0.0019984502939734933,
+            "relative_standard_error": 0.008487914728013513,
+            "upper_bound": 0.016315499887785537,
+            "tau_cycles": 31.848502701717273,
+            "effective_samples_per_half": 19.65555510922798,
+            "degrees_of_freedom": 37.289838595707316,
+            "critical_value": 1.686757001287967,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.002120935137513289,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "fpc.out C4 grass cover",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.2727,
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "tightest half-width over centre of the ten pre-registered prediction bands",
+            "relative_drift": 0.03129039693329478,
+            "relative_standard_error": 0.020600825807719707,
+            "upper_bound": 0.06633359217249157,
+            "tau_cycles": 41.65517759898668,
+            "effective_samples_per_half": 15.02814382467615,
+            "degrees_of_freedom": 28.0352468301758,
+            "critical_value": 1.701057790900068,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.005340713160749451,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "fpc.out boreal needleleaf cover",
+            "assessed": true,
+            "settled": true,
+            "relative_end_to_end_limit": 0.2727,
+            "read_by": [
+              "biosphere/scripts/score_prediction.py"
+            ],
+            "derivation": "tightest half-width over centre of the ten pre-registered prediction bands",
+            "relative_drift": 0.0011686768490757782,
+            "relative_standard_error": 0.018540881686769903,
+            "upper_bound": 0.03519787644623802,
+            "tau_cycles": 114.3712576844681,
+            "effective_samples_per_half": 5.473403131816853,
+            "degrees_of_freedom": 8.904222565967364,
+            "critical_value": 1.8353603767098219,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.004633494336069267,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "assessed": [
+          "fpc.out tree cover",
+          "fpc.out grass cover",
+          "fpc.out C4 grass cover",
+          "fpc.out boreal needleleaf cover"
+        ],
+        "claim": "the quantities named in `drift` are inside the tolerance each owes its own consumer over the whole retained record; no claim is made about a column no consumer reads",
+        "column_drift": [
+          {
+            "field": "BNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.08302169804434958,
+            "relative_standard_error": 0.042195757349776514,
+            "upper_bound": 0.17585000091206832,
+            "tau_cycles": 222.35207062105508,
+            "effective_samples_per_half": 2.815354938011189,
+            "degrees_of_freedom": 3.6091352367472784,
+            "critical_value": 2.199943991957058,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.013693071944175225,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 10058.720674443028
+          },
+          {
+            "field": "BINE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.07166633316734389,
+            "relative_standard_error": 0.04164955688903473,
+            "upper_bound": 0.1680635324557238,
+            "tau_cycles": 211.5281381105729,
+            "effective_samples_per_half": 2.9594171517397303,
+            "degrees_of_freedom": 3.1284700694644507,
+            "critical_value": 2.314483189946226,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.012749627454682678,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 8231.241388421711
+          },
+          {
+            "field": "BNS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.012585676650267899,
+            "relative_standard_error": 0.02564273809884265,
+            "upper_bound": 0.0597211905358823,
+            "tau_cycles": 115.6004490424749,
+            "effective_samples_per_half": 5.415203878403532,
+            "degrees_of_freedom": 8.787926410857532,
+            "critical_value": 1.8381622782998277,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0064778682548505655,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 2123.9369476125453
+          },
+          {
+            "field": "TeNE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.14427744870088105,
+            "relative_standard_error": 0.07774004323649507,
+            "upper_bound": 0.2777356307822547,
+            "tau_cycles": 50.079029403134726,
+            "effective_samples_per_half": 12.500242266293109,
+            "degrees_of_freedom": 22.123407917184647,
+            "critical_value": 1.7167237954238965,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.02071187296499838,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 21431.875125264887
+          },
+          {
+            "field": "TeBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.026922165234598477,
+            "relative_standard_error": 0.02693982581941355,
+            "upper_bound": 0.07608863241697375,
+            "tau_cycles": 110.16116393411502,
+            "effective_samples_per_half": 5.682583386413717,
+            "degrees_of_freedom": 9.363323975961533,
+            "critical_value": 1.8250477011972592,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.007028830603938714,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 2034.188139769674
+          },
+          {
+            "field": "IBS",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.05841170693861674,
+            "relative_standard_error": 0.056621076788088365,
+            "upper_bound": 0.16334372978722683,
+            "tau_cycles": 122.22634455016991,
+            "effective_samples_per_half": 5.121645438255314,
+            "degrees_of_freedom": 8.215910691770276,
+            "critical_value": 1.8532325558083544,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.014856178504835985,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 12115.471826251702
+          },
+          {
+            "field": "TeBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.003735672925994082,
+            "relative_standard_error": 0.006184516545128146,
+            "upper_bound": 0.014175515751099238,
+            "tau_cycles": 32.705534490229965,
+            "effective_samples_per_half": 19.140491349774553,
+            "degrees_of_freedom": 36.191973533893616,
+            "critical_value": 1.688061265407907,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0015524726584132517,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "TrBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.06673793289618984,
+            "relative_standard_error": 0.03348687356743524,
+            "upper_bound": 0.13075091170439024,
+            "tau_cycles": 145.350119911836,
+            "effective_samples_per_half": 4.306841992147708,
+            "degrees_of_freedom": 6.608877394985927,
+            "critical_value": 1.9115842116252586,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.01011248000290482,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 4475.729278098588
+          },
+          {
+            "field": "TrIBE",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.02911293396381678,
+            "relative_standard_error": 0.040966005628246045,
+            "upper_bound": 0.10281856082608133,
+            "tau_cycles": 97.45602653571191,
+            "effective_samples_per_half": 6.423409841879894,
+            "degrees_of_freedom": 10.783499532573844,
+            "critical_value": 1.7991899803734965,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.010429332191738545,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 5336.438121429646
+          },
+          {
+            "field": "TrBR",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.021035938300019267,
+            "relative_standard_error": 0.0937142123214817,
+            "upper_bound": 0.29604971539648217,
+            "tau_cycles": 432.7229705608239,
+            "effective_samples_per_half": 1.4466530380596214,
+            "degrees_of_freedom": 1.9854800542480038,
+            "critical_value": 2.9346005294591024,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.02361598864762455,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 23823.290732518595
+          },
+          {
+            "field": "C3G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.011155963364381755,
+            "relative_standard_error": 0.007119124611830554,
+            "upper_bound": 0.02307782123786034,
+            "tau_cycles": 23.09755295590043,
+            "effective_samples_per_half": 27.102438132524508,
+            "degrees_of_freedom": 52.111556385076376,
+            "critical_value": 1.674624131970784,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.001818279448429583,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "C4G",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.03129039693329478,
+            "relative_standard_error": 0.020600825807719707,
+            "upper_bound": 0.06633359217249157,
+            "tau_cycles": 41.65517759898668,
+            "effective_samples_per_half": 15.02814382467615,
+            "degrees_of_freedom": 28.0352468301758,
+            "critical_value": 1.701057790900068,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.005340713160749451,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          },
+          {
+            "field": "Total",
+            "bounded": true,
+            "compared_against": 0.05,
+            "relative_drift": 0.0033666329999786832,
+            "relative_standard_error": 0.00494190600429312,
+            "upper_bound": 0.012105689840580367,
+            "tau_cycles": 82.06094603437121,
+            "effective_samples_per_half": 7.628476519607756,
+            "degrees_of_freedom": 13.252413135541149,
+            "critical_value": 1.7683575594132939,
+            "half_cycles": 626,
+            "reported_mean_relative_standard_error": 0.0012537535458704227,
+            "record_cycles": 1253,
+            "record_cycles_for_bound": 1253.0
+          }
+        ],
+        "fields": [
+          {
+            "trending_cell_fraction": 0.4184514003294893,
+            "trending_cell_fraction_limit": 0.503731343283582,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "fpc.out tree cover"
+          },
+          {
+            "trending_cell_fraction": 0.4656758669497523,
+            "trending_cell_fraction_limit": 0.5185434929197572,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "fpc.out grass cover"
+          },
+          {
+            "trending_cell_fraction": 0.37327188940092165,
+            "trending_cell_fraction_limit": 0.524390243902439,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "fpc.out C4 grass cover"
+          },
+          {
+            "trending_cell_fraction": 0.1421232876712329,
+            "trending_cell_fraction_limit": 0.2984441301272984,
+            "cell_fraction_trending": false,
+            "rejected": false,
+            "field": "fpc.out boreal needleleaf cover"
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "uncertainty": {
+        "temporal": {
+          "statistic": "sample_standard_deviation_over_annual_values",
+          "by_field_across_cells": {
+            "BNE": {
+              "mean": 0.003509368517364249,
+              "median": 0.0,
+              "p95": 0.02689728547271465,
+              "maximum": 0.1396588205318227
+            },
+            "BINE": {
+              "mean": 0.004584335801490666,
+              "median": 0.0,
+              "p95": 0.02224791569220847,
+              "maximum": 0.21264541852978855
+            },
+            "BNS": {
+              "mean": 0.0033168822725851603,
+              "median": 0.0,
+              "p95": 0.023070751167704507,
+              "maximum": 0.10240988122549437
+            },
+            "TeNE": {
+              "mean": 0.0007576829541650504,
+              "median": 0.0,
+              "p95": 0.005027174801489996,
+              "maximum": 0.03891197128877296
+            },
+            "TeBS": {
+              "mean": 0.005680976155699494,
+              "median": 0.0,
+              "p95": 0.041480764058438445,
+              "maximum": 0.2029237283233818
+            },
+            "IBS": {
+              "mean": 0.003769188091850648,
+              "median": 0.0,
+              "p95": 0.021268416782991097,
+              "maximum": 0.1823517745064355
+            },
+            "TeBE": {
+              "mean": 0.011787057795292077,
+              "median": 0.0,
+              "p95": 0.0971736564996015,
+              "maximum": 0.16401788232660477
+            },
+            "TrBE": {
+              "mean": 0.016818087461829733,
+              "median": 0.0,
+              "p95": 0.14393050236515234,
+              "maximum": 0.2548413950740774
+            },
+            "TrIBE": {
+              "mean": 0.010256463342927758,
+              "median": 0.0,
+              "p95": 0.09703515632466848,
+              "maximum": 0.18813362871887981
+            },
+            "TrBR": {
+              "mean": 0.012224695201328082,
+              "median": 0.0,
+              "p95": 0.12266600898084798,
+              "maximum": 0.2648340699324148
+            },
+            "C3G": {
+              "mean": 0.024234132751022243,
+              "median": 0.01656454724593244,
+              "p95": 0.0757598808916374,
+              "maximum": 0.1544552426687683
+            },
+            "C4G": {
+              "mean": 0.012947981097593908,
+              "median": 0.0,
+              "p95": 0.0958728727212569,
+              "maximum": 0.23405543943433924
+            },
+            "Total": {
+              "mean": 0.04003768671347424,
+              "median": 0.01990226640518488,
+              "p95": 0.145968809937655,
+              "maximum": 0.23752696031858953
+            }
+          }
+        },
+        "seed": {
+          "status": "not_measured",
+          "reason": "fewer than two root seeds at one patch count"
+        },
+        "patch_count": {
+          "status": "not_measured",
+          "reason": "fewer than two patch counts"
+        },
+        "ensemble_members": [
+          {
+            "path": "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/fpc.out",
+            "root_seed": 20260828,
+            "npatch": 5
+          }
+        ]
+      },
+      "peers": []
+    }
+  },
+  "prediction_area_basis": "intensive vegetation quantities are weighted and normalised by BIO-11 rootable area; extensive totals multiply by that area. The effectively-barren diagnostic additionally counts the non-rootable share against total model land.",
+  "nonrootable_area_km2": 51824779.0031728,
+  "land_mean_npp_gc_m2_earth_year": 464.4876626519652,
+  "total_npp_pgc_earth_year": 121.84051083173065,
+  "nfix_a": {
+    "declared_bracket": [
+      0.102,
+      0.367
+    ],
+    "arms": {
+      "0.234": 464.4876626519652
+    },
+    "bracket_carried": false,
+    "missing_ends": [
+      0.102,
+      0.367
+    ],
+    "land_mean_npp_span_gc_m2_earth_year": [
+      464.4876626519652,
+      464.4876626519652
+    ],
+    "total_npp_span_pgc_earth_year": [
+      121.84051083173065,
+      121.84051083173065
+    ],
+    "note": "productivity is a property of the declared fixation bracket; a single arm is not a quotation of it"
+  },
+  "earth_reference": {
+    "land_area_km2": 149000000.0,
+    "total_npp_pgc": [
+      55.0,
+      60.0
+    ],
+    "land_mean_npp": [
+      370.0,
+      400.0
+    ]
+  },
+  "predictions": [
+    {
+      "prediction": "1  land-mean NPP relative to Earth",
+      "span_over_arms_supplied": [
+        1.206461461433676,
+        1.206461461433676
+      ],
+      "hit_band": [
+        0.7,
+        1.4
+      ],
+      "clear_miss_band": [
+        0.5,
+        2.0
+      ],
+      "verdict": "NOT QUOTED: the declared nfix_a bracket is not carried",
+      "quoted": false
+    },
+    {
+      "prediction": "2  land-mean NPP, gC/m2 per Earth year",
+      "span_over_arms_supplied": [
+        464.4876626519652,
+        464.4876626519652
+      ],
+      "hit_band": [
+        280.0,
+        560.0
+      ],
+      "clear_miss_band": [
+        200.0,
+        800.0
+      ],
+      "verdict": "NOT QUOTED: the declared nfix_a bracket is not carried",
+      "quoted": false
+    },
+    {
+      "prediction": "3  total NPP relative to Earth",
+      "span_over_arms_supplied": [
+        2.1189654057692286,
+        2.1189654057692286
+      ],
+      "hit_band": [
+        1.6,
+        2.8
+      ],
+      "clear_miss_band": [
+        1.2,
+        3.5
+      ],
+      "verdict": "NOT QUOTED: the declared nfix_a bracket is not carried",
+      "quoted": false
+    },
+    {
+      "prediction": "4  total NPP, PgC per Earth year",
+      "span_over_arms_supplied": [
+        121.84051083173065,
+        121.84051083173065
+      ],
+      "hit_band": [
+        90.0,
+        175.0
+      ],
+      "clear_miss_band": [
+        60.0,
+        240.0
+      ],
+      "verdict": "NOT QUOTED: the declared nfix_a bracket is not carried",
+      "quoted": false
+    },
+    {
+      "prediction": "5  tree cover, land fraction with tree FPC > 0.1",
+      "value": 0.7227211562555554,
+      "hit_band": [
+        0.4,
+        0.7
+      ],
+      "clear_miss_band": [
+        0.25,
+        0.8
+      ],
+      "verdict": "outside hit band, inside clear-miss band",
+      "quoted": true
+    },
+    {
+      "prediction": "6  effectively barren land, LAI < 0.5",
+      "value": 0.35486807094159023,
+      "hit_band": [
+        0.08,
+        0.25
+      ],
+      "clear_miss_band": [
+        0.0,
+        0.4
+      ],
+      "verdict": "outside hit band, inside clear-miss band",
+      "quoted": true
+    },
+    {
+      "prediction": "7  water-limited land (from the forcing, not the run)",
+      "value": 0.5021513455924116,
+      "hit_band": [
+        0.5,
+        0.7
+      ],
+      "clear_miss_band": [
+        0.35,
+        1.0
+      ],
+      "verdict": "HIT",
+      "quoted": true
+    },
+    {
+      "prediction": "8  grass cover exceeds tree cover",
+      "value": 0.0,
+      "hit_band": [
+        1.0,
+        1.0
+      ],
+      "clear_miss_band": [
+        1.0,
+        1.0
+      ],
+      "verdict": "CLEAR MISS",
+      "quoted": true
+    },
+    {
+      "prediction": "9  C4 grasses above 10% of land",
+      "value": 0.06712660833444,
+      "hit_band": [
+        0.1,
+        1.0
+      ],
+      "clear_miss_band": [
+        0.05,
+        1.0
+      ],
+      "verdict": "outside hit band, inside clear-miss band",
+      "quoted": true
+    },
+    {
+      "prediction": "10 boreal needleleaf below 10% of land",
+      "value": 0.17783171038181939,
+      "hit_band": [
+        0.0,
+        0.1
+      ],
+      "clear_miss_band": [
+        0.0,
+        0.2
+      ],
+      "verdict": "outside hit band, inside clear-miss band",
+      "quoted": true
+    }
+  ],
+  "hits": 1,
+  "note": "Bands are transcribed from notes/productivity-prediction.md and are not to be edited to fit a result. A miss is the result. Lines 1 to 4 are quoted over the declared nfix_a bracket and are not scored until both ends are supplied.",
+  "config_sha256": "824f71905363c728abf385f5fac2489c67db09844acf0876681d357835d0487f",
+  "git_commit": "0ce2943841abdcc80a42e9528da1067015025262"
+}
