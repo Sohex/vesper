@@ -26,6 +26,7 @@ from pathlib import Path
 
 import netCDF4 as nc
 import numpy as np
+import yaml
 from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -95,12 +96,33 @@ def _grid_label() -> str:
         return f"{ds.dimensions['lon'].size}x{ds.dimensions['lat'].size}"
 
 
-def _caveat() -> str:
-    """What a reader must know about the tint, taken from the product read."""
+def _caveat(vegetation_run: str | None = None) -> str:
+    """What a reader must know about the tint, taken from the products read.
+
+    Two different claims get two different caveats. A classification tint says
+    what a climate of this shape carries on Earth; a simulated-cover tint says
+    what the biosphere model grew here, which is a result about this world and
+    carries the standing of the run behind it instead.
+    """
     label = _climatology().name.replace("_regular_climatology.nc", "")
-    caveat = (f"biome and temperature fields are on the {_grid_label()} climate "
-              f"grid and come from the "
-              f"`{label}` climatology; the tint is illustrative, not a result")
+    if vegetation_run is not None:
+        caveat = (f"land colour is the cover-weighted mix of the plant "
+                  f"functional types LPJ-GUESS run `{vegetation_run}` grew, "
+                  f"reduced over the span its equilibrium contract certifies "
+                  f"and drawn on the {_grid_label()} climate grid. It is a "
+                  f"result and not a tint. THE BIOSPHERE IS OUTSIDE THE "
+                  f"CANONICAL LINEAGE: that run predates work known to move "
+                  f"its own results, so the vegetation here is disposable "
+                  f"where the terrain and the climate under it are not. "
+                  f"Temperature and ice come from the `{label}` climatology")
+    else:
+        caveat = (f"biome and temperature fields are on the {_grid_label()} "
+                  f"climate grid and come from the "
+                  f"`{label}` climatology; the tint is illustrative, not a "
+                  f"result. No accepted LPJ-GUESS run has been gridded for "
+                  f"this build, so the land colour names the vegetation a "
+                  f"climate of this shape carries on Earth rather than what "
+                  f"grew here")
     if label.startswith("bootstrap"):
         caveat += (". A bootstrap climatology is the FIRST run on the build, on "
                    "terrain-only surface fields, so its biomes are not the "
@@ -135,6 +157,66 @@ BIOME_RGB = np.array(
     dtype=np.float64,
 )
 
+# Plant functional type palette, in the column order of an LPJ-GUESS output
+# table. It is illustrative like every other colour here, and it is a palette
+# and not a classification: the tint is the cover-weighted MIX of these, so a
+# cell holding two types reads as neither of them alone. Hue groups the types
+# by the structure they are -- boreal needleleaved cold and blue, temperate
+# through the middle greens, tropical dark and saturated, grasses pale and
+# straw-coloured -- so a reader can tell forest from grassland and cold forest
+# from warm one without a legend.
+PFT_RGB = {
+    "BNE": (46, 82, 74),      # boreal needleleaved evergreen
+    "BINE": (58, 98, 86),     # boreal shade-intolerant needleleaved evergreen
+    "BNS": (86, 112, 76),     # boreal needleleaved summergreen
+    "TeNE": (52, 100, 82),    # temperate needleleaved evergreen
+    "TeBS": (74, 128, 66),    # temperate broadleaved summergreen
+    "IBS": (110, 148, 72),    # shade-intolerant broadleaved summergreen
+    "TeBE": (48, 112, 60),    # temperate broadleaved evergreen
+    "TrBE": (26, 84, 44),     # tropical broadleaved evergreen
+    "TrIBE": (36, 100, 50),   # tropical shade-intolerant broadleaved evergreen
+    "TrBR": (124, 142, 62),   # tropical broadleaved raingreen
+    "C3G": (150, 166, 96),    # C3 grass
+    "C4G": (184, 174, 106),   # C4 grass
+}
+
+# What the ground reads as where the simulated cover does not close over it,
+# BY LITHOLOGY CODE. Ground with nothing growing on it is the rock it is made
+# of, and the export already says which rock that is per region, so this is the
+# mesh's own answer at the mesh's own detail rather than one sand tint over
+# every barren place on the planet. It matters here in a way it did not before:
+# the biosphere model leaves 39% of simulated gridcells below a tenth of
+# ground cover, and a single desert colour would paint a polar shield the
+# colour of a sand sea.
+#
+# Codes and not ids. The export's numbering is the export's, and
+# `manifest.json` carries the mapping; two builds are free to number the same
+# rock differently.
+SUBSTRATE_RGB = {
+    "morb": (92, 92, 96),
+    "oib": (88, 84, 82),
+    "flood_basalt": (82, 78, 76),
+    "arc_basalt": (96, 92, 88),
+    "arc_andesite": (124, 120, 114),
+    "rift_bimodal": (118, 108, 100),
+    "granite": (176, 160, 148),
+    "granodiorite": (166, 156, 146),
+    "gneiss": (150, 142, 134),
+    "schist": (122, 122, 112),
+    "quartzite": (196, 190, 180),
+    "melange": (104, 100, 92),
+    "shelf_clastic": (198, 182, 152),
+    "carbonate": (214, 206, 186),
+    "foreland_clastic": (196, 172, 136),
+    "continental_clastic": (206, 178, 130),
+    "pelagic": (168, 168, 164),
+    "evaporite": (236, 232, 222),
+    "playa_clastic": (203, 187, 155),
+    # Subaerial regions are never this, and the map draws land from
+    # `surface_class`; it is here so the table covers the legend.
+    "water": (120, 140, 150),
+}
+
 # Ocean depth ramp, (depth_km, rgb). Interpolated on sqrt(depth).
 OCEAN_RAMP = [
     (0.0, (134, 190, 216)),
@@ -156,7 +238,6 @@ RIVER_RGB = np.array([70, 136, 158.0])
 RIVER_MIN_M3_S = 120.0     # below this nothing is drawn
 RIVER_FULL_M3_S = 8000.0   # at this the line is at full weight
 
-ROCK_EVAPORITE, ROCK_PLAYA = 18, 19
 SALT_RGB = np.array([236, 232, 222.0])
 PLAYA_RGB = np.array([203, 187, 155.0])
 ROCK_RGB = np.array([138, 126, 112.0])
@@ -310,6 +391,98 @@ def fill_ocean_gaps(field, land):
     return out
 
 
+def substrate_colour(rock, manifest: dict):
+    """Per-pixel ground colour from the mesh's own lithology.
+
+    The legend is resolved from `manifest.json` by CODE rather than assumed:
+    the ids are the export's numbering, and a class this map has no colour for
+    is refused rather than falling through to whatever sits at index zero.
+    """
+    legend = {row["code"]: int(row["id"])
+              for row in manifest["lithology"]["rockClasses"]}
+    missing = sorted(set(legend) - set(SUBSTRATE_RGB))
+    if missing:
+        raise SystemExit(
+            f"the export carries lithology classes this map has no colour for: "
+            f"{missing}. Add them to SUBSTRATE_RGB rather than letting bare "
+            "ground fall through to another rock's colour.")
+    table = np.zeros((max(legend.values()) + 1, 3), dtype=np.float64)
+    for code, index in legend.items():
+        table[index] = SUBSTRATE_RGB[code]
+    return table[np.clip(rock, 0, len(table) - 1)]
+
+
+def vegetation_path() -> Path:
+    """The gridded simulated vegetation for the build being drawn.
+
+    Per-build like the lake solution, and for the same reason: a map drawn with
+    one terrain's coastlines and another terrain's vegetation would say nothing
+    about it. `biosphere/scripts/build_vegetation_field.py` writes it from an
+    ACCEPTED LPJ-GUESS run, so an unaccepted run cannot reach the picture.
+    """
+    from lib import rungs
+    config = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text())
+    return (builds.component_data("biosphere")
+            / f"vegetation_{rungs.model_grid(config)[0]}.nc")
+
+
+def load_vegetation():
+    """Cover-weighted type mix and ground cover per CLIMATE cell, or None.
+
+    Optional on purpose, exactly as the lake solution is: early in a cycle the
+    biosphere has not been run on this terrain, and the map is then drawn from
+    the climate classification and says so rather than failing.
+
+    TWO QUANTITIES COME BACK AND THEY ARE NOT THE SAME NUMBER. The mix is
+    normalised by the raw sum of `fpc` across the types, which is what carries
+    the COMPOSITION; the cover is that sum CLIPPED to one, which is what carries
+    how much ground the vegetation closes over. They differ wherever cohorts
+    shade each other, since `vegmode "cohort"` sums layers and a total above one
+    is a canopy with an understory rather than a defect. Normalising by the
+    clipped sum would have made every such cell read as its own colour diluted
+    towards bare ground.
+
+    The colour axis is keyed by the file's own `pft_name` variable rather than
+    by position, so a run whose type list differs is refused by name instead of
+    being painted through somebody else's palette.
+    """
+    path = vegetation_path()
+    if not path.exists():
+        print("  no vegetation field for this build; tinting from the "
+              "climate classification instead")
+        return None
+    with nc.Dataset(path) as ds:
+        names = ["".join(c.decode() for c in row).strip()
+                 for row in np.asarray(ds["pft_name"][:])]
+        fpc = np.asarray(ds["fpc"][:], dtype=float)
+        simulated = np.asarray(ds["simulated"][:]).astype(bool)
+        run_id = str(getattr(ds, "vesper_lpj_run", ""))
+    unknown = [name for name in names if name not in PFT_RGB]
+    if unknown:
+        raise SystemExit(
+            f"{path} carries plant functional types this map has no colour "
+            f"for: {unknown}. Add them to PFT_RGB rather than letting the "
+            "tint fall through to another type's colour.")
+    fpc = np.where(np.isfinite(fpc), fpc, 0.0)
+    total = fpc.sum(axis=0)
+    colours = np.array([PFT_RGB[name] for name in names], dtype=float)
+    mix = np.tensordot(fpc, colours, axes=(0, 0))
+    mix = np.divide(mix, np.maximum(total, 1e-12)[..., None])
+    cover = np.clip(total, 0.0, 1.0)
+    # A cell with no cover has no composition, so it carries no colour of its
+    # own and is filled from the nearest cell that does. Giving it a colour
+    # here instead -- the ground's, say -- would have smeared that colour into
+    # its vegetated neighbours through the smoothing, at a coastline and at
+    # every desert margin. Nothing of the filled value is drawn where the
+    # cover is zero; what it does is make composition and cover ramp off the
+    # SAME neighbour as the margin is crossed.
+    vegetated = simulated & (total > 0)
+    print(f"  vegetation from {run_id}: {int(simulated.sum())} gridcells, "
+          f"{int(vegetated.sum())} with cover, "
+          f"{len(names)} plant functional types")
+    return mix, cover, simulated, vegetated, run_id
+
+
 def surface_water_path() -> Path:
     """The lake and river solution for the build being drawn.
 
@@ -387,10 +560,16 @@ def main():
     ap.add_argument("--climatology", type=Path, default=None,
                     help="REGULAR climatology file to tint from, overriding "
                          "config/planet.yaml's baseline_climatology")
+    ap.add_argument("--no-vegetation", action="store_true",
+                    help="tint from the climate classification even where an "
+                         "accepted LPJ run has been gridded for this build. "
+                         "The two are different claims, not two renderings of "
+                         "one; the provenance records which was drawn")
     ap.add_argument("--width", type=int, default=WIDTH,
                     help=f"equirectangular width in pixels, height is half of "
                          f"it (default {WIDTH})")
     args = ap.parse_args()
+    no_vegetation = args.no_vegetation
     if args.width != WIDTH:
         if args.width % 2:
             raise SystemExit("--width must be even: the height is half of it")
@@ -446,18 +625,47 @@ def main():
     clat = np.asarray(nc.Dataset(_classification())["lat"][:])
     clim_land = lsm > 0.5
 
+    vegetation = None if no_vegetation else load_vegetation()
+
     def prepare(field, mask=None):
         """Fill over sea, damp the polar rays, then put it on the render grid."""
         if mask is not None:
             field = fill_ocean_gaps(field, mask)
         return upsample(polar_smooth(field, clat))
 
-    # Biome colours first, then spread over the sea so coastal pixels do not
+    # The land tint, then spread over the sea so coastal pixels do not
     # interpolate against an ocean cell.
-    biome_rgb = BIOME_RGB[np.clip(biome, 0, len(BIOME_RGB) - 1)]
-    land_rgb = np.stack(
-        [prepare(biome_rgb[..., c], clim_land & (biome > 0)) for c in range(3)], axis=-1
-    )
+    #
+    # WHERE THIS COLOUR COMES FROM DECIDES WHAT IT MEANS. The climate
+    # classification is a statement about the CLIMATE: it names the vegetation
+    # a climate of that shape carries on Earth, and painting it here asserts
+    # that this world's plants answer a K dwarf's light and a 183-day year the
+    # way Earth's answer the Sun's. The simulated cover asserts nothing of the
+    # kind -- it is what the biosphere model grew under this climatology on this
+    # terrain -- so where an accepted LPJ run exists the map is drawn from it
+    # and the classification is not consulted for colour at all. The caveat
+    # block records which of the two a raster holds, since they are different
+    # kinds of claim and not two renderings of one.
+    if vegetation is not None:
+        mix, cover, simulated, vegetated, _ = vegetation
+        # THE TWO HALVES ARE RESAMPLED AND THEN COMPOSITED, not composited and
+        # then resampled. Composition and cover are climate-grid quantities and
+        # get the climate grid's smoothing; the ground they are laid over is
+        # the mesh's, at the mesh's own detail. Blending first would have
+        # thrown that detail away by carrying the substrate through a 64x32
+        # field, which is the resolution the vegetation has and not the
+        # resolution the rock has.
+        mix_hi = np.stack([prepare(mix[..., c], vegetated) for c in range(3)],
+                          axis=-1)
+        cover_hi = np.clip(prepare(cover, simulated), 0.0, 1.0)[..., None]
+        ground_rgb = substrate_colour(rock, manifest)
+        land_rgb = ground_rgb * (1.0 - cover_hi) + mix_hi * cover_hi
+    else:
+        biome_rgb = BIOME_RGB[np.clip(biome, 0, len(BIOME_RGB) - 1)]
+        land_rgb = np.stack(
+            [prepare(biome_rgb[..., c], clim_land & (biome > 0)) for c in range(3)],
+            axis=-1,
+        )
     warmest_hi = prepare(warmest, clim_land)
     clim_elev_hi = prepare(clim_elev_m / 1000.0, clim_land)
     sic_hi = prepare(sic)
@@ -478,8 +686,16 @@ def main():
     lrgb = lrgb * (1 - 0.75 * rock_frac) + ROCK_RGB * (0.75 * rock_frac)
 
     # Evaporite crust and playa fill, which is where the endorheic drainage put it.
-    salt = ((rock == ROCK_EVAPORITE) * 0.85 + (rock == ROCK_PLAYA) * 0.55)[..., None]
-    salt_rgb = np.where((rock == ROCK_EVAPORITE)[..., None], SALT_RGB, PLAYA_RGB)
+    # Resolved from the export's own legend. These were the literals 18 and 19,
+    # which is the export's CURRENT numbering of two codes and not a fact about
+    # either: a build that numbers its rock classes differently would have had
+    # the crust painted onto whatever happened to sit at those ids.
+    legend = {row["code"]: int(row["id"])
+              for row in manifest["lithology"]["rockClasses"]}
+    evaporite = rock == legend["evaporite"]
+    playa = rock == legend["playa_clastic"]
+    salt = (evaporite * 0.85 + playa * 0.55)[..., None]
+    salt_rgb = np.where(evaporite[..., None], SALT_RGB, PLAYA_RGB)
     lrgb = lrgb * (1 - salt) + salt_rgb * salt
     # Closed-basin floors read drier still.
     dry = (endo & land & (elev < 0.2))[..., None] * 0.18
@@ -562,12 +778,14 @@ def main():
     # over it. `render_projections.py` copies this into the frame it writes
     # rather than re-deriving it from the config, so a frame records the world
     # THIS raster holds and not the one the config currently names.
+    veg_path = vegetation_path()
     inputs = frames.inputs(
         source_build=src.parent.name,
         terrain_hash=manifest["hashes"]["finalElevation"],
         climatology=_climatology(),
         classification=_classification(),
         surface_water=(water_path if water_path.exists() else None),
+        vegetation=(veg_path if vegetation is not None else None),
     )
 
     prov = {
@@ -578,7 +796,11 @@ def main():
         # Derived from the product actually read, not fixed: the caveat a reader
         # needs is which climatology this is, and a bootstrap's biomes are not a
         # baseline's.
-        "climatology_caveat": _caveat(),
+        "climatology_caveat": _caveat(vegetation[4] if vegetation else None),
+        # Which of the two land-colour claims this raster holds, so a reader
+        # never has to infer it from the presence of a path.
+        "land_colour": ("simulated cover" if vegetation else "climate classification"),
+        "vegetation_run": (vegetation[4] if vegetation else None),
         "inputs": inputs,
         "fingerprint": frames.fingerprint(inputs),
         "resolution": [WIDTH, HEIGHT],

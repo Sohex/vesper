@@ -2197,6 +2197,27 @@ steps:
       run harness invokes the same assessor before returning success, while
       this graph row gives the accepted artifact its own dependency edge.
 
+  - id: lpj_vegetation
+    script: biosphere/scripts/build_vegetation_field.py
+    loop: B
+    cost: minutes
+    needs: [lpj_acceptance]
+    writes: ["biosphere/data/{build}/vegetation_{res}.nc", "biosphere/data/{build}/vegetation_{res}_report.json"]
+    gate: >
+      The reduction is `lib/lpj_output.py:reduce_table` over the span BIO-12's
+      equilibrium contract certifies, so a run whose retained record does not
+      bound its own drift emits nothing rather than a field averaged over a
+      window that means nothing. `require_lpj_acceptance` additionally refuses a
+      table that is absent from or changed since the acceptance artifact, which
+      is what stops an edited or half-written output reaching a consumer.
+
+      The rows carry the ATMOSPHERE MODEL'S OWN longitude labels, wrapped into
+      -180..180 by `build_lpj_driver.py` because that is the range LPJ-GUESS
+      reads. Wrapping a label renames a column rather than moving it, so the
+      placement goes through `gridding.model_label_cells`, which refuses a label
+      off that axis instead of rounding it to the nearest column. CLAUDE.md
+      rule 3.
+
   - id: prospectivity
     script: minerals/scripts/build_prospectivity.py
     cost: minutes
@@ -2229,7 +2250,7 @@ steps:
     reads_export: true
     script: maps/build_basemap.py
     cost: minutes
-    needs: [analyze_climatology, surface_water, baseline_climatology]
+    needs: [analyze_climatology, surface_water, baseline_climatology, lpj_vegetation]
     writes: [maps/build/basemap_provenance.json, maps/build/basemap.npy, maps/build/land.npy, maps/build/basemap_equirectangular.png, "maps/build/region_index_*.npy"]
     # `reads_export` was absent while the terrain was read all the same, through
     # `builds.mesh_export()`. It is what makes the map reachable from `orogen`,

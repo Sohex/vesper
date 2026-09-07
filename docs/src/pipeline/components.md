@@ -14,6 +14,8 @@ hydrography/         Drainage, catchments, basin capacity, lake balance, carve v
 exoplasim/           Boundary conditions, climate integrations, climatology.
 pedology/            Weathers lithology into soil, and into solute fluxes: CO2, silica, phosphorus.
 biosphere/           LPJ-GUESS: vegetation, leaf area, carbon, PFT composition.
+                     build_vegetation_field.py grids an ACCEPTED run onto the
+                     atmosphere grid; the maps draw their land colour from it.
 minerals/            Ore prospectivity per deposit type. Reads the export; never feeds climate.
 aeolian/             Offline dust: emission, transport, deposition, optical depth.
                      Reads a climatology and the lake solution; feeds pedology's

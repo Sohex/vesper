@@ -17,8 +17,9 @@ state being drawn. That only works if the frames are taken as the pass runs,
 which is why the plan carries a line for each of them.
 
 **Running it at every step is cheap because a frame is keyed on its inputs.**
-The map is drawn from four things: the terrain, the classification, the
-climatology and the lake solution. A step that moves none of them leaves the
+The map is drawn from five things: the terrain, the classification, the
+climatology, the lake solution and the simulated vegetation. A step that moves
+none of them leaves the
 picture identical, and this records that step against the frame that already
 exists instead of rendering a second copy of it. `frames.py` carries the
 argument. `--force` renders anyway, which is what to reach for after a change to
@@ -45,12 +46,13 @@ ROOT = HERE.parent
 
 
 def basemap_is_current(climatology: Path | None,
-                       basemap_width: int | None = None) -> tuple[bool, str]:
+                       basemap_width: int | None = None,
+                       no_vegetation: bool = False) -> tuple[bool, str]:
     """Does the raster on disk show the world the config now describes, at the
     width being asked for?
 
     Compares the base map's recorded fingerprint against one taken over the
-    inputs as they resolve NOW. Cheap -- four hashes -- and it is the check that
+    inputs as they resolve NOW. Cheap -- five hashes -- and it is the check that
     decides whether the 25-second rebuild is needed, so it has to be taken over
     the same identities the frame is keyed on rather than over file timestamps.
     A newer climatology written under the same name is exactly the case an mtime
@@ -76,12 +78,15 @@ def basemap_is_current(climatology: Path | None,
     src = build_basemap.builds.mesh_export()
     manifest = json.loads((src / "manifest.json").read_text(encoding="utf-8"))
     water = build_basemap.surface_water_path()
+    vegetation = build_basemap.vegetation_path()
     now = frames.inputs(
         source_build=src.parent.name,
         terrain_hash=manifest["hashes"]["finalElevation"],
         climatology=build_basemap._climatology(),
         classification=build_basemap._classification(),
         surface_water=(water if water.exists() else None),
+        vegetation=(None if no_vegetation
+                    else (vegetation if vegetation.exists() else None)),
     )
     if frames.fingerprint(now) == recorded["fingerprint"]:
         if basemap_width is not None:
@@ -117,12 +122,17 @@ def main() -> None:
                     help="equirectangular width of the base map itself")
     ap.add_argument("--all", action="store_true",
                     help="every projection rather than the authagraph alone")
+    ap.add_argument("--no-vegetation", action="store_true",
+                    help="tint from the climate classification rather than "
+                         "from an accepted LPJ run, passed through to "
+                         "build_basemap.py")
     ap.add_argument("--force", action="store_true",
                     help="rebuild and re-render even where nothing moved")
     args = ap.parse_args()
     frames.check_step(args.step)
 
-    current, why = basemap_is_current(args.climatology, args.basemap_width)
+    current, why = basemap_is_current(args.climatology, args.basemap_width,
+                                      args.no_vegetation)
     print(why)
     if args.force or not current:
         base_args = []
@@ -130,6 +140,8 @@ def main() -> None:
             base_args += ["--climatology", str(args.climatology)]
         if args.basemap_width is not None:
             base_args += ["--width", str(args.basemap_width)]
+        if args.no_vegetation:
+            base_args.append("--no-vegetation")
         run("build_basemap.py", *base_args)
 
     render_args = ["--step", args.step]

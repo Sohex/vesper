@@ -58,9 +58,10 @@ maps/data/<build>/<frame>/provenance.json   every orientation the search chose
 ```
 
 **A frame is one state of the world, and it is identified by what it was drawn
-from, not by when it was rendered.** The map is drawn from four things -- the
-terrain, the classification, the climatology and the lake solution -- and the
-frame id is a UUID with the identity of those four beside it in `INDEX.json`.
+from, not by when it was rendered.** The map is drawn from five things -- the
+terrain, the classification, the climatology, the lake solution and the
+simulated vegetation -- and the frame id is a UUID with the identity of those
+five beside it in `INDEX.json`.
 A name built from the step or the label that produced it would separate frames
 only along the dimensions it encoded, which is the collision CLAUDE.md rule 6
 records against ExoPlaSim runs and LPJ-GUESS runs. `maps/frames.py` carries the
@@ -127,15 +128,35 @@ land.
 
 Colour is illustrative:
 
-- Land tint is the biome class from whichever climatology the active build has
-  produced. Where that climatology was computed on a different terrain than the
-  one being drawn -- which is the usual case early in a cycle -- it is a
-  plausible tint over the geography rather than a result about it, and the map
-  says so in its own provenance block.
+- **Land tint is the vegetation the biosphere model grew**, where an accepted
+  LPJ-GUESS run has been gridded for the build:
+  `biosphere/data/<build>/vegetation_<rung>.nc`. Each gridcell's colour is the
+  cover-weighted mix of its plant functional types, laid over the ground at an
+  opacity of the summed foliar projective cover, so a closed canopy hides the
+  ground and a sparse one lets it through. That is a radiometric statement and
+  not a scale to taste: FPC is the share of ground the foliage covers seen from
+  above, which is what the alpha of a layer means.
+- Where no accepted run has been gridded, the tint falls back to the biome
+  class of whichever climatology the build has produced, and the provenance
+  block's `land_colour` says which of the two the raster holds. **The two are
+  different kinds of claim.** A biome class names the vegetation a climate of
+  that shape carries on Earth, which asserts that this world's plants answer a
+  K dwarf's light and a 183-day year the way Earth's answer the Sun's; the
+  simulated cover asserts nothing of the kind. `--no-vegetation` forces the
+  classification, and records that it did.
+- The biosphere is OUTSIDE the canonical lineage and the caveat says so. The
+  terrain and the climate under this picture are the lineage's; the vegetation
+  on top of it is disposable, because the accepted run predates work known to
+  move its own results.
+- Ground with nothing growing on it is the rock it is made of, painted from
+  `substrate_class` at the mesh's own detail rather than the climate grid's:
+  polar shield reads as gneiss and granite, a closed basin as its clastics.
+  The cover and the composition are the coarse quantities, so those two are
+  resampled and the ground is not.
 - Bare rock takes over above about 1.8 km, since a climate-grid cell cannot see
-  a mountain.
-- Evaporite crust and playa fill are painted from `substrate_class`, which is why
-  the closed basins read pale.
+  a mountain, and the biosphere's grid is the same grid.
+- Evaporite crust and playa fill are painted over that from `substrate_class`,
+  which is why the closed basins read pale.
 - Permanent snow is where the warmest month falls below freezing after a
   lapse-rate correction from the climatology's own orography to the mesh
   orography. The rate is `lib/lapse.py:environmental_lapse_k_per_km`,
@@ -176,10 +197,17 @@ is the part that has not relaxed.
 If `surface_water.nc` has not been built, the map is drawn without standing
 water and says so rather than failing.
 
-The poles are forested rather than icy. That is not a rendering fault: at 32
-degrees obliquity the polar summer runs well above freezing, and both polar caps
-are land. The obliquity is the load-bearing number and it is a decision; the
-summer temperature is a result and lives in `world_state.json`.
+The poles are ice-free rather than icy, and they are barren rather than
+forested. Neither is a rendering fault, and the two come from different places.
+At 32 degrees obliquity the polar summer runs well above freezing and both
+polar caps are land, so no permanent snow is drawn; the obliquity is the
+load-bearing number and it is a decision, while the summer temperature is a
+result and lives in `world_state.json`. That the caps are then BARE is the
+biosphere model's answer and not the climate's: poleward of 75 degrees the
+accepted run holds a few per cent of ground cover and less in the south, where
+the climate classification the map used to tint from called the same ground
+forest. The two disagree, the map now draws the one that simulated this world,
+and `world-drow` carries the disagreement.
 
 ## The graticule
 

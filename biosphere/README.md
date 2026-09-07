@@ -422,6 +422,31 @@ qrun -p build -- \
   .venv/bin/python biosphere/scripts/build_lpj_guess.py   # compile, and record what from
 ```
 
+After a run is accepted, one step turns its tables into a field other components
+and the maps can read:
+
+```bash
+qrun -p light -- \
+  .venv/bin/python biosphere/scripts/build_vegetation_field.py
+```
+
+It writes `biosphere/data/<build>/vegetation_<rung>.nc`: per plant functional
+type foliar projective cover, leaf area index and vegetation carbon on the
+atmosphere grid, each reduced by `lib/lpj_output.py:reduce_table` over the span
+BIO-12's equilibrium contract certifies. A run whose retained record does not
+bound its own drift emits nothing rather than a mean over a window that means
+nothing, and a table absent from or changed since the acceptance artifact is
+refused outright.
+
+**The rows carry the atmosphere model's own longitude labels**, wrapped into
+-180..180 by `build_lpj_driver.py` because that is the range LPJ-GUESS reads.
+Wrapping a label renames a column rather than moving it, so the placement goes
+through `gridding.model_label_cells`, which refuses a label off that axis
+instead of rounding it to the nearest column. The export's centres would sit
+half a column from every label; CLAUDE.md rule 3. `maps/build_basemap.py` is
+the first consumer, and it draws the land from this rather than from the
+climate classification wherever the field exists.
+
 **Build the model with `build_lpj_guess.py` and not with a bare `cmake --build`.**
 It runs the same two cmake commands and then writes
 `vendor/lpj-guess/build/guess.provenance.json`, recording the executable's sha

@@ -5,12 +5,13 @@ The maps are namespaced by build like every other component's output
 frame is a UUID with a row in `INDEX.json` saying what it is. A name built out
 of the step or the label that produced it would separate frames only along the
 dimensions it encoded -- the trap CLAUDE.md rule 6 records for ExoPlaSim runs
-and LPJ-GUESS runs, which collided that way -- and a map is drawn from four
-things at once: the terrain, the classification, the climatology and the lake
-solution. So the name says nothing and the manifest says everything.
+and LPJ-GUESS runs, which collided that way -- and a map is drawn from five
+things at once: the terrain, the classification, the climatology, the lake
+solution and the simulated vegetation. So the name says nothing and the
+manifest says everything.
 
 **A frame is identified by its INPUTS, not by when it was rendered.** The
-fingerprint is a hash over the identity of those four inputs, and the same
+fingerprint is a hash over the identity of those five inputs, and the same
 fingerprint is the same picture: a snapshot taken at a step that moved none of
 them reuses the frame that exists and records the step against it. That is what
 makes "render after every step" cheap, and it is also what makes the series
@@ -67,9 +68,10 @@ def index_path(config: dict | None = None) -> Path:
 def sha256(path: Path | None) -> str | None:
     """Content hash of a file, or None where the file is absent.
 
-    None is a value here rather than an error: the lake solution is optional
-    (`build_basemap.py:load_surface_water` draws without it), so "no surface
-    water" is a state of the world the fingerprint has to be able to express.
+    None is a value here rather than an error: the lake solution and the
+    simulated vegetation are both optional (`build_basemap.py` draws without
+    either), so "no surface water" and "no accepted LPJ run" are states of the
+    world the fingerprint has to be able to express.
     """
     if path is None or not Path(path).is_file():
         return None
@@ -81,11 +83,13 @@ def sha256(path: Path | None) -> str | None:
 
 
 def inputs(*, source_build: str, terrain_hash: str, climatology: Path,
-           classification: Path, surface_water: Path | None) -> dict:
+           classification: Path, surface_water: Path | None,
+           vegetation: Path | None) -> dict:
     """The identity of everything a map is drawn from.
 
-    Four inputs, and the hash of each rather than its path: a climatology
-    rebuilt from a longer window keeps its filename and is a different world.
+    Five inputs, and the hash of each rather than its path: a climatology
+    rebuilt from a longer window keeps its filename and is a different world,
+    and so does a vegetation field regridded from a second accepted LPJ run.
     The paths are carried alongside so a reader can say WHICH product, but they
     are not what the fingerprint is taken over.
     """
@@ -110,6 +114,8 @@ def inputs(*, source_build: str, terrain_hash: str, climatology: Path,
         "classification_sha256": sha256(classification),
         "surface_water": rel(surface_water),
         "surface_water_sha256": sha256(surface_water),
+        "vegetation": rel(vegetation),
+        "vegetation_sha256": sha256(vegetation),
     }
 
 
