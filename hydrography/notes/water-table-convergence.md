@@ -562,6 +562,65 @@ from the algebra arm above but measured on the solver.
 bar: at one column ordering the two drive the same factorisation and the same
 back-substitution, so they agree to the last bit, and the same check asserts it.
 
+### What it was actually costing: an ordering keyword
+
+Measured 2026-09-06 on this mesh's OWN free-set blocks, on an idle host. Every
+earlier measurement of the ordering was taken on a planar-graph Laplacian, and
+that is the instrument that was wrong.
+
+| block cells | `MMD_AT_PLUS_A` | COLAMD | MMD + `SymmetricMode` |
+| ---: | ---: | ---: | ---: |
+| 5,852 | 0.00 s, 0.1 M | 0.00 s, 0.1 M | 0.00 s, 0.1 M |
+| 32,504 | 0.03 s, 0.7 M | 0.03 s, 0.5 M | 0.02 s, 0.4 M |
+| 49,013 | 0.73 s, 10.1 M | 0.08 s, 2.8 M | 0.06 s, 1.5 M |
+| 250,320 | **154.53 s, 308.6 M** | 0.54 s, 19.4 M | 0.53 s, 9.6 M |
+| 310,158 | 11.16 s, 65.6 M | 0.47 s, 12.1 M | 0.53 s, 7.0 M |
+
+`MMD_AT_PLUS_A` is not merely worse, it is ERRATIC: 154 s on a block of 250,320
+cells and 11 s on a larger one of 310,158. That is exactly the failure this
+file's own call-site comment predicted and never tested on the real operator --
+SuperLU's default partial pivoting reorders for stability and undoes the
+symmetric ordering. On a lattice it did no harm, which is why the synthetic
+table showed the keyword winning. On the real blocks it is 286x, and it is the
+whole reason a solve of this build ran forty minutes without finishing a pass.
+
+The keyword is gone and what is left is scipy's default. The fix is to stop
+passing an argument rather than to add one. MMD with `SymmetricMode` is equally
+fast and carries half the fill and is NOT taken, because under COLAMD a block
+factorised on its own is BITWISE the same as that block inside the whole matrix
+and under `SymmetricMode` it is not, differing by about 2e-14. That equality is
+the licence for solving the free set block by block, and an exactness that can
+be checked is worth twice the fill.
+
+### The solve, before and after, on an idle host
+
+The confined constant-thickness solve on `canonical-10m-carve2`, forced by the
+bootstrap climatology, host load average 1.35 to 3.2 throughout:
+
+| | before | after |
+| --- | --- | --- |
+| passes | did not finish ONE | 26, converged |
+| wall | over 19 min for pass 0, killed | **301.4 s** |
+| peak resident | over 20.5 GB and climbing | 16.37 GB |
+| closure | no result | 2.635e-13 against 1e-10 |
+
+The before arm is the solver as it stood before this work: one monolithic
+`spsolve` per pass at `permc_spec="MMD_AT_PLUS_A"`. It is the same arm that had
+already been killed at forty minutes under contention, so the failure is not a
+scheduling artifact.
+
+**The phase split, from the converged run**: `factor_solve` 214.5 s, `assembly`
+35.2, `anchor` 18.3, `partition` 15.1, `residual` 8.1, `release` 7.1, `setup`
+1.9. The partition costs 15 s over twenty-six passes to remove the thing that
+was costing hours.
+
+**And the reuse question is answered with a number.** The WHOLE matrix repeated
+on 0 of 26 passes and its pattern on 16, so the lever as world-wfge stated it is
+worth nothing. Per BLOCK it is worth something real: **259,851 block
+factorisations against 100,710 reused**, 28 per cent, all of it in the settled
+tail where the free set stops moving. Under the unconfined form it collapses to
+zero of 834,776, because the transmissivity moves with the head everywhere.
+
 ## What remains
 
 **The external test.** GW-3, the same code on Earth topography, Earth recharge
