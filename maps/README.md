@@ -233,8 +233,17 @@ letter to a biome NAME, so the classification never modelled a plant and
 cannot be wrong about one; what it asserts is that the polar climate is Koppen
 Dsa, a cold winter with a warmest month above 22 C, which on Earth carries
 forest. Earth has no Dsa with a polar night, and Koppen encodes no daylength,
-so the mapping is blind there by construction. `world-drow` carries what is
-actually open: whether this model's polar cover is limited by the light season.
+so the mapping is blind there by construction.
+
+Why the caps are bare is settled and is not a defect:
+`biosphere/notes/polar-cover-cold-filter-and-water.md`. The polar coldest month
+is -68.75 degC against a warmest month of +31.11, and `tcmin_surv` excludes
+every plant functional type that declares a cold limit -- ten of the twelve sit
+at exactly zero, and the two with no such limit are the two with cover. Those
+two are then water-limited: 77 mm of precipitation per simulation year, over
+half of it arriving as snow in the dark season, and 4.7% of it reaching a
+plant. It is NOT the light season, which is brighter at the summer pole than
+the tropics ever are.
 
 ## The graticule
 
