@@ -448,7 +448,12 @@ the TWO doors onto a staged `.sra`, which are two because a restage separates
 them: `staged_surface_field` for the field the NEXT run will read, keyed by the
 rung, and `run_surface_field` for the field a run CONSUMED, keyed by the run --
 a climatology is in equilibrium with the second and the first refuses the
-pairing when a run is named). Rule 5 cites `builds.py` and `provenance.py` from this list.
+pairing when a run is named),
+`fortran_source.py` (reading a compiled model's Fortran the way a check has to:
+comments and continuations gone in BOTH source forms, what a declaration line's
+own initialiser evaluates to, and which symbols a run can reach through a
+namelist block -- shared so two declarations of two models cannot disagree about
+what a line says). Rule 5 cites `builds.py` and `provenance.py` from this list.
 
 Git does not track `exoplasim/runs/` (model output; but `runs/INDEX.json` IS
 tracked, and since run ids are UUIDs it is the only record of what each run

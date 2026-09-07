@@ -66,6 +66,11 @@ has to be settled before the tier's numbers are Vesper's rather than inherited.
 The default arm reports and exits 0. A run on the declared tier is a correct run
 of a declared model boundary, and the boundary is what this file states.
 
+The Fortran reader is `lib/fortran_source.py`, shared with
+`config/cgenie_calibration.yaml`'s gate so that the two declarations cannot
+disagree about what a source line says or about which symbols a run can
+reach.
+
 NOTHING HERE IS VERIFIED BY EXECUTION, and that is stated rather than left to be
 inferred. Every statement is against the source and the declaration. What the
 slab DELIVERS is verified separately and by running the model, in
@@ -77,7 +82,6 @@ from __future__ import annotations
 import argparse
 import copy
 import json
-import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -86,6 +90,8 @@ import yaml
 
 from _paths import COMPONENT_ROOT, PROJECT_ROOT  # noqa: F401  (also puts lib/ on sys.path)
 
+from fortran_source import (  # noqa: E402  from lib/, via _paths
+    initialiser, namelist_blocks, squash, tight)
 from paths import rel  # noqa: E402  from lib/, via _paths
 
 DECLARATION = COMPONENT_ROOT / "config" / "ocean_tier.yaml"
@@ -111,113 +117,9 @@ ORIGINS = ("earth", "declared", "derived")
 # Which ramp forms this model has had. `fractional` is what it runs.
 RAMP_FORMS = ("fractional", "absolute_slope")
 
-# A namelist block's body: names separated by commas and nothing else. The
-# commas are what ends it -- the statement after the block begins with a token
-# that is not preceded by one, and a looser pattern swallowed that token and
-# lost the last key in the block with it.
-NAME_LIST = r"[a-z_][a-z0-9_]*(?:\s*,\s*[a-z_][a-z0-9_]*)*"
-
 # Floating-point slack on the range statement. The hull check is exact
 # arithmetic on a convex combination, so this only absorbs binary rounding.
 RANGE_EPS = 1e-12
-
-
-def _strip_comments(text: str) -> str:
-    """Fortran source with `!` comments removed, line by line.
-
-    Column-1 `!` and trailing `!` are the same comment marker in free and fixed
-    form alike here. No line of the three sources this reads carries a `!`
-    inside a character literal, and the refusal strings this gate matches are
-    checked before the marker they would need.
-    """
-    out = []
-    for line in text.split("\n"):
-        cut = line.find("!")
-        out.append(line if cut < 0 else line[:cut])
-    return "\n".join(out)
-
-
-def _join_continuations(text: str) -> str:
-    """Fortran continuation lines joined into the statement they belong to."""
-    text = re.sub(r"&\s*\n\s*&?", " ", text)
-    return text
-
-
-def squash(text: str) -> str:
-    """Comments gone, continuations joined, whitespace collapsed, lowercased.
-
-    Fortran is case-insensitive, so lowercasing is the language's own equality
-    and not a weakening: `TMELT` and `tmelt` are one symbol and a check that
-    told them apart would be checking the typing rather than the model.
-    """
-    return re.sub(r"\s+", " ", _join_continuations(_strip_comments(text))).lower()
-
-
-def tight(text: str) -> str:
-    """`squash` with every space removed as well.
-
-    Used wherever the thing being matched is a Fortran STATEMENT, where
-    whitespace carries nothing: a declaration, an assignment, an expression.
-    `squash` is kept for the refusal messages, where the spaces are inside a
-    character literal and are part of what is being matched.
-    """
-    return squash(text).replace(" ", "")
-
-
-def initialiser(line: str) -> float | None:
-    """The value a declaration line's own initialiser evaluates to.
-
-    Both shapes the sources use: `parameter(CLFSN = 3.337E5)` and
-    `real :: CPS = 3990.34`. The arithmetic is the source's own, so a value
-    changed in the model and a value changed in the declaration fail the same
-    check.
-    """
-    text = squash(line).strip()
-    m = re.search(r"parameter\s*\(\s*[a-z_][a-z0-9_]*\s*=\s*(.+?)\s*\)\s*$", text)
-    if not m:
-        m = re.search(r"::\s*[a-z_][a-z0-9_]*\s*(\([^)]*\))?\s*=\s*(.+?)\s*$", text)
-        if not m:
-            return None
-        expression = m.group(2)
-    else:
-        expression = m.group(1)
-    expression = expression.replace("d", "e").replace("D", "e")
-    if not re.fullmatch(r"[0-9e+\-.]+", expression):
-        return None
-    try:
-        return float(expression)
-    except ValueError:
-        return None
-
-
-def namelist_symbols(text: str) -> set[str]:
-    """Every symbol in every `namelist/<name>/` block of one source file.
-
-    A key is namelist-reachable exactly when it is in one of these, so this is
-    what the declared `reach` column is checked against rather than a list
-    written down twice.
-    """
-    flat = squash(text)
-    names: set[str] = set()
-    for m in re.finditer(r"namelist\s*/\s*[a-z_][a-z0-9_]*\s*/\s*(.+?)(?=namelist\s*/|$)",
-                         flat):
-        run = re.match(NAME_LIST, m.group(1))
-        if run:
-            names |= {n.strip() for n in run.group(0).split(",") if n.strip()}
-    return names
-
-
-def namelist_blocks(text: str) -> dict[str, set[str]]:
-    """The same, per namelist name, so a key can be checked against ITS block."""
-    flat = squash(text)
-    out: dict[str, set[str]] = {}
-    for m in re.finditer(r"namelist\s*/\s*([a-z_][a-z0-9_]*)\s*/\s*(.+?)(?=namelist\s*/|$)",
-                         flat):
-        run = re.match(NAME_LIST, m.group(2))
-        if run:
-            out.setdefault(m.group(1), set()).update(
-                n.strip() for n in run.group(0).split(",") if n.strip())
-    return out
 
 
 # ---------------------------------------------------------------------------
