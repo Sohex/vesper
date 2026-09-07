@@ -69,7 +69,8 @@ uses `check ... --output exoplasim/analysis/ocean_flux_channel_report.json`.
 exporter writes. The MESH is placed against GOLDSTEIN's cell boundaries by
 `lib/gridding.py:spec_cells`, binned in the sine of latitude because the ocean's
 rows are uniform in the sine; `region_cells` is the door for a grid the export
-ships and the two are not interchangeable. Writing the ocean's own bathymetry
+ships and the two are not interchangeable; `ocean/notes/mesh-placement.md` has
+what the wrong door moves. Writing the ocean's own bathymetry
 through this placement is what puts the ocean model's longitude frame in the
 generator's rather than in one it brought with it, which is the condition the
 placement's own rule-3 argument rests on. The VECTOR crossing is

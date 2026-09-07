@@ -281,7 +281,9 @@ def spec_cells(spec: "GridSpec", lat, lon) -> np.ndarray:
     Gaussian node is a quadrature abscissa and not the centre of its cell, so
     binning to the nearest node and binning between the quadrature edges put a
     band of mesh either side of every row boundary in different rows.
-    `ocean/scripts/build_ocean_grid.py` measures the band on the active build.
+    `ocean/scripts/build_ocean_grid.py` measures the band on the active build and
+    `ocean/notes/mesh-placement.md` has it: 0.376 per cent of the mesh area, and
+    zero columns, because the columns are one expression in both doors.
 
     RULE 3, AND THE FORM IN WHICH THIS IS NOT IT. What rule 3 forbids is
     matching one grid's longitude LABEL against another's: two conventions

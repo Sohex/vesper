@@ -79,7 +79,7 @@ the destination integral has the same analytic answer.
 
 # 3. The full-sphere integral does not discriminate, and the control is what says so
 
-Over the whole sphere, at T42 onto a 36 x 36 equal-area GOLDSTEIN grid:
+Over the whole sphere, at T21 onto a 36 x 36 equal-area GOLDSTEIN grid:
 
 | what | residual, relative to the field's own area-weighted magnitude |
 | --- | --- |

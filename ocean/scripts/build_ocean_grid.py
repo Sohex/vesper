@@ -149,6 +149,17 @@ PLACEMENT_SLACK = 1e-9
 # is the disagreement it would have to catch.
 COORDINATE_SLACK_DEG = 1e-3
 
+# The bar on a cell's mesh area against its constructed area. A region belongs
+# to one cell whole, so the residue is the net area of the regions straddling
+# the cell's perimeter, and it does NOT shrink like the count: with N regions on
+# the sphere and C cells there are about 4*sqrt(N/C) regions on a cell's
+# perimeter, so the imbalance is of order sqrt(N/C)/(N/C) = sqrt(C/N) per cell
+# and a few times that on the worst of C cells. At ten million regions on a
+# 36 x 36 grid that is a couple of parts in a thousand typical and under half a
+# per cent at the tail. 2 per cent is four times the tail and two orders below a
+# misplaced row, which is what it has to catch.
+MESH_AREA_SLACK = 0.02
+
 
 def _igrid_of(spec: gridding.GridSpec) -> int:
     """The `igrid` arm a GOLDSTEIN spec was built at, off its own constructor.
@@ -403,9 +414,9 @@ def placement(ocn: gridding.GridSpec, export, radius_km: float) -> dict:
                       detail="phi0 is a parameter of the ocean grid, never a label to match "
                              "against the atmosphere's"),
             check_row("the mesh area in a cell is the cell's own area",
-                      float(np.abs(ratio - 1.0).max()), 0.02,
-                      detail="the mesh is a discrete sample of the sphere, so this closes to "
-                             "the sampling noise of the regions in the smallest cell"),
+                      float(np.abs(ratio - 1.0).max()), MESH_AREA_SLACK,
+                      detail="a region belongs to one cell whole, so the residue is the net "
+                             "area of the regions straddling the cell's perimeter"),
         ],
         "ledger": ledger,
         "regions_per_cell": {
