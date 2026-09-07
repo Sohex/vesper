@@ -264,6 +264,57 @@ fraction per layer and reduces available liquid under freezing. The two columns
 disagree about whether water that reached the ground is liquid, and the numbers
 above are LPJ's side of that disagreement.
 
+## The cap is not inefficient at capture. It has almost no leaf
+
+The three capture-side traits proposed for sizing -- rooting depth and
+distribution, the phenology trigger, and the bare-soil evaporation path -- are
+all EFFICIENCIES: water captured per unit of leaf deployed. Each is worth moving
+only if the cap's efficiency is deficient, which the seven-fold gap against warm
+ground was read as showing. Measured by
+`biosphere/scripts/polar_capture_efficiency.py`, it is not.
+
+Reading capture per unit leaf area as `k = -ln(1 - captured) / LAI`:
+
+| band | cells | LAI | capture | median k | percentile of the planet's cells |
+| --- | --- | --- | --- | --- | --- |
+| poleward of 75 deg | 224 | 0.070 | 4.4% | 0.716 | 72 |
+| 60 to 75 | 314 | 0.233 | 11.1% | 0.573 | 64 |
+| 45 to 60 | 245 | 0.549 | 9.6% | 0.121 | 18 |
+| 30 to 45 | 276 | 2.131 | 47.8% | 0.275 | 40 |
+| 15 to 30 | 190 | 1.819 | 79.8% | 1.245 | 87 |
+| equatorward of 15 | 264 | 4.411 | 60.5% | 0.209 | 32 |
+
+**k is not a constant**: p10 0.089, median 0.376, p90 1.420 over the 1513 cells
+that carry both leaf and water. So capture is NOT a function of leaf area alone,
+and a Beer's law in leaf area is refused rather than assumed. What the table
+supports is the ranking, and the ranking is decisive: the cap turns leaf area
+into captured water at percentile 72, above the tropics at 32 and far above the
+genuinely cold-limited 45-to-60 band at 18. It takes water WELL for what it
+carries. It carries 0.067.
+
+### A faster phenology displays the same nothing sooner
+
+`lai.out` carries `growth.cpp`'s `indiv.lai`, which is `cmass_leaf * sla`: the
+leaf area at FULL display. What a cell shows on a given day is
+`lai_today() = lai * phen`, never more. So 0.067 is the cap's ceiling with
+phenology satisfied on the first day of the season, and `phengdd5ramp` moves
+WHEN that area appears rather than how much of it there is. At 0.067 the ground
+is 97% bare whenever the leaves come out.
+
+That closes the sizing question negatively for every trait proposed. The three
+capture-side parameters move an efficiency already above the planetary median,
+the phenology trigger has no water to recover and no area to add, and none of
+the four adds leaf.
+
+### What the cap is short of is leaf carbon, and it accumulates slowly
+
+Standing vegetation carbon at the cap is 0.0223 kgC/m2 against an annual net
+primary production of 0.0100 kgC/m2, so what stands there is about twenty
+simulation years of production rather than a stock being drained by turnover.
+The loop is self-limiting rather than leaky: little leaf fixes little carbon,
+which buys little leaf. Nothing in the twelve types' parameter set breaks into
+it, which is the finding `world-orok` records and not a defect in the run.
+
 ## What the seven-fold gap still bundles
 
 The gap between the cap and equally dry warm ground bundles the loss of ten of
