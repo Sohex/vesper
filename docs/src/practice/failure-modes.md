@@ -1582,3 +1582,48 @@ a JSON contract -- a value whose MEANING is not its face value needs the
 consumer to report what it holds. Range checks do not catch it, because the
 altered value is usually in range. Round trips through the same library do not
 catch it, because both directions share the defect.
+
+
+## 41. A probe with no positive control, reporting into a stream nobody reads
+
+An instrument is added to answer whether a condition occurs. It reports nothing.
+The zero is read as evidence the condition is absent, and the mechanism behind
+it is struck off. But a probe has two ways of printing nothing -- the condition
+did not occur, or the print did not arrive -- and a bare zero cannot tell them
+apart.
+
+Four instrumented builds went into `world-n0oc` looking for the source of a
+negative soil ammonium flux: plant uptake overdraw, negative `wcont` at
+volatilisation, any-site negative in `Fluxes::report_flux`, and the monthly
+breakdown. All four reported zero events. All four were false negatives, and two
+wrong mechanisms were reported as MEASURED ELIMINATIONS on the strength of them.
+
+The reporting path was the defect. `run_lpj_guess.py` runs the model under
+`subprocess.run(capture_output=True)` and writes the combined streams to
+`<run>/mpirun.log`, so an `fprintf(stderr, ...)` from inside the compiled model
+reaches neither the caller's own captured log nor `<run>/run*/guess.log`. Those
+two are where a probe author looks, and both are silent by construction. Nothing
+was broken; the output was simply somewhere else.
+
+**The tell is that a probe has never been shown to fire.** It was found only by
+adding an UNCONDITIONAL line at the instrumented site and noticing that the
+control did not appear either. Until that moment every reading was consistent
+with both explanations, and the wrong one had been chosen four times.
+
+**The positive form. A probe carries a control that must fire.** Print one
+unconditional line at the instrumented site, assert it appears, and only then
+believe a zero count. The cost is one line and one look; the thing it buys is
+the difference between a measurement and an assumption wearing its clothes.
+
+**It is class 34 extended from the instrument to the wire.** There the question
+is whether the instrument can resolve the effect -- a bed shorter than its
+startup, a sweep whose range never reaches the effect. Here the instrument may
+be perfectly able to resolve it and the answer never arrives. Both fail the same
+way: an ordinary-looking number that is not a measurement of anything. And it is
+not class 38, where the channel answered a DIFFERENT question; here the right
+channel was never read.
+
+**The general form.** Any instrument whose null result would change a decision
+needs a demonstration that a non-null result could have reached you. That is
+true of a print inside a model, a counter in a subprocess, a log line behind a
+level filter, and a check whose output is discarded by the harness that runs it.

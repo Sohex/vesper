@@ -175,6 +175,13 @@ The arguments and the incidents behind these are in
   whose range never reaches the effect, and a refusal taken on a profile the
   model no longer has all return ordinary-looking numbers.
   `docs/src/practice/failure-modes.md` class 34.
+- **A probe carries a control that must fire.** An instrument whose null result
+  would change a decision needs a demonstration that a non-null result could
+  have reached you: print one unconditional line at the instrumented site and
+  confirm it arrives before believing a zero. Four probes into the compiled
+  biosphere model read as negative because model stderr goes to
+  `<run>/mpirun.log` and to neither of the two logs an author looks in.
+  `docs/src/practice/failure-modes.md` class 41.
 - Convergence claims state their exact criteria and are labelled honestly when
   they miss. Preserve that standard rather than rounding results into passes.
 - Scripts anchor their paths in a `_paths.py` and resolve from the file

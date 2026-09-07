@@ -998,11 +998,20 @@ def main() -> None:
     started = time.time()
     result = subprocess.run(command, cwd=run_dir, capture_output=True, text=True)
     elapsed = time.time() - started
+    # WHERE THE MODEL'S OWN STDERR LANDS, and it is neither of the two places a
+    # reader looks. `capture_output=True` takes both streams from mpirun, so an
+    # `fprintf(stderr, ...)` inside the compiled model reaches this file and
+    # NOT `run*/guess.log`, which the model writes itself, nor this script's own
+    # output, which is already consumed. Four probes were read as negative
+    # results on the strength of that; failure-modes class 41.
     (run_dir / "mpirun.log").write_text(result.stdout + result.stderr)
     if result.returncode != 0:
         raise SystemExit(
             f"LPJ-GUESS exited {result.returncode} after {elapsed:.0f} s. "
-            f"See {run_dir / 'mpirun.log'} and {run_dir}/run*/guess.log")
+            f"See {run_dir / 'mpirun.log'}, which carries the model's own "
+            f"stdout AND stderr -- anything an instrumented build printed is "
+            f"there and nowhere else -- and {run_dir}/run*/guess.log, which is "
+            f"what the model writes for itself.")
 
     # A run asked to save a state has to have saved one. The serializer writes
     # at a named simulated instant and the model exits zero whether it reached

@@ -447,6 +447,29 @@ half a column from every label; CLAUDE.md rule 3. `maps/build_basemap.py` is
 the first consumer, and it draws the land from this rather than from the
 climate classification wherever the field exists.
 
+### Where a run's output lands, and where an instrumented build's does NOT
+
+Three streams, and only one of them carries what a probe prints:
+
+| | written by | carries |
+| --- | --- | --- |
+| `runs/<id>/run*/guess.log` | the model, per rank | its own progress and its own diagnostics |
+| the terminal | `run_lpj_guess.py` | the runner's own reporting |
+| **`runs/<id>/mpirun.log`** | the runner | **the model's stdout AND stderr, combined** |
+
+`run_lpj_guess.py` launches the model under
+`subprocess.run(..., capture_output=True)`, so an `fprintf(stderr, ...)` added
+to the compiled model reaches `mpirun.log` and NOWHERE ELSE. The two obvious
+places to look -- the rank logs and the terminal -- are silent by construction,
+and nothing is broken when they are.
+
+**A probe therefore carries a control that must fire.** Print one unconditional
+line at the instrumented site, confirm it appears in `mpirun.log`, and only then
+believe a zero count. Four instrumented builds on `world-n0oc` reported zero
+events, all four were false negatives, and two wrong mechanisms were struck off
+as measured eliminations before an unconditional control was added and did not
+fire either. `docs/src/practice/failure-modes.md` class 41.
+
 **Build the model with `build_lpj_guess.py` and not with a bare `cmake --build`.**
 It runs the same two cmake commands and then writes
 `vendor/lpj-guess/build/guess.provenance.json`, recording the executable's sha
