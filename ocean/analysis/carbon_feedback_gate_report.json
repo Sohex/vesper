@@ -179,6 +179,7 @@
       },
       "soil_albedo_moisture": {
         "enabled": true,
+        "three_point": true,
         "saturation_at_empty_layer": 0.0,
         "saturation_at_full_layer": 0.7609,
         "shape_sigma_broadband": 1.0,
@@ -266,9 +267,9 @@
         }
       },
       "cold_start_profile": {
-        "surface_temperature_k": 279.83
+        "surface_temperature_k": 279.93
       },
-      "semi_implicit_reference_temperature_k": 241.41,
+      "semi_implicit_reference_temperature_k": 241.5,
       "rayleigh_sponge_rotations": [
         20.0,
         100.0,
@@ -357,15 +358,15 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "a79d540b17e2256c45bee2a686067b5da8f2b01dc3142534ad2d4d69070cf6ca",
-  "git_commit": "5465dd0d9782cde409b5d6b331dfc30765afc344",
+  "config_sha256": "824f71905363c728abf385f5fac2489c67db09844acf0876681d357835d0487f",
+  "git_commit": "e77985c9c2ccbdd7e90ba9313fc7700fe31d8369",
   "source_inputs": {
     "ocean/config/carbon_feedback.yaml": "6d43e2ae0c9d4ff904eea47f59b8a1b080da0d96d01da086a6722c96dc4c1b84",
-    "config/planet.yaml": "a79d540b17e2256c45bee2a686067b5da8f2b01dc3142534ad2d4d69070cf6ca",
+    "config/planet.yaml": "824f71905363c728abf385f5fac2489c67db09844acf0876681d357835d0487f",
     "ocean/config/transport_loop.yaml": "b8f1d0a15ec0ed0529c87ca69d3dff2441105f9a924f65b360a232d59b29dfea",
-    "config/pipeline.yaml": "3250f055e43d2f3a4604e6959c7abc5b8d6367c46d9bcd9a85c4b9f81542cfdf",
-    "exoplasim/scripts/run_exoplasim.py": "811e35e32cb86b90b6c3a4c5719527e431212c055f6fadc5853f9c0a4f9c088d",
-    "exoplasim/scripts/continue_exoplasim.py": "da082af6358cb888e5922dae0755c19399fc2f4869f3095704ada05e92dbc27b",
+    "config/pipeline.yaml": "ae212bcf85110a5d0d22b0b703a642bbeb0dc3d13ad720632df7bf28ba509d6f",
+    "exoplasim/scripts/run_exoplasim.py": "4a965c0f44cfe3943c1c334da16d576c738058bfd0fc65bd8acd2d192ba7cacc",
+    "exoplasim/scripts/continue_exoplasim.py": "1c68bc0d68b0ff6ac2785a374dcafb61be69586a92215a77c02b4e63bb79c197",
     "exoplasim/scripts/run_stellar_cycle.py": "5ea091046021fb08c999ce22309403b67b2e8e7014446479d4b266d7afc6483d"
   }
 }

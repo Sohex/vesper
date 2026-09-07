@@ -179,6 +179,7 @@
       },
       "soil_albedo_moisture": {
         "enabled": true,
+        "three_point": true,
         "saturation_at_empty_layer": 0.0,
         "saturation_at_full_layer": 0.7609,
         "shape_sigma_broadband": 1.0,
@@ -266,9 +267,9 @@
         }
       },
       "cold_start_profile": {
-        "surface_temperature_k": 279.83
+        "surface_temperature_k": 279.93
       },
-      "semi_implicit_reference_temperature_k": 241.41,
+      "semi_implicit_reference_temperature_k": 241.5,
       "rayleigh_sponge_rotations": [
         20.0,
         100.0,
@@ -357,15 +358,15 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "a79d540b17e2256c45bee2a686067b5da8f2b01dc3142534ad2d4d69070cf6ca",
-  "git_commit": "842af757511378d0e8138ccb05142d9b8967cb57",
+  "config_sha256": "824f71905363c728abf385f5fac2489c67db09844acf0876681d357835d0487f",
+  "git_commit": "e77985c9c2ccbdd7e90ba9313fc7700fe31d8369",
   "source_inputs": {
     "ocean/config/transport_loop.yaml": "b8f1d0a15ec0ed0529c87ca69d3dff2441105f9a924f65b360a232d59b29dfea",
-    "config/pipeline.yaml": "3250f055e43d2f3a4604e6959c7abc5b8d6367c46d9bcd9a85c4b9f81542cfdf",
+    "config/pipeline.yaml": "ae212bcf85110a5d0d22b0b703a642bbeb0dc3d13ad720632df7bf28ba509d6f",
     "vendor/cgenie/genie-main/genie.F": "4a6b4b811c107e05b0d52d2d13db18e7b4db3535da12a410f5266de9cf586110",
     "vendor/cgenie/genie-main/initialise_genie.F": "90d34a9646d9a49131cfa4a5a4f8e0860bc4ccb3e43a19995149ba5d888b24fb",
     "vendor/cgenie/genie-goldstein/src/fortran/goldstein.F": "0d0e5cad115b4c957ffc25d0efc85381884c64beb86e2fd8412171628481d1aa",
-    "vendor/cgenie/genie-goldstein/src/fortran/initialise_goldstein.F": "0b06f26dfd1daba4e7e111a4a3e026bdde5a1bd56d6b51170dedf49f98712920",
-    "vendor/cgenie/genie-goldstein/src/fortran/velc.f": "c8319a5ab6dfef3818fe2872074532f359b4e498a770d44570c45a6dff497f94"
+    "vendor/cgenie/genie-goldstein/src/fortran/initialise_goldstein.F": "2d5cf3a35d67eddf9e59ec68487dfbad9556f980454ebd7a63a3acb59c4a7787",
+    "vendor/cgenie/genie-goldstein/src/fortran/velc.f": "6a35a2abb5efea3eebb5b3c0a4ce39faa959f71cd9cb5d6288b28c9ac9307212"
   }
 }
