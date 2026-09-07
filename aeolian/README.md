@@ -171,6 +171,33 @@ Earth analogues suggest. That is in `settling_velocity` rather than in a comment
    `exoplasim/scripts/dust_indices.py`, so that the model and the pricing
    describe one particle. The config carries the argument; DUST-12.
 
+## The two size distributions, and which one to read
+
+This component carries two dust size distributions. They are not alternatives
+and neither is derivable from the other here; they describe different
+populations at different points in a particle's life, and both are right where
+they stand.
+
+| | declared at | what it is | read it for |
+| --- | --- | --- | --- |
+| **emitted** | `aeolian/config/dust.yaml:size_distribution` | Kok (2011) eq. 6: median **diameter** 3.4 um, geometric sigma 3.0 | emission, the bin edges, the coarse mode near a source |
+| **optics** | `aeolian/config/dust.yaml:optics_size_distribution` | Balkanski et al. (2007): number median **radius** 0.295 um, sigma_g 2.0, 2.6 g/cm3 | optical depth, single-scattering albedo, asymmetry, the transported accumulation mode |
+
+**Check the units before comparing them.** One is a diameter and the other a
+radius, so the naive comparison is wrong by about a factor of six before sigma
+is reached: 3.4 um diameter is 1.7 um radius against 0.295. The remaining gap
+is real and is the point -- the coarse mode has largely settled out by the time
+the optics matter, so the population the model's optical properties describe is
+not the population that left the ground.
+
+The optics distribution is DECLARED in `dust.yaml` and RESTATED as module
+constants in `exoplasim/scripts/dust_optics.py`, which is what integrates the
+Mie calculation over it. It is restated rather than read because reading would
+make `dust.yaml` an input of `analysis/dust_optics.json` and force a Mie
+regeneration for no change in any number; `scripts/smoke_test.py` asserts the
+two agree instead. `analysis/dust_optics.json` echoes the distribution it used,
+so an artifact always says which population its numbers describe.
+
 ## What it does not do
 
 No dust-climate feedback: the climatology is an input and does not respond.

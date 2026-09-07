@@ -480,6 +480,30 @@ removal:
   scavenging_b: 0.61
   scavenging_a_bracket: [1.72e-6, 8.05e-5]
 
+# --- the two size distributions, and which is which -------------------------
+#
+# THIS PROJECT CARRIES TWO DUST SIZE DISTRIBUTIONS AND THEY DESCRIBE DIFFERENT
+# POPULATIONS. Both are right where they stand; what follows is which is valid
+# where, because nothing else in the tree arbitrates them and the first consumer
+# to want a number concentration would otherwise take whichever it found.
+#
+#   `size_distribution` below is what LEAVES THE SURFACE. Kok (2011) eq. 6, a
+#   median DIAMETER of 3.4 um at geometric sigma 3.0. Read it for emission,
+#   for the bin edges, and for anything about the coarse mode near a source.
+#
+#   `optics_size_distribution` below is what the OPTICS WERE INTEGRATED OVER.
+#   Balkanski et al. (2007), a number median RADIUS of 0.295 um at sigma_g 2.0
+#   and 2.6 g/cm3. Read it for optical depth, single-scattering albedo,
+#   asymmetry, and anything about the transported accumulation mode far from a
+#   source.
+#
+# NOTE THE UNITS BEFORE COMPARING THEM. One is a diameter and the other a
+# radius, so the naive comparison is wrong by a factor of about six before
+# sigma is even reached: 3.4 um diameter is 1.7 um radius against 0.295.
+# The populations differ by more than settling alone -- the coarse mode is
+# gone by the time the optics matter -- which is why one is not derivable from
+# the other here.
+
 # --- emitted size distribution -----------------------------------------------
 #
 # Kok (2011). A scaling theory for the size distribution of emitted dust
@@ -498,6 +522,26 @@ size_distribution:
   # coagulates nor grows appreciably, so size resolution buys differential
   # settling and nothing else.
   bin_edges_um: [0.1, 1.0, 2.5, 5.0, 20.0]
+
+# --- optics size distribution ------------------------------------------------
+#
+# Balkanski, Schulz, Claquin, Guibert (2007). Reevaluation of mineral aerosol
+# radiative forcings suggests a better agreement with satellite and AERONET
+# data. Atmos. Chem. Phys. 7, 81-95. The population `exoplasim/scripts/
+# dust_optics.py` integrates the Mie calculation over, and the one the model's
+# optical properties therefore describe.
+#
+# DECLARED HERE AND RESTATED THERE, under a check. `dust_optics.py` keeps its
+# own module constants because moving them here would make `dust.yaml` a new
+# input of `analysis/dust_optics.json` and force a Mie regeneration for no
+# change in any number. `smoke_test.py` asserts the two agree instead, which is
+# the disposition `lib/rungs.py`'s ladder and `lib/snow.py`'s material
+# relations already use.
+optics_size_distribution:
+  number_median_radius_um: 0.295
+  sigma_g: 2.0
+  density_g_cm3: 2.6
+  restated_at: exoplasim/scripts/dust_optics.py
 
 # --- optics ------------------------------------------------------------------
 #

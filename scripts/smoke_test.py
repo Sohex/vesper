@@ -7179,6 +7179,60 @@ def check_lpj_pft_set_is_declared_once(files: list[Path]) -> list[str]:
     return problems
 
 
+def check_dust_optics_distribution_restatement() -> list[str]:
+    """`dust_optics.py`'s size distribution against the one `dust.yaml` declares.
+
+    This project carries TWO dust size distributions describing different
+    populations: what leaves the surface (Kok 2011, median DIAMETER 3.4 um) and
+    what the optics were integrated over (Balkanski et al. 2007, number median
+    RADIUS 0.295 um). Both are right where they stand, and world-drys is that
+    nothing arbitrated them, so the first consumer wanting a number
+    concentration would take whichever it found.
+
+    The optics one is now declared in `aeolian/config/dust.yaml` and restated as
+    module constants in the generator. It is restated rather than read because
+    reading would make `dust.yaml` an input of `analysis/dust_optics.json` and
+    force a Mie regeneration for no change in any number; this check is the
+    other sanctioned disposition, the one `lib/rungs.py`'s ladder and
+    `lib/snow.py`'s material relations already use.
+    """
+    import re
+    import yaml
+
+    config = ROOT / "aeolian" / "config" / "dust.yaml"
+    generator = ROOT / "exoplasim" / "scripts" / "dust_optics.py"
+    if not config.is_file() or not generator.is_file():
+        return [f"{config.name} or {generator.name} is absent"]
+    declared = yaml.safe_load(config.read_text(encoding="utf-8")).get(
+        "optics_size_distribution")
+    if not declared:
+        return ["aeolian/config/dust.yaml declares no optics_size_distribution, "
+                "so the generator's constants are unarbitrated again (world-drys)"]
+    found = re.search(
+        r"R_MOD_UM,\s*SIGMA_G,\s*RHO_G_CM3\s*=\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)",
+        generator.read_text(encoding="utf-8"))
+    if found is None:
+        return ["exoplasim/scripts/dust_optics.py no longer states R_MOD_UM, "
+                "SIGMA_G, RHO_G_CM3 in the form this check reads, so it can "
+                "drift from aeolian/config/dust.yaml unnoticed"]
+    pairs = (("number_median_radius_um", "R_MOD_UM", found.group(1)),
+             ("sigma_g", "SIGMA_G", found.group(2)),
+             ("density_g_cm3", "RHO_G_CM3", found.group(3)))
+    problems = []
+    for key, name, literal in pairs:
+        if float(literal) != float(declared[key]):
+            problems.append(
+                f"dust_optics.py {name} = {literal} against "
+                f"aeolian/config/dust.yaml optics_size_distribution.{key} = "
+                f"{declared[key]}")
+    stated = str(declared.get("restated_at", ""))
+    if stated != "exoplasim/scripts/dust_optics.py":
+        problems.append(
+            f"optics_size_distribution.restated_at names {stated!r}, which is "
+            "not the file this check reads")
+    return problems
+
+
 def check_withdrawn_closure_has_no_consumer() -> list[str]:
     """The withdrawn saturated fraction is refused where it would be read, and
     the two components state the one support field the same way.
@@ -7584,6 +7638,8 @@ def main() -> None:
                lambda: check_deposition_carrier_partitions_itself()),
               ("the withdrawn saturated fraction has no consumer keyed on it",
                lambda: check_withdrawn_closure_has_no_consumer()),
+              ("the dust optics distribution agrees with its declaration",
+               lambda: check_dust_optics_distribution_restatement()),
               ("the LPJ plant functional types are declared once and read",
                lambda: check_lpj_pft_set_is_declared_once(files)),
               ("every unclosed issue carries exactly one batch:<n>",
