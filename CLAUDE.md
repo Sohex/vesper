@@ -364,7 +364,11 @@ intensive, categorical, moments, expectation, and the DISTRIBUTION -- the
 area-weighted quantile table a sub-grid hypsometry is, with the share
 above a threshold read back out of it -- the ledger of what a
 reduction dropped, grids as CELL BOUNDARIES: the Gaussian and GOLDSTEIN
-constructors a crossing takes its coordinates from, THE AREA WEIGHT in its
+constructors a crossing takes its coordinates from, each cell's ANALYTIC AREA
+CENTROID and the local east/north/up frame built on it -- what a vector field's
+components are components in -- and the mesh-to-grid door for a grid the
+exporter does NOT write, which bins against those boundaries in the SINE of
+latitude and is not the door for a grid the export ships, THE AREA WEIGHT in its
 three forms -- per row, per cell, and per point of a product keyed by the
 latitude it carries -- each of which checks the axis it was handed and
 refuses one that is not the grid the quadrature belongs to, because
@@ -387,8 +391,11 @@ its own weight and area, and a mesh product NAMES the export its region areas
 live in rather than copying ten million of them),
 `remap.py` (grid-to-grid: the separable overlap weights between two grids
 that are not the same grid, normalisation by field semantics, the coverage
-that travels with the result, and where a coastal flux goes when the two
-masks disagree), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
+that travels with the result, where a coastal flux goes when the two
+masks disagree, and the tangent-VECTOR crossing, which lifts the two components
+into the sphere's own three cartesian ones at the source frames and projects at
+the destination's rather than averaging two components in two frames, reporting
+what the destination's tangent plane would not hold), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
 Rayleigh coefficient, and the PHOTON CURRENCY: a window's share of a
 spectrum's energy and the mol quanta per joule inside it, with the
 controls -- the two changes of variable, and the Sun through the same

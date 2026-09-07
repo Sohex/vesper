@@ -518,7 +518,7 @@ steps:
     script: ocean/scripts/build_spatial_support.py
     loop: [A, O]
     cost: minutes
-    needs: [hydrography, ocean_remap, ocean_loop_gate, spatial_support_gate, partial_surface_decision_gate]
+    needs: [hydrography, ocean_remap, ocean_grid, ocean_loop_gate, spatial_support_gate, partial_surface_decision_gate]
     writes: ["ocean/data/{build}/spatial_support.nc", "ocean/data/{build}/cgenie_bathymetry.nc", "ocean/data/{build}/remap_weights.npz", "ocean/data/{build}/spatial_support_report.json"]
     gate: >
       OCN-11's single wet-mask and bathymetry contract. Catchments, coasts,
@@ -1159,6 +1159,33 @@ steps:
       surface_class; the ocean's real wet mask, volume and topology arrive with
       OCN-11, which is why the candidate GOLDSTEIN geometry is labelled a
       comparison support here rather than an accepted ocean support.
+
+  - id: ocean_grid
+    reads_export: true
+    script: ocean/scripts/build_ocean_grid.py
+    cost: minutes
+    needs: [ocean_remap]
+    writes: ["ocean/data/{build}/ocean_grid.json", "ocean/data/{build}/ocean_grid_placement.npz"]
+    gate: >
+      The ocean grid's identity, and the two crossings onto a grid no exporter
+      writes. The MESH is placed against GOLDSTEIN's cell boundaries by
+      lib/gridding.py:spec_cells, binned in the sine of latitude because the
+      ocean's rows are uniform in the sine, and the placement is accepted only
+      when every mesh region lies between the boundaries of the cell it landed
+      in, checked against the constructor's own edge arrays, and the area ledger
+      closes. That placement is what OCN-11 reduces wet area and volume over,
+      and writing the ocean's own bathymetry through it is what puts the ocean
+      model's longitude frame in the generator's rather than in one of its own.
+      The VECTOR crossing is lib/remap.py:Crossing.apply_vector, which the
+      ocean's surface-velocity return needs because remapping east and north as
+      two scalars averages components in frames that are not the same frame. Its
+      acceptance is a rigid rotation, whose cartesian integral is analytic, taken
+      over a longitude wedge and not over the sphere: on the whole sphere the
+      frame error is a phase that cancels around every row and the componentwise
+      control passes too, so the sphere case is asserted as the statement that
+      it does not discriminate. Terrain only: no climate run and no ocean run.
+      Nothing here declares a cell wet, and the GOLDSTEIN geometry stays a
+      candidate comparison support until OCN-11's contract exists.
 
   - id: dust_optics
     script: exoplasim/scripts/dust_optics.py

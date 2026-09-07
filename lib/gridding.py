@@ -246,6 +246,71 @@ def region_cells(export: Export, grid_dir: Path):
     return r * nlon + c, nlat, nlon
 
 
+def spec_cells(spec: "GridSpec", lat, lon) -> np.ndarray:
+    """Flat cell index on ANY constructed grid for points at `lat`, `lon`.
+
+    THE MESH-TO-GRID DOOR FOR A GRID THE EXPORTER DOES NOT WRITE, and only for
+    those. `region_cells` is the door for a grid the export ships: it reads that
+    grid's own axis off the manifest and bins to the row the export itself used,
+    so a region lands where the export put it. GOLDSTEIN's rows and columns
+    exist only as a constructor in this module, and a mesh region can then be
+    placed only against `GridSpec`'s cell BOUNDARIES.
+
+    DO NOT REACH FOR IT ON THE EXPORT'S OWN GAUSSIAN GRID. The two doors
+    disagree there by construction and neither is a rounding of the other: a
+    Gaussian node is a quadrature abscissa and not the centre of its cell, so
+    binning to the nearest node and binning between the quadrature edges put a
+    band of mesh either side of every row boundary in different rows.
+    `ocean/scripts/build_ocean_grid.py` measures the band on the active build.
+
+    RULE 3, AND THE FORM IN WHICH THIS IS NOT IT. What rule 3 forbids is
+    matching one grid's longitude LABEL against another's: two conventions
+    naming the same columns of ONE grid, where the mapping is the index and a
+    label match rotates the field by half the planet. A mesh and a grid share no
+    index, so a placement has to go through coordinates, and the question is
+    which FRAME those coordinates are in. `lat` and `lon` are the generator's
+    own, reproducing from `x, y, z` to within float32, and they are what defines
+    this world's prime meridian. `spec.lon_edges` is `phi0` plus whole columns,
+    and `phi0` is a rotation of the ocean grid ON that planet rather than a
+    second naming of it -- which is what `analysis/ocean_remap.py`'s origin
+    check asserts, by rolling the answer one column when `phi0` moves one
+    column. One frame, two partitions: `lib/remap.py:_periodic_overlap` already
+    compares the same two constructors on the same argument, and folding the
+    source into the destination's window by a WHOLE number of turns is the same
+    shift it applies.
+
+    THE CONDITION THAT KEEPS THAT TRUE is that the ocean grid's own topography
+    is written through this placement, so the frame the ocean model runs in is
+    the generator's by construction rather than by agreement. A `.k1` built any
+    other way carries a frame of its own and the comparison is then between two
+    of them.
+
+    Rows are binned in the SINE of latitude, because that is what a `GridSpec`
+    carries and because binning in the angle puts a region in the wrong row of
+    an equal-area grid. Either row order is accepted -- this project's grids run
+    north to south and GOLDSTEIN's `j` runs south to north -- and the index
+    comes back in the spec's OWN order, which is the order the model that reads
+    it wants.
+    """
+    if not isinstance(spec, GridSpec):
+        raise TypeError(
+            "spec_cells bins against cell BOUNDARIES, so it takes a GridSpec. "
+            "Centre arrays read off a file are labels, not a partition.")
+    s = np.sin(np.deg2rad(np.asarray(lat, dtype=np.float64)))
+    edges = spec.sin_edges
+    if edges[0] < edges[-1]:                       # south to north
+        r = np.searchsorted(edges, s, side="right") - 1
+    else:                                          # north to south
+        r = np.searchsorted(-edges, -s, side="right") - 1
+    np.clip(r, 0, spec.nlat - 1, out=r)
+    turn = float(spec.lon_edges[-1] - spec.lon_edges[0])
+    x = np.asarray(lon, dtype=np.float64)
+    x = x - turn * np.floor((x - spec.lon_edges[0]) / turn)
+    c = np.searchsorted(spec.lon_edges, x, side="right") - 1
+    np.clip(c, 0, spec.nlon - 1, out=c)
+    return r * spec.nlon + c
+
+
 def climatology_cells(export: Export, grid_dir: Path, clim_lat):
     """Per-region (row, col) into a climatology field, as (row, col) arrays.
 
@@ -909,6 +974,59 @@ class GridSpec:
         lon = 0.5 * (self.lon_edges[:-1] + self.lon_edges[1:])
         return lat, lon
 
+    def cell_centroids(self) -> np.ndarray:
+        """The AREA CENTROID of each cell as a 3-vector, shaped (ncell, 3).
+
+        The mean of the position vector over the cell, which lies INSIDE the
+        sphere and is shorter than one. It is not `cell_centres` lifted onto the
+        sphere and the difference is the point: a field that is linear in
+        position has this vector as its exact cell mean, and no point on the
+        surface has that property. A rigid rotation is such a field, which is
+        what makes `lib/remap.py:apply_vector`'s acceptance test an identity
+        rather than a comparison.
+
+        Both integrals are analytic on a cell bounded by two sines of latitude
+        and two longitudes, so nothing here is quadrature. The polar axis is z,
+        matching `cell_centres`; `source/README.md`'s y-up warning is about the
+        EXPORT's mesh coordinates and does not reach a grid constructed here.
+        """
+        lam = np.deg2rad(self.lon_edges)
+        s = self.sin_edges
+        dlam = np.diff(lam)
+        ds = np.diff(s)
+        area = np.outer(ds, dlam)
+        root = np.sqrt(np.clip(1.0 - s * s, 0.0, None))
+        prim = 0.5 * (s * root + np.arcsin(np.clip(s, -1.0, 1.0)))
+        band = np.diff(prim)                       # integral of the cosine over the row
+        ix = np.outer(band, np.diff(np.sin(lam)))
+        iy = np.outer(band, -np.diff(np.cos(lam)))
+        iz = np.outer(0.5 * np.diff(s * s), dlam)
+        return np.stack([(ix / area).ravel(), (iy / area).ravel(),
+                         (iz / area).ravel()], axis=1)
+
+    def cell_frames(self):
+        """Local (east, north, up) unit vectors per cell, each shaped (ncell, 3).
+
+        The frame is taken at the cell's own area centroid projected onto the
+        sphere, so it is the one reference point a cell has that is defined by
+        the cell rather than by a convention. This is what a VECTOR field's
+        components are components IN, and it is why `lib/remap.py:apply_vector`
+        can move a vector between two grids without ever asking one grid what
+        the other calls east: it converts to the sphere's own three cartesian
+        components and back.
+        """
+        up = self.cell_centroids()
+        up = up / np.linalg.norm(up, axis=1, keepdims=True)
+        polar = np.array([0.0, 0.0, 1.0])
+        east = np.cross(polar, up)
+        n = np.linalg.norm(east, axis=1, keepdims=True)
+        # At a pole the cross product vanishes and east is undefined. No cell
+        # centroid reaches a pole -- a polar cell's centroid sits inside its own
+        # sine band -- so this is a guard and not a case.
+        east = np.divide(east, n, out=np.zeros_like(east), where=(n > 0))
+        north = np.cross(up, east)
+        return east, north, up
+
 
 def gaussian_grid(nlat: int, nlon: int | None = None, name: str | None = None) -> GridSpec:
     """The spectral grid ExoPlaSim and the export share, as cell boundaries.
@@ -1269,7 +1387,7 @@ def goldstein_grid(nlon: int, nlat: int, igrid: int = GOLDSTEIN_EQUAL_AREA,
 # where the answer is unknown is not a check.
 
 
-_CHECKS = 33
+_CHECKS = 44
 
 
 def _selftest() -> int:
@@ -1475,6 +1593,115 @@ def _selftest() -> int:
           float(np.ptp(np.diff(lat_edges))) <= 1e-12
           and abs(equal_angle.cell_area_fraction().sum() - 1.0) <= 1e-13,
           f"row spread {np.ptp(np.diff(lat_edges)):.3g}")
+
+    # CENTROIDS AND FRAMES, which is what a VECTOR field's components are
+    # components in. The whole sphere as ONE cell has its centroid exactly at
+    # the origin, analytically and by symmetry, and it is the one case where the
+    # answer is a number rather than a limit.
+    whole = GridSpec(name="the whole sphere", lon_edges=np.array([-180.0, 180.0]),
+                     sin_edges=np.array([1.0, -1.0]),
+                     source="the selftest's one-cell grid")
+    check("the sphere as one cell has its centroid at the origin",
+          float(np.abs(whole.cell_centroids()).max()) <= 1e-15,
+          f"{np.abs(whole.cell_centroids()).max():.3g}")
+    coarse = float(np.linalg.norm(gaussian_grid(32).cell_centroids(), axis=1).min())
+    fine = float(np.linalg.norm(gaussian_grid(256).cell_centroids(), axis=1).min())
+    check("a centroid lies inside the sphere and approaches it as cells shrink",
+          coarse < fine < 1.0, f"{coarse:.6f} at T21 against {fine:.6f} at T170")
+    fe, fn, fu = gaussian_grid(64).cell_frames()
+    ortho = max(float(np.abs((fe * fn).sum(axis=1)).max()),
+                float(np.abs((fe * fu).sum(axis=1)).max()),
+                float(np.abs((fn * fu).sum(axis=1)).max()),
+                float(np.abs(np.linalg.norm(fe, axis=1) - 1.0).max()),
+                float(np.abs(np.linalg.norm(fn, axis=1) - 1.0).max()))
+    check("the local frame is orthonormal in every cell",
+          ortho <= 1e-14 and bool((fn[:, 2] > 0).all()),
+          f"worst departure {ortho:.3g}")
+
+    # BINNING ONTO A CONSTRUCTED GRID. `spec_cells` is the mesh-to-grid door for
+    # a grid the exporter does not write, and the identity it has to satisfy is
+    # that a cell's own CENTRE lands back in that cell -- on both grid kinds and
+    # in both row orders, one running north to south and the other south to
+    # north -- and that the same centre offered a whole turn either way lands
+    # there too, because a longitude is periodic and the fold is exact. It fails
+    # if the sine is binned as an angle, if the row order is assumed, or if the
+    # longitude origin is read as a label.
+    for spec in (gaussian_grid(64), goldstein_grid(36, 36),
+                 goldstein_grid(72, 72, igrid=GOLDSTEIN_EQUAL_ANGLE)):
+        clat, clon = spec.cell_centres()
+        own = np.arange(spec.ncell)
+        la = np.repeat(clat, spec.nlon)
+        lo = np.tile(clon, spec.nlat)
+        wrong = max(int((spec_cells(spec, la, lo + turn) != own).sum())
+                    for turn in (-360.0, 0.0, 360.0))
+        check(f"{spec.name}: every cell centre bins back into its own cell",
+              wrong == 0, f"{wrong} of {spec.ncell} misplaced")
+
+    # CONTAINMENT, against the constructor's OWN edge arrays rather than against
+    # a restatement of them: whatever cell a point is placed in, the point lies
+    # between that cell's boundaries. This is the property `region_cells` gets
+    # from the export's axis and a constructed grid has to be given.
+    ocn = goldstein_grid(36, 36)
+    m = 50000
+    rand_lat = np.rad2deg(np.arcsin(rng.uniform(-1.0, 1.0, m)))
+    rand_lon = rng.uniform(-180.0, 180.0, m)
+    binned = spec_cells(ocn, rand_lat, rand_lon)
+    br, bc = np.divmod(binned, ocn.nlon)
+    sn = np.sin(np.deg2rad(rand_lat))
+    turn = float(ocn.lon_edges[-1] - ocn.lon_edges[0])
+    folded = rand_lon - turn * np.floor((rand_lon - ocn.lon_edges[0]) / turn)
+    lo_s = np.minimum(ocn.sin_edges[br], ocn.sin_edges[br + 1])
+    hi_s = np.maximum(ocn.sin_edges[br], ocn.sin_edges[br + 1])
+    outside = int(((sn < lo_s - 1e-12) | (sn > hi_s + 1e-12)
+                   | (folded < ocn.lon_edges[bc] - 1e-12)
+                   | (folded > ocn.lon_edges[bc + 1] + 1e-12)).sum())
+    check("a placed point lies between the boundaries of the cell it landed in",
+          outside == 0 and int(binned.min()) >= 0 and int(binned.max()) < ocn.ncell,
+          f"{outside} of {m} outside, range {binned.min()}..{binned.max()}")
+
+    # THE CONTROL, and it is the defect the sine binning exists to stop. On an
+    # equal-area grid the rows are uniform in the SINE, so a restatement that
+    # bins the same points uniformly in the ANGLE is a real placement onto a
+    # real grid and it is not this one. It has to disagree on a large share of
+    # the sphere; if it did not, the sine would not be load-bearing.
+    angle_row = np.clip(((rand_lat + 90.0) / (180.0 / ocn.nlat)).astype(int),
+                        0, ocn.nlat - 1)
+    disagree = float((angle_row != br).mean())
+    check("binning in the angle misplaces points on an equal-area grid",
+          disagree >= 0.2, f"only {disagree:.3%} of points move")
+
+    # THE LONGITUDE ORIGIN IS A PARAMETER AND NOT A LABEL. GOLDSTEIN's first
+    # column edge sits at phi0, whose shipped value is 260 degrees west, so the
+    # SAME physical longitude is column 0 on the ocean's grid and something else
+    # on the atmosphere's. Reading either grid's column number as if it were the
+    # other's is `CLAUDE.md` rule 3 at this boundary.
+    atm_spec = gaussian_grid(32)
+    just_in = float(ocn.lon_edges[0]) + 1e-9
+    just_out = float(ocn.lon_edges[0]) - 1e-9
+    first = int(spec_cells(ocn, np.array([0.0]), np.array([just_in]))[0]) % ocn.nlon
+    last = int(spec_cells(ocn, np.array([0.0]), np.array([just_out]))[0]) % ocn.nlon
+    same = int(spec_cells(atm_spec, np.array([0.0]), np.array([just_in]))[0]) % atm_spec.nlon
+    check("the longitude origin is honoured and the two grids disagree on the column",
+          first == 0 and last == ocn.nlon - 1 and same != 0,
+          f"phi0 column {first}, just outside {last}, atmosphere column {same}")
+
+    # THE LEDGER CLOSES on a constructed grid too: every point offered lands in
+    # exactly one cell of it, and nothing falls off the edge of the partition.
+    led = transfer_ledger(binned, ocn.ncell, rng.uniform(0.1, 10.0, m))
+    check("binning onto a constructed grid loses no area",
+          led["closure_residual_relative"] <= 1e-12,
+          f"{led['closure_residual_relative']:.3g}")
+
+    # AND THE REFUSAL: a centre array read off a file is a label and not a
+    # partition, so it is refused rather than turned into edges here.
+    try:
+        spec_cells(ocn.cell_centres()[0], rand_lat, rand_lon)
+    except TypeError:
+        refused_centres = True
+    else:
+        refused_centres = False
+    check("a centre array offered as a grid is refused", refused_centres,
+          "spec_cells accepted something that is not a GridSpec")
 
     # THE CONTROL: a spec that is not a partition of the sphere must be refused
     # at construction. Without this the four checks above would pass on an
