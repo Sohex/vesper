@@ -66,6 +66,21 @@ groups:
           is not switched off inside the season. C3G declares 45 and the cap
           spends 7.6% of its season above it.
 
+      tcmax_est:
+        value: -30.92
+        units: absolute
+        basis: >-
+          DERIVED from where the diagnosis holds, and it is the cost every
+          shipped cold type pays that the first arm did not. LPJ-GUESS confines
+          a cold-climate type with tcmax_est, the warmest coldest month it may
+          establish under: BNE -1, BNS -2, TeBS 6, IBS 7, TeNE 10, TeBE 18.8.
+          Inheriting C3G's no-limit gave these types a 15-to-46 degC plateau,
+          unlimited cold survival and nowhere they could not establish, and the
+          first arm took a fifth to a third of TROPICAL cover. The region
+          notes/underoccupied-niches.md identifies is poleward of 60 degrees,
+          whose coldest month runs -75.34 to -30.92 degC; a ceiling at -30.92
+          admits all of it and bars 919 of 1617 cells, 57% of the land.
+
       ltor_max:
         units: absolute
         basis: >-

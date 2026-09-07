@@ -110,3 +110,89 @@ partial result would be diagnosed with: the share of the polar growing season
 the new type spends above its own `pstemp_high`, which says whether the derived
 ceiling was set high enough, and the capture fraction, which says whether the
 extra leaf reached the water.
+
+## Result: the traits work and the types are not polar
+
+Two arms, both on 1253 retained years over 8600 of spin-up, npatch 5, root seed
+20260828 matching the accepted run, differing only in the `ltor_max` bracket.
+
+| | `lpj_fb69ecbb8b5d468fbbf6815a03afcbf9` | `lpj_19140f59581f4c8ab9bf20b0fe3f80c1` |
+| --- | --- | --- |
+| `ltor_max` | 1.0, the low end | 2.0, the high end |
+| acceptance | **PASS** | FAIL |
+
+The high arm is refused by the per-cell trend test on `anpp.out`, which
+`world-4hlw` records as the half of the contract whose limit is calibrated
+rather than derived and which errs toward refusing. Its end-to-end drift is
+-0.269% against a 5% limit, so nothing below rests on it; the accepted arm is
+the one scored, and the high arm is quoted only where the bracket's direction
+is the point.
+
+### The declared criterion is met, by a wide margin
+
+Summed foliar projective cover over the 234 cells poleward of 75 degrees,
+against the accepted run's 0.030 and the criterion fixed above:
+
+| | polar FPC | VPE | VPP | verdict |
+| --- | --- | --- | --- | --- |
+| accepted run, twelve Earth types | 0.030 | -- | -- | -- |
+| `ltor_max` 1.0, ACCEPTED | **0.350** | 0.3245 | 0.0199 | above 0.10: the traits matter |
+| `ltor_max` 2.0 | 0.473 | 0.3842 | 0.0847 | above 0.10 |
+
+**The ephemeral wins and the perennial persists.** At the accepted arm the ratio
+is sixteen to one; at the high end of the bracket four and a half to one, so a
+leaf-biased allocation favours the perennial relatively even as both grow. The
+two Earth survivors are displaced: C3G falls from 0.0274 to 0.0020 and BNS from
+0.0027 to 0.0017. Cover is flat to four figures across the whole retained
+record in both arms.
+
+### The criterion did not ask the question that matters, and the answer is no
+
+Native share of the summed cover, by band, on the accepted arm and the high arm:
+
+| band | accepted run FPC | arm FPC | VPE | VPP | native share |
+| --- | --- | --- | --- | --- | --- |
+| poleward of 75 | 0.030 | 0.350 / 0.473 | 0.325 / 0.384 | 0.020 / 0.085 | 98.4% / 99.2% |
+| 45 to 60 | 0.152 | 0.467 / 0.557 | 0.332 / 0.348 | 0.072 / 0.145 | 86.6% / 88.5% |
+| equatorward of 15 | 0.835 | 0.899 / 0.948 | 0.188 / 0.260 | 0.013 / 0.042 | 22.4% / 31.9% |
+
+**The two types took the planet.** They hold a fifth to a third of the
+TROPICAL cover and raise total cover there from 0.835 to 0.899 and 0.948. A
+type derived for the polar cap that outcompetes tropical broadleaf evergreens
+in the tropics is not a polar type; it is a super-competitor, and what it says
+about the cap is confounded by what it says about everywhere.
+
+The bracket rules out allocation as the cause. At `ltor_max` 1.0 the takeover
+is as complete at the cap and only somewhat weaker in the tropics, so the
+thermal band and the absence of an establishment ceiling carry it, not the
+leaf-root split.
+
+WHAT WAS MISSING IS THE COST EVERY SHIPPED COLD TYPE PAYS. LPJ-GUESS confines
+a cold-climate type to cold climates with `tcmax_est`, the warmest coldest
+month it can establish under: BNE and BINE -1, BNS -2, TeBS 6, IBS 7, TeNE 10,
+TeBE 18.8 degC. The tropical types and both grasses declare no ceiling, and
+`vesper_polar` inherits C3G's. So the derivation gave the types a photosynthesis
+plateau from 15 to 46 degC, unlimited cold survival, and no place they may not
+establish. A plant with no weakness wins everywhere, and that is what the run
+reports.
+
+The refutation criterion above tested whether the traits move polar cover and
+never tested whether the type is polar. That is the criterion's defect and is
+recorded as one: a second criterion belongs beside the first, on the native
+share of cover OUTSIDE the diagnosis's region, and it is stated below for the
+next arm rather than applied to this one after the fact.
+
+### What the next arm carries, and the criterion it is judged on
+
+`tcmax_est` for `vesper_polar`, DERIVED from where the diagnosis holds. The
+region `notes/underoccupied-niches.md` identifies is poleward of 60 degrees,
+527 cells, and its coldest month runs from -75.34 to -30.92 degC. A ceiling at
+**-30.92** bars establishment in 919 of 1617 cells, 57% of the land, and admits
+the whole of the region. Every shipped cold type is confined the same way; this
+is the derivation those types have and these did not.
+
+Judged on both criteria, fixed now: polar summed FPC above 0.10 as before, AND
+native share of cover equatorward of 45 degrees below 5%. A type meeting the
+first and failing the second is again a super-competitor and the ceiling was
+set too warm; a type failing the first with the second met is confined to a
+niche it cannot fill, and the traits do not do what the cap needs.
