@@ -4,15 +4,36 @@ Illustrative colour maps of Vesper. These are pictures, not analysis products:
 they exist to show what the world looks like.
 
 ```bash
-python maps/build_basemap.py       # equirectangular base, ~30 s (lookup cached)
-python maps/render_projections.py  # the authagraph, ~50 s at width 4000
-python maps/render_projections.py --all           # all seven
-python maps/snapshot.py --step surface_water      # both, filed as a frame
+qrun -p light -m  8G -t 0:20:00 -- .venv/bin/python maps/build_basemap.py
+qrun -p light -m 20G -t 0:20:00 -- .venv/bin/python maps/render_projections.py
+qrun -p light -m 20G -t 0:40:00 -- .venv/bin/python maps/snapshot.py --step surface_water
 ```
 
-`--all` is minutes rather than a minute: the iterative inverses cost far more
-per pixel than the tetrahedral rectangle's does, and the Winkel tripel alone
-runs several times the whole default render.
+**Do not take the repo's default profile for these.** `.taskrunner.toml` pins
+`exoplasim`, which is one climate arm: eight whole physical cores held for
+hours. A render wants neither -- it is a single-threaded numpy job that is over
+in a minute or two -- and asking for a climate arm's shape makes it queue
+behind whatever else wants cores while holding eight of them once it starts.
+It wants MEMORY instead, which is the axis the default is stingiest on
+relative to the need.
+
+The numbers are measured rather than padded, at the default widths:
+
+| | peak RSS | wall |
+| --- | --- | --- |
+| `build_basemap.py` | 6.04 GB | 45 s cold, 36 s with the region lookup cached |
+| `render_projections.py`, authagraph | 17.4 GB | 72 s |
+
+`light` alone is 2 G and OOMs both. The reprojection is the heavy one because
+it holds the 5760x2880 base map, the projection's own raster and the
+per-pixel inverse solution at once; it is the memory figure to size against,
+and 8 G OOMs it.
+
+`--all` is minutes rather than a minute and is NOT measured above: the
+iterative inverses cost far more per pixel than the tetrahedral rectangle's
+does, the Winkel tripel alone runs several times the whole default render, and
+each net carries its own orientation search. Give it more time, and watch what
+it takes before trusting a number for it.
 
 The AuthaGraph-style rectangle is the only projection drawn by default. It shows
 the whole world at once with the least distortion of shape of anything here, so

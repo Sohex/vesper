@@ -2256,11 +2256,29 @@ steps:
     # `builds.mesh_export()`. It is what makes the map reachable from `orogen`,
     # and so what makes the set of steps a frame is taken after derivable rather
     # than listed.
+    gate: >
+      Run it as `qrun -p light -m 8G -t 0:20:00` and NOT under the repo default.
+      Measured at the default width: 6.04 GB peak, 45 s with the nearest-region
+      lookup cold and 36 s cached. The repo default is one climate arm -- eight
+      whole physical cores held for hours -- which a single-threaded numpy
+      render neither needs nor can use, and `light` alone is 2 G, which OOMs.
+
+      The land colour comes from `lpj_vegetation` where that field exists and
+      from the climate classification where it does not, and
+      `basemap_provenance.json:land_colour` records which. The `lpj_vegetation`
+      edge is loop B and is what makes a new accepted biosphere run produce a
+      new frame rather than being recorded against the existing one.
 
   - id: projections
     script: maps/render_projections.py
     cost: minutes
     needs: [basemap]
+    gate: >
+      Run it as `qrun -p light -m 20G -t 0:20:00`. Measured for the authagraph
+      at width 4000: 17.4 GB peak, 72 s. It is the memory-heaviest step in the
+      repo that is not a model run, because it holds the base map, the
+      projection's raster and the per-pixel inverse solution at once, and 8 G
+      OOMs it. `--all` is not measured.
     writes: ["maps/data/{build}/INDEX.json", "maps/data/{build}/*/*.png", "maps/data/{build}/*/provenance.json"]
     # One UUID-named frame per state of the world, namespaced by build like
     # every other component's data. INDEX.json says what each frame is and is
