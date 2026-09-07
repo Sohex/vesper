@@ -141,22 +141,21 @@ The arguments and the incidents behind these are in
   column alignment. They get copied out.
 - Every run and analysis product records its provenance (config hash, input
   hashes, software versions) in JSON. Keep that up when adding steps.
-- **One host, many agents: run anything CPU-heavy under
-  `scripts/lock_and_run`.** A model run, a build, a profile, a long analysis --
-  anything using the CPU for more than a moment:
+- **One host, many repos: heavy work goes through the scheduler, never
+  directly.** A model run, a build, a profile, a long analysis -- anything
+  CPU-bound for more than a moment, or wanting more than a few GB:
 
-      scripts/lock_and_run -m "what you are doing" python exoplasim/scripts/run_exoplasim.py ...
+      qrun -- .venv/bin/python exoplasim/scripts/run_exoplasim.py ...
 
-  One step, because every step a caller can skip has been skipped here and paid
-  for. It waits for the lock, runs the command with its three streams untouched,
-  and releases when the command returns OR when it is killed by anything,
-  `kill -9` included -- so there is no release to forget and no stale lock to
-  recover. Nesting is free: a wrapped command may wrap again without
-  deadlocking. The lock keeps other AGENTS off the host; it does NOT partition
-  it between your own runs, so two paired arms are `p8` binaries pinned to their
-  own cores, never two `p16`, and both go under ONE `lock_and_run`. Record the
-  load beside any timing you keep. `docs/src/reference/environment.md` has the
-  argument and what a claim-shaped vocabulary cost.
+  `qrun` blocks, streams the command's output live and exits with its status,
+  so it goes exactly where the bare command went. The Resource scheduling
+  section below says which profile a job takes and why. Two things this
+  changes that used to be remembered: two paired arms are `p8` and never two
+  `p16` BECAUSE the default profile is eight whole cores and two of them fit,
+  and a rank or thread count comes from `$SLURM_CPUS_PER_TASK` rather than
+  `nproc`, which under a whole-cores allocation reports both SMT siblings and
+  double-subscribes every core. Record the load beside any timing you keep:
+  the scheduler gives a job its cores, not the memory bandwidth around them.
 - **A thread team's working set on one die targets 32 MB**, counting one copy
   per thread for anything threadprivate. Above it is a regression even when
   this machine gets faster: 32 MB is CCD1 here and is what a part without
@@ -460,6 +459,40 @@ tracked, and since run ids are UUIDs it is the only record of what each run
 was), the `source/` payloads, or `.venv/`. Those have no history to fall back
 on, so be careful with destructive operations there; `.gitignore` says why
 each is excluded.
+
+## Resource scheduling
+
+Runs here are long and CPU-bound, and this machine is shared with other repos,
+so heavy work is arbitrated centrally. Machine-wide rules are in
+`~/.claude/CLAUDE.md`; `qrun spec` prints the live limits and the key schema.
+Never start a run directly, never detach it, and never cancel or shrink around
+a pending job -- a job waiting on `(Resources)` is the scheduler working.
+
+`.taskrunner.toml` at the repo root pins `profile = "exoplasim"`: 8 MPI ranks
+on 8 WHOLE physical cores, SMT siblings left alone because the model is
+compute-bound and gains nothing from them. Two such arms fit at once, which is
+the pairing this project runs. Every worktree inherits that file.
+
+    qrun -- .venv/bin/python exoplasim/scripts/run_exoplasim.py ...   # the default
+    qrun -p exoplasim-omp -- ...    # the OpenMP-parallel runs
+    qrun -p exoplasim-big -- ...    # all 16 cores; LOCKS the CPU queue and
+                                    # starves every other repo, so only for a
+                                    # run that genuinely needs the whole machine
+    qrun -p build -- ...            # compiles
+    qrun -p light -- ...            # a long analysis that is not CPU-bound
+
+Take every rank and thread count from `$SLURM_CPUS_PER_TASK`, never from
+`nproc`: under a whole-cores allocation the visible CPU list holds both SMT
+siblings of every core, so `nproc` returns double the usable count and
+oversubscribes each one. OpenMPI runs launch as `mpirun $QRUN_MPIRUN_FLAGS
+./model`, which carries the rank count and the core binding.
+
+A killed job is usually a limit rather than a defect: an OOM with exit 1 means
+the job passed its `mem`, and exit 143 means it hit its walltime. Raise the one
+it hit and say which. Do not pad a request to be safe -- over-asking makes the
+job wait longer and starves everything else -- and ask before editing
+`.taskrunner.toml`, which sets the floor for every job in the repo rather than
+for one.
 
 ## Environment
 

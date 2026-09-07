@@ -1,0 +1,24 @@
+# Resource request for every job this repo submits through `qrun`.
+#
+# The nearest such file at or above the working directory wins, so this one at
+# the repo root is what every worktree inherits.
+#
+# `exoplasim` is the right default because the commonest heavy job here is one
+# arm of a climate run: 8 MPI ranks on 8 WHOLE physical cores, SMT siblings left
+# alone because the model is compute-bound and gains nothing from them. Two such
+# arms fit on the machine at once, which is exactly the pairing this project
+# runs -- CLAUDE.md's rule that two paired arms are p8 and never two p16 is now
+# enforced by the scheduler rather than by remembering it.
+#
+# Jobs that are NOT one climate arm take a profile on the command line instead:
+#   qrun -p exoplasim-omp   the OpenMP-parallel runs (8 cores, no MPI)
+#   qrun -p exoplasim-big   all 16 physical cores; this LOCKS the CPU queue and
+#                           starves every other repo, so only for a run that
+#                           genuinely needs the whole machine
+#   qrun -p build           compiles
+#   qrun -p light           a long analysis that is not CPU-bound
+# and anything whose shape matches none of those overrides with -c/-m/-t.
+#
+# Do not raise `mem` here to cover the one job that needs more; over-asking
+# makes every job in this repo wait longer. Override that job alone with -m.
+profile = "exoplasim"
