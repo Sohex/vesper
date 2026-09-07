@@ -7077,6 +7077,104 @@ def check_penman_evaluation_interval() -> list[str]:
     return problems
 
 
+def check_lpj_lifeform_restatements() -> list[str]:
+    """Every statement of which LPJ-GUESS types are grass, against the PFT file.
+
+    The tree/grass split is stated in four places and read by four different
+    things: the surface albedo feedback, the acceptance contract's cover
+    quantities, the cover tolerance derivation, and the productivity
+    prediction's structural lines. Nothing derives it -- each restates the
+    pair -- so adding a plant functional type means finding all four, and
+    missing one splits cover silently rather than failing. That is exactly what
+    `world-orok` would trip over the day this world is given a type of its own.
+
+    The AUTHORITY is `biosphere/generated/vesper_pfts.ins`, because it is the
+    file the model actually reads; a restatement naming a type that file does
+    not declare is refused for that reason rather than for disagreeing.
+
+    Groups and PFTs share a namespace there -- `group "C3G"` and `pft "C3G"`
+    both exist -- so the two are resolved separately. Keying them on one name
+    loses the group, and every grass then comes back with no lifeform at all.
+    """
+    import re
+
+    source = ROOT / "biosphere" / "generated" / "vesper_pfts.ins"
+    if not source.is_file():
+        return [f"{source.relative_to(ROOT)} is absent; generate it with "
+                "biosphere/scripts/build_vesper_pfts.py"]
+    groups: dict[str, list[str]] = {}
+    pfts: dict[str, list[str]] = {}
+    body: list[str] | None = None
+    name = kind = ""
+    for raw in source.read_text(encoding="utf-8").splitlines():
+        line = raw.split("!")[0].rstrip()
+        opened = re.match(r'\s*(group|pft)\s+"([\w.]+)"', line)
+        if opened:
+            kind, name, body = opened.group(1), opened.group(2), []
+            continue
+        if body is not None and line.strip() == ")":
+            (groups if kind == "group" else pfts)[name] = body
+            body = None
+            continue
+        if body is not None and line.strip():
+            body.append(line.strip())
+
+    def lifeform(block: list[str], seen: set[str] | None = None) -> str | None:
+        seen = seen or set()
+        for token in ("grass", "tree"):
+            if token in block:
+                return token
+        for statement in reversed(block):
+            if statement in groups and statement not in seen:
+                seen.add(statement)
+                found = lifeform(groups[statement], seen)
+                if found:
+                    return found
+        return None
+
+    resolved = {pft: lifeform(block) for pft, block in pfts.items()}
+    unresolved = sorted(pft for pft, form in resolved.items() if form is None)
+    if unresolved:
+        return [f"{source.relative_to(ROOT)} declares {', '.join(unresolved)} "
+                "with no lifeform this check can resolve, so the split it is "
+                "the authority for cannot be read"]
+    declared = frozenset(pft for pft, form in resolved.items() if form == "grass")
+
+    restatements = [
+        ("exoplasim/scripts/build_surface_albedo.py", r'GRASS_PFTS\s*=\s*\(([^)]*)\)'),
+        ("biosphere/scripts/score_prediction.py", r'GRASS_PFTS\s*=\s*\(([^)]*)\)'),
+        ("biosphere/scripts/derive_cover_tolerance.py", r'GRASS_COLUMNS\s*=\s*\(([^)]*)\)'),
+        ("biosphere/config/equilibrium_window.yaml", r'columns:\s*\[([^\]]*)\]'),
+    ]
+    problems = []
+    for relative, pattern in restatements:
+        path = ROOT / relative
+        if not path.is_file():
+            problems.append(f"{relative} is absent, so its statement of the "
+                            "grass split cannot be checked")
+            continue
+        found = re.search(pattern, path.read_text(encoding="utf-8"))
+        if found is None:
+            problems.append(f"{relative} no longer states the grass split in "
+                            "the form this check reads, so the four can drift "
+                            "apart unnoticed")
+            continue
+        stated = frozenset(token.strip().strip('"\'')
+                           for token in found.group(1).split(",")
+                           if token.strip())
+        unknown = sorted(stated - set(resolved))
+        if unknown:
+            problems.append(
+                f"{relative} names {', '.join(unknown)} as grass, and "
+                f"{source.relative_to(ROOT)} declares no such type")
+        elif stated != declared:
+            problems.append(
+                f"{relative} says the grass types are "
+                f"{', '.join(sorted(stated))} and "
+                f"{source.relative_to(ROOT)} says {', '.join(sorted(declared))}")
+    return problems
+
+
 def check_withdrawn_closure_has_no_consumer() -> list[str]:
     """The withdrawn saturated fraction is refused where it would be read, and
     the two components state the one support field the same way.
@@ -7482,6 +7580,8 @@ def main() -> None:
                lambda: check_deposition_carrier_partitions_itself()),
               ("the withdrawn saturated fraction has no consumer keyed on it",
                lambda: check_withdrawn_closure_has_no_consumer()),
+              ("every statement of the LPJ grass split agrees with the PFT file",
+               lambda: check_lpj_lifeform_restatements()),
               ("every unclosed issue carries exactly one batch:<n>",
                lambda: check_every_open_issue_is_batched())]
     # Run and REPORT one at a time, rather than evaluating the list and then
