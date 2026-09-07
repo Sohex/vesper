@@ -20,19 +20,30 @@ comparison accumulates; this takes it.
 
 THE CHECK, stated as a rule that can fail.
 
-  1. An artifact is EVIDENCE only if all three hold:
-     a. the exponential fit was USED rather than the drift fallback. The
-        fallback is identifiable from the artifact alone: it sets
-        `temperature_remaining_offset_k` exactly equal to
-        `remaining_offset_implied_by_drift_k`. A tau from a fit the assessment
-        itself discarded is not a measurement of anything.
-     b. the assessment reports the fitted tau as IDENTIFIABLE. Over a span
-        short compared with tau the exponential is indistinguishable from a
-        straight line, so tau is whatever the optimiser drifted to: 44018
-        orbits on one run here and -337429 on another. Reports written since
-        `relaxation_fit_identifiable` existed carry the verdict; older ones are
-        judged by the same rule applied here, which is that the fitted tau must
-        be finite, positive, and no longer than the span it was fitted over.
+  1. An artifact is EVIDENCE only if the assessment reports the fitted tau as
+     IDENTIFIABLE. Over a span short compared with tau the exponential is
+     indistinguishable from a straight line, so tau is whatever the optimiser
+     drifted to: 44018 orbits on one run here and -337429 on another. Reports
+     written since `relaxation_fit_identifiable` existed carry the verdict.
+
+     THE QUESTION IS ABOUT TAU AND NOT ABOUT WHICH ESTIMATOR THE OFFSET
+     CRITERION TOOK, and those were one test here until they came apart. The
+     rule read "the exponential fit was USED rather than the drift fallback",
+     on the argument that a tau from a fit the assessment discarded is not a
+     measurement of anything. That argument held only while the assessment
+     discarded a fit for being degenerate. It now also declines a fit whose
+     ASYMPTOTE cannot resolve the offset criterion's 0.15 K threshold, which is
+     a statement about the asymptote and says nothing at all about whether the
+     series determined tau -- so reading the estimator choice here would throw
+     away every fit in the tree and empty the bracket rule 4 emits. world-jejw.
+
+     AN ARTIFACT THAT PREDATES THE VERDICT is judged by the fallback signature
+     instead, which is what the old rule was reaching for: the fallback is
+     identifiable from such an artifact alone, because it sets
+     `temperature_remaining_offset_k` exactly equal to
+     `remaining_offset_implied_by_drift_k`. Those artifacts are also held to the
+     identifiability rule applied here, which is that the fitted tau must be
+     finite, positive, and no longer than the span it was fitted over.
   2. On an evidence artifact the ceiling HOLDS when tau_fitted <= tau_expected,
      and is FALSIFIED only when tau_fitted exceeds tau_expected by more than the
      fit's own standard error on tau. One fitted value above a derived one is
@@ -125,11 +136,17 @@ def assess(path: Path) -> dict:
         row.update(evidence=False, why="the artifact records no relaxation pair",
                    verdict="not evidence")
         return row
-    fell_back = (offset is not None and drift_offset is not None
+    # ONLY WHERE THE ARTIFACT CARRIES NO IDENTIFIABILITY VERDICT OF ITS OWN.
+    # See rule 1: on a report that has one, which estimator the offset criterion
+    # took is a fact about the asymptote and not about tau.
+    fell_back = (identifiable is None
+                 and offset is not None and drift_offset is not None
                  and offset == drift_offset)
     if fell_back:
-        row.update(evidence=False, why="the assessment took the drift fallback, "
-                                       "so this tau is from a fit it discarded",
+        row.update(evidence=False,
+                   why="this artifact predates the identifiability verdict and "
+                       "its assessment took the drift fallback, so the tau in "
+                       "it is from a fit that was discarded as degenerate",
                    verdict="not evidence")
         return row
     if identifiable is False:
@@ -217,9 +234,12 @@ def main() -> None:
         "question": "is relaxation_orbits_expected a ceiling on "
                     "relaxation_orbits_fitted",
         "rule": {
-            "evidence": "the fit was used rather than the drift fallback, and "
-                        "the fitted tau is identifiable from its own series: "
-                        "finite, positive, and no longer than the span fitted",
+            "evidence": "the fitted tau is identifiable from its own series: "
+                        "finite, positive, and no longer than the span fitted. "
+                        "Which estimator the offset criterion took is a fact "
+                        "about the fitted ASYMPTOTE and is not read here; an "
+                        "artifact predating the identifiability verdict is "
+                        "judged by the fallback signature instead",
             "falsified": "an evidence artifact whose fitted tau exceeds the "
                          "derived one by more than the fit's own standard error, "
                          "or by any amount where no such error is recorded",

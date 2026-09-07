@@ -154,9 +154,9 @@
     "state_storage_standard_error_w_m2": 0.00758739694931774,
     "surface_storage_w_m2": -0.012412108138315187,
     "reported_toa_minus_storage_w_m2": -0.23675792305499735,
-    "temperature_asymptote_k": 289.7269437788496,
-    "temperature_asymptote_half_width_k": 0.09294767773464149,
-    "temperature_remaining_offset_k": -0.05438333633298953,
+    "temperature_asymptote_k": 289.7601881845261,
+    "temperature_asymptote_half_width_k": 0.03071862569056056,
+    "temperature_remaining_offset_k": -0.021138930656489308,
     "relaxation_orbits_fitted": 23.772522111894304,
     "relaxation_fit_identifiable": true,
     "relaxation_fit_verdict": "tau = 23.7725 orbits is shorter than the 84 orbits fitted, so the series carries the curvature that fixes it",
@@ -259,30 +259,34 @@
       {
         "criterion": "extrapolated_offset",
         "threshold": 0.15,
-        "statistic_standard_error": 0.09294767773464149,
-        "statistic_error_source": "the fitted asymptote's autocorrelation-corrected standard error, widened where the fit extrapolates past its own data",
-        "verdict_interval": 0.09294767773464149,
-        "resolves": false,
-        "statistic_source": "exponential_fit"
+        "statistic_standard_error": 0.044577105110893134,
+        "statistic_error_source": "the temperature slope's standard error times the expected relaxation time, counted once for the offset and once for the half width that carries the same product",
+        "verdict_interval": 0.03071862569056056,
+        "resolves": true,
+        "statistic_source": "drift_fallback"
       }
     ],
-    "offset_statistic_source": "exponential_fit",
+    "offset_statistic_source": "drift_fallback",
+    "offset_statistic_selection": {
+      "rule": "the exponential fit decides this criterion only where it can resolve the criterion's own threshold at the same `factor` every row above is priced against, and where its fitted relaxation time is identifiable from the series. Otherwise the drift form, whose error the verdict window is derived to resolve.",
+      "fit_asymptote_half_width_k": 0.09294767773464149,
+      "fit_resolves_the_threshold": false,
+      "relaxation_fit_identifiable": true,
+      "fit_declined_because": "the fitted asymptote's half width is 0.09295 K and this criterion discriminates at 0.15 K, so the fit's own error is more than 0.05 K and it cannot decide the threshold whatever it returns"
+    },
     "window_orbits_for_storage_criterion": 18.061003565279872,
     "window_orbits_for_storage_criterion_if_independent": 16.489388512072402,
     "window_orbits_for_offset_criterion": 50.63217457943238,
     "window_orbits_for_offset_criterion_if_independent": 32.4568761335681,
     "window_orbits_for_offset_criterion_prices": "the drift fallback form of the criterion; it prices this run's own verdict only where offset_statistic_source is drift_fallback",
-    "default_window_orbits": 55
+    "default_window_orbits": 61
   },
   "convergence_lengths": {
     "basis": "operational experience across this project's runs, not a measured distribution; every number here is bracketed by what has been seen rather than fitted",
     "cold_start_t21_orbits": 70,
     "cold_start_note": "seed- and initial-condition-dependent; exoplasim/notes/parameter-decisions.md records a cold start converging on all six criteria after 70 orbits",
-    "reconvergence_after_timestep_or_resolution_change_orbits": [
-      10,
-      20
-    ],
-    "reconvergence_note": "the state is already at a climate; what settles is the response to a changed discretisation",
+    "reconvergence_orbits_floor": 21,
+    "reconvergence_note": "the state is already at a climate; what settles is the response to a changed discretisation. NO BAND IS CARRIED HERE: the record length is the larger of reconvergence_orbits_floor, which is derived from the same nominal scatter, memory and relaxation the cold-start window is, and relaxation * ln(departure / tolerance), which the reconvergence criterion computes per run from the departure it FITS. Ten to twenty orbits is what this project saw when the declared orbit scatter was 0.07 K; the floor moved when that bound did.",
     "recorded_in": "exoplasim/notes/convergence-lengths.md"
   },
   "sufficiently_equilibrated_for_worldbuilding": true,

@@ -2722,6 +2722,166 @@ def check_autocorrelation_estimator() -> list[str]:
     return bad
 
 
+def check_reconvergence_criterion() -> list[str]:
+    """The reconvergence criterion fires when a transient has decayed and refuses when it has not.
+
+    Worldbuilding frame: the series here stand for per-orbit global means of the
+    Vesper climate model after a timestep change or a resolution conversion.
+
+    THE CONTROL IS A SYNTHETIC SERIES WHOSE ANSWER IS SET, not a model run:
+    `T(n) = L + D exp(-n/tau_true)` plus AR(1) noise, so the remaining departure
+    at the last orbit is known in closed form and the criterion can be WRONG
+    rather than merely different. Four things are tested and each can fail:
+
+      IT FIRES. Where the true remaining departure is well inside the
+      allowance, the criterion passes.
+
+      IT REFUSES, AND THE STATISTIC BOUNDS THE TRUTH, which is the property
+      that makes a pass mean anything. `|remaining| + half_width` is a
+      one-sided one-standard-error bound, so its nominal coverage is 0.841 and
+      the bar below is set from that quantile rather than from anything
+      measured.
+
+      THE BOUND SURVIVES A FASTER RELAXATION. The criterion fixes the decay at
+      a relaxation time argued to be a CEILING, and a true relaxation shorter
+      than the derived one is the direction that argument has to survive.
+
+      THE COLD-START CRITERION NEEDS MORE ORBITS ON THE SAME SERIES. That is
+      the control that makes this a different question rather than a looser
+      answer: at a length where this criterion passes, the criterion that asks
+      whether a state is trendless still refuses, because it is reading a slope
+      across a transient it has no reason to know is there.
+
+    EVERY BAR AND EVERY SEED IS FIXED HERE, and the tolerance the criterion is
+    held to is the module's own -- the same one the cold-start offset criterion
+    uses. Nothing in this check is free to move to make a length pass.
+    """
+    sys.path.insert(0, str(ROOT / "lib"))
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    try:
+        import numpy as np
+        import assess_convergence as conv
+    except ImportError as exc:
+        return [f"exoplasim/scripts/assess_convergence.py does not import: {exc}"]
+
+    TOL = conv._OFFSET_TOLERANCE_K
+    TAU_RELAX = conv.NOMINAL_RELAXATION_ORBITS
+    TAU_AC = conv.NOMINAL_TAU_ORBITS
+    SIGMA = conv.NOMINAL_ORBIT_SCATTER_K
+    LAG1 = 0.615                 # the pair this project measured tau on
+    FIRES = 0.90                 # pass rate where the truth is inside the bar
+    REFUSES = 0.10               # pass rate ceiling where it is outside
+    COVERAGE = 0.75              # against a nominal 0.841 for a one-sided 1 SE
+    TRIALS = 200
+    rng = np.random.default_rng(20260825)
+    BURN = 400
+
+    def ar1(n, count):
+        e = rng.standard_normal((count, n + BURN))
+        x = np.zeros((count, n + BURN))
+        s = np.sqrt(1.0 - LAG1 * LAG1)
+        for i in range(1, n + BURN):
+            x[:, i] = LAG1 * x[:, i - 1] + s * e[:, i]
+        return SIGMA * x[:, BURN:]
+
+    def cold_start_statistic(y):
+        """The drift form `assess_convergence` takes when the fit cannot decide."""
+        n = y.size
+        offset = conv.slope(y, n) * TAU_RELAX
+        half = float(np.hypot(offset,
+                              TAU_RELAX * conv.slope_standard_error(y, n)))
+        return abs(offset) + half
+
+    def sweep(n, tau_true, amplitude, cold=False):
+        noise = ar1(n, TRIALS)
+        truth = amplitude * np.exp(-np.arange(n, dtype=float) / tau_true)
+        true_remaining = amplitude * np.exp(-(n - 1) / tau_true)
+        fires = bounds = colds = 0
+        for k in range(TRIALS):
+            y = 290.0 + truth + noise[k]
+            fit = conv.departure_decay(y, TAU_RELAX, TAU_AC)
+            statistic = abs(fit["remaining_departure_k"]) + fit["half_width_k"]
+            fires += statistic < TOL
+            bounds += statistic >= true_remaining
+            if cold:
+                colds += cold_start_statistic(y) < TOL
+        return (fires / TRIALS, bounds / TRIALS, colds / TRIALS,
+                float(true_remaining))
+
+    bad = []
+    # Well inside the allowance: 0.6 of it, reached from a one-kelvin departure.
+    inside = int(np.ceil(TAU_RELAX * np.log(1.0 / (0.6 * TOL)) + 1))
+    fires, bounds, cold, remaining = sweep(inside, TAU_RELAX, 1.0, cold=True)
+    if fires < FIRES:
+        bad.append(f"a transient decayed to {remaining:.3f} K, inside the "
+                   f"{TOL} K allowance, is passed only {fires:.2f} of the time "
+                   f"after {inside} orbits")
+    if bounds < COVERAGE:
+        bad.append(f"the statistic covers the true remaining departure only "
+                   f"{bounds:.2f} of the time at {inside} orbits, against a "
+                   "one-sided one-standard-error bound's 0.841")
+    # THE CONTROL. Same series, same length, the trendless test instead.
+    if cold > REFUSES:
+        bad.append(f"the cold-start statistic passes {cold:.2f} of these "
+                   f"series at {inside} orbits, so this check is not showing "
+                   "that the two criteria ask different questions")
+
+    # Well outside it: twice the allowance still to travel.
+    outside = int(np.floor(TAU_RELAX * np.log(1.0 / (2.0 * TOL)) + 1))
+    fires, bounds, _, remaining = sweep(outside, TAU_RELAX, 1.0)
+    if fires > REFUSES:
+        bad.append(f"a transient with {remaining:.3f} K still to travel, "
+                   f"outside the {TOL} K allowance, is passed {fires:.2f} of "
+                   f"the time after {outside} orbits")
+    if bounds < COVERAGE:
+        bad.append(f"the statistic covers the truth only {bounds:.2f} of the "
+                   f"time at {outside} orbits")
+
+    # A RELAXATION FASTER THAN THE DERIVED ONE MUST NOT BREAK THE BOUND.
+    _, bounds, _, _ = sweep(inside, 0.7 * TAU_RELAX, 1.0)
+    if bounds < COVERAGE:
+        bad.append("with a relaxation 0.7 of the derived one the statistic "
+                   f"covers the truth only {bounds:.2f} of the time")
+
+    # ONE CRITERION FOR BOTH CONVERSION KINDS, TESTED. A smaller departure has
+    # to cost fewer orbits without a second criterion: at the derived floor a
+    # 0.3 K departure has decayed and a 1.0 K one has not.
+    floor = conv.DEFAULT_RECONVERGENCE_ORBITS
+    small = sweep(floor, TAU_RELAX, 0.3)[0]
+    large = sweep(floor, TAU_RELAX, 1.0)[0]
+    if not small > large:
+        bad.append(f"at the {floor}-orbit floor a 0.3 K departure passes "
+                   f"{small:.2f} and a 1.0 K departure {large:.2f}; the "
+                   "criterion is not costing what the departure costs")
+    if large > REFUSES:
+        bad.append(f"a 1.0 K departure passes {large:.2f} of the time at the "
+                   f"{floor}-orbit floor, with "
+                   f"{np.exp(-(floor - 1) / TAU_RELAX):.3f} K still to travel")
+
+    # The two arithmetics that price a reconvergence, against the relations they
+    # invert. Identities, so they are exact rather than tolerant.
+    n = conv.orbits_for_departure_decay(SIGMA, TAU_AC, TAU_RELAX, TOL / 3.0)
+    if not np.isfinite(n):
+        bad.append("orbits_for_departure_decay returns no record length at the "
+                   "nominal scatter, autocorrelation and relaxation")
+    else:
+        def se(k):
+            u = np.exp(-np.arange(k, dtype=float) / TAU_RELAX)
+            s_uu = float(np.dot(u - u.mean(), u - u.mean()))
+            return SIGMA * np.sqrt(TAU_AC / s_uu) \
+                * float(np.exp(-(k - 1) / TAU_RELAX))
+        if se(int(n)) > TOL / 3.0 or se(int(n) - 1) <= TOL / 3.0:
+            bad.append(f"orbits_for_departure_decay returns {n:.0f}, which is "
+                       "not the shortest record reaching that standard error")
+    # The transient half is `lib/run_lengths.py:settling_orbits` plus the offset
+    # between a decay TIME and a record LENGTH, so this is that relation's own
+    # identity read back through the wrapper.
+    reached = conv.orbits_to_departure_tolerance(1.0, TAU_RELAX, TOL)
+    if abs(np.exp(-(reached - 1) / TAU_RELAX) - TOL) > 1e-12:
+        bad.append("orbits_to_departure_tolerance does not invert its own relation")
+    return bad
+
+
 def check_albedo_repaints_carry_the_sensitivity() -> list[str]:
     """Every repaint of the region albedo moves the class indicator with it.
 
@@ -7244,6 +7404,8 @@ def main() -> None:
                lambda: check_no_enabled_diagnostic_block_collides()),
               ("the autocorrelation estimator recovers a known answer",
                lambda: check_autocorrelation_estimator()),
+              ("the reconvergence criterion fires and refuses on a known transient",
+               lambda: check_reconvergence_criterion()),
               ("the bin weighting is handed bin centres, never a bin index",
                lambda: check_bin_weights_take_bin_centres(files)),
               ("no nonlinear function is evaluated on a naive time mean",

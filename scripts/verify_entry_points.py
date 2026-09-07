@@ -587,6 +587,29 @@ def self_test(verbose: bool) -> list[str]:
     return problems
 
 
+def default_jobs() -> int:
+    """How many entry points to start at once.
+
+    UNDER A SCHEDULER THE ALLOCATION IS THE BUDGET, and `os.cpu_count()` is not
+    it. A whole-cores allocation hands the job a cpuset holding BOTH SMT
+    siblings of every core it was given, and on an idle host the count is the
+    whole machine either way, so sizing a pool from it oversubscribes what the
+    scheduler granted -- by two on the cores and by the whole machine on the
+    box. `SLURM_CPUS_PER_TASK` is what was granted and is read first.
+
+    Off a scheduler the old politeness stands: a quarter of the machine, so a
+    gate that spawns a process per script does not take the host from whatever
+    else is on it.
+    """
+    granted = os.environ.get("SLURM_CPUS_PER_TASK")
+    if granted:
+        try:
+            return max(1, int(granted))
+        except ValueError:
+            pass
+    return max(1, (os.cpu_count() or 4) // 4)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("roots", nargs="*", type=Path,
@@ -610,11 +633,7 @@ def main() -> None:
         raise SystemExit(1 if problems else 0)
 
     roots = [ROOT / r for r in a.roots] if a.roots else SCRIPT_DIRS
-    # Under a scheduler allocation os.cpu_count() is both SMT siblings of
-    # every core this job holds, so a quarter of it still oversubscribes.
-    allocated = os.environ.get("SLURM_CPUS_PER_TASK")
-    usable = int(allocated) if allocated and allocated.isdigit() else (os.cpu_count() or 4)
-    jobs = a.jobs if a.jobs else max(1, usable // 4)
+    jobs = a.jobs if a.jobs else default_jobs()
     problems, refusals = verify(roots, jobs, a.verbose)
     # This gate's own two self-checks belong to the repository's `scripts/`, not
     # to any directory that happens to be named one: `<component>/scripts` is

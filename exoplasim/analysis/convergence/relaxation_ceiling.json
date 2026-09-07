@@ -2,18 +2,18 @@
   "generator": "exoplasim/scripts/check_relaxation_ceiling.py",
   "question": "is relaxation_orbits_expected a ceiling on relaxation_orbits_fitted",
   "rule": {
-    "evidence": "the fit was used rather than the drift fallback, and the fitted tau is identifiable from its own series: finite, positive, and no longer than the span fitted",
+    "evidence": "the fitted tau is identifiable from its own series: finite, positive, and no longer than the span fitted. Which estimator the offset criterion took is a fact about the fitted ASYMPTOTE and is not read here; an artifact predating the identifiability verdict is judged by the fallback signature instead",
     "falsified": "an evidence artifact whose fitted tau exceeds the derived one by more than the fit's own standard error, or by any amount where no such error is recorded",
     "survives": "no evidence artifact falsifies it",
     "untested": "no artifact is evidence"
   },
-  "artifacts_read": 26,
-  "evidence_artifacts": 11,
+  "artifacts_read": 31,
+  "evidence_artifacts": 13,
   "artifacts_that_discriminate": 5,
   "verdict": "falsified",
   "fitted_bracket_orbits": [
     2.1970761354612094,
-    18.507214430638466
+    39.987994727803844
   ],
   "fitted_bracket_rule": "the range of the fitted relaxation times over the evidence artifacts, which are the rows this file's own evidence rule admits. Read by lib/run_lengths.py:tau_relaxation_orbits_bracket",
   "fitted_bracket_from": [
@@ -23,13 +23,29 @@
     "run_598eb57c5a34",
     "run_8044646ea7f0",
     "run_8f75d23c0730",
+    "run_9d5dbf9bd3d9",
     "run_a1c35075747c",
     "run_ae5aaf479f57",
     "run_b45380e61f90",
+    "run_c919391cf715",
     "run_e0c431cf67e2",
     "run_ec32946bec89"
   ],
   "rows": [
+    {
+      "artifact": "run_0d41aa82c287_convergence.json",
+      "run": "run_0d41aa82c287",
+      "completed_orbits": 108,
+      "window_orbits": 52,
+      "relaxation_orbits_fitted": null,
+      "relaxation_orbits_fitted_standard_error": null,
+      "relaxation_orbits_expected": 8.949904349123496,
+      "fit_span_orbits": 70,
+      "relaxation_fit_identifiable": false,
+      "evidence": false,
+      "why": "the fit returned tau = 16545.2 orbits over 70 orbits of data, so the exponential is indistinguishable from a line across the fitted range and tau is not determined by it",
+      "verdict": "not evidence"
+    },
     {
       "artifact": "run_14906cb7b914_convergence.json",
       "run": "run_14906cb7b914",
@@ -55,7 +71,7 @@
       "fit_span_orbits": 45,
       "relaxation_fit_identifiable": null,
       "evidence": false,
-      "why": "the assessment took the drift fallback, so this tau is from a fit it discarded",
+      "why": "this artifact predates the identifiability verdict and its assessment took the drift fallback, so the tau in it is from a fit that was discarded as degenerate",
       "verdict": "not evidence"
     },
     {
@@ -221,7 +237,7 @@
       "fit_span_orbits": 39,
       "relaxation_fit_identifiable": null,
       "evidence": false,
-      "why": "the assessment took the drift fallback, so this tau is from a fit it discarded",
+      "why": "this artifact predates the identifiability verdict and its assessment took the drift fallback, so the tau in it is from a fit that was discarded as degenerate",
       "verdict": "not evidence"
     },
     {
@@ -242,6 +258,20 @@
       "discriminates": null
     },
     {
+      "artifact": "run_88ed6f9d34ae_convergence.json",
+      "run": "run_88ed6f9d34ae",
+      "completed_orbits": 144,
+      "window_orbits": 52,
+      "relaxation_orbits_fitted": null,
+      "relaxation_orbits_fitted_standard_error": null,
+      "relaxation_orbits_expected": 8.587791836572194,
+      "fit_span_orbits": 93,
+      "relaxation_fit_identifiable": false,
+      "evidence": false,
+      "why": "the fit returned tau = 311.291 orbits over 93 orbits of data, so the exponential is indistinguishable from a line across the fitted range and tau is not determined by it",
+      "verdict": "not evidence"
+    },
+    {
       "artifact": "run_893e276ee029_convergence.json",
       "run": "run_893e276ee029",
       "completed_orbits": 210,
@@ -253,6 +283,20 @@
       "relaxation_fit_identifiable": false,
       "evidence": false,
       "why": "the fit returned tau = 60502.6 orbits over 136 orbits of data, so the exponential is indistinguishable from a line across the fitted range and tau is not determined by it",
+      "verdict": "not evidence"
+    },
+    {
+      "artifact": "run_8d0ae7e2d02c_convergence.json",
+      "run": "run_8d0ae7e2d02c",
+      "completed_orbits": 89,
+      "window_orbits": 52,
+      "relaxation_orbits_fitted": null,
+      "relaxation_orbits_fitted_standard_error": null,
+      "relaxation_orbits_expected": 8.587813942383665,
+      "fit_span_orbits": 58,
+      "relaxation_fit_identifiable": false,
+      "evidence": false,
+      "why": "the fit returned tau = 116754 orbits over 58 orbits of data, so the exponential is indistinguishable from a line across the fitted range and tau is not determined by it",
       "verdict": "not evidence"
     },
     {
@@ -287,6 +331,23 @@
       "verdict": "not evidence"
     },
     {
+      "artifact": "run_9d5dbf9bd3d9_convergence.json",
+      "run": "run_9d5dbf9bd3d9",
+      "completed_orbits": 130,
+      "window_orbits": 55,
+      "relaxation_orbits_fitted": 23.772522111894304,
+      "relaxation_orbits_fitted_standard_error": 14.944562727701804,
+      "relaxation_orbits_expected": 9.204206609982906,
+      "fit_span_orbits": 84,
+      "relaxation_fit_identifiable": true,
+      "bracketed": true,
+      "fitted_minus_expected_orbits": 14.568315501911398,
+      "evidence": true,
+      "verdict": "ceiling holds",
+      "why": "the fitted 23.773 is above the derived 9.204 by 14.568 orbits, within the fit's own 14.945",
+      "discriminates": false
+    },
+    {
       "artifact": "run_a1c35075747c_convergence_diagnostic.json",
       "run": "run_a1c35075747c",
       "completed_orbits": 25,
@@ -314,7 +375,7 @@
       "fit_span_orbits": 55,
       "relaxation_fit_identifiable": null,
       "evidence": false,
-      "why": "the assessment took the drift fallback, so this tau is from a fit it discarded",
+      "why": "this artifact predates the identifiability verdict and its assessment took the drift fallback, so the tau in it is from a fit that was discarded as degenerate",
       "verdict": "not evidence"
     },
     {
@@ -378,6 +439,23 @@
       "evidence": false,
       "why": "the fit returned tau = 272850 orbits over 75 orbits of data, so the exponential is indistinguishable from a line across the fitted range and tau is not determined by it",
       "verdict": "not evidence"
+    },
+    {
+      "artifact": "run_c919391cf715_convergence.json",
+      "run": "run_c919391cf715",
+      "completed_orbits": 130,
+      "window_orbits": 55,
+      "relaxation_orbits_fitted": 39.987994727803844,
+      "relaxation_orbits_fitted_standard_error": 40.351465318983664,
+      "relaxation_orbits_expected": 8.952494915419331,
+      "fit_span_orbits": 84,
+      "relaxation_fit_identifiable": true,
+      "bracketed": true,
+      "fitted_minus_expected_orbits": 31.035499812384515,
+      "evidence": true,
+      "verdict": "ceiling holds",
+      "why": "the fitted 39.988 is above the derived 8.952 by 31.035 orbits, within the fit's own 40.351",
+      "discriminates": false
     },
     {
       "artifact": "run_e0c431cf67e2_convergence.json",

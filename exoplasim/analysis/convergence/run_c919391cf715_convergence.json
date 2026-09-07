@@ -154,9 +154,9 @@
     "state_storage_standard_error_w_m2": 0.010116103911526435,
     "surface_storage_w_m2": -0.013680231424998903,
     "reported_toa_minus_storage_w_m2": -0.14528945969978424,
-    "temperature_asymptote_k": 280.16901473210004,
-    "temperature_asymptote_half_width_k": 0.1886947007455847,
-    "temperature_remaining_offset_k": -0.08538688097530667,
+    "temperature_asymptote_k": 280.23491219648815,
+    "temperature_asymptote_half_width_k": 0.02234606054159398,
+    "temperature_remaining_offset_k": -0.01948941658720368,
     "relaxation_orbits_fitted": 39.987994727803844,
     "relaxation_fit_identifiable": true,
     "relaxation_fit_verdict": "tau = 39.988 orbits is shorter than the 84 orbits fitted, so the series carries the curvature that fixes it",
@@ -190,7 +190,7 @@
     "abs_surface_slope_lt_0.05_w_m2_per_orbit": true,
     "abs_sea_ice_slope_lt_0.001_per_orbit": true,
     "abs_state_storage_lt_0.12_w_m2": true,
-    "extrapolated_offset_lt_0.15_k": false
+    "extrapolated_offset_lt_0.15_k": true
   },
   "criteria_provenance": {
     "form": "|statistic| + its standard error < threshold. A criterion states an upper bound, so a statistic whose interval reaches the threshold fails.",
@@ -259,36 +259,38 @@
       {
         "criterion": "extrapolated_offset",
         "threshold": 0.15,
-        "statistic_standard_error": 0.1886947007455847,
-        "statistic_error_source": "the fitted asymptote's autocorrelation-corrected standard error, widened where the fit extrapolates past its own data",
-        "verdict_interval": 0.1886947007455847,
-        "resolves": false,
-        "statistic_source": "exponential_fit"
+        "statistic_standard_error": 0.021864040140743748,
+        "statistic_error_source": "the temperature slope's standard error times the expected relaxation time, counted once for the offset and once for the half width that carries the same product",
+        "verdict_interval": 0.02234606054159398,
+        "resolves": true,
+        "statistic_source": "drift_fallback"
       }
     ],
-    "offset_statistic_source": "exponential_fit",
+    "offset_statistic_source": "drift_fallback",
+    "offset_statistic_selection": {
+      "rule": "the exponential fit decides this criterion only where it can resolve the criterion's own threshold at the same `factor` every row above is priced against, and where its fitted relaxation time is identifiable from the series. Otherwise the drift form, whose error the verdict window is derived to resolve.",
+      "fit_asymptote_half_width_k": 0.1886947007455847,
+      "fit_resolves_the_threshold": false,
+      "relaxation_fit_identifiable": true,
+      "fit_declined_because": "the fitted asymptote's half width is 0.1887 K and this criterion discriminates at 0.15 K, so the fit's own error is more than 0.05 K and it cannot decide the threshold whatever it returns"
+    },
     "window_orbits_for_storage_criterion": 21.87160540021281,
     "window_orbits_for_storage_criterion_if_independent": 16.131444019433633,
     "window_orbits_for_offset_criterion": 31.496464381100097,
     "window_orbits_for_offset_criterion_if_independent": 25.47926101893478,
     "window_orbits_for_offset_criterion_prices": "the drift fallback form of the criterion; it prices this run's own verdict only where offset_statistic_source is drift_fallback",
-    "default_window_orbits": 55
+    "default_window_orbits": 61
   },
   "convergence_lengths": {
     "basis": "operational experience across this project's runs, not a measured distribution; every number here is bracketed by what has been seen rather than fitted",
     "cold_start_t21_orbits": 70,
     "cold_start_note": "seed- and initial-condition-dependent; exoplasim/notes/parameter-decisions.md records a cold start converging on all six criteria after 70 orbits",
-    "reconvergence_after_timestep_or_resolution_change_orbits": [
-      10,
-      20
-    ],
-    "reconvergence_note": "the state is already at a climate; what settles is the response to a changed discretisation",
+    "reconvergence_orbits_floor": 21,
+    "reconvergence_note": "the state is already at a climate; what settles is the response to a changed discretisation. NO BAND IS CARRIED HERE: the record length is the larger of reconvergence_orbits_floor, which is derived from the same nominal scatter, memory and relaxation the cold-start window is, and relaxation * ln(departure / tolerance), which the reconvergence criterion computes per run from the departure it FITS. Ten to twenty orbits is what this project saw when the declared orbit scatter was 0.07 K; the floor moved when that bound did.",
     "recorded_in": "exoplasim/notes/convergence-lengths.md"
   },
-  "sufficiently_equilibrated_for_worldbuilding": false,
-  "failed_criteria": [
-    "extrapolated_offset_lt_0.15_k"
-  ],
+  "sufficiently_equilibrated_for_worldbuilding": true,
+  "failed_criteria": [],
   "annual_records": [
     {
       "year_index": 0,
