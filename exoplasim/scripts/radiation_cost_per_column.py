@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """The cost of one radiation call, per column, for both schemes on this host.
 
-    scripts/lock_and_run -m "CLIM-61 radiation cost" \
+    qrun -p exoplasim-omp -- \
         python exoplasim/scripts/radiation_cost_per_column.py --steps 500 2500
 
 Worldbuilding frame: a COMPUTE measurement of the Vesper climate model and of a

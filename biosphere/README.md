@@ -418,8 +418,8 @@ python biosphere/scripts/build_vesper_header.py   # vesper.h, installed into the
 python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled
 python biosphere/scripts/build_rootable_fraction.py # BIO-11 effective plant area
 python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridlist
-scripts/lock_and_run -m "build lpj-guess" \
-  python biosphere/scripts/build_lpj_guess.py     # compile, and record what from
+qrun -p build -- \
+  .venv/bin/python biosphere/scripts/build_lpj_guess.py   # compile, and record what from
 ```
 
 **Build the model with `build_lpj_guess.py` and not with a bare `cmake --build`.**

@@ -374,8 +374,8 @@ def verify(binary: Path = GUESS_BINARY) -> list[str]:
     provenance = binary.with_suffix(".provenance.json")
     if not binary.is_file():
         return [f"{binary} does not exist. Build it with "
-                f"`scripts/lock_and_run -m 'build lpj-guess' "
-                f"python biosphere/scripts/build_lpj_guess.py`."]
+                f"`qrun -p build -- .venv/bin/python "
+                f"biosphere/scripts/build_lpj_guess.py`."]
     if not provenance.is_file():
         return [f"{binary} has no {provenance.name} beside it, so the source it "
                 f"was built from is unknown. Rebuild it with "
@@ -460,7 +460,7 @@ def stamp(configure: list[str], compile_command: list[str]) -> None:
 def build(jobs: int, build_type: str) -> None:
     """Configure, compile, then stamp. Stamping last, so a failed build stamps nothing.
 
-    CPU-heavy: run it under `scripts/lock_and_run`. It replaces the executable a
+    CPU-heavy: run it under `qrun -p build`. It replaces the executable a
     concurrent run's manifest has already hashed, so check `pgrep -x guess`
     before starting one.
     """

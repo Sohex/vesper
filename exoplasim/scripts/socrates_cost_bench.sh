@@ -11,7 +11,7 @@
 # then point the cost harness at what it built:
 #
 #     SOCRATES_BENCH=<workdir>/bench/socrates_bench \
-#       scripts/lock_and_run -m "CLIM-61 radiation cost" \
+#       qrun -p exoplasim-omp -- \
 #       python exoplasim/scripts/radiation_cost_per_column.py
 #
 # WHY OUTSIDE THE TREE. `references/socrates` is read-only reference, and in a

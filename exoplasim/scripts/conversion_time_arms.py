@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Measure where `conversion_time_level` is stable, against the model itself.
 
-    scripts/lock_and_run -m "world-bt3b arms" \\
+    qrun -- \\
       python exoplasim/scripts/conversion_time_arms.py \\
         --from-run exoplasim/runs/run_0d41aa82c287 --rung T21 \\
         --steps 4000 --timesteps 15,12,10,8,6 --controls 15,10

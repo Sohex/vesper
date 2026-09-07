@@ -33,8 +33,8 @@ LPJ-GUESS is likewise compiled from its subtree. Its generated `vesper.h` must
 exist first because the configured orbital year sizes arrays at compile time:
 
     python biosphere/scripts/build_vesper_header.py
-    scripts/lock_and_run -m "build lpj-guess" \
-      python biosphere/scripts/build_lpj_guess.py
+    qrun -p build -- \
+      .venv/bin/python biosphere/scripts/build_lpj_guess.py
 
 That script runs the two cmake commands and then records the sha of every file
 the executable was compiled from, beside the binary. A bare `cmake --build`
@@ -264,105 +264,79 @@ arms**. Run as blocks, whichever arm goes first after an idle stretch gets the
 boost clock and the comparison measures the CPU's thermal state instead of the
 flag. That was worth 6% on a stock baseline against itself.
 
-## One host, many agents: the lock, and what it does not do
+## One host, many repositories: the scheduler, and what it does not do
 
-This project fans work out across many agents on ONE machine, and several of
-them run model integrations, builds and profiles. Anything that uses the CPU
-for more than a moment runs under the wrapper:
+This machine runs work for several repositories at once, so heavy work is
+arbitrated centrally rather than by anything this project owns. Anything CPU-
+bound for more than a moment, or wanting more than a few GB, goes through the
+scheduler:
 
-    scripts/lock_and_run -m "what you are doing" python exoplasim/scripts/run_exoplasim.py ...
+    qrun -- .venv/bin/python exoplasim/scripts/run_exoplasim.py ...
 
-It waits for the lock, runs the command, and releases. The command's stdin,
-stdout and stderr are inherited untouched, so a command under the wrapper
-behaves exactly as it does without one and can still be piped on either side.
+`qrun` blocks, streams the command's three streams live and exits with its
+status, so a command under it behaves exactly as it does without one and can
+still be piped on either side. `qrun spec` prints the live limits and the key
+schema; `qrun status` says why anything is waiting.
 
-**ONE STEP, BECAUSE EVERY STEP A CALLER CAN SKIP HAS BEEN SKIPPED HERE.** The
-lock used to be spelled out at each call site -- take a directory, write a
-description into it, do the work, remove the directory -- and each of the three
-ways to get that wrong cost real work. Leaving the directory behind held the
-host against every other agent until a human noticed. Writing the description
-WITHOUT taking the directory put three integrations on thirty-two cores at a
-load of fifty-one and made every wall clock from that session unusable. Taking
-it twice without releasing deadlocked a session against itself, silently,
-because the waiter sleeps and prints nothing; the tell was a `who` file
-describing a phase that had obviously finished. A wrapper has one step, so
-there is nothing left to skip, and nesting is free rather than fatal: the
-command runs with `WORLD_LOCK_HELD` set and a wrapper that sees it runs
-straight through.
+**WHAT A LOCK COULD NOT DO, AND WHY IT WAS REPLACED.** This project used to own
+a wrapper holding one host lock. That was the right shape while this project
+was the only thing on the machine: it kept THIS project's agents off each
+other. It knew nothing about any other repository, so once the host was shared
+a job started under it took cores the scheduler believed were free -- which is
+the contention the lock existed to prevent, arriving from outside its model.
+`scripts/lock_and_run` therefore refuses now rather than running anything, and
+says where to go; `verify_entry_points.py` holds it to that in both directions,
+because a wrapper that quietly started working again would be invisible until
+two repositories landed on the host at once.
 
-**THE LOCK THAT DECIDES IS AN `flock`, AND THAT IS WHY THERE IS NO STALE-LOCK
-RECOVERY.** `/tmp/world.lock.flock` is a file that is never deleted; the lock
-is the kernel's advisory lock on an open descriptor, and the kernel drops it
-when the last descriptor closes. Releasing is therefore not an action anyone
-has to remember, or survive long enough to perform. `kill -9` releases it. A
-crash releases it. A stale flock does not exist, so there is no procedure for
-clearing one and no judgement call about whether a holder is a corpse.
+**THE PAIRING IS NOW A PROPERTY OF THE REQUEST, NOT A RULE TO REMEMBER.** Two
+arms of an experiment must land on distinct physical cores, or the two ranks
+sharing a core contend for its FPU and the pair measures the scheduler as much
+as the model -- the one thing a paired experiment exists to avoid. Worse, two
+thread teams on one die exceed the 32 MB per-die target below silently, because
+that target is stated per thread TEAM. The default profile asks for eight WHOLE
+physical cores with `threads_per_core = 1`, and two such jobs fill the node, so
+the arrangement this project used to state as a rule is what the scheduler now
+hands out. `.taskrunner.toml` at the repo root pins it and every worktree
+inherits it.
 
-The descriptor is deliberately INHERITED by the command. Kill the wrapper and
-the integration it started keeps running -- orphaned, but still using the
-machine -- and it keeps holding the lock. That is the right answer and it is
-the one a pid-file scheme gets wrong, because a pid file names the wrapper and
-the wrapper is not the thing using the CPU.
-
-**`/tmp/world.lock` REMAINS, AS THE VISIBLE CLAIM.** The wrapper creates that
-directory while it holds the lock and removes it on release, with the same
-`who` file as before, so `cat /tmp/world.lock/who` still answers "who has the
-machine, and since when". It also keeps the two protocols interoperable in both
-directions: anything still written as `until mkdir /tmp/world.lock` blocks
-against the wrapper and is blocked by it. `mkdir` rather than `touch` is why
-that half works at all -- it tests and takes in ONE atomic step, where the
-obvious spelling, look for the file and then create it, lets two agents that
-check in the same moment both find it free.
-
-A wrapper that is killed leaves that directory behind, and its corpse is
-identified rather than guessed at: `who` carries a marker line only the wrapper
-writes, and a marked directory can only be a dead wrapper, because a live one
-would still hold the flock the reader has just acquired. The wrapper clears it
-and says so. An UNMARKED directory is a claim taken by hand, and the wrapper
-waits for it instead of deciding it is dead.
-
-The lock lives outside the repository because each fan-out agent works in its
-own worktree, so an in-tree path is a different file for every agent and
-coordinates nothing.
-
-`scripts/lock_and_run --self-test` exercises all of this against a private lock
-path: that the three streams and the exit status pass through, that a second
-command cannot start until the first has finished, that a nested wrapper runs
-instead of deadlocking, that a dead wrapper's claim is cleared and a
-hand-rolled one is not. `scripts/verify_entry_points.py` runs it.
-
-**HOLDING THE LOCK DOES NOT PARTITION THE HOST.** It keeps other AGENTS off the
-machine. It says nothing about how you divide the machine between your own
-processes, and reading it as a reservation is how two 16-thread integrations
-came to be co-scheduled on 32 logical cores under a single claim. Two paired
-arms at once are `p8` binaries pinned to their own cores, under ONE
-`lock_and_run`; two `p16` at once is never right. An unpinned pair fights over
-the same CCDs, which breaks the 32 MB per-die target below -- that target is
-stated per thread TEAM, and two teams on one die exceed it silently. Worse, the
-pair then measures the scheduler as much as the model, which is the one thing a
-paired experiment exists to avoid.
+**RANK AND THREAD COUNTS COME FROM THE ALLOCATION.** Under whole physical cores
+the cpuset holds BOTH SMT siblings of every core the job was given, so `nproc`
+and `os.cpu_count()` return double the usable count and oversubscribe every
+core. `$SLURM_CPUS_PER_TASK` is what was granted. A quantity that is a fact
+about the MACHINE rather than about the allocation -- the SMT sibling stride,
+say -- comes from the kernel's topology instead, and conflating the two is its
+own bug: `os.cpu_count() // 2` is the stride only when the process can see
+every CPU.
 
 **A timing is a measurement of a machine state as much as of a model.** Record
 the load beside any timing worth keeping: one without the machine state it was
 taken under cannot be compared against a later one, and a number taken while
 someone else is integrating is not a slow number, it is a number of a different
-experiment. Where the choice exists, price work in something the scheduler
-cannot move -- retired instructions under `OMP_WAIT_POLICY=passive` survive
-contention that wall clock does not, though once a run is threaded that count
-needs its own correction, because a thread spinning at a barrier retires
-instructions in proportion to how long it waits.
+experiment. The scheduler gives a job its cores; it does not give it the memory
+bandwidth around them, so contention still reaches a wall clock. Where the
+choice exists, price work in something the scheduler cannot move -- retired
+instructions under `OMP_WAIT_POLICY=passive` survive contention that wall clock
+does not, though once a run is threaded that count needs its own correction,
+because a thread spinning at a barrier retires instructions in proportion to
+how long it waits.
 
-**What this replaced, and why.** A 172-line `scripts/machine.py` carried a claim
-file, a process-table scan, a load threshold and a worker-count API. The parts
-beyond "do not start heavy work while someone else is running" were not the job,
-and the vocabulary actively misled: a "claim" reads as though it reserves the
-host, which is the reading that put two 16-thread integrations on one box. What
-it became was four lines an agent could follow without opening a script, and
-what those four lines then cost was a caller executing three of them. The
-wrapper is the same policy at one call: the mechanism may be a script again,
-but the API it exposes is a command prefix and not a set of primitives to
-sequence correctly.
+**Benchmarking again needs one rule beyond a quiet machine: interleave the
+arms.** Run as blocks, whichever arm goes first after an idle stretch gets the
+boost clock and the comparison measures the CPU's thermal state instead of the
+flag. That was worth 6% on a stock baseline against itself, and an allocation
+does not change it.
 
+**What this has replaced twice, and the lesson that survived both.** A 172-line
+`scripts/machine.py` carried a claim file, a process-table scan, a load
+threshold and a worker-count API; the vocabulary actively misled, because a
+"claim" reads as though it reserves the host, which is the reading that put two
+16-thread integrations on one box. It became four lines an agent could follow
+without opening a script, and what those four lines then cost was a caller
+executing three of them. The wrapper was the same policy at one call. The
+scheduler is that lesson again at a larger scale: the API a caller sees is a
+command prefix, not a set of primitives to sequence correctly, and the resource
+request lives in a file rather than in a habit.
 ## The per-die working set targets 32 MB
 
 **A thread team's working set on one die targets 32 MB, and a change that takes

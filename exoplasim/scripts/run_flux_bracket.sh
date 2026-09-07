@@ -44,9 +44,9 @@
 # with a symlink left behind; the run then resolves to the same path from every
 # tree. Leave it unset in the main checkout, where the run is already home.
 #
-# It runs nothing itself: wrap the whole invocation in `scripts/lock_and_run`.
+# It runs nothing itself: wrap the whole invocation in `qrun`.
 #
-#     scripts/lock_and_run -m "flux bracket, two T21 arms" \
+#     qrun -- \
 #         exoplasim/scripts/run_flux_bracket.sh
 #
 # `--self-test` exercises the id threading and the relocation against a stub

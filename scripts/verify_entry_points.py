@@ -79,10 +79,11 @@ count.
 PARALLELISM IS DELIBERATELY MODEST. This host runs several agents at once, so
 this takes a quarter of the logical cores and no more; `--jobs` overrides it.
 The work is subprocesses, so threads carry it and the GIL is not in the way.
-Anything heavier than this runs under `scripts/lock_and_run` -- see CLAUDE.md.
+Anything heavier than this runs under `qrun` -- see CLAUDE.md.
 This does not, because a quarter of the cores for a few seconds is not the kind
 of load that lock exists to serialise. It does, however, verify that wrapper:
-`lock_and_run` carries no `.py` extension, so it falls outside the sweep below
+`lock_and_run`, which now refuses and redirects, carries no `.py` extension
+so it falls outside the sweep below
 and this is the only gate that starts it.
 
 IT IS NOT THE COMPILE GATE'S SIBLING BY ACCIDENT.
@@ -236,41 +237,55 @@ def classify(path: Path, mode: str) -> dict:
 
 
 def lock_wrapper(verbose: bool) -> list[str]:
-    """`scripts/lock_and_run --self-test`, which is the only thing that runs it.
+    """`scripts/lock_and_run` REFUSES, and this is what holds it to that.
 
-    The wrapper has no `.py` extension, deliberately, because the invocation is
-    a command prefix a caller types. That puts it outside `entry_points()`, so
-    without this it would be the one script in the tree nothing ever starts --
-    and it is the script every expensive run goes through. A lock that has
-    quietly stopped excluding is invisible until two integrations land on the
-    host at once.
+    The wrapper is superseded: this host is shared with other repositories and
+    arbitrated by a scheduler, and a lock that only ever excluded this
+    project's own agents would hand a job cores the scheduler believes are
+    free. It was not deleted, because a stale caller would then get
+    `command not found`, which reads like a broken checkout and invites
+    working around it -- so it stays and redirects at the point of the mistake.
 
-    Its own arms are behavioural rather than static: streams and exit status
-    through, a second command excluded until the first finishes, a nested
-    wrapper running instead of deadlocking, a dead wrapper's claim cleared and a
-    hand-rolled one left alone. It runs against a private lock path and never
-    touches `/tmp/world.lock`.
+    That makes this check the guard on a BYPASS rather than on a lock. It has a
+    right answer in both directions: an ordinary invocation must refuse with a
+    non-zero status and name `qrun`, and it must not run the command it was
+    handed. A wrapper that quietly started working again would be invisible
+    until two repositories landed on the host at once, which is the same
+    failure the old lock's own self-test existed to catch.
+
+    The wrapper carries no `.py` extension, deliberately, because the
+    invocation is a command prefix a caller types; that puts it outside
+    `entry_points()`, so without this nothing would start it at all.
     """
     tool = ROOT / "scripts" / "lock_and_run"
     if not tool.is_file():
-        return ["scripts/lock_and_run is missing, and every expensive run in "
-                "this tree is documented to go through it"]
+        return ["scripts/lock_and_run is missing; it must stay and refuse, so "
+                "a caller following stale guidance is redirected rather than "
+                "told the command does not exist"]
     if not os.access(tool, os.X_OK):
-        return ["scripts/lock_and_run is not executable, so the documented "
-                "invocation does not run"]
-    r = subprocess.run([sys.executable, str(tool), "--self-test"],
-                       capture_output=True, text=True, timeout=180, cwd=ROOT,
-                       env=PROBE_ENV)
-    if verbose:
-        for line in r.stdout.splitlines():
-            print(f"  {line}")
-    if r.returncode == 0:
-        return []
-    failed = [l.strip() for l in r.stdout.splitlines() if l.strip().startswith("FAIL")]
-    return [f"scripts/lock_and_run --self-test: {f}" for f in failed] or [
-        "scripts/lock_and_run --self-test failed without naming an arm: "
-        + (r.stderr.strip().splitlines() or ["(no output)"])[-1]]
+        return ["scripts/lock_and_run is not executable, so a stale caller "
+                "gets a shell error instead of the redirect"]
 
+    # The arm that matters: a real invocation refuses, says where to go, and
+    # does not run what it was handed. `--marker-not-echoed` would appear in
+    # stdout if the command were executed.
+    marker = "lock-wrapper-must-not-run-this"
+    r = subprocess.run([str(tool), "-m", "verify_entry_points", "echo", marker],
+                       capture_output=True, text=True, cwd=ROOT, timeout=60)
+    problems: list[str] = []
+    if r.returncode == 0:
+        problems.append("scripts/lock_and_run exited 0: it is superseded and "
+                        "must refuse, or callers silently bypass the scheduler")
+    if marker in r.stdout:
+        problems.append("scripts/lock_and_run RAN the command it was handed; "
+                        "it must refuse without executing anything")
+    if "qrun" not in (r.stderr + r.stdout):
+        problems.append("scripts/lock_and_run refused without naming qrun, so "
+                        "the caller is stopped and not redirected")
+    if verbose:
+        print(f"[lock_and_run] refuses with exit {r.returncode}, "
+              f"names qrun: {'qrun' in (r.stderr + r.stdout)}")
+    return problems
 
 def worktree_links_self_test(verbose: bool) -> list[str]:
     """`scripts/check_worktree_links.py --self-test`.

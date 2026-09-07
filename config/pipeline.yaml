@@ -1810,7 +1810,7 @@ steps:
       compares that record against the tree without building anything, and
       `run_lpj_guess.py` refuses a binary that does not match. It needs
       `vesper_header` because the configured orbital year sizes arrays at
-      compile time. CPU-heavy: run it under `scripts/lock_and_run`, and check
+      compile time. CPU-heavy: run it under `qrun -p build`, and check
       `pgrep -x guess` first, because it replaces the executable a run in
       flight has already hashed. world-w62x.
 
