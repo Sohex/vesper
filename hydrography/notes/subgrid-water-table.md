@@ -362,6 +362,45 @@ and it is why they are not the same change even though they read the same field:
 GW-18 hands the solver a multiplier, GW-24 hands it a datum, and only the second
 changes the class of the problem.
 
+### The run, 2026-09-06, and the prediction is contradicted on both halves
+
+Both arms on `canonical-10m-carve2` forced by the bootstrap climatology, host
+load 1.4 to 3.2, each converging in 26 passes with closure at 2.6e-13 and
+7.6e-14 against a bar of 1e-10. Over the 4,328,732 land regions:
+
+| | constant 100 m | sourced `cover_thickness` |
+| --- | ---: | ---: |
+| depth p50 | 5.53 m | 5.82 m |
+| depth p75 | 43.47 m | 50.97 m |
+| depth p90 | 235.08 m | 271.45 m |
+| depth p95 | 698.31 m | 768.73 m |
+| depth p99 | 2,686.80 m | 2,744.99 m |
+| at the surface | 14.19% | 14.17% |
+| `sink_fraction` median | 0.9990 | 0.9955 |
+| `sink_fraction` above 0.9 | 66.8% | 62.0% |
+
+**The prediction written into `config/groundwater.yaml` before any run was that
+the depth range would SHRINK and that cratonic cells would move from
+lateral-flow control back towards the local recharge-and-evapotranspiration
+balance. Both are wrong, and in the same direction.** Every percentile above the
+median moved UP, and `sink_fraction` moved AWAY from the local balance: the
+share of land the sink dominates fell from 66.8% to 62.0%.
+
+**Why it was wrong is worth more than the prediction was.** The prediction
+reasoned against GW-17's uniform 2 km -- this world's cover is thinner than that
+over 99.3% of its land, so a sourced thickness should reduce the range. But the
+arm is compared against the CONSTANT 100 m the model actually runs, and against
+that the sourced median of 332 m is three times THICKER. A thicker aquifer is
+more transmissivity, which is more lateral flow, which is deeper tables and less
+sink dominance. The prediction was made against a baseline the run does not use.
+
+**What it does not settle.** Neither arm has an external comparator: the 95th
+percentile depth is 698 m and 769 m against GW-17's Earth anchor of 52 m and an
+observed 42 m, and there is no Earth sediment thickness on the same footing --
+`docs/src/reference/external-data.md` records why Pelletier et al. (2016) is not
+one. So this is a Vesper-only change whose effect is now reported and still not
+validated, which is the disposition world-kqtc offers as its second branch.
+
 ## 5. GW-26: the index, what transports, and what does not
 
 A saturated FRACTION is the quantity GW-6 leaves reachable where a per-cell

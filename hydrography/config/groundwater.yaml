@@ -254,13 +254,24 @@ aquifer:
   # thickness that exists everywhere, and the export's cover adds the basin fill
   # on top of it. Nothing here is invented and nothing is fitted.
   #
-  # WHAT IT COSTS, recorded before it is run. GW-17 reached the observed depth
-  # RANGE with a uniform 2 km. This world's cover is thinner than that over most
-  # of its land and thicker only in the deepest basins, so a sourced thickness
-  # should REDUCE the depth range and push cratonic cells from lateral-flow
-  # control back towards the local evapotranspiration balance, which
-  # `sink_fraction` reports per cell. That is a prediction, and it is written
-  # here so that the run can contradict it.
+  # WHAT IT COSTS, recorded before it was run, AND THE RUN CONTRADICTED IT.
+  # The prediction was that a sourced thickness would REDUCE the depth range and
+  # push cratonic cells from lateral-flow control back towards the local
+  # evapotranspiration balance. Measured 2026-09-06 on canonical-10m-carve2,
+  # both arms converged in 26 passes with closure at 2.6e-13 and 7.6e-14: every
+  # depth percentile above the median moved UP, the 95th from 698 m to 769 m,
+  # and `sink_fraction` moved AWAY from the local balance, the share of land the
+  # sink dominates falling from 66.8% to 62.0%.
+  #
+  # The prediction reasoned against GW-17's uniform 2 km, which this world's
+  # cover is thinner than over 99.3% of its land. The arm is compared against
+  # the CONSTANT 100 m this file actually runs, and against that the sourced
+  # median of 332 m is three times THICKER: more transmissivity, more lateral
+  # flow, deeper tables, less sink dominance. The prediction was made against a
+  # baseline the run does not use, which is a better thing to have learnt than
+  # the prediction would have been.
+  #
+  # `hydrography/notes/subgrid-water-table.md` section 4 carries the table.
   thickness_source: constant     # constant | cover_thickness
   thickness_floor_m: 100.0
 
