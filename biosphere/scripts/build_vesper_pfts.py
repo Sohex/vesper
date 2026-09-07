@@ -283,11 +283,48 @@ def _derived_spinup_cycles() -> dict:
 NATIVE_PFTS = PROJECT_ROOT / "biosphere" / "config" / "native_pfts.yaml"
 
 
+def _native_parameters(owner: str, spec: dict, arm: str | None):
+    """One block's parameter lines, its resolved values and its bracket ends."""
+    lines: list[str] = []
+    values: dict[str, float] = {}
+    ends: dict[str, str] = {}
+    for key, entry in spec.get("parameters", {}).items():
+        if "basis" not in entry:
+            raise SystemExit(f"native {owner}.{key} states no basis")
+        if "bracket" in entry:
+            bracket = entry["bracket"]
+            chosen = arm or bracket["default"]
+            if chosen == "default" or chosen not in bracket:
+                raise SystemExit(
+                    f"native {owner}.{key} has no bracket end named {chosen!r}; "
+                    f"it declares {sorted(k for k in bracket if k != 'default')}")
+            value = float(bracket[chosen])
+            ends[key] = chosen
+            note = (f"NATIVE, BRACKETED: end {chosen!r} of "
+                    f"{[bracket[k] for k in bracket if k != 'default']}")
+        else:
+            value = entry["value"]
+            note = "NATIVE"
+        kind = CLASS_OF.get(key)
+        if kind and entry.get("units") != "model":
+            raise SystemExit(
+                f"native {owner}.{key} is a {kind} parameter, so a reader cannot "
+                "tell a native value from an Earth value the conversion missed. "
+                "Declare units: model to state that it is already in model units.")
+        if kind:
+            note += f"; {UNIT[kind]}, already in model units, not rescaled"
+        text = f'"{value}"' if isinstance(value, str) else f"{value:g}"
+        lines.append(f"\t{key} {text}\t! {note}")
+        if not isinstance(value, str):
+            values[key] = float(value)
+    return lines, values, ends
+
+
 def native_blocks(declared: dict, arm: str | None, source_text: str) -> tuple[str, list[dict]]:
-    """Render the Vesper-native types, and refuse the ways they can go wrong.
+    """Render the Vesper-native groups and types, and refuse the ways they go wrong.
 
     THESE ARE NOT RESCALED, and that is the whole reason they are rendered here
-    rather than appended to the source before the conversion pass. A type
+    rather than appended to the source before the conversion pass. A block
     declared in this file has no Earth calibration behind it; its values are in
     model units already. Passing them through the conversion would apply the
     year-length factor to a number that is already in the target unit.
@@ -296,72 +333,56 @@ def native_blocks(declared: dict, arm: str | None, source_text: str) -> tuple[st
     indistinguishable by eye from an Earth value the conversion missed. So any
     native parameter whose name falls in a conversion class must state
     `units: model`, and the emitted line carries that statement too.
+
+    GROUPS COME FIRST AND EXIST FOR ONE REASON: two native types sharing a
+    derived trait must not each state it. A shared value written twice is two
+    declarations that drift, so the group holds what both derive and each type
+    holds only what distinguishes it.
     """
     existing = set(re.findall(r'^\s*(?:pft|group)\s+"([\w.]+)"', source_text,
                               re.MULTILINE))
     rendered: list[str] = []
     recorded: list[dict] = []
-    for name, spec in declared.get("types", {}).items():
-        if name in existing:
-            raise SystemExit(
-                f"native type {name!r} collides with a type or group already in "
-                "the source instruction file; a native type must not shadow one "
-                "whose parameters came through the Earth conversion")
-        inherits = spec["inherits"]
-        if inherits not in existing:
-            raise SystemExit(
-                f"native type {name!r} inherits {inherits!r}, which the source "
-                "instruction file does not declare")
-        lines = [f'pft "{name}" (',
-                 f"\t! {spec['title']} -- NATIVE to Vesper, invented biology.",
-                 f"\t! Derivation: {spec['derivation']}; issue {spec['issue']}.",
-                 f"\t! Declared in biosphere/config/native_pfts.yaml and NOT",
-                 f"\t! rescaled: its values are in model units already.",
-                 f"\t{inherits}",
-                 f"\tinclude {int(spec['include'])}"
-                 f"\t! NATIVE; {'reaches runs' if spec['include'] else 'declared but not instantiated'}"]
-        values: dict[str, float] = {}
-        ends: dict[str, str] = {}
-        for key, entry in spec["parameters"].items():
-            if "basis" not in entry:
-                raise SystemExit(f"native {name}.{key} states no basis")
-            if "bracket" in entry:
-                bracket = entry["bracket"]
-                chosen = arm or bracket["default"]
-                if chosen not in bracket or chosen == "default":
-                    raise SystemExit(
-                        f"native {name}.{key} has no bracket end named {chosen!r}; "
-                        f"it declares {sorted(k for k in bracket if k != 'default')}")
-                value = float(bracket[chosen])
-                ends[key] = chosen
-                note = (f"NATIVE, BRACKETED: end {chosen!r} of "
-                        f"{[bracket[k] for k in bracket if k != 'default']}")
-            else:
-                value = entry["value"]
-                note = "NATIVE"
-            kind = CLASS_OF.get(key)
-            if kind and entry.get("units") != "model":
+    native_names: set[str] = set()
+
+    for kind_name, blocks in (("group", declared.get("groups", {}) or {}),
+                              ("pft", declared.get("types", {}) or {})):
+        for name, spec in blocks.items():
+            if name in existing:
                 raise SystemExit(
-                    f"native {name}.{key} is a {kind} parameter, so a reader "
-                    "cannot tell a native value from an Earth value the "
-                    "conversion missed. Declare units: model to state that it "
-                    "is already in model units.")
-            if kind:
-                note += f"; {UNIT[kind]}, already in model units, not rescaled"
-            text = f'"{value}"' if isinstance(value, str) else f"{value:g}"
-            lines.append(f"\t{key} {text}\t! {note}")
-            if not isinstance(value, str):
-                values[key] = float(value)
-        lines.append(")")
-        rendered.append("\n".join(lines))
-        recorded.append({"name": name, "inherits": inherits,
-                         "include": int(spec["include"]),
-                         "derivation": spec["derivation"],
-                         "issue": spec["issue"],
-                         "bracket_ends": ends,
-                         "arm_requested": arm,
-                         "values": values,
-                         "basis": {k: v["basis"] for k, v in spec["parameters"].items()}})
+                    f"native {kind_name} {name!r} collides with a type or group "
+                    "already in the source instruction file; a native block must "
+                    "not shadow one whose parameters came through the Earth "
+                    "conversion")
+            inherits = spec["inherits"]
+            if inherits not in existing and inherits not in native_names:
+                raise SystemExit(
+                    f"native {kind_name} {name!r} inherits {inherits!r}, which is "
+                    "neither in the source instruction file nor declared above it "
+                    "here")
+            native_names.add(name)
+            head = [f'{kind_name} "{name}" (',
+                    f"\t! {spec['title']} -- NATIVE to Vesper, invented biology.",
+                    f"\t! Derivation: {spec['derivation']}; issue {spec['issue']}.",
+                    "\t! Declared in biosphere/config/native_pfts.yaml and NOT",
+                    "\t! rescaled: its values are in model units already.",
+                    f"\t{inherits}"]
+            if kind_name == "pft":
+                head.append(
+                    f"\tinclude {int(spec['include'])}"
+                    f"\t! NATIVE; "
+                    + ("reaches runs" if spec["include"] else
+                       "declared but not instantiated"))
+            body, values, ends = _native_parameters(name, spec, arm)
+            rendered.append("\n".join(head + body + [")"]))
+            recorded.append({"kind": kind_name, "name": name,
+                             "inherits": inherits,
+                             "include": int(spec["include"]) if kind_name == "pft" else None,
+                             "derivation": spec["derivation"], "issue": spec["issue"],
+                             "bracket_ends": ends, "arm_requested": arm,
+                             "values": values,
+                             "basis": {k: v["basis"]
+                                       for k, v in spec.get("parameters", {}).items()}})
     if not rendered:
         return "", []
     banner = ("\n\n"
@@ -369,11 +390,11 @@ def native_blocks(declared: dict, arm: str | None, source_text: str) -> tuple[st
               "!// NATIVE TO VESPER. Everything below is invented biology for this world,\n"
               "!// declared in biosphere/config/native_pfts.yaml and appended AFTER the Earth\n"
               "!// conversion, so none of it is rescaled: these values are in model units\n"
-              "!// already. A type states only what its derivation changes and inherits the\n"
-              "!// rest from the type it names.\n"
+              "!// already. A block states only what its derivation changes and inherits the\n"
+              "!// rest; a group holds what two types share, so no derived value is written\n"
+              "!// twice.\n"
               "!///////////////////////////////////////////////////////////////////////////////\n\n")
     return banner + "\n\n".join(rendered) + "\n", recorded
-
 
 
 def _selftest() -> int:
@@ -693,8 +714,9 @@ def main() -> None:
         print(f"   {change['class']:12s} {change['parameter']:14s} "
               f"{change['from']:>8g} -> {change['written']:g}")
     for record in native_records:
-        print(f"native  {record['name']:6s} inherits {record['inherits']}, "
-              f"include {record['include']}, "
+        print(f"native  {record['kind']:5s} {record['name']:12s} "
+              f"inherits {record['inherits']:12s} "
+              + (f"include {record['include']}, " if record["kind"] == "pft" else "shared,      ")
               + (", ".join(f"{k} at the {v} end"
                            for k, v in record["bracket_ends"].items())
                  or "no bracket") + ": "
@@ -713,7 +735,7 @@ def main() -> None:
                 raise SystemExit(
                     f"{record['name']}.{key} was declared {want:g} but resolves "
                     f"to {got!r} in the file just written")
-        if resolved.get("include") != record["include"]:
+        if record["kind"] == "pft" and resolved.get("include") != record["include"]:
             raise SystemExit(
                 f"{record['name']} was declared include {record['include']} but "
                 f"resolves to {resolved.get('include')!r}")

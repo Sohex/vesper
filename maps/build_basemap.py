@@ -178,6 +178,11 @@ PFT_RGB = {
     "TrBR": (124, 142, 62),   # tropical broadleaved raingreen
     "C3G": (150, 166, 96),    # C3 grass
     "C4G": (184, 174, 106),   # C4 grass
+    # Vesper-native, and deliberately readable as a pair: the ephemeral pale and
+    # straw-toned for a canopy that is present for a fifth of the orbit, the
+    # perennial dark and blue-green for one that is never shed.
+    "VPE": (196, 200, 152),   # Vesperian polar ephemeral
+    "VPP": (86, 118, 104),    # Vesperian polar perennial
 }
 
 # What the ground reads as where the simulated cover does not close over it,

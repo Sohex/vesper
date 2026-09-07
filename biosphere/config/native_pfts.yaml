@@ -26,32 +26,18 @@
 
 contract: biosphere/notes/time-base-unit-contract.md
 
-types:
+# The traits BOTH strategies derive from the same measurements. Held once,
+# because a shared value stated twice is two declarations that drift.
+groups:
 
-  VPE:
-    title: Vesperian polar ephemeral
+  vesper_polar:
+    title: traits common to the Vesperian polar strategies
     derivation: biosphere/notes/vesperian-polar-type.md
     issue: world-upm5
-    # CANDIDATE, and inert until that row decides. `include 0` is LPJ-GUESS's
-    # own idiom for a declared type it does not instantiate: parameters.cpp
-    # validates the block in full and then drops the type before any
-    # simulation, so a malformed block still fails fast and an inert one
-    # changes no run.
-    include: 0
-    # C3G and not the bare `grass` group: the derivation is a modification of
+    # C3G and not the bare `grass` group: both strategies are modifications of
     # the cool grass, so naming it makes this file the list of changes.
     inherits: C3G
     parameters:
-
-      leaflong:
-        value: 0.2392
-        units: model
-        basis: >-
-          the leaf lives the 2.87-month growing season measured poleward of 75
-          degrees and no longer. SLA follows through ifcalcsla and the Reich
-          regression in guess.h:initsla() at 44.8 m2/kgC against C3G's 26.0,
-          and is deliberately NOT stated here because stating it would override
-          a derivation the model already performs.
 
       pstemp_min:
         value: 0.0
@@ -94,3 +80,82 @@ types:
           low: 1.0
           high: 2.0
           default: low
+
+# TWO STRATEGIES, DECLARED TO COMPETE. A fifteen-day water pulse at the head of
+# a 2.87-month season admits two coherent answers, and which one wins is a
+# property of a loop rather than something the measurements settle. LPJ-GUESS is
+# a competition model, so both are instantiated in the same run and the model
+# places them; coexistence is a result and not a muddle.
+types:
+
+  VPE:
+    title: Vesperian polar ephemeral
+    derivation: biosphere/notes/vesperian-polar-type.md
+    issue: world-upm5
+    include: 1
+    inherits: vesper_polar
+    parameters:
+
+      leaflong:
+        value: 0.2392
+        units: model
+        basis: >-
+          THE EPHEMERAL STRATEGY: the leaf lives the 2.87-month growing season
+          and no longer, which buys leaf area through the leaf-economics
+          spectrum. SLA follows through ifcalcsla and the Reich regression in
+          guess.h:initsla() at 44.8 m2/kgC against C3G's 26.0, and is
+          deliberately NOT stated here because stating it would override a
+          derivation the model already performs.
+
+      phengdd5ramp:
+        value: 52.0
+        units: absolute
+        basis: >-
+          the cost of the ephemeral strategy is that the canopy is absent when
+          the pulse begins and has to ramp into it. The thaw month yields a
+          median 202 growing degree-days but only 104.5 at p25, and its first
+          half, when most of the water moves, yields 52.2 at p25. At 52 three
+          quarters of polar cells reach full display by mid-pulse; C3G's
+          inherited 100 leaves the coldest quarter at part display through it.
+
+  VPP:
+    title: Vesperian polar perennial
+    derivation: biosphere/notes/vesperian-polar-type.md
+    issue: world-upm5
+    include: 1
+    inherits: vesper_polar
+    parameters:
+
+      phenology:
+        value: evergreen
+        units: none
+        basis: >-
+          THE PERENNIAL STRATEGY, and the reason it is not obviously worse here.
+          An evergreen canopy is already present when the melt arrives, which is
+          what the storage organ would have bought and what LPJ-GUESS cannot
+          express, having no plant carbon reserve. Its usual cost is maintenance
+          respiration through the non-growing season, and on this world that
+          cost is close to nil: driver.cpp:respiration_temperature_response
+          clamps the Lloyd and Taylor response to exactly zero below -40 degC,
+          and gives 0.0017 at -20 degC, so the nine months the cap spends below
+          -40 bill the plant nothing. Earth's boreal winter at -20 degC does not
+          subsidise this strategy; Vesper's at -68.75 degC does.
+
+      phengdd5ramp:
+        value: 0.0
+        units: absolute
+        basis: >-
+          an evergreen holds leaf, so there is no ramp to accumulate. Stated
+          rather than inherited because the inherited 52 would read as a ramp
+          this strategy waits on.
+
+      leaflong:
+        value: 1.0
+        units: model
+        basis: >-
+          THE COST OF THE PERENNIAL STRATEGY, and the reason the two are a fork
+          rather than a ranking. A leaf carried through the dark season must
+          last a full orbit, and the Reich regression turns that longevity into
+          an SLA of 26.0 m2/kgC, no better than C3G and 1.72 times worse than
+          the ephemeral. This strategy trades leaf area per unit carbon for
+          having its leaf in the right fortnight.

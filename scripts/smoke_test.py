@@ -5207,8 +5207,9 @@ DECLARED_BRACKETS = (
     # time, so the arithmetic cannot happen here. What can rot is the pairing,
     # and `build_vesper_pfts.py` refuses an end the bracket does not declare and
     # writes the end it took into the generated header and the provenance.
-    ("elsewhere", "types.VPE.parameters.ltor_max.bracket", NATIVE_PFTS, None,
-     ("types", "VPE", "parameters", "ltor_max", "bracket"),
+    ("elsewhere", "groups.vesper_polar.parameters.ltor_max.bracket",
+     NATIVE_PFTS, None,
+     ("groups", "vesper_polar", "parameters", "ltor_max", "bracket"),
      "biosphere/scripts/build_vesper_pfts.py"),
     ("not_a_bracket", "reopening_contract.owners.weathering_and_outgassing_bracket",
      CARBON_FEEDBACK, ("reopening_contract", "required_closed_issues"),

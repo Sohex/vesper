@@ -71,7 +71,10 @@ assessed:
     # albedo at different albedos, so the composition between them is visible to
     # it and the composition WITHIN each is not. The tree side is stated as an
     # exclusion for the same reason the consumer states it that way: a list of a
-    # dozen tree codes silently misses a newly added one.
+    # dozen tree codes silently misses a newly added one. The grass side stays a
+    # LIST, and is held to the file the model reads by
+    # smoke_test.py:check_lpj_pft_set_is_declared_once, which is what caught the
+    # two Vesper-native grasses missing from it the day they were declared.
     - id: fpc.out tree cover
       table: fpc.out
       columns_excluding: [C3G, C4G, Total]
@@ -80,7 +83,7 @@ assessed:
       derivation: biosphere/scripts/derive_cover_tolerance.py, and it is the chain the tolerance below was derived through
     - id: fpc.out grass cover
       table: fpc.out
-      columns: [C3G, C4G]
+      columns: [C3G, C4G, VPE, VPP]
       relative_end_to_end_limit: 0.05
       read_by: [exoplasim/scripts/build_surface_albedo.py, biosphere/scripts/score_prediction.py]
       derivation: biosphere/scripts/derive_cover_tolerance.py, and it is the chain the tolerance below was derived through
