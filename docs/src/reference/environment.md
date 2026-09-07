@@ -458,7 +458,7 @@ tree. In the venv, `dask`, `flox` and `bottleneck` back xarray over anything
 run-sized; see [large data](large-data.md), which they assist and do not
 replace.
 
-### Three traps, because these tools assume Earth
+### Four traps, three because these tools assume Earth
 
 **NCO does not know this planet's grid, and `ncwa -a lat,lon` is an UNWEIGHTED
 mean.** The files carry no Gaussian weight variable, so there is nothing for
@@ -466,6 +466,18 @@ mean.** The files carry no Gaussian weight variable, so there is nothing for
 global mean which is wrong and entirely plausible, which is the worst shape a
 number can have. Area weights come from the project's own grid convention in
 `lib/gridding.py`.
+
+**Six climatology fields are LAND-ONLY and carry ZERO over the model's ocean,
+which is not a missing value and does not propagate.** `mrso`, `tsod`, `tso2`,
+`tso3` and `tso4` are the soil water and the four written soil temperature
+layers; a mean over cells that includes ocean is therefore an average of real
+land values against 0 K, and comes back plausible and wrong. Taking the polar
+cap's soil temperature over 234 gridcells of which 31 are ocean to the model
+returned -63.9 degC where the land value is -31.9, because 31 cells at absolute
+zero are worth 32 K of the answer. Mask on the model's OWN `lsm` -- not the
+export's land, which disagrees with it by design -- before aggregating any of
+them. `grnz` is the sixth field with a constant ocean value and is NOT in this
+class: it is ground geopotential and zero over ocean is sea level.
 
 **The time axis is not a calendar.** It is `units = timesteps` with no
 `calendar` attribute and raw counts for values. Any operator that assumes an
