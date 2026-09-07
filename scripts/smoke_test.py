@@ -1985,6 +1985,39 @@ def check_diag_writes_are_answered() -> list[str]:
     return [(r.stdout.strip() or r.stderr.strip() or "(no output)")]
 
 
+def check_diag_array_bands_are_linted() -> list[str]:
+    """The optional diagnostic blocks' code bands and filled-array counts.
+
+    `exoplasim/scripts/lint_diag_arrays.py` holds two things against the model
+    source: that the four optional blocks' code bands stay disjoint from each
+    other and clear of every code any writer in `plasim/src` uses and every code
+    `pyburn.ilibrary` names, and that `NDIAGGP_ARRAYS_FILLED` and
+    `NDIAGSP_ARRAYS_FILLED` are what the source actually writes -- the two
+    numbers `plasim.f90:check_diagnostic_blocks` demands of `NDIAGGP3D` and
+    `NDIAGSP3D`.
+
+    THE GAP THIS CLOSES is that it was held by nothing per-commit. world-2v9z
+    repaired a band collision and registered the linter in
+    `config/pipeline.yaml`, but it was never wired here, because this file
+    belonged to another agent in the session that wrote it. A code band that
+    collides is not visible in any output: the block writes into a code another
+    writer owns and the reader gets the wrong field under the right name.
+
+    Run exactly as `lint_diag_writes.py` is run above and for the same reason:
+    it is a pure text parse of `plasim/src`, no build and no run, and it answers
+    its own fixtures on every invocation before it reports on the tree.
+    """
+    script = ROOT / "exoplasim" / "scripts" / "lint_diag_arrays.py"
+    if not script.is_file():
+        return [f"{script.relative_to(ROOT)} is gone, and it is what holds the "
+                "diagnostic blocks' code bands apart"]
+    r = subprocess.run([sys.executable, str(script)],
+                       capture_output=True, text=True, cwd=ROOT)
+    if r.returncode == 0:
+        return []
+    return [(r.stdout.strip() or r.stderr.strip() or "(no output)")]
+
+
 def check_masked_only_locals_are_answered() -> list[str]:
     """No procedure local has all its definitions inside a `where`.
 
@@ -7605,6 +7638,8 @@ def main() -> None:
                lambda: check_no_dropped_continuation()),
               ("no diagnostics write is reachable by every thread",
                lambda: check_diag_writes_are_answered()),
+              ("the diagnostic blocks' code bands and filled counts hold",
+               lambda: check_diag_array_bands_are_linted()),
               ("no model local has all its definitions inside a where",
                lambda: check_masked_only_locals_are_answered()),
               ("each step resolves a climatology its needs permit",
