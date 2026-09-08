@@ -597,17 +597,35 @@ tracks the paper's marginal response at mean community structure within a factor
 of 1.3 to 1.8 from 0 to 2000 kW/m, so it is defensible and under-cited rather
 than wrong.  Its citation also carries the wrong year: the paper is 2009.
 
-**van Nieuwstadt and Sheil (2005) and Bond (2008): undocumented fits.**  Neither
-paper contains the equation attributed to it.  van Nieuwstadt reports fire
-mortality by 10-cm diameter class and not `1 - max(0.82 - 0.035*D^0.7, 0)`; Bond
-gives a figure of topkill against height and intensity, with escape height "2-4 m
-in this example", and not `1 - 1/(1 + exp(1.5*(h - 0.5*I - 1)))`.  Both curves
-are the right shape -- `blaze.cpp`'s savanna escape height spans 1 to 4 m over 0
-to 6 MW/m against Bond's stated 2 to 4 -- so neither is obviously wrong.  What is
-missing is that a FIT happened at all: which data, what was minimised, what
-residual it left.  A comment that reads as a citation to an equation, for a paper
-with no equation in it, is how a fitted coefficient passes for a sourced one.
-`world-g2e0`.
+**van Nieuwstadt and Sheil (2005) and Bond (2008): undocumented fits, and one of
+them misses its source.**  Neither paper contains the equation attributed to it.
+van Nieuwstadt reports fire mortality by 10-cm diameter class in a FIGURE, so the
+fit cannot be recovered and refitted; Bond gives a figure of topkill against
+height and intensity and states no equation either.  A comment that reads as a
+citation to an equation, for a paper with no equation in it, is how a fitted
+coefficient passes for a sourced one.  `world-g2e0`.
+
+Bond's fit agrees with its source: `blaze.cpp`'s implied escape height, where
+survival passes one half, is 1 m with no fire and 4 m at 6 MW/m, bracketing the
+"2-4 m in this example" of Bond's caption.
+
+**van Nieuwstadt's does not, and the test needs no digitising.**  That paper
+states two anchors in prose -- on burned plots, mortality above 80 per cent below
+10 cm d.b.h. and approaching 100 per cent below 5 cm.  `blaze.cpp`'s curve gives
+64.5 per cent at 10 cm and 71.2 per cent at 5 cm, and its mortality CEILING is 82
+per cent as diameter goes to zero, so it cannot reach the small-stem anchor at
+any diameter whatever the diameter term does.  Between 3000 and 7000 kW/m the
+function returns `survival_3000` exactly, so the gap is intensity-independent
+there, and below 3000 it moves toward survival 1 and widens.
+
+The caveat is real and does not close it: those percentages are cumulative over
+21 months and include the 1997-98 drought rather than fire alone, so the
+fire-attributable part is lower -- but unburned cumulative mortality in that
+paper's Table 1 runs to about 22 per cent above 10 cm, and netting it out leaves
+the small-stem figure near the top of the range, above a ceiling of 0.82.
+
+Both are now registered as DECLARED MODEL FORMS rather than sourced
+coefficients, so a reader meets the disagreement at the parameter.
 
 **Three unreachable resprouter paths, which are one omission.**
 `TURNOVERFRACT`'s sprouter column cannot be selected (finding 11),

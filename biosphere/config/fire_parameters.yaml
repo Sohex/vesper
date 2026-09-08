@@ -813,6 +813,92 @@ parameters:
       entry buys is that a reader arming BLAZE meets the finding at the
       parameter rather than in a paper.
 
+  tropical_survival_diameter_form:
+    seam: effects
+    what: >
+      The diameter dependence of tropical broadleaf survival at 3000 kW/m,
+      mortality = max(0.82 - 0.035*DBH_cm^0.7, 0). A DECLARED MODEL FORM and
+      not a sourced relation, which is the whole entry: the paper it is
+      attributed to contains no such equation.
+    unit: dimensionless
+    central: {ceiling: 0.82, coefficient: 0.035, exponent: 0.7}
+    disposition: irreducible
+    defect: tuned
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "0.82 - 0.035 * pow(diameter_at_breast_height,0.7)"
+    row: world-g2e0
+    consumed_by: fire-6
+    source: >
+      Attributed to van Nieuwstadt and Sheil (2005), which is held and read.
+      That paper contains none of 0.82, 0.035 or the 0.7 exponent. What it
+      reports is fire mortality by 10-cm diameter class in burned East
+      Kalimantan plots, in a FIGURE rather than a table, so the fit cannot be
+      recovered and refitted.
+    why_this_disposition: >
+      TUNED BY CONSTRUCTION AND NOT RECOVERABLE. The coefficients are the
+      residual of a fit to a figure, and the fit is not written down anywhere:
+      which points, what was minimised, what residual it left. A comment that
+      reads as a citation to an equation, for a paper with no equation in it,
+      is how a fitted coefficient passes for a sourced one.
+      It is irreducible rather than bracketed because a bracket implies a
+      sweep, and sweeping three coefficients of a form that MISSES ITS SOURCE'S
+      HEADLINE RESULT would be pricing the wrong thing.
+    disagrees_with_its_source: >
+      The paper states two anchors in prose that need no digitising: on burned
+      plots, mortality was above 80 per cent below 10 cm d.b.h. and approached
+      100 per cent below 5 cm. This form gives 64.5 per cent at 10 cm and 71.2
+      per cent at 5 cm, and its CEILING is 82 per cent as diameter goes to
+      zero -- so it cannot reach the small-stem anchor at any diameter, whatever
+      the diameter term does. Between 3000 and 7000 kW/m the function returns
+      survival_3000 exactly, so the gap is intensity-independent there, and
+      below 3000 it moves toward survival 1 and widens.
+      THE CAVEAT IS REAL AND DOES NOT CLOSE IT. Those percentages are
+      cumulative over 21 months and include the 1997-98 drought, not fire
+      alone, so fire-attributable mortality is lower. Unburned cumulative
+      mortality in that paper's Table 1 runs to about 22 per cent above 10 cm,
+      so netting it out still leaves the small-stem figure near the top of the
+      range, above a ceiling of 0.82.
+    do_not: >
+      Do not adjust 0.82 upward to meet the anchor. That would be fitting a
+      Vesper coefficient to one Earth fire in Borneo, which is the tuning this
+      register exists to refuse. The repair is to decide the form, with FIRE-6,
+      against what this world's plant types have.
+
+  savanna_survival_escape_height_form:
+    seam: effects
+    what: >
+      The height-and-intensity form for savanna survival,
+      1 - 1/(1 + exp(1.5*(height - 0.5*I_MW - 1))). A declared model form, for
+      the same reason as the entry above.
+    unit: dimensionless
+    central: {slope: 1.5, height_per_MW: 0.5, base_escape_height_m: 1.0}
+    disposition: irreducible
+    defect: tuned
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "exp(1.5*(height - 0.5 * intensity - 1. ))"
+    row: world-g2e0
+    consumed_by: fire-6
+    source: >
+      Attributed to Bond (2008), which is held and read. That paper states no
+      equation: it gives a FIGURE of topkill probability against stem height
+      and fire intensity for an African savanna tree, whose caption puts escape
+      height at "2-4 m in this example".
+    why_this_disposition: >
+      The same class as the tropical form -- a fit to a figure, undocumented as
+      a fit -- and it agrees with its source rather than disagreeing. The
+      implied escape height, where survival passes one half, is 1 + 0.5*I in
+      MW/m: 1 m with no fire, 2 m at 2 MW/m and 4 m at 6 MW/m, which brackets
+      Bond's stated 2 to 4. Right shape, right order, and no record that a fit
+      produced it.
+    note: >
+      The function returns 0.182 for a zero-height plant at zero intensity,
+      because height dominates the logit and intensity only shifts it. It is
+      only ever called for a patch that burns, so a zero-intensity evaluation
+      does not arise; recorded because the form does not reduce to survival 1
+      as fire vanishes, which a reader would reasonably expect it to.
+
   tree_survival_parameterisation:
     seam: effects
     what: >
