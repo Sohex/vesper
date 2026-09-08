@@ -20,10 +20,20 @@
 # unit half of it rests on `biosphere/notes/time-base-unit-contract.md`, whose
 # registry deliberately excludes fire rates and hands them here.
 #
-# NOTHING IN THIS FILE IS EXECUTION-VERIFIED, and nothing can be yet. No
-# LPJ-GUESS run this project has made has passed acceptance -- `world-qcse` has
-# why -- so every statement below is arithmetic on the declared forms and on the
-# source. `comparison_arm` names what would change that.
+# THE DIVERGENCE IS NOT EXECUTION-VERIFIED, AND THE REASON IS NO LONGER THAT NO
+# RUN EXISTS. `lpj_1e6a2b9ca51a4eff9592992cad96677b` passed acceptance with
+# verdict PASS on 8600 spin-up and 1253 retained, which is what closed
+# `world-qcse`. What that run cannot supply is a COMPARISON: it was integrated
+# without the floor, so there is no arm carrying the floor to difference it
+# against, and a divergence is verified by the pair rather than by either half.
+# `comparison_arm` names the pair.
+#
+# One half of the argument below is nonetheless measured rather than derived.
+# How many gridcells the floor would have bound is readable from that run's
+# `firert.out`, because the same 0.001 that was the floor is also the cap the
+# reported fire return interval takes; `worth` carries the number and its
+# method. What still needs the pair is what the floor did to the vegetation on
+# those gridcells.
 
 # EVERY DIVERGENCE FROM MAINLINE, WITH ITS VERDICT.
 #
@@ -95,14 +105,20 @@ mainline_divergences:
       live_under: globfirm_cohort
       execution: none
       why_no_execution: >
-        No LPJ-GUESS run this project has made has passed acceptance, so there
-        is no run whose fire output could carry a comparison arm, and none
-        could have (world-qcse: the trend statistic was fitted inside one
-        memory time, and the spin-up is short of the derived 2318 cycles).
-        Verified only by syntax check: the edited translation unit compiles
-        with the build's own include paths at -std=c++14; a link was not
-        available while the host lock was held. The comparison_arm block above
-        is the arm world-zq9v's gate will require evidence for when it runs.
+        An accepted run now exists -- `lpj_1e6a2b9ca51a4eff9592992cad96677b`,
+        verdict PASS, 8600 spin-up and 1253 retained on canonical-10m-carve2,
+        which is what closed world-qcse -- and it still does not execute this
+        entry. A deletion is verified by a PAIR: that run was integrated
+        without the floor, so there is no arm carrying the floor to difference
+        it against, and one half of a comparison is not a comparison. The
+        `comparison_arm` block above is that pair, and it has not been run.
+        What the accepted run DID settle is the extent question `worth`
+        records, which needed no second arm because the deleted constant is
+        also a reporting cap the run reports against. Verified otherwise only
+        by syntax check: the edited translation unit compiles with the build's
+        own include paths at -std=c++14; a link was not available while the
+        host lock was held. world-zq9v's gate will require the pair's evidence
+        when it runs.
       classification: implicit-earth
       settles: >
         Two findings, and the first is what disposes of the constant while the
@@ -208,10 +224,27 @@ mainline_divergences:
         model-year hazard of a stand-replacing fire against `distinterval`'s
         0.00501, so it was adding 20 per cent to the patch-destroying
         disturbance rate on every fuel-bearing gridcell the fire model says
-        cannot burn. Over `nyear_spinup 2318` that is 2.32 expected fires per
-        patch and a 90.2 per cent chance of at least one, so it is not a
-        rounding on the cohort age structure of those gridcells.
+        cannot burn. Over the derived `nyear_spinup 8600` that is 8.6 expected
+        fires per patch and a 99.98 per cent chance of at least one, so on the
+        gridcells it reaches it does not perturb the cohort age structure, it
+        replaces it.
 
-        How many gridcells that is cannot be stated here. It needs a run, and
-        `comparison_arm` says which one; the share is a property of this world's
-        soil moisture and fuel, not of the curve.
+        HOW MANY GRIDCELLS THAT IS, MEASURED. It does not need the paired run
+        after all, because `firert.out` reports the same 0.001 as a cap: a
+        patch below it takes `commonoutput.cpp`'s else branch and reports a
+        fire return interval of exactly 1000 years, so the capped cell-years
+        ARE the cell-years the floor would have bound. On
+        `lpj_1e6a2b9ca51a4eff9592992cad96677b`, over all 2,026,101
+        gridcell-years of the retained record, 1,209,759 are at the cap --
+        59.71 per cent -- and 791 of the 1617 gridcells are at it in EVERY year,
+        with 1183 at it in at least one. Their mean burned fraction is 1.65e-10
+        against 1.90e-02 on the cells that do burn, so the floor was not
+        rounding a small number up; it was replacing approximately zero by 1e-3
+        across about half the world's simulated land.
+
+        What still needs the paired run is what that did to the VEGETATION on
+        those cells -- the cohort age structure, standing biomass, `cpool.out`
+        and the fire fluxes -- which is what `comparison_arm` specifies and
+        which no reading of an existing run recovers, because the accepted run
+        has no floor in it to remove. Measured 2026-09-07;
+        `biosphere/notes/fire-nitrogen-range.md` carries the method.

@@ -175,5 +175,45 @@ fire flux is of the same order as a fraction of NPP, and under CLAUDE.md's rule
 that is a distance to report rather than a target to solve onto. What the number
 establishes is the STAKE, not the answer.
 
+## Where the deleted burn-probability floor would have bound
+
+`biosphere/config/fire.yaml` records the deletion of GlobFIRM's
+`fireprob = 0.001` floor and, until this measurement, said the number of
+gridcells it bound on "cannot be stated here. It needs a run". It does not.
+
+The floor and the reporting cap are THE SAME CONSTANT, which is what makes the
+extent readable from a run that has no floor in it. `commonoutput.cpp` writes a
+fire return interval of exactly 1000 years for any patch whose `fireprob` falls
+below 0.001, and the deleted line raised any such `fireprob` to 0.001. So a
+capped cell-year in `firert.out` is precisely a cell-year the floor would have
+bound, and the accepted run reports one without carrying the other.
+
+    cell-years                        2,026,101
+    at the 1000-year cap              1,209,759   59.71%
+    gridcells at the cap in EVERY year      791   48.9% of 1617
+    gridcells at the cap in some year      1183   73.2%
+    gridcells never at the cap              434   26.8%
+
+    mean burned fraction where capped     1.65e-10
+    mean burned fraction where not        1.90e-02
+
+**The floor was not rounding a small number up.** Where it bound, the model's
+own burned fraction is 1.65e-10 -- approximately zero, to eight orders of
+magnitude below the cells that burn -- and the floor would have replaced it with
+1e-3. It did that on 59.71 per cent of gridcell-years and in every year of the
+record on 791 gridcells, which is about half this world's simulated land.
+
+The consequence follows from `fire.yaml`'s own arithmetic once the spin-up is
+the derived one. A 0.001 per model-year hazard of a stand-replacing fire over
+`nyear_spinup 8600` is 8.6 expected fires per patch and a 99.98 per cent chance
+of at least one. On the gridcells it reaches, the floor does not perturb the
+cohort age structure; it replaces it.
+
+**What this does not settle**, and it is the part that still needs the paired
+run `comparison_arm` specifies: what that did to the vegetation. The extent is
+readable because the deleted constant is also a diagnostic the run reports; the
+standing biomass, cohort age structure and soil carbon of those gridcells under
+a restored floor are not, because the accepted run has no floor in it to remove.
+
 No LPJ-GUESS run was performed for this note. It reads the tables of a run that
 already existed.
