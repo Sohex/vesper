@@ -553,8 +553,7 @@ parameters:
     defect: implicit_earth
     route: compiled_literal
     source_file: vendor/lpj-guess/modules/blaze.cpp
-    literal: "A = 3.3333e-05"
-    implemented_value: 3.3333e-05
+    literal: "NOBLE_ROS_KMH_PER_TONNE_HA / G_M2_PER_TONNE_HA / KMH_PER_M_S"
     derived_from: "0.0012 / 100.0 / 3.6"
     row: world-c15e
     consumed_by: fire-6
@@ -578,13 +577,21 @@ parameters:
       The defect is implicit_earth and not the decade: the decade is a bug with
       a row, while what stays wrong after it is fixed is that the index this
       scales was built for Australian eucalypt forest.
+    repaired: >
+      world-c15e is closed. blaze.cpp no longer declares a constant: it declares
+      Noble's coefficient, the tonnes-per-hectare conversion and the km/h
+      conversion as three named quantities and multiplies them, so the
+      derivation is on the line rather than in this file. `implemented_value`
+      is deleted, which is what stops the gate reporting the disagreement, and
+      `literal` now names the expression rather than a number.
     control_that_must_fire: >
       `fire_parameter_gate.py` evaluates `derived_from` and compares it with
-      `central`, and separately reads `implemented_value` out of
-      `source_file`. So the arithmetic is redone on every run rather than
-      trusted, and a repair that edits blaze.cpp without editing this entry
-      turns the finding off by making the two agree -- which is the intended
-      way for it to end.
+      `central`, so the arithmetic is redone on every run rather than trusted,
+      and the restatement check holds the source to still carrying the
+      expression. A future edit that replaced the three named factors with a
+      corrected magic number would pass the arithmetic and fail the
+      restatement, which is the intended asymmetry: the derivation has to stay
+      visible in the source, not only be correct.
 
   keetch_byram_drought_index_domain:
     seam: effects
@@ -801,7 +808,7 @@ parameters:
     route: compiled_literal
     source_file: vendor/lpj-guess/modules/blaze.cpp
     literal: "TURNOVERFRACT[13][5]"
-    row: world-voxz
+    row: world-sgtx
     consumed_by: fire-6
     source: >
       blaze.cpp:41-54, under the header comment
@@ -839,9 +846,9 @@ parameters:
     central: 6371.2213
     disposition: sourced
     defect: implicit_earth
-    route: compiled_literal
+    route: none
     source_file: vendor/lpj-guess/framework/guessmath.h
-    literal: "R_EARTH            = 6371.2213"
+    absent_from_source: "R_EARTH"
     consumed_by: fire-6
     source: >
       guessmath.h:61, commented "mean earth-radius[km]". Used only by
@@ -859,14 +866,19 @@ parameters:
       world-4j27's list of dormant knobs, both of which enumerate blaze.cpp,
       so it is a new finding rather than a restatement of one.
     repair: >
-      lib/nc_geometry.py owns the one expression turning config/planet.yaml's
-      radius_earth into metres, and world-gnvz routed the Python tree's Earth
-      radii through it. This is the C++ tree's remaining one. Either
-      pixelsize() is deleted, which is a fix, or the radius reaches it the way
-      every other planet constant reaches this model -- through the generated
-      header that build_vesper_header.py writes. Deleting is preferred and
-      cheaper: the function is unreachable, and fire-5's area per fire comes
-      from spread rate and duration rather than from a cell's size.
+      DONE, by deletion. world-pqk7 is closed. `pixelsize()` had no callers
+      anywhere in the vendored tree and was the only consumer of `R_EARTH`, so
+      both are gone and no number moved. Deleting was preferred over converting
+      because fire-5's area per fire comes from a spread rate times a duration
+      rather than from a cell's size, so nothing the port needs calls for it.
+      If a gridcell area is wanted later it reaches the model the way every
+      other planet constant does, through the header build_vesper_header.py
+      generates; lib/nc_geometry.py owns the one expression turning
+      config/planet.yaml's radius into metres, and world-gnvz routed the Python
+      tree's Earth radii through it.
+      The entry is KEPT rather than removed, with `route: none` and
+      `absent_from_source` in place of `literal`, because a register that
+      forgets a deleted constant cannot notice it coming back.
     row: world-pqk7
     do_not_defer_silently: >
       Registered as a row rather than left here: the entry is a finding, and

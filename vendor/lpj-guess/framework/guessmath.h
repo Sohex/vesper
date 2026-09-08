@@ -58,7 +58,12 @@ const double J_PER_KJ		= 1E3;
 const double KMH_PER_MS         = 3.6;
 const double FRACT_TO_PERCENT   = 100.;
 const double PERCENT_TO_FRACT   = 0.01;
-const double R_EARTH            = 6371.2213; // mean earth-radius[km]
+// R_EARTH is DELETED. Earth's mean radius had exactly one consumer in this
+// tree, blaze.cpp's pixelsize(), which had no callers of its own and is
+// deleted with it. config/planet.yaml declares this world's radius and
+// lib/nc_geometry.py owns the one expression turning it into metres; a
+// planet constant reaches this model through the generated vesper.h and not
+// through a literal here. world-pqk7.
 
 // DECLARED DIVERGENCE FROM MAINLINE: negligible_exponent_sign, owner world-n0oc.
 // Stock LPJ-GUESS 4.1.1 reads `fabs(dval) < pow(10.0, limit)`. With a POSITIVE

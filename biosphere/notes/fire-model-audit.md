@@ -363,7 +363,11 @@ It is worth a class boundary rather than a rounding.  At F = 10 with 1000 gC/m2
 of fuel, Noble gives 667 kW/m, below the lowest bound; `blaze.cpp` gives 6667,
 the second-highest class.  At F = 20 with 2000 gC/m2, 5333 against 53 333, which
 is 7.6 times above the top bound, so every such fire takes the maximum
-combustion column and the maximum mortality.  `world-c15e`.
+combustion column and the maximum mortality.  `world-c15e`, REPAIRED: `A` is no longer a constant.  `blaze.cpp` declares
+Noble's coefficient, the tonnes-per-hectare conversion and the km/h conversion
+as three named quantities and multiplies them, so the derivation is on the line
+rather than in a register, and a later edit substituting a corrected literal
+would pass the arithmetic check and fail the restatement one.
 
 A separate error multiplies with it.  `available_fuel` sums `cmass`, which is
 carbon, while Noble's W and Byram's w are fuel weight; no carbon-to-dry-matter
@@ -385,14 +389,21 @@ array is contiguous, so `[r][-1]` aliases `[r-1][4]`, the highest-intensity
 column of the row above, and `[0][-1]` reads before the array.  A patch with too
 little fuel to carry a fire therefore combusts all of its surface litter and half
 its leaves, and is flagged burned.  The sign is backwards and the row-0 read is
-undefined behaviour.  `world-voxz`.
+undefined behaviour.  `world-voxz`, REPAIRED: a negative index now returns
+false before the lookup, honouring the signal `get_fireline_intensity()`
+already sets rather than clamping to the lowest class and burning the patch a
+little, and `patch.burned` is set below the test instead of two lines above it.
 
 At the high end it is dead code.  The table's header comment says columns 3 and 4
 are the sprouter and seeder rates above 7000 kW/m, and the index function returns
 4 for every intensity above 7000 and never 3.  `is_resprouter` exists in the file
 but reaches only a survival probability, never a column.  Every intense fire
 therefore takes the seeder rates, which for stems and branches to litter are 0.8
-against the sprouter 0.2.
+against the sprouter 0.2.  NOT repaired, and deliberately: the index is per
+PATCH while resprouting is a per-individual trait and `get_combustion_rates()`
+writes patch-level fluxes, so making column 3 reachable is a restructure, and
+both available repairs are modelling decisions rather than corrections.  The
+table's header comment now says so.  `world-sgtx`.
 
 ### 12. The drought index reads a 183-day rainfall total into an Earth-annual coefficient
 
@@ -449,7 +460,14 @@ is the second half and is not obviously the same repair: a memory length may be 
 count of seasonal cycles rather than a duration, and it should be decided rather
 than inherited.  The rest of the block is imperial throughout and its ceiling of
 800 is 203.2 mm of soil moisture deficit standing for an Earth soil profile's
-water capacity.  `world-4iyz`.
+water capacity.  `world-4iyz`, REPAIRED in both halves: the rainfall term is
+converted at the point of read, and the ring-buffer shift now takes
+`date.year_length()` rather than a literal 365.  The conversion is a DECISION
+recorded at the site -- Keetch and Byram use mean annual rainfall as a site
+climatology parameter, so the argument is a descriptor rather than an
+integration over the model's year, and converting it is right where rescaling
+the coefficient would leave a fitted index reading a quantity it was not fitted
+on.  The 30-day window is untouched and left to FIRE-6.
 
 ### 13. GlobFIRM's burned fraction is a per-Earth-year rate on a 183-day year
 
@@ -502,6 +520,10 @@ turnover, so it is a correction to a material term rather than to a diagnostic.
 The equilibrium response is not simply half: a lower burn probability lets fuel
 accumulate and makes each fire larger, so the sign is unambiguous and the
 magnitude needs the run.  Thonicke's four coefficients are not what is wrong and
-do not move.  `world-drim`.
+do not move.  `world-drim`, REPAIRED: `fire()` now applies
+`1 - pow(1 - fireprob, VESPER_EARTH_YEARS_PER_ORBIT)` immediately after the
+`>1.0` guard, which is the rule `KMORTGREFF` in the same file already uses.
+The binary was NOT rebuilt, so `build_lpj_guess.py --verify` reports it stale
+and the next run refuses until it is.
 
 No LPJ-GUESS or ExoPlaSim run was performed for this audit.

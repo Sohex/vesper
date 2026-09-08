@@ -37,6 +37,21 @@
 
 /* combustion rates depending on fire-line-intensities [kW/m]
  *       <750|<3000|<7000| >=7000 (Sprouters|Seeders)
+ *
+ * COLUMN 3 IS UNREACHABLE. get_fire_line_intensity_index() returns 4 for every
+ * intensity above 7000 and never 3, so every intense fire takes the SEEDER
+ * rates -- which for rows 4 and 5, stems and branches to litter, are 0.8
+ * against the sprouter 0.2. is_resprouter exists in this file but reaches only
+ * survival_probability_temp_broadleaf(); it never selects a column here, and it
+ * could not without restructuring, because the index is per PATCH while
+ * resprouting is a per-individual trait and get_combustion_rates() writes
+ * patch-level fluxes.
+ *
+ * Left as it is rather than repaired, because both repairs are modelling
+ * decisions and not corrections: making column 3 reachable changes which rates
+ * intense fires use, and deleting it discards a distinction the source
+ * intended. FIRE-6 owns that choice. world-voxz,
+ * biosphere/notes/fire-model-audit.md finding 11.
  */
 const double TURNOVERFRACT[13][5] = {
 	{ .0 ,  .0 ,  .05, .2 , .2 }, //   0 Stems       -> ATM
@@ -85,45 +100,25 @@ void report_fire_flux_n(Patch& patch, double nflux_fire) {
 	patch.fluxes.report_flux(Fluxes::N2_FIRE,  Fluxes::N2_FIRERATIO  * nflux_fire);
 }
 
-/* Compute area of Gridcell
- * Taken from aslice.cpp of gutils. 
- * Returns area in square km of a pixel of a given size at a given point
- * on the world. The formula applied is the surface area of a segment of
- * a hemisphere of radius r from the equator to a parallel (circular)
- * plane h vertical units towards the pole: S=2*pi*r*h .
- * latpos    latitude position (see postype)
- * longsize  longitude range in degrees
- * latsize   latitude range in degrees
- * postype   declares which part of the pixel latpos
- *           refer to:
- *           0 = centre
- *           1 = NW corner
- *           2 = NE corner
- *           3 = SW corner
- *           4 = SE corner
- */
-double pixelsize(double latpos,double longsize,double latsize,int postype) {
-
-	double h1,h2,lattop,latbot,s;
-      
-	lattop=latpos;
-	if (postype==0) {
-		lattop=latpos+latsize*0.5;
-	}
-	if (postype==3 || postype==4) {
-		lattop=latpos+latsize;
-	}
-	if (lattop<0.0) {
-		lattop=-lattop+latsize;
-	}
-
-	latbot = lattop - latsize;
-	h1 = R_EARTH * sin(lattop * PI / 180.0);
-	h2 = R_EARTH * sin(latbot * PI / 180.0);
-	s  = 2.0 * PI * R_EARTH * (h1 - h2); //for this latitude band
-	
-	return s * longsize / 360.0; //for this pixel
-}
+// pixelsize() WAS HERE AND IS DELETED. It computed a gridcell's area in square
+// km from the spherical-segment formula S = 2*pi*r*h, and its r was R_EARTH --
+// Earth's mean radius, 6371.2213 km, from guessmath.h. config/planet.yaml
+// declares this world at 1.20 Earth radii, so a fire model that started
+// reporting area on it would have reported against a planet 44 per cent smaller
+// in surface area, with nothing objecting: the function carried no units check
+// and the error is second order in the radius.
+//
+// It had no callers anywhere in the vendored tree, so nothing computed on it and
+// deleting it changes no number. It is deleted rather than converted because
+// FIRE-6 arms this layer and nothing the port needs calls for it -- FIRE-5's
+// area per fire comes from a spread rate times a duration, not from a cell's
+// size. If a gridcell area is wanted later it reaches this model the way every
+// other planet constant does, through the header build_vesper_header.py
+// generates, and lib/nc_geometry.py owns the one expression turning
+// config/planet.yaml's radius into metres.
+//
+// This was the only consumer of R_EARTH in the tree, and that constant goes with
+// it. world-pqk7, biosphere/notes/fire-model-audit.md finding 6.
 
 /* Get combustion rates
  * Compute the relative flux rates [frac.] between live vegetation, litter pools and
@@ -221,10 +216,37 @@ double available_fuel (Patch& patch,int fli_index, double k_tun_litter)  {
  */
 void get_fireline_intensity(Patch& patch, Climate& climate) {
 	
-	// Energy contents of fuel [MJ/kg] (Liedloff, 2007)
+	// Energy contents of fuel [MJ/kg]. Liedloff and Cook (2007) section 2.8
+	// states it as an ASSUMPTION rather than a measurement -- "the heat yield of
+	// the fuel (H: assumed to be 20 MJ kg-1)" -- so the chain terminates there.
+	// Bracketed at [16, 22] as fireline_intensity_heat_yield in
+	// biosphere/config/fire_parameters.yaml, on the enthalpy of combustion of
+	// dry plant tissue rather than on that paper.
 	const double HEAT_YIELD = 20.;
-	// Empirical value
-	const double A = 3.3333e-05;
+
+	// NOT AN EMPIRICAL VALUE. This is Noble, Gill and Bary (1980)'s Mark 5
+	// forest rate of spread, R = 0.0012*F*W, converted into the units this
+	// function works in. Their Table 1 fixes those: R in km/h, W in tonnes/ha,
+	// F dimensionless. Here fuel is g/m2 and the rate is m/s, and 1 t/ha is
+	// 100 g/m2 while 1 km/h is 1/3.6 m/s, so the coefficient is
+	// 0.0012 / 100 / 3.6 = 3.333333e-06.
+	//
+	// It was declared as 3.3333e-05 under the comment "Empirical value", which
+	// is Noble's conversion with a lost decimal: 1.2/3.6 is 0.33333, and
+	// 0.33333e-5 written as 3.3333e-05 drops a decade. The mantissa agreeing to
+	// five digits is what identifies it as a slip rather than a different
+	// calibration. At F = 20 with 2000 g/m2 of fuel it gave 53 333 kW/m against
+	// Noble's 5333, which is 7.6 times above the top fire-line-intensity class,
+	// so every such fire took the maximum combustion column and the maximum
+	// mortality. world-c15e, biosphere/notes/fire-model-audit.md finding 10.
+	//
+	// Written as the conversion rather than as a corrected constant so the
+	// derivation is on the line. biosphere/scripts/fire_parameter_gate.py
+	// evaluates the same expression and refuses if the two disagree.
+	const double NOBLE_ROS_KMH_PER_TONNE_HA = 0.0012;   // Noble et al. (1980), Mark 5 forest
+	const double G_M2_PER_TONNE_HA          = 100.0;    // 1 t/ha = 100 g/m2
+	const double KMH_PER_M_S                = 3.6;      // 1 m/s  = 3.6 km/h
+	const double A = NOBLE_ROS_KMH_PER_TONNE_HA / G_M2_PER_TONNE_HA / KMH_PER_M_S;
 	// Readily available fuel  [g/m2]
 	double avail_fuel;                      
 	// Rate of spread          [m/s]
@@ -513,12 +535,37 @@ bool blaze(Patch& patch, Climate& climate) {
 		return false;
 	}
 	
-	// Flag patch as burned for rest of the year
-	patch.burned = true;
-	
 	// Get relative fluxes between pools
 	int fli_index = get_fire_line_intensity_index(patch.fire_line_intensity);
-	
+
+	// A NEGATIVE INDEX MEANS NO FIRE, AND IT USED TO REACH THE LOOKUP.
+	// get_fireline_intensity() sets fire_line_intensity to -1 when available
+	// fuel is below MIN_FUEL -- the "not enough fuel to ignite a fire" case --
+	// and get_fire_line_intensity_index() then falls through every branch and
+	// returns -1. Nothing here guarded it: the only two early returns above are
+	// on flammable_area and the stochastic burn draw, and neither consults
+	// fuel, so a patch drawn to burn with too little fuel to carry a fire
+	// reached TURNOVERFRACT[r][-1]. That array is contiguous, so [r][-1] read
+	// [r-1][4] -- the >=7000 kW/m column of the row above, the largest value in
+	// almost every row -- and [0][-1] read outside the array altogether, which
+	// is undefined behaviour rather than merely a wrong number. The effect ran
+	// the wrong way: the patch the fuel test says cannot burn combusted all of
+	// its surface litter and half its leaves.
+	//
+	// Returning false rather than clamping the index is deliberate. -1 is the
+	// signal get_fireline_intensity() already sets to mean "no fire here", so
+	// the repair is to honour it, not to substitute the lowest intensity class
+	// and burn the patch a little. world-voxz,
+	// biosphere/notes/fire-model-audit.md finding 11.
+	if (fli_index < 0) {
+		return false;
+	}
+
+	// Flag patch as burned for rest of the year. Set AFTER the fuel test, not
+	// before it: the flag is read for the rest of the year, so a patch that
+	// turns out to have no fire must never carry it even briefly.
+	patch.burned = true;
+
 	// Adjustment factor for fluxes
 	double fab = 1.0;
 	if ( vegmode == POPULATION ) {
@@ -1066,9 +1113,32 @@ void blaze_accounting_gridcell(Climate& climate) {
 		}
 	}
 	else {
+		// THE RAINFALL TERM IS A SITE CLIMATOLOGY IN INCHES PER EARTH YEAR.
+		// Keetch and Byram (1968) use the site's MEAN ANNUAL RAINFALL as the
+		// parameter setting how fast that site dries, and -.0441 was fitted
+		// with it in inches per 365-day year. climate.rainfall_annual_avg is a
+		// running mean of the model's own annual total, and this model's year
+		// is 183 absolute days, so feeding it in directly describes every site
+		// as receiving about half the rain it does.
+		//
+		// Because the term is exponential the resulting bias DEPENDS ON THE
+		// CLIMATE rather than scaling the field -- 0.69 of the intended drought
+		// accumulation at an Earth-equivalent 500 mm/yr, 0.53 at 1000 and 0.46
+		// at 1500 -- so it compresses the range of simulated fire weather and
+		// moves its spatial pattern. It also runs opposite to the guess: a
+		// shorter year makes the world read as wetter and burn less.
+		//
+		// DECIDED: the argument is a climatology and not an integration, so the
+		// model-year total is re-expressed per Earth year rather than the
+		// coefficient being rescaled. Rescaling -.0441 would repair the unit of
+		// one number inside a fitted index and leave the index reading a
+		// quantity it was not fitted on. world-4iyz,
+		// biosphere/notes/fire-model-audit.md finding 12.
+		const double rainfall_per_earth_year =
+			climate.rainfall_annual_avg / VESPER_EARTH_YEARS_PER_ORBIT;
 		dkbdi = (( 800. - climate.kbdi) * (.968 * exp(.0486 * (t * 9./5. + 32.)) 
 			 - 8.3) / 1000. / (1. + 10.88 * exp(-.0441 * 
-			 climate.rainfall_annual_avg/25.4)) * .254);
+			 rainfall_per_earth_year/25.4)) * .254);
 	}
 	climate.kbdi = max(0.0,climate.kbdi + dkbdi);
 
@@ -1113,12 +1183,27 @@ void blaze_accounting_gridcell(Climate& climate) {
 			+ climate.rainfall_cur ) / weighting;
 		climate.rainfall_cur   = 0.0;
 
-		// Assumimng no leap_years, shift ffdi by 25 days to keep order 
-		// for next year.
-
+		// Rotate the fire-danger ring buffer so the new year's first days do
+		// not land on slots still holding the old year's, out of order. The
+		// buffer is written at date.day % AVERAGING_FFDI, so the shift is the
+		// year's remainder modulo the window.
+		//
+		// This read `365 % AVERAGING_FFDI`, giving 25, on a model whose year is
+		// 183 absolute days -- VESPER_YEAR_LENGTH_DAYS, which date.year_length()
+		// returns. The right shift here is 30 - (183 % 30) = 27, so the rotation
+		// was off by two slots at every year boundary. Taken from
+		// date.year_length() rather than corrected to 27, so the buffer tracks
+		// the declared year instead of carrying a second hardcoded one.
+		// world-4iyz, biosphere/notes/fire-model-audit.md finding 12.
+		//
+		// The WINDOW is a separate question and is deliberately not touched.
+		// This model's months are 15 days, so a "monthly" maximum taken over 30
+		// spans two of them. Whether the window is an absolute-time memory of
+		// drying, in which case 30 carries, or a fraction of the seasonal cycle,
+		// in which case it does not, is FIRE-6's decision.
 		const int AVERAGING_FFDI = 30;
 		double tmp[AVERAGING_FFDI];
-		int avg_shift = AVERAGING_FFDI - (365 % AVERAGING_FFDI);
+		int avg_shift = AVERAGING_FFDI - (date.year_length() % AVERAGING_FFDI);
 		
 		for (int i = 0; i < AVERAGING_FFDI; i++) {
 			int idx = (i + avg_shift) % AVERAGING_FFDI;

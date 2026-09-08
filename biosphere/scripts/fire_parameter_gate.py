@@ -55,6 +55,10 @@ It can fail:
                 every run by design: blaze.cpp's rate-of-spread coefficient is
                 Noble (1980)'s conversion with a lost decimal, and the finding
                 is meant to report until the source is repaired
+  absence       a constant declared DELETED that the source carries again, or
+                one claiming both `literal` and `absent_from_source`. Comments
+                are stripped first, so the comment left at the deletion site
+                naming the constant does not fire it
   unresolved    an entry that names a source as not held while that source is
                 in fact in `references/pdf/`. A bracket standing on "the paper
                 was not read" is void the moment the paper arrives
@@ -301,6 +305,10 @@ def check_loops(params: dict, statuses: dict[str, str]) -> list[dict]:
         return bad
     for name, entry in params.items():
         if not isinstance(entry, dict) or entry.get("route") != "none":
+            continue
+        if entry.get("absent_from_source"):
+            # Deleted, not waiting. `check_absences` holds it to still being
+            # gone, which is a stronger statement than naming an open row.
             continue
         row = entry.get("consumed_by")
         status = statuses.get(row)
@@ -569,6 +577,50 @@ def declared_disagreements(params: dict) -> list[dict]:
     return out
 
 
+def check_absences(params: dict, root: Path) -> list[dict]:
+    """A constant declared DELETED is still absent from the code.
+
+    The shape `fire_gate.py` already uses for a deleted line. An entry whose
+    constant was removed from the source keeps its row -- a register that
+    forgets a deleted constant cannot notice it coming back -- and
+    `absent_from_source` is what turns that row into a check instead of a
+    memorial. Comments are stripped first, because the deletion leaves a comment
+    NAMING the constant at the site, and a search that matched it would fire on
+    the record of the repair rather than on the repair being undone.
+    """
+    bad = []
+    for name, entry in params.items():
+        if not isinstance(entry, dict):
+            continue
+        token = entry.get("absent_from_source")
+        if not token:
+            continue
+        where = entry.get("source_file")
+        if not where:
+            bad.append(_finding("absence", name,
+                                "declares `absent_from_source` and names no "
+                                "`source_file` to check it against"))
+            continue
+        path = root / where
+        if not path.is_file():
+            bad.append(_finding("absence", name, f"{where} is not a file"))
+            continue
+        code = _strip_c_comments(path.read_text(encoding="utf-8",
+                                                errors="replace"))
+        if re.search(rf"\b{re.escape(str(token))}\b", code):
+            bad.append(_finding(
+                "absence", name,
+                f"is declared deleted and {where} carries {token!r} in code "
+                f"again. The repair has been undone and the register still "
+                f"says it stands."))
+        if entry.get("literal"):
+            bad.append(_finding(
+                "absence", name,
+                "declares both `literal` and `absent_from_source`, which are "
+                "opposite claims about the same source"))
+    return bad
+
+
 # Entries the anchor, ordering and partition checks are ABOUT. Those three ask
 # whether a named constant is still right, which is a different question from
 # whether it is still there, and a check that answered both would report a
@@ -614,6 +666,7 @@ def check(declaration: dict, root: Path, planet: dict,
     findings.extend(check_ordering(params))
     findings.extend(check_partition(params, root))
     findings.extend(check_derivations(params, root))
+    findings.extend(check_absences(params, root))
     findings.extend(check_unresolved(params, pdf_dir))
     if complete:
         findings.extend(check_completeness(params))
@@ -702,6 +755,15 @@ def _fixtures(root: Path) -> list[dict]:
               "implemented_value": 3.3333e-05, "route": "compiled_literal",
               "source_file": "vendor/lpj-guess/modules/blaze.cpp",
               "literal": "A = 3.3333e-05"}), "derivation")
+    case("a constant declared deleted that the source carries again",
+         one({"absent_from_source": "MIN_FUEL",
+              "source_file": "vendor/lpj-guess/modules/blaze.cpp",
+              "route": "none"}), "absence")
+    case("an entry claiming both a literal and an absence",
+         one({"absent_from_source": "NOT_IN_THE_SOURCE_AT_ALL",
+              "literal": "HEAT_YIELD = 20.",
+              "source_file": "vendor/lpj-guess/modules/blaze.cpp",
+              "route": "compiled_literal"}), "absence")
     case("a register missing an entry another check is about",
          check({"parameters": {"probe": dict(ok)}}, root, planet, statuses,
                REFERENCE_PDFS, complete=True), "missing")

@@ -1433,6 +1433,38 @@ void fire(Patch& patch,double& fireprob) {
 	if (fireprob>1.0)
 		fail("fire: probability of fire >1.0");
 
+	// THE CURVE'S OUTPUT IS A FRACTION PER EARTH YEAR AND THIS MODEL'S YEAR IS
+	// 183 ABSOLUTE DAYS. Thonicke et al. (2001) fitted Eqn 9's four
+	// coefficients against observed ANNUAL area burnt on a world whose year is
+	// 365 days, so the fraction it returns is per Earth year.
+	//
+	// The argument going in needs no conversion and that is what makes this
+	// easy to miss: n is the summed daily fire probability over the year, so s
+	// is the annual MEAN DAILY probability. Holding the daily fire weather
+	// fixed, n scales with the year's length and s does not, so s over 183 days
+	// is the same physical quantity Thonicke computed over 365. Only the output
+	// carries a year.
+	//
+	// It is consumed as a per-simulation-year rate: mortality_guess draws
+	// randfrac(...) < fireprob once per simulation year, and both mortality
+	// functions set mort_fire = fireprob*(1-fireresist) per simulation year.
+	// Nothing downstream divides by a year length. Left unconverted it delivers
+	// a whole Earth year of burning every 183 days, 365.2569/183 = 1.9959 times
+	// the burned area per unit absolute time.
+	//
+	// This is the ABSOLUTE-RATE class of
+	// biosphere/notes/time-base-unit-contract.md, whose registry deliberately
+	// excludes fire rates and hands them to the fire review. KMORTGREFF above
+	// is converted by this same rule, and distinterval, read below, reaches the
+	// model as 199.594 against an Earth calibration of 100. The floor that used
+	// to sit here was deleted on exactly this argument; the curve underneath it
+	// has the same property. world-drim,
+	// biosphere/notes/fire-model-audit.md finding 13.
+	//
+	// Thonicke's four coefficients are NOT rescaled. They are a published fit
+	// with a stated Earth domain and they are not what is wrong.
+	fireprob = 1.0 - pow(1.0 - fireprob, VESPER_EARTH_YEARS_PER_ORBIT);
+
 	// DECLARED DIVERGENCE FROM MAINLINE: globfirm_fireprob_floor, owner
 	// WORLD-V5J1, registered in biosphere/config/fire.yaml. Mainline
 	// LPJ-GUESS 4.1.1 and the vendored CNP fork both floor the curve:
