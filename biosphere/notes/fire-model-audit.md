@@ -570,49 +570,51 @@ of 1000-hour fuels and `blaze.cpp` passes the coarse woody debris POOL, which is
 at most equal to it and usually well above.  The model already computes the
 consumption as `patch.lcwd_to_atm`.  `world-mjb0`.
 
-### 15. The survival curves' citations cover less than the curves do
+### 15. Six survival curves, four sources read, four different verdicts
 
-`blaze.cpp` carries SIX tree-survival curves, each attributed by a comment:
-boreal to Dalziel et al. (2008), temperate needleleaf to Kobziar (2006),
-temperate broadleaf to Hickler et al. (2004), tropical to van Nieustadt (2005),
-savanna to Bond (2008) and savanna resprouters to Cook (2005).  Two of those
-sources are now held and read, and neither attribution holds up in the way a
-reader would assume.
+`blaze.cpp` carries SIX tree-survival curves, each attributed by a comment.
+Four of the cited sources are now held and read.  No two attributions fail the
+same way, and only one of the six is a straight transcription of a published
+relation.
 
-**Kobziar's is transcribed with two unit errors**, which finding 14 carries.
+**Kobziar (2006): transcribed, with two unit errors.**  Finding 14.  Fixed.
 
-**Hickler's is transcribed correctly and covers a third of the function.**  That
-paper's Table 2e gives `psurv = 0.95 - 1/[1 + (D/R)^1.5]` with R = 0.04 for
-species with fire resistance and 0.07 for the rest, and `blaze.cpp` computes
-exactly that, both values right and D in metres.  But Hickler's psurv is the
-probability of surviving A SURFACE FIRE and carries no intensity term: that
-model is binary, a crown fire kills every tree in the patch and a surface fire
-draws from psurv(D, R).  Searching the paper for fireline, intensity, kW, 3000
-and 7000 returns nothing.
+**Hickler et al. (2004): transcribed correctly, cited for three times what it
+supports.**  Its `psurv = 0.95 - 1/[1 + (D/R)^1.5]` and both R values are right.
+But that psurv is for A SURFACE FIRE and the paper carries no intensity term at
+all -- no fireline, no kW, no 3000, no 7000 -- so the 3000 kW/m anchor, the
+0.001 floor above 7000, the ramp between and the exponential below are
+`blaze.cpp`'s own, attributed to a paper containing none of them.  `world-8jn6`.
 
-Everything in `blaze.cpp` that responds to fire intensity is therefore its own
-construction, attributed to a paper containing none of it: the reading of
-Hickler's psurv as survival AT 3000 kW/m, the 0.001 floor above 7000, the linear
-ramp between them and the exponential below.  The anchor is the weakest part --
-3000 kW/m sits in this file's own second-highest intensity class, above the
-usual crown-fire transition, so a surface-fire probability is being evaluated at
-an intensity at which Hickler's model would have killed the patch outright.
-`world-8jn6`.
+**Dalziel and Perera (2009): an approximation, loosely cited.**  That paper fits
+a generalized linear mixed model with a logit link, `logit(survival) = 0.2918 -
+0.0024*I` plus three community-structure principal components and their
+interactions with intensity.  `blaze.cpp` runs `exp(-I/500)`: a different
+functional form, with the community-structure interaction the paper exists to
+demonstrate dropped entirely, and 500 taken from that paper's Canadian FBP
+surface-fire intensity CLASS rather than from any fitted scale.  It nonetheless
+tracks the paper's marginal response at mean community structure within a factor
+of 1.3 to 1.8 from 0 to 2000 kW/m, so it is defensible and under-cited rather
+than wrong.  Its citation also carries the wrong year: the paper is 2009.
+
+**van Nieuwstadt and Sheil (2005) and Bond (2008): undocumented fits.**  Neither
+paper contains the equation attributed to it.  van Nieuwstadt reports fire
+mortality by 10-cm diameter class and not `1 - max(0.82 - 0.035*D^0.7, 0)`; Bond
+gives a figure of topkill against height and intensity, with escape height "2-4 m
+in this example", and not `1 - 1/(1 + exp(1.5*(h - 0.5*I - 1)))`.  Both curves
+are the right shape -- `blaze.cpp`'s savanna escape height spans 1 to 4 m over 0
+to 6 MW/m against Bond's stated 2 to 4 -- so neither is obviously wrong.  What is
+missing is that a FIT happened at all: which data, what was minimised, what
+residual it left.  A comment that reads as a citation to an equation, for a paper
+with no equation in it, is how a fitted coefficient passes for a sourced one.
+`world-g2e0`.
 
 **Three unreachable resprouter paths, which are one omission.**
 `TURNOVERFRACT`'s sprouter column cannot be selected (finding 11),
 `survival_probability_sprouter_savanna()` has no callers, and
 `survival_probability_temp_broadleaf()`'s `is_resprouter` branch is dead because
-both call sites pass 0.  The cause is the same in each: resprouting is a
-per-individual trait, nothing routes it, and the Vesper PFT set declares no such
-trait.  It should be decided once -- routed to all three or deleted from all
-three -- rather than discovered one site at a time.  `world-sgtx`, `world-6kaq`.
-
-**What this says about the four unread sources.**  Of the two read, one was
-wrong and one was attributed past what it supports.  Dalziel and Perera (2009),
-van Nieuwstadt and Sheil (2005), Bond (2008) and Cook et al. (2005) are in
-exactly the state Kobziar was in before it arrived.  The boreal curve is the
-one to read first: it is reachable, it is a bare `exp(-I/500)` with no other
-term to check it against, and its citation carries the wrong year.
+both call sites pass 0.  Same cause each time: resprouting is a per-individual
+trait, nothing routes it, and the Vesper PFT set declares no such trait.  Decide
+it once rather than site by site.  `world-sgtx`, `world-6kaq`.
 
 No LPJ-GUESS or ExoPlaSim run was performed for this audit.
