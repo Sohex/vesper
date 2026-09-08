@@ -55,9 +55,9 @@ from pathlib import Path
 
 import numpy as np
 from netCDF4 import Dataset
-from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS
+import gridding  # noqa: E402  from lib/, via _paths: the one Gaussian quadrature
 
 # The terms that carry a heating applied inside `gridpointd`. 15 and 16 are the
 # moisture counterparts of 11 and 12 rather than second heatings, 17 to 20 are
@@ -120,7 +120,9 @@ def term_energy(run_dir: Path, first: int, last: int) -> dict:
                 raise SystemExit(
                     f"{path} does not carry {missing[0]}; this window was run "
                     "without model.energy_diagnostics")
-            weights = leggauss(len(nc.dimensions["lat"]))[1][::-1]
+            weights = gridding.gaussian_row_weights(
+                np.asarray(nc["lat"][:], dtype=float),
+                what=f"{path}'s latitude axis")
             record = {"orbit": index}
             for name in TERMS + FLUXES:
                 record[name] = global_mean(

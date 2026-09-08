@@ -13,11 +13,11 @@ import sys
 import exoplasim as exo
 from netCDF4 import Dataset
 import numpy as np
-from numpy.polynomial.legendre import leggauss
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
+import gridding  # noqa: E402  from lib/, via _paths: the one Gaussian quadrature
 from paths import rel  # noqa: E402
 from provenance import applied_removals, config_drift  # noqa: E402
 from restart_surface import verify_restart_surface_fields  # noqa: E402
@@ -482,7 +482,9 @@ def global_mean(field: np.ndarray, weights: np.ndarray) -> np.ndarray:
 
 def year_diagnostics(path: Path) -> dict:
     with Dataset(path) as nc:
-        weights = leggauss(len(nc.dimensions["lat"]))[1][::-1]
+        weights = gridding.gaussian_row_weights(
+            np.asarray(nc["lat"][:], dtype=float),
+            what=f"{path}'s latitude axis")
         values = {}
         for name in ["ts", "ntr", "hfns", "sic", "pr"]:
             field = np.asarray(nc[name][:], dtype=float)

@@ -18,7 +18,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import numpy as np
-from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS, INPUTS
 
@@ -58,7 +57,8 @@ def main() -> None:
                 "mrso", "mrro", "evap", "ntr", "hfns", "lsm", "sg",
             ]
         }
-    weights = leggauss(lat.size)[1][::-1]
+    weights = gridding.gaussian_row_weights(lat, what="the smoke run's "
+                                            "latitude axis")
     lsm = data["lsm"][0]
     ocean = 1.0 - lsm
     ocean_area = np.sum(ocean * weights[:, None])

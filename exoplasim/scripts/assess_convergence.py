@@ -42,9 +42,9 @@ import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import numpy as np
 from scipy.optimize import curve_fit
-from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS
+import gridding  # noqa: E402  from lib/, via _paths: the one Gaussian quadrature
 import close_state_energy
 # lib/sea_water.py owns the four numbers salinity reaches the model through.
 import sea_water
@@ -95,7 +95,9 @@ def annual_records(files: list[Path]) -> list[dict]:
     records = []
     for year, path in enumerate(files):
         with Dataset(path) as nc:
-            weights = leggauss(len(nc.dimensions["lat"]))[1][::-1]
+            weights = gridding.gaussian_row_weights(
+                np.asarray(nc["lat"][:], dtype=float),
+                what=f"{path}'s latitude axis")
             record = {"year_index": year}
             # rst and rsut are read for the planetary albedo the radiative
             # damping is evaluated at: the run's own, not a declared one.

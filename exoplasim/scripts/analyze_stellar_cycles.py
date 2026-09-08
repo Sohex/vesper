@@ -10,9 +10,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import numpy as np
-from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS, RUNS
+import gridding  # noqa: E402  from lib/, via _paths: the one Gaussian quadrature
 
 
 OUTDIR = ANALYSIS / "stellar_cycles"
@@ -66,7 +66,8 @@ def load_run(run_dir: Path, fold_on: str | None = None) -> dict:
             if weights is None:
                 lat = np.asarray(nc["lat"][:], dtype=float)
                 lon = np.asarray(nc["lon"][:], dtype=float)
-                weights = leggauss(lat.size)[1][::-1]
+                weights = gridding.gaussian_row_weights(
+                    lat, what=f"{path}'s latitude axis")
             for name in FIELDS:
                 values = np.asarray(nc[name][:], dtype=float)
                 gm = global_mean(values, weights)

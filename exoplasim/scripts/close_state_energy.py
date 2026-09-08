@@ -51,11 +51,11 @@ from pathlib import Path
 
 from netCDF4 import Dataset
 import numpy as np
-from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS  # noqa: F401  (also puts lib/ on sys.path)
 
 import sea_water  # noqa: E402  from lib/, via _paths
+import gridding  # noqa: E402  from lib/, via _paths: the one Gaussian quadrature
 
 # PlaSim's own constants, from plasim/src. They are properties of the compiled
 # model, not of this planet, so they are read from the source of truth that
@@ -327,7 +327,9 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
     per_orbit: list[dict[str, float]] = []
     for index, path in annual_files(run_dir, first, last):
         with Dataset(path) as nc:
-            weights = leggauss(len(nc.dimensions["lat"]))[1][::-1]
+            weights = gridding.gaussian_row_weights(
+                np.asarray(nc["lat"][:], dtype=float),
+                what=f"{path}'s latitude axis")
             record = {"orbit": index}
             content = heat_content(nc, gravity, acpd,
                                    water["CRHOS"], water["CPS"],
