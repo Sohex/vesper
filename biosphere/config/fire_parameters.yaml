@@ -813,6 +813,57 @@ parameters:
       entry buys is that a reader arming BLAZE meets the finding at the
       parameter rather than in a paper.
 
+  tree_survival_parameterisation:
+    seam: effects
+    what: >
+      WHICH survival curve a burning tree is judged by, as distinct from the
+      coefficients inside any one of them. Four Earth region-specific
+      parameterisations selected by absolute latitude and by the SIMFIRE biome
+      label. Registered because a coefficient's disposition means nothing while
+      the curve it belongs to is chosen by where the gridcell is.
+    unit: dimensionless
+    central: null
+    disposition: irreducible
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "if ( fabs(lat) < 50.)"
+    row: bio-29
+    consumed_by: fire-6
+    source: >
+      blaze.cpp's survival_probability_indiv(). Four curves: Dalziel et al.
+      (2008) for boreal, Kobziar (2006) for temperate needleleaf, Hickler et
+      al. (2004) for temperate broadleaf, and Cook (2005) for savanna
+      resprouters. In the COHORT branch this project runs, a needleleaf
+      individual takes the temperate curve at absolute latitude below 50 and
+      the boreal one at or above it, and a broadleaf individual takes the
+      tropical curve between 30 south and 30 north and the temperate one
+      outside that, after a first split on `gridcell.simfire_biome`.
+    why_this_disposition: >
+      `central` is null because the defect is not a NUMBER: it is that a
+      simulated tree's chance of surviving a fire is decided by its latitude
+      rather than by anything it has. This world's obliquity is 32 degrees and
+      its orbit is 183 days, so the climate bands those thresholds stand in for
+      do not sit where they sit on Earth, and a needleleaf individual at 50
+      degrees here is not the boreal tree the curve was fitted to. The model
+      already carries the traits the choice should turn on -- the curves
+      themselves read diameter at breast height, height and coarse woody debris
+      -- so the latitude branch is standing in for a thermal regime the model
+      can measure directly.
+      It is also entangled: the broadleaf branch reads `simfire_biome`, which
+      only SIMFIRE's accounting writes, so this selection is one of the two
+      things tying BLAZE to the archive that fire-4 removes.
+    fallback_is_silent: >
+      An unrecognised biome takes the else branch, prints "Biome %d not found
+      in BLAZE" with dprintf and returns survival probability 1.0 -- no tree
+      dies. A diagnostic on stdout is not a refusal, and the failure it reports
+      is a fire that burns and kills nothing.
+    do_not: >
+      Do not replace the latitude thresholds with different latitude
+      thresholds fitted to this world. bio-29's contract is that latitude is
+      not a regime selector, and a Vesper-tuned band would satisfy the letter
+      of the repair while keeping the thing that is wrong.
+
   survival_probability_boreal_scale:
     seam: effects
     what: >
@@ -837,6 +888,74 @@ parameters:
       upper end is 750 because that is the lowest of the fire-line intensity
       class bounds the same file already uses, so the interval is bounded by a
       number the model states rather than by one chosen here.
+    depends_on: grav-7
+
+  grass_burn_fraction:
+    seam: effects
+    what: >
+      The share of a grass individual's live biomass and fresh litter that
+      burns whenever its patch burns. Not a function of anything: not
+      intensity, not moisture, not the fuel that carried the fire.
+    unit: dimensionless
+    central: 0.75
+    disposition: irreducible
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "MAX_GRASS_BURN = 0.75"
+    consumed_by: fire-6
+    source: >
+      blaze.cpp:83, commented "Grassy vegetation burn-rate for cohort and
+      individual mode", with no citation. Applied at :659 as
+      `reduce_biomass(MAX_GRASS_BURN, MAX_GRASS_BURN)` and at :662-663 to move
+      the same share of annual NPP into the fire carbon flux. A separate
+      uncited 0.5 at :207 counts half a grass individual's current leaf as
+      available fuel.
+    why_this_disposition: >
+      Irreducible and not bracketed, because a sweep would report the
+      sensitivity of a term whose FORM is the defect. Every other combustion
+      fraction in this layer is selected by fire-line intensity through
+      TURNOVERFRACT; this one is a scalar applied to a lifeform, so a
+      low-intensity fire in wet grass removes exactly as much as a crown fire.
+      Bracketing 0.75 would price the number and leave the form.
+      IT REACHES THE VESPER-NATIVE TYPES. VPE and VPP are grass lifeform, so
+      the two plant types this project derived lose three quarters of their
+      live biomass to any BLAZE fire by an uncited Earth constant. world-ykhg
+      records the same inheritance for their fire resistance and moisture of
+      extinction.
+    do_not: >
+      Do not tune this to move a simulated grass cover. It is the single
+      largest lever on what fire does to grassland in this layer and the one
+      with no argument behind it at all.
+
+  woody_structural_fractions:
+    seam: effects
+    what: >
+      The shares of a woody individual's live biomass treated as branch and as
+      bark when its pools are apportioned between combustion and litter.
+    unit: dimensionless
+    central: {branch: 0.05, bark: 0.01}
+    disposition: irreducible
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "F_BRANCH   = 0.05"
+    consumed_by: fire-6
+    source: >
+      blaze.cpp:86-88, commented "fraction of life woody biomass that is
+      branch" and "that is bark", with no citation for either. Used at
+      :136-141 to split wood between the atmosphere, coarse woody debris, fine
+      woody debris and structural litter.
+    why_this_disposition: >
+      Two uncited scalars applied to every woody plant type. Bark fraction in
+      particular is a trait that varies by more than an order of magnitude
+      between Earth's own tree types and is one of the few things a fire
+      survival model genuinely needs, since bark is what insulates the cambium
+      -- `survival_probability_temp_needleleaf` reads diameter at breast height
+      partly as a proxy for it. A single 0.01 for every type on this world is a
+      statement that bark thickness does not vary, which nothing supports.
+      Kept because deleting the split would remove the wood-to-litter routing
+      entirely; registered so it is not mistaken for a measurement.
     depends_on: grav-7
 
   litter_combustion_factors:
