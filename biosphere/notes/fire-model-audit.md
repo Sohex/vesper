@@ -410,6 +410,38 @@ of simulated fire weather and moves its spatial pattern.  It also runs the
 opposite way from the guess, because rainfall enters through a negative
 exponential: a shorter year makes the world read as wetter and burn less.
 
+A SECOND INSTANCE IN THE SAME FILE, and the only literal Earth year left in the
+fire path.  `blaze.cpp:1061` computes the year-end realignment of the 30-day
+fire-danger ring buffer as
+
+```
+int avg_shift = AVERAGING_FFDI - (365 % AVERAGING_FFDI);
+```
+
+which is 25.  The buffer is written at `date.day % 30` and read as a rolling
+maximum, so at a year boundary it has to be rotated by the year's remainder
+modulo 30 or the first month of the new year mixes days from two years in the
+wrong order.  For a 183-day year the shift is `30 - (183 % 30) = 27`, so the
+rotation is off by two slots on every year boundary.  The repair is not 27
+either: it is `date.year_length() % AVERAGING_FFDI`, so the buffer tracks the
+declared year rather than a second hardcoded one.
+
+The 30-day window is a separate question and is left open deliberately.  This
+model's months are 15 days, eleven of them, and one of 18, so a "monthly" fire
+danger maximum taken over 30 days spans two model months.  Whether the window is
+an absolute-time memory of drying, in which case 30 days carries, or a fraction
+of the seasonal cycle, in which case it does not, is a choice FIRE-6 has to make
+rather than one the source settles.
+
+**The fire path's Earth-calendar exposure is now enumerated and this is all of
+it.**  Stripping comments and searching `blaze.cpp`, `simfire.cpp` and
+`vegdynam.cpp` for year and month literals returns exactly: the `365` above; the
+30-day window at `:1026`, `:1029` and `:1059`; three `for (i < 12)` loops over
+the model's own twelve months, which are correct; and the absolute-latitude
+bands of finding 6.  `vegdynam.cpp`'s `fire()` carries no calendar literal at
+all -- its defect is finding 13's, which is a unit on an output rather than a
+number in the source.
+
 This is the same class as the GlobFIRM burn-probability floor of finding 8,
 found the same way, and `biosphere/notes/time-base-unit-contract.md` excludes
 fire rates from its registry and hands them here.  `RAINFALL_AVERAGING_SPAN = 3`
