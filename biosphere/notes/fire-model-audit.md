@@ -309,9 +309,9 @@ burned-area climatology. `simfire_update_pop_density` is called beside the biome
 mapping every year. There is no configuration in which BLAZE runs and this does
 not.
 
-The coupling is load-bearing in the other direction too. `blaze.cpp:1012` selects
+The coupling is load-bearing in the other direction too. `blaze.cpp:1059` selects
 the litter combustion factor `k_tun_litter` on `gridcell.simfire_biome`, and
-`blaze.cpp:403` selects which tree survival parameterisation applies on the same
+`blaze.cpp:425` selects which tree survival parameterisation applies on the same
 field. `simfire_biome` is written only by `simfire_biome_mapping`, which is
 reached only from inside `simfire_accounting_gridcell`. Removing the SIMFIRE path
 without replacing that field leaves both selections reading a member that
@@ -339,12 +339,12 @@ the BIO-29 latitude branch finding 6 already names.
 
 ### 10. BLAZE's rate of spread is Noble's coefficient with a lost decimal
 
-`blaze.cpp:227` declares `A = 3.3333e-05` under the comment `// Empirical
-value`, and uses it at `:247` as `rate_of_spread = A * mcarthur_forest_fire_index
+`blaze.cpp` declared `A = 3.3333e-05` under the comment `// Empirical
+value`, and used it at what is now `:270` as `rate_of_spread = A * mcarthur_forest_fire_index
 * avail_fuel`.  Noble et al. (1980) gives the Mark 5 forest rate of spread as
 `R = 0.0012*F*W`, and its Table 1 fixes the units: R in km/h, W in tonnes/ha, F
 dimensionless.  `blaze.cpp` computes F from Noble's own drought-factor and index
-equations verbatim at `:1076` and `:1081`, so nothing rescales between them.
+equations verbatim at `:1146` and `:1151`, so nothing rescales between them.
 
 In the units `blaze.cpp` uses -- fuel in g/m2, spread in m/s -- Noble's
 coefficient is `0.0012 / 100 / 3.6 = 3.333333e-06`.  The source compiles ten
@@ -407,7 +407,7 @@ table's header comment now says so.  `world-sgtx`.
 
 ### 12. The drought index reads a 183-day rainfall total into an Earth-annual coefficient
 
-`blaze.cpp:1069` is the Keetch-Byram drought index, and its rainfall term is
+`blaze.cpp:1139` is the Keetch-Byram drought index, and its rainfall term is
 `exp(-.0441 * climate.rainfall_annual_avg / 25.4)`.  That running mean is
 accumulated and reset on `date.islastday && date.islastmonth`, so it is a total
 over this model's year of 183 absolute days, while the coefficient was fitted to
@@ -422,7 +422,7 @@ opposite way from the guess, because rainfall enters through a negative
 exponential: a shorter year makes the world read as wetter and burn less.
 
 A SECOND INSTANCE IN THE SAME FILE, and the only literal Earth year left in the
-fire path.  `blaze.cpp:1061` computes the year-end realignment of the 30-day
+fire path.  `blaze.cpp:1206` computes the year-end realignment of the 30-day
 fire-danger ring buffer as
 
 ```
@@ -447,7 +447,7 @@ rather than one the source settles.
 **The fire path's Earth-calendar exposure is now enumerated and this is all of
 it.**  Stripping comments and searching `blaze.cpp`, `simfire.cpp` and
 `vegdynam.cpp` for year and month literals returns exactly: the `365` above; the
-30-day window at `:1026`, `:1029` and `:1059`; three `for (i < 12)` loops over
+30-day window at `:1156`, `:1159` and `:1204`; three `for (i < 12)` loops over
 the model's own twelve months, which are correct; and the absolute-latitude
 bands of finding 6.  `vegdynam.cpp`'s `fire()` carries no calendar literal at
 all -- its defect is finding 13's, which is a unit on an output rather than a
@@ -505,7 +505,7 @@ and `mortality_lpj:873` and `mortality_guess:907` set
 `mort_fire = fireprob*(1-fireresist)` per simulation year.  No downstream
 division by a year length absorbs it.
 
-The same file already applies the conversion elsewhere.  `vegdynam.cpp:1005`
+The same file already applies the conversion elsewhere.  `vegdynam.cpp:1004-1005`
 computes the growth-efficiency mortality as
 `1.0 - pow(1.0 - KMORTGREFF_PER_EARTH_YEAR, VESPER_EARTH_YEARS_PER_ORBIT)`, which
 is the rule `vesper.h` states for an Earth-calibrated fraction per Earth year,

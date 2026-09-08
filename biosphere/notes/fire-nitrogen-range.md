@@ -9,6 +9,16 @@ Earth is named as a distance to report.
 Two questions in one measurement session on one run, and they are in this order
 because the second only matters if the first says fire matters.
 
+**EVERY NUMBER BELOW DESCRIBES THE OPERATOR AS IT RAN, WHICH IS NOT THE OPERATOR
+IN THE TREE NOW.** The run measured here was integrated before `world-drim` was
+repaired, so its `fireprob` is Thonicke Eqn 9's raw output -- a fraction per
+Earth year applied to a 183-day year, which is 1.9959 times the intended burning
+per unit absolute time. The repair converts it and roughly halves it. These
+figures are therefore a dated record of what the unrepaired operator produced,
+and the direction each of them moves under the repair is stated where it
+matters. They are kept rather than discarded because they are what established
+that fire is material at all, and that conclusion survives halving.
+
 FIRE-8 exists because `assess_lpj_run.py` checks that values are finite,
 physical and closing, and asks nothing about whether a flux is ORDINARY. A large
 positive emission is finite, is positive, and CLOSES -- the nitrogen it removes

@@ -242,6 +242,13 @@ mainline_divergences:
         rounding a small number up; it was replacing approximately zero by 1e-3
         across about half the world's simulated land.
 
+        THAT SHARE IS A LOWER BOUND ON THE REPAIRED OPERATOR. It was measured
+        on a run integrated before world-drim, whose repair converts the curve's
+        per-Earth-year output to a per-model-year rate and so roughly halves
+        fireprob. Halving moves more cells below 0.001, not fewer, so a rerun
+        would report a capped share at or above 59.71 per cent. The direction is
+        certain and the amount is not.
+
         What still needs the paired run is what that did to the VEGETATION on
         those cells -- the cohort age structure, standing biomass, `cpool.out`
         and the fire fluxes -- which is what `comparison_arm` specifies and

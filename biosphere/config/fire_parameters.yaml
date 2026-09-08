@@ -481,7 +481,8 @@ parameters:
     source: >
       Thonicke et al. (2001) Eqn 9 returns the ANNUAL fractional area burnt,
       fitted against observed annual area burnt on a world whose year is 365
-      days. vegdynam.cpp:1431 applies it to a year of 183 absolute days.
+      days. vegdynam.cpp:1431 applies it to a year of 183 absolute days, and
+      vegdynam.cpp:1466 now converts the result.
     why_this_disposition: >
       `central` is null because the defect is not a NUMBER: the curve's four
       coefficients are right and stay, and what is wrong is the unit its output
@@ -491,7 +492,7 @@ parameters:
       365-day one. The output is not scale-invariant, and the same fraction
       burned over 183 days instead of 365.2569 is 1.9959 times the burning per
       unit absolute time.
-      The same file already knows the conversion: vegdynam.cpp:1005 applies
+      The same file already knows the conversion: vegdynam.cpp:1004-1005 applies
       1-pow(1-r, VESPER_EARTH_YEARS_PER_ORBIT) to the growth-efficiency
       mortality, and `distinterval` reaches the model as 199.594 against an
       Earth calibration of 100. The comment at :1459, written for the deleted
@@ -560,7 +561,7 @@ parameters:
     source: >
       Noble, Gill and Bary (1980), Australian Journal of Ecology 5:201-203, the
       Mark 5 forest meter: R = 0.0012*F*W. Its Table 1 gives R in km/h, W in
-      tonnes/ha and F dimensionless. blaze.cpp:1076 and :1081 compute F by
+      tonnes/ha and F dimensionless. blaze.cpp:1146 and :1151 compute F by
       Noble's own drought-factor and fire-danger equations verbatim, so F is on
       Noble's scale and nothing rescales between them.
     why_this_disposition: >
@@ -610,7 +611,7 @@ parameters:
     row: world-4iyz
     consumed_by: fire-6
     source: >
-      Keetch and Byram (1968), implemented at blaze.cpp:1061-1073. The block
+      Keetch and Byram (1968), implemented at blaze.cpp:1122-1140. The block
       is imperial throughout -- t*9./5.+32. converts to Fahrenheit, /25.4 to
       inches and *.254 back to millimetres -- and the ceiling of 800 is 800
       hundredths of an inch, which is 203.2 mm of soil moisture deficit.
@@ -651,7 +652,7 @@ parameters:
     row: world-4iyz
     consumed_by: fire-6
     source: >
-      blaze.cpp:77, uncited, used at :1105-1109 as a weighting on a running
+      blaze.cpp:92, uncited, used at :1175-1179 as a weighting on a running
       mean and compared against date.year, so it counts MODEL years.
     why_this_disposition: >
       Three model years is 1.5 Earth years of absolute time, and the question
@@ -691,7 +692,7 @@ parameters:
       whenever the drought factor exceeds it. Sirakoff's worked example: the
       unlimited Noble equations give D = 12.1 where the meter gives D = 10.
     why_this_disposition: >
-      IT IS ALREADY RIGHT, and that is the entry. blaze.cpp:1078 applies
+      IT IS ALREADY RIGHT, and that is the entry. blaze.cpp:1148 applies
       max(0.0, min(10.0, mcarthur_d)) immediately before the index at :1081,
       which is exactly Sirakoff's repair, while the comment above it cites
       only "(Noble, 1980)" -- the paper that lacks the limit. So a reader
@@ -776,8 +777,8 @@ parameters:
     literal: "K_LITTER_BOREAL"
     consumed_by: fire-6
     source: >
-      blaze.cpp:59-66, declared under the comment "Tuning factors for litter
-      ready for combustion" and selected at :1006-1016 under the comment
+      blaze.cpp:74-80, declared under the comment "Tuning factors for litter
+      ready for combustion" and selected at :1048-1062 under the comment
       "Latitude depending tuning values mortality".
     why_this_disposition: >
       THE SOURCE CALLS THEM TUNING FACTORS, so no chain has to be walked to
@@ -811,11 +812,11 @@ parameters:
     row: world-sgtx
     consumed_by: fire-6
     source: >
-      blaze.cpp:41-54, under the header comment
+      blaze.cpp:56-69, under the header comment
       "combustion rates depending on fire-line-intensities [kW/m]
       <750|<3000|<7000| >=7000 (Sprouters|Seeders)". Sixty-five numbers and no
       citation for any of them. The intensity class bounds 750, 3000 and 7000
-      kW/m are at :162-178 and again at :169 and :271.
+      kW/m are at :158-164, and again at :293 and :325.
     why_this_disposition: >
       `central` is null and the disposition is irreducible because there is
       nothing to dispose OF yet: no source is named for any of the sixty-five
@@ -851,8 +852,9 @@ parameters:
     absent_from_source: "R_EARTH"
     consumed_by: fire-6
     source: >
-      guessmath.h:61, commented "mean earth-radius[km]". Used only by
-      blaze.cpp's pixelsize(), at :121-123.
+      guessmath.h:61 declared it, commented "mean earth-radius[km]", and
+      blaze.cpp's pixelsize() was its only consumer. Both are deleted; that
+      line now carries the record of the deletion.
     why_this_disposition: >
       DEAD TODAY AND LIVE ON ACTIVATION, which is the only reason it is in a
       register rather than in an audit. pixelsize() has no callers anywhere in
@@ -933,7 +935,7 @@ parameters:
       LPJ-GUESS carries every pool as carbon -- guess.h documents cmass
       throughout as kgC/m2 -- and blaze.cpp's available_fuel() sums cmass
       members directly. Noble (1980) Table 1 defines W as "Fuel weight,
-      tonnes ha-1"; Byram (1959), which blaze.cpp:249 cites through Pyne
+      tonnes ha-1"; Byram (1959), which blaze.cpp:272 cites through Pyne
       (1996), takes w as the fuel mass consumed. No carbon-to-dry-matter
       factor exists anywhere in the fire path: blaze.cpp, vegdynam.cpp and
       guess.h were searched and the ratio is silently 1.
