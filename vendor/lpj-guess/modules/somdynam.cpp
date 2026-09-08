@@ -2046,6 +2046,25 @@ void leaching(Soil& soil) {
 		double OMLECH_1 = 0.03;
 		double OMLECH_2 = 0.12;
 		double OMLECH_3 = 1.9;	// saturation point in leaching equation (cm H2O/month)
+
+		// THE 365 HERE IS CORRECT AND MUST NOT BE CONVERTED TO THIS MODEL'S
+		// YEAR. It looks exactly like the implicit-Earth defects
+		// biosphere/notes/time-base-unit-contract.md exists to catch, and it is
+		// the opposite case.
+		//
+		// OMLECH_3 is a threshold on a WATER FLUX IN ABSOLUTE TIME: 1.9 cm of
+		// water per month, where Parton's month is an Earth month of 365/12 =
+		// 30.44 absolute days. soil.dperc is mm per model day and the model day
+		// is 24 h of absolute time (VESPER_YEAR_LENGTH_DAYS in
+		// framework/vesper.h), so converting the threshold into dperc's units
+		// means dividing by the number of absolute days in the month PARTON
+		// MEANT, which is Earth's.
+		//
+		// 1.9 * 10 * 12/365 = 0.6247 mm/day, which is 19 mm over 30.44 days.
+		// Substituting this model's 183-day year would give 1.2459 mm/day and
+		// double the saturation threshold for a quantity that has nothing to do
+		// with how long this world's year is. A per-year RATE converts; an
+		// absolute-time flux expressed per Earth month does not.
 		double cmpermonth_to_mmperday = 10.0 * 12.0 / 365.0;
 
 		soil.orgleachfrac = min(1.0, soil.dperc / (OMLECH_3 * cmpermonth_to_mmperday)) * (OMLECH_1 + OMLECH_2 * soil.soiltype.sand_frac);

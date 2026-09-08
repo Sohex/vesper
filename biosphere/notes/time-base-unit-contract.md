@@ -101,7 +101,56 @@ under EFOR-1 through EFOR-8 is V6 or later.
 Every non-fire quantity in the vendored source that carries a year. "Read at" is
 where the value is USED, not where it is declared, because a declaration-only
 reading is what missed `leaflong`. Fire rates are deliberately absent: they belong
-to the dedicated review in `biosphere/notes/fire-model-audit.md`.
+to the dedicated review in `biosphere/notes/fire-model-audit.md`, which has now
+covered them -- see "What the fire review returned" below.
+
+## What the fire review returned
+
+The exclusion above cost one defect, in the operator this project runs. The
+review's findings are in `biosphere/notes/fire-model-audit.md` sections 8 and
+10 through 13; what belongs here is the class and the sweep.
+
+**The defect.** GlobFIRM's `fireprob` is Thonicke Eqn 9's output, a burned
+fraction per EARTH year, and `vegdynam.cpp` applied it to a year of 183 absolute
+days -- 1.9959 times the burning per unit absolute time. It is the ABSOLUTE-RATE
+class and it is now converted by this contract's own rule,
+`1 - pow(1 - r, VESPER_EARTH_YEARS_PER_ORBIT)`. What made it hard to see is that
+the ARGUMENT needs no conversion: `s = n/year_length()` is a mean daily
+probability and is scale-invariant, so only the output carries a year. The
+burn-probability floor that used to sit two lines below it was diagnosed and
+deleted on this identical argument without anyone turning it on the mechanism
+underneath. `world-drim`.
+
+**The sweep, and it is complete for the C++.** Fourteen sites in the vendored
+source apply an orbit or Earth-year conversion, in `vegdynam.cpp`, `somdynam.cpp`,
+`vesperinput.cpp`, `blaze.cpp` and `guess.h`. Searching the modules and framework
+for year and month literals outside those returns three things and no fourth:
+
+- `blaze.cpp`'s fire-danger ring-buffer realignment, which read `365 %
+  AVERAGING_FFDI` and now reads `date.year_length() % AVERAGING_FFDI`
+  (`world-4iyz`);
+- `demoinput.cpp`'s `ndep / 2.0 / 365.0`, which is the stock DEMO input module
+  and is not the one this project runs -- `vesperinput.cpp` carries the
+  converted form. Dead for a Vesper run and reachable only by selecting a
+  different input module, whose data files this world does not have;
+- `somdynam.cpp`'s `cmpermonth_to_mmperday = 10.0 * 12.0 / 365.0`, which is
+  CORRECT and is the case worth naming.
+
+**A literal 365 is not automatically a defect, and one of them is load-bearing.**
+`OMLECH_3` is a threshold on a water flux in ABSOLUTE TIME -- 1.9 cm per Earth
+month of 30.44 absolute days -- and `soil.dperc` is mm per model day, which is 24
+h of absolute time. Converting the threshold into `dperc`'s units means dividing
+by the number of absolute days in the month Parton meant, which is Earth's.
+Substituting this model's 183-day year would double the saturation threshold for
+a quantity that has nothing to do with how long this world's year is. The line
+now carries that argument, because it looks exactly like the defects this
+contract exists to catch and the next sweep would otherwise break it.
+
+**The rule the two cases together give.** A per-year RATE converts; an
+absolute-time flux expressed per Earth month or per Earth year does not. What
+decides it is whether the year appears because the quantity is integrated over
+the model's own year, or because a published number happened to be reported per
+Earth year. `fireprob` is the first and `OMLECH_3` is the second.
 
 ### Plant traits, from the instruction file
 
