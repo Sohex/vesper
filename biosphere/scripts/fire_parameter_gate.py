@@ -432,11 +432,13 @@ def check_unresolved(params: dict, pdf_dir: Path) -> list[dict]:
     turns "acquire references proactively" into a thing the tree enforces
     rather than a thing a session remembers.
 
-    Matched PER FILE rather than against one joined string, because
-    `references/pdf/` holds nothing but papers and its filenames carry surname
-    and year in the same name. Requiring both in ONE filename is what stops a
-    Thonicke (2001) already on disk from satisfying a note about Noble (1980)
-    just because some other file carries the year.
+    IT MATCHES CITATION PAIRS AND NOT LOOSE TOKENS. The first version took
+    every four-digit year and every word in the note and asked whether any
+    filename held one of each; that fired on a groundwater paper, because a
+    DOI supplied the year `2013` and the phrase "global fire phosphorus flux"
+    supplied `global`. A surname is capitalised and sits within a short reach
+    of a parenthesised year, so the pair is what identifies a citation -- and
+    DOIs are stripped first, because the digits in one are not a year.
     """
     bad = []
     if not pdf_dir.is_dir():
@@ -444,31 +446,43 @@ def check_unresolved(params: dict, pdf_dir: Path) -> list[dict]:
                          "is not a directory, so no unresolved source could "
                          "be checked")]
     names = [p.name.lower() for p in pdf_dir.iterdir() if p.is_file()]
-    # Words that appear in every citation and name nobody.
-    stop = {"not", "and", "the", "for", "held", "references", "pdf", "doi",
-            "which", "reading", "this", "entry", "from", "sourced", "bracket",
-            "stands", "until", "that", "what", "would", "say", "whether",
-            "convert", "moves", "tuned", "them", "with", "alone", "comment",
-            "identified", "single", "number", "has", "stated", "spread", "are"}
+    year_re = re.compile(r"\((1[89]\d\d|20\d\d)\)")
+    surname_re = re.compile(r"[A-Z][a-z]{2,}")
+    # Capitalised words that appear in citations and are never surnames. A
+    # journal name sitting a few words before a parenthesised year is what
+    # otherwise gets tested as an author.
+    NOT_A_SURNAME = {
+        "Reviews", "Review", "Journal", "Research", "Science", "Sciences",
+        "Global", "Biogeochemical", "Cycles", "Canadian", "Forest", "Earth",
+        "Not", "The", "None", "Atmospheric", "Chemistry", "Physics",
+        "Ecology", "Ecological", "Modelling", "Australian", "Nature",
+        "Geophysical", "Biogeosciences", "Held", "Read",
+    }
     for name, entry in params.items():
         if not isinstance(entry, dict) or not entry.get("unresolved"):
             continue
-        text = str(entry["unresolved"]).lower()
-        years = set(re.findall(r"\b(1[89]\d\d|20\d\d)\b", text))
-        words = {w for w in re.findall(r"[a-z][a-z-]{2,}", text)
-                 if w not in stop}
-        if not years or not words:
-            continue
-        for filename in names:
-            if any(y in filename for y in years) and any(
-                    w in filename for w in words):
-                bad.append(_finding(
-                    "unresolved", name,
-                    f"says a source is not held, and references/pdf/ now has "
-                    f"{filename!r}, which names both. The bracket stands on "
-                    f"the source being unreachable, so it is void until the "
-                    f"entry is reread against it"))
-                break
+        text = str(entry["unresolved"])
+        # A DOI's digits are not a publication year, and its path segments are
+        # not surnames. Remove them before looking for citations.
+        text = re.sub(r"\b10\.\d{4,9}/\S+", " ", text)
+        pairs = set()
+        for match in year_re.finditer(text):
+            year = match.group(1)
+            window = text[max(0, match.start() - 80):match.start()]
+            for surname in surname_re.findall(window):
+                if surname not in NOT_A_SURNAME:
+                    pairs.add((surname.lower(), year))
+        for surname, year in sorted(pairs):
+            for filename in names:
+                if surname in filename and year in filename:
+                    bad.append(_finding(
+                        "unresolved", name,
+                        f"says {surname.title()} ({year}) is not held, and "
+                        f"references/pdf/ now has {filename!r}. The "
+                        f"disposition stands on that source being "
+                        f"unreachable, so it is void until the entry is "
+                        f"reread against it"))
+                    break
     return bad
 
 
@@ -748,15 +762,17 @@ def _fixtures(root: Path) -> list[dict]:
     cases = []
 
     def case(label, findings, expected):
-        found = sorted({f["kind"] for f in findings})
-        cases.append({"fixture": label, "expected": expected, "found": found,
-                      "pass": expected in found})
+        """`expected` is a finding kind, or "no findings" for a clean case.
 
-    case("a clean entry reports nothing",
-         one({}), "nothing")
-    cases[-1]["pass"] = cases[-1]["found"] == []
-    cases[-1]["expected"] = "no findings"
-    cases[-1]["found"] = cases[-1]["found"] or ["nothing"]
+        The clean case is the one that keeps the others honest: a checker that
+        fired on everything would pass every positive fixture.
+        """
+        found = sorted({f["kind"] for f in findings})
+        ok = (found == []) if expected == "no findings" else (expected in found)
+        cases.append({"fixture": label, "expected": expected,
+                      "found": found or ["nothing"], "pass": ok})
+
+    case("a clean entry reports nothing", one({}), "no findings")
 
     case("a disposition outside the four",
          one({"disposition": "calibrated"}), "schema")
@@ -816,6 +832,11 @@ def _fixtures(root: Path) -> list[dict]:
          "enforcement")
     case("a fail-closed entry naming no enforcing source",
          one({"fail_closed": "yes"}), "enforcement")
+    case("an unresolved note whose DOI year must not match a stranger",
+         one({"unresolved": "Nonesuch et al. (1899), doi "
+                            "10.1016/j.earscirev.2013.12.007, for the global "
+                            "ash composition. Not held."}),
+         "no findings")
     case("a register missing an entry another check is about",
          check({"parameters": {"probe": dict(ok)}}, root, planet, statuses,
                REFERENCE_PDFS, complete=True), "missing")

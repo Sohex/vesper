@@ -1179,6 +1179,53 @@ parameters:
       limitation updates carbon and nitrogen while leaving the corresponding
       phosphorus in place, which breaks tissue stoichiometry and the C-N-P
       budget silently.
+    what_would_settle_it: >
+      A LITERATURE QUESTION AND NOT A MEASUREMENT THIS PROJECT CAN MAKE. The
+      three sources below are HELD AND READ, and between them they settle the
+      mechanism, the magnitude and the form -- everything except one modelling
+      decision, stated at the end, which is fire-7's.
+    sources_held:
+      mechanism: >
+        Bodi et al. (2014) Earth-Science Reviews 130:103-127, the ash review's
+        element-volatilisation figure, after Raison et al. (1985a): PHOSPHORUS
+        VOLATILISES AT 774 C AND NITROGEN AT 500 C. Sulphur is 575, potassium
+        760, sodium 880, magnesium 1107, calcium 1240. So phosphorus needs a
+        substantially hotter fire than nitrogen to leave as gas, and the
+        volatilised share is a FUNCTION OF FIRE TEMPERATURE rather than a
+        constant. blaze.cpp already computes fire-line intensity and already
+        selects combustion completeness by it, so the model carries the
+        argument such a function would need.
+      magnitude: >
+        Kauffman, Cummings and Ward (1994) Journal of Ecology 82:519-531,
+        Table 4, four Brazilian cerrado communities burned in 1990. Of the
+        phosphorus LOST FROM THE SITE, the share that left as gas rather than
+        as particulates was 67, 45, 34 and 22 per cent along the gradient from
+        open grassland to woodland. The NITROGEN share in the same fires was
+        96, 94, 58 and 32 per cent. Phosphorus is therefore 0.479 to 0.698 of
+        nitrogen's volatilised share fire for fire, mean 0.613 -- which is the
+        774-against-500 mechanism appearing in a field measurement, and is the
+        strongest single result for this entry because it is a PAIRED
+        comparison within one fire rather than two numbers from two studies.
+      global_constraint: >
+        Mahowald et al. (2008) Global Biogeochemical Cycles 22 GB4026, Table 4:
+        biomass burning contributes 0.025 Tg P/yr to the atmosphere against a
+        total atmospheric phosphorus source of 1.39 Tg P/yr, so fire is 1.8 per
+        cent of it where mineral dust is 83 per cent. A distance to report
+        from rather than a target, and the quantity a simulated global fire
+        phosphorus flux would be compared against.
+    what_is_still_undecided: >
+      ONE MAPPING, AND IT IS WHY `central` IS STILL NULL. Kauffman's
+      percentages are of the phosphorus LOST FROM THE SITE -- volatilised plus
+      particulates blown off it -- while this register's quantity is of the
+      phosphorus COMBUSTED, which also includes the ash that stayed on the
+      ground. Combusted is the larger denominator, so KAUFFMAN'S 22 TO 67 PER
+      CENT IS AN UPPER BOUND on what the model needs and not the value itself.
+      Closing the gap needs the retained-ash fraction, which that paper reports
+      for NITROGEN in prose -- 5.5 per cent remained as ash in campo limpo
+      against 53.8 per cent in cerrado sensu stricto -- and not for phosphorus.
+      Choosing how to close it is a decision about model form, fire-7 owns it,
+      and entering a number here taken from the upper bound would be this file
+      making that decision instead.
     fail_closed: >
       This is the register's one FAIL-CLOSED entry, and it is enforced in TWO
       places because a declaration the model does not share is a preference.
