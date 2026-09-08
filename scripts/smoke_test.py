@@ -4858,6 +4858,7 @@ ACCLIMATION = "biosphere/config/respiration_acclimation.yaml"
 NATIVE_PFTS = "biosphere/config/native_pfts.yaml"
 SNOW_THERMAL = "biosphere/config/snow_thermal.yaml"
 WETLANDS = "biosphere/config/wetlands.yaml"
+FIRE_PARAMS = "biosphere/config/fire_parameters.yaml"
 PLANET = "config/planet.yaml"
 PARTIAL_SURFACE = "config/partial_surface.yaml"
 OCEAN_TIER = "exoplasim/config/ocean_tier.yaml"
@@ -5216,6 +5217,58 @@ DECLARED_BRACKETS = (
      ("reopening_contract", "owners", "weathering_and_outgassing_bracket"),
      "an owner row naming the issue that owns the weathering and outgassing "
      "bracket, not the bracket itself"),
+    # The Earth constants the replacement fire model inherits. Every one is a
+    # `value`: the register keys its entries by id in a MAPPING rather than a
+    # list precisely so each bracket has a path this table can dig into, and so
+    # that the central value is checked here rather than by a second
+    # implementation in the component. `fire_parameter_gate.py` is the enforcer
+    # for what this cannot see -- the disposition vocabulary, the restatement
+    # against the compiled source, and the ordering of the two threshold pairs
+    # -- and it deliberately does NOT recheck the arithmetic below.
+    # The disposition VOCABULARY, not a bracket: `dispositions.bracketed` is the
+    # one-line definition of what it means for a constant to be swept, and it
+    # sits beside `sourced`, `derived` and `irreducible`. It carries the word
+    # because the word is what it defines. It is a sentence and is asserted to
+    # be one below rather than two numbers.
+    ("not_a_bracket", "dispositions.bracketed", FIRE_PARAMS,
+     ("parameters",), ("dispositions", "bracketed"),
+     "the definition of the bracketed disposition, not a bracket on a value"),
+    ("value", "parameters.cloud_to_ground_fraction.central", FIRE_PARAMS,
+     ("parameters", "cloud_to_ground_fraction", "central"),
+     ("parameters", "cloud_to_ground_fraction", "bracket"), None),
+    ("value", "parameters.lightning_ignition_efficiency.central", FIRE_PARAMS,
+     ("parameters", "lightning_ignition_efficiency", "central"),
+     ("parameters", "lightning_ignition_efficiency", "bracket"), None),
+    ("value", "parameters.fuel_threshold_lower.central", FIRE_PARAMS,
+     ("parameters", "fuel_threshold_lower", "central"),
+     ("parameters", "fuel_threshold_lower", "bracket"), None),
+    ("value", "parameters.fuel_threshold_upper.central", FIRE_PARAMS,
+     ("parameters", "fuel_threshold_upper", "central"),
+     ("parameters", "fuel_threshold_upper", "bracket"), None),
+    ("value", "parameters.relative_humidity_lower.central", FIRE_PARAMS,
+     ("parameters", "relative_humidity_lower", "central"),
+     ("parameters", "relative_humidity_lower", "bracket"), None),
+    ("value", "parameters.relative_humidity_upper.central", FIRE_PARAMS,
+     ("parameters", "relative_humidity_upper", "central"),
+     ("parameters", "relative_humidity_upper", "bracket"), None),
+    ("value", "parameters.soil_wetness_extinction.central", FIRE_PARAMS,
+     ("parameters", "soil_wetness_extinction", "central"),
+     ("parameters", "soil_wetness_extinction", "bracket"), None),
+    ("value", "parameters.average_fire_duration.central", FIRE_PARAMS,
+     ("parameters", "average_fire_duration", "central"),
+     ("parameters", "average_fire_duration", "bracket"), None),
+    ("value", "parameters.fire_spread_calm_ratio.central", FIRE_PARAMS,
+     ("parameters", "fire_spread_calm_ratio", "central"),
+     ("parameters", "fire_spread_calm_ratio", "bracket"), None),
+    ("value", "parameters.average_fire_size_tree.central", FIRE_PARAMS,
+     ("parameters", "average_fire_size_tree", "central"),
+     ("parameters", "average_fire_size_tree", "bracket"), None),
+    ("value", "parameters.fireline_intensity_heat_yield.central", FIRE_PARAMS,
+     ("parameters", "fireline_intensity_heat_yield", "central"),
+     ("parameters", "fireline_intensity_heat_yield", "bracket"), None),
+    ("value", "parameters.survival_probability_boreal_scale.central", FIRE_PARAMS,
+     ("parameters", "survival_probability_boreal_scale", "central"),
+     ("parameters", "survival_probability_boreal_scale", "bracket"), None),
 )
 
 

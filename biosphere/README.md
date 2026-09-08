@@ -1201,6 +1201,57 @@ python biosphere/scripts/fire_gate.py --strict   # refuses on a divergence
                                                  # whose verdict is `gate`
 ```
 
+### The Earth constants the replacement fire model inherits are registered
+
+`biosphere/config/fire_parameters.yaml` is the second fire declaration and asks
+a different question from the first. `fire.yaml` asks whether this project's
+DIVERGENCES from mainline are still real; this one asks what disposition every
+Earth constant carries that the replacement fire model has not been written
+around yet. `fire_parameter_gate.py` is the enforcement.
+
+It exists because `notes/fire-model-audit.md` finding 2 requires the same thing
+of the port that `fire-5` and `fire-6` both name: every Earth fuel, humidity,
+duration, spread, fire-size, combustion and mortality coefficient exposed as a
+prior or a bracket rather than accepted as a Vesper fact. Writing that down
+before the code that consumes it is deliberate -- a constant is cheapest to
+dispose of while nothing yet reads it -- and CLAUDE.md's disposition space is
+what each entry has to land in: sourced, derived, bracketed with a sweep, or
+irreducible with the argument.
+
+Nineteen constants across the audit's three seams plus the C-N-P destinations
+that cut across them. Ten reach no run yet, which is honest while the model
+they are for does not exist, and the gate is what stops that staying true after
+it does: a `route: none` entry whose `consumed_by` row has CLOSED is a constant
+nothing reads sitting behind a model that was written, and it fails.
+
+Two entries are worth knowing about on their own. `average_fire_duration` is
+the finding that Li et al. (2012)'s one-day fire is anchored to a DIURNAL CYCLE
+rather than to a count, so carrying the numeral across delivers 24 hours where
+the mechanism asks for one rotation; the gate holds its central value to
+`config/planet.yaml` rather than to a literal, so a port that wrote 24 fails
+rather than integrating. `phosphorus_volatilised_fraction` is the register's one
+fail-closed entry and its central value is null: `blaze.cpp` moves carbon and
+nitrogen at combustion and contains no phosphorus transfer at all, so
+`--strict` refuses while `fire-7` is open. A null there is a refusal and never a
+default of zero, because zero is the claim that fire volatilises no phosphorus
+and nobody has made it.
+
+The brackets are checked by `smoke_test.py:DECLARED_BRACKETS` and not by this
+gate, which is why the register keys its entries by id in a mapping rather than
+a list: a bracket inside a LIST contributes no path component to that
+discovery pass and all nineteen would collapse onto one path it could not dig
+into. This gate covers what the tree-wide check cannot see -- the disposition
+vocabulary, the restatement of each value against the compiled source, the
+ordering of the two threshold pairs, the nitrogen partition summing to one, and
+an `unresolved` source that `references/pdf/` now holds.
+
+```bash
+python biosphere/scripts/fire_parameter_gate.py            # status, exit 0
+python biosphere/scripts/fire_parameter_gate.py --strict   # refuses while the
+                                                           # phosphorus fire
+                                                           # partition is undeclared
+```
+
 ## One-off tools
 
 - `scripts/score_prediction.py` -- one-off: scores a productivity prediction against an LPJ-GUESS run, the machinery behind BIO-2's nitrogen bracket. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.

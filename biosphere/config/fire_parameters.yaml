@@ -1,0 +1,704 @@
+# Every Earth-derived constant the replacement fire model needs, with its
+# disposition.
+#
+# Worldbuilding. Vesper is an invented planet and this file is about the fire
+# operator of the vegetation model that simulates it. Nothing here concerns
+# fire on Earth except as a SOURCE DOMAIN to state the distance from.
+#
+# WHAT THIS FILE IS. `biosphere/notes/fire-model-audit.md` finding 2 divides
+# fire into three separable decisions -- how fires start, how starts become
+# burned area, and how burned area changes vegetation and material pools -- and
+# fire-5 and fire-6 both require the same thing of the port: every Earth fuel,
+# humidity, duration, spread, fire-size, combustion and mortality coefficient
+# EXPOSED AS A PRIOR OR A BRACKET rather than accepted as a Vesper fact. This
+# is that exposure, written before the code that consumes it, because a
+# constant is cheapest to dispose of while nothing yet reads it.
+#
+# WHAT THIS FILE IS NOT. It is not `biosphere/config/fire.yaml`, which is a
+# different concern in the same area: that file declares where this project's
+# source DEPARTS from mainline LPJ-GUESS and is keyed on divergences. This file
+# is keyed on CONSTANTS, most of which are mainline behaviour nobody has
+# diverged from yet. A constant that acquires a divergence gets an entry there
+# and keeps its entry here; the two are joined by `id`.
+#
+# NOTHING HERE IS A VESPER CALIBRATION AND NOTHING HERE MAY BECOME ONE. Under
+# CLAUDE.md's "No tuned values" the disposition space is exactly four -- source
+# it, derive it, declare it with a bracket that gets swept, or record it as
+# irreducible with the argument -- and `disposition` on every entry below is
+# one of those four. A value moves when its SOURCE moves. It does not move
+# because a simulated burned area came out high.
+#
+# THE DEFECT CLASSES ARE THE PROJECT'S THREE and are not synonyms. `tuned` is a
+# number that IS the residual of a fit; `opaque` is a derivation that exists
+# somewhere a reader cannot reach; `implicit_earth` is a derivation that is
+# sound and is for the WRONG PLANET. Three defects, three repairs, and
+# implicit-earth is a DIAGNOSIS rather than an endorsement: establishing that a
+# constant is Earth's is what proves it wrong here.
+#
+# HOW A VALUE WILL REACH THE MODEL, which is declared now because the answer
+# shapes what may be written down. LPJ-GUESS compiles its constants in and
+# reads none of this file, so a number here reaches the run by one of two
+# routes and never by a third: through the generated instruction file, which is
+# `biosphere/scripts/build_vesper_pfts.py`'s door for anything per-PFT; or as a
+# literal in the compiled source UNDER A CHECK THAT THE RESTATEMENT AGREES,
+# which is the arrangement `lib/snow.py` already runs for the two material
+# relations of the modelled snow. `route` on each entry says which. A value
+# with neither route is frozen in CLAUDE.md's sense -- written down, re-derived
+# by nothing -- and `route: none` is therefore a defect and not a state.
+#
+# `biosphere/scripts/fire_parameter_gate.py` reads this file. The argument is
+# `biosphere/notes/fire-model-audit.md`; `notes/audits/tuned-values.md` section
+# 18 carries the dormant-knob half and is not restated here.
+
+schema_version: 1
+
+# COVERAGE, stated positively so a reader knows what the absence of an entry
+# means. This register covers the constants of the three source models the
+# audit selected -- GlobFIRM as the operator now live, BLAZE as the retained
+# effects layer, and the Li (2012) and INFERNO occurrence forms the port takes
+# -- PLUS the ignition priors, and only where the value was read in the source
+# or in the paper rather than inferred from a description of it. SPITFIRE's
+# Rothermel/Albini spread block and its four dead-fuel classes are deliberately
+# out of scope: the audit defers that complexity unless the reduced form proves
+# inadequate, and registering constants for a model this project has not chosen
+# would be a list nothing can sweep. `unregistered_by_design` names what was
+# looked at and left out, so an empty space in this file is a decision.
+unregistered_by_design:
+  - what: SPITFIRE fuel-class, Rothermel spread and Albini flame-geometry constants
+    why: >
+      biosphere/notes/fire-model-audit.md finding 2 defers SPITFIRE unless the
+      reduced-complexity form proves inadequate. fire-5 is the row that would
+      reopen it, and reopening it is what puts these here.
+  - what: SIMFIRE's frequency-relation coefficients and its burned-area seasonality
+    why: >
+      fire-4 removes the SIMFIRE path rather than porting it, so its
+      coefficients have no consumer to be a prior for. Finding 1 is the
+      argument: the Earth satellite burned-area climatology and the HYDE
+      population history are inputs this world does not have and must not be
+      given an invented substitute for.
+  - what: anthropogenic ignition and suppression coefficients in every source model
+    why: >
+      Absent for Vesper rather than set to zero. Finding 4. A population term
+      set to zero still carries the Earth calibration around it, which is
+      finding 1's whole point.
+
+# THE FOUR DISPOSITIONS, named here so an entry can be read without CLAUDE.md
+# open. A fifth is not available.
+dispositions:
+  sourced: >
+    A primary source states the value for a domain this world is inside, and
+    the citation reaches a reader.
+  derived: >
+    The value follows from something this project already declares -- the
+    planet, the star, a measured artifact -- by arithmetic written down.
+  bracketed: >
+    The value cannot be pinned, so an interval is declared and SWEPT, and the
+    result is reported as a spread rather than as a number. `bracket` carries
+    the interval and `central` the value inside it that a single run takes.
+  irreducible: >
+    No derivation is reachable and the constant is kept anyway, with the
+    argument for keeping it and for the form of the error it leaves.
+
+defect_classes:
+  tuned: the number IS the residual of a fit
+  opaque: the derivation exists somewhere a reader cannot reach
+  implicit_earth: the derivation is sound and is for the WRONG PLANET
+  none: no defect; the entry records a constant that carries to this world
+
+# THE CONSTANTS, keyed by id rather than listed, because a bracket inside a
+# LIST contributes no path component to `smoke_test.py`'s discovery pass and
+# every entry's bracket would collapse onto one path it could not dig into. A
+# mapping gives each bracket a path, which is what lets the tree-wide check do
+# the arithmetic -- central inside its own interval, ends the right way round --
+# instead of this component reimplementing it.
+#
+# `seam` is the audit's three-way division plus the C-N-P destinations that
+# cut across all of them. `route` is how the value reaches a run:
+#   instruction_file  through biosphere/generated/vesper_pfts.ins
+#   compiled_literal  a literal in the compiled source, under a restatement check
+#   none              nothing reads it; a defect, not a state
+# `source_file` and `literal` are what the gate holds the claim to: a value
+# attributed to a line has to still be on it.
+parameters:
+
+  # ---------------------------------------------------------------- ignition
+  cloud_to_ground_fraction:
+    seam: ignition
+    what: >
+      Share of total lightning flashes that reach the ground. Not a fire start
+      and not a flash rate: audit finding 4 is that all-flash rate,
+      cloud-to-ground flashes and successful starts are three quantities, and
+      collapsing any two of them is how a lightning field becomes an ignition
+      count without an argument.
+    unit: dimensionless
+    central: 0.20
+    bracket: [0.1366, 0.3333]
+    disposition: bracketed
+    defect: implicit_earth
+    route: none
+    consumed_by: fire-3
+    source: >
+      Thonicke et al. (2010) SPITFIRE section 2.2 takes 0.20 from Latham and
+      Williams (2001). The bracket is the SAME QUANTITY from an independent
+      Earth source with a different functional form: Li, Zeng and Levis (2012)
+      Eqn 4 carries Prentice and Mackerras (1977) as
+      psi = 1/(5.16 + 2.16*cos(3*lambda)), whose range over latitude is
+      0.1366 at the equator to 0.3333 at 60 degrees. SPITFIRE's single number
+      sits inside it, which is why the bracket is the two sources and not an
+      invented interval around one of them.
+    why_this_disposition: >
+      Both sources are Earth's atmosphere and Earth's storm electrification,
+      and neither derives the fraction from anything this project can restate
+      for a different planet. The Li form additionally makes the fraction a
+      function of LATITUDE, which under bio-29's latitude-use contract is a
+      regime selector rather than a physical argument, so its curve is used
+      here to bound the number and NOT as a form to port.
+
+  lightning_ignition_efficiency:
+    seam: ignition
+    what: >
+      Share of cloud-to-ground flashes that start a fire, under conditions
+      already favourable for burning. It multiplies the flammability term
+      rather than replacing it.
+    unit: dimensionless
+    central: 0.04
+    bracket: [0.02, 0.10]
+    disposition: bracketed
+    defect: implicit_earth
+    route: none
+    consumed_by: fire-3
+    source: >
+      Thonicke et al. (2010) section 2.2, from Latham and Williams (2001) and
+      Latham and Schlieter (1989): 0.04 under favourable conditions. INFERNO
+      (Mangeon et al. 2016) takes the opposite end of the same question and
+      assumes every ground strike ignites, which is efficiency 1.0 with the
+      wet-lightning filter doing all the work instead.
+    why_this_disposition: >
+      The bracket is a HALF-DECADE either side of the one Earth measurement,
+      declared as a sweep width rather than measured, because no second
+      estimate of this quantity was found and a bracket has to be wide enough
+      to contain the answer rather than tight enough to look settled. The
+      structural alternative -- INFERNO's efficiency of 1 with suppression
+      moved into flammability -- is not inside this bracket and is not meant to
+      be: it is a different MODEL FORM and belongs in fire-9's comparison, not
+      in this interval.
+    control_that_must_fire: >
+      A sweep over this bracket that moves burned area by less than the
+      seed/patch ensemble spread has not tested the parameter, it has tested
+      the instrument. lib/lpj_output.py carries the ensemble uncertainty
+      report the comparison is against.
+
+  # ------------------------------------------------------- occurrence to area
+  fuel_threshold_lower:
+    seam: occurrence_to_area
+    what: >
+      Aboveground fuel below which fire does not occur at all. GlobFIRM, which
+      is the operator this project runs today, uses one threshold for both
+      ends; the reduced-complexity forms separate them.
+    unit: gC m-2
+    central: 200.0
+    bracket: [155.0, 200.0]
+    disposition: bracketed
+    defect: tuned
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/vegdynam.cpp
+    literal: "MINFUEL=0.2"
+    consumed_by: fire-5
+    source: >
+      Thonicke et al. (2001) uses 200 gC/m2 as a single threshold and
+      vegdynam.cpp declares it as MINFUEL=0.2 kgC/m2; blaze.cpp restates the
+      same number as MIN_FUEL=200. Arora and Boer (2005) CTEM-FIRE adopts 200
+      as the lower end, which Li et al. (2012) section 2.1.2 describes as
+      arbitrary. Li's own 155 is the low end of the bracket.
+    why_this_disposition: >
+      Li's 155 is TUNED in the strict sense and the paper says so in its own
+      words: 155 and 1050 "are estimated by maximizing the correlation between
+      observed and simulated fire counts at 24 grid cells in the United
+      States". A number that IS the residual of a fit against 24 Earth cells
+      is not a Vesper fact, and neither is a round 200 that two other models
+      state without arguing for. The bracket spans the disagreement so a sweep
+      reports what the choice is worth instead of one arm inheriting it.
+
+  fuel_threshold_upper:
+    seam: occurrence_to_area
+    what: >
+      Aboveground fuel above which fuel stops constraining occurrence, so that
+      the fuel term saturates instead of growing without limit.
+    unit: gC m-2
+    central: 1050.0
+    bracket: [1000.0, 1050.0]
+    disposition: bracketed
+    defect: tuned
+    route: none
+    consumed_by: fire-5
+    source: >
+      Li et al. (2012) section 2.1.2, Bup = 1050 gC/m2, against Arora and Boer
+      (2005) CTEM-FIRE's 1000. GlobFIRM has no upper threshold: it sets
+      Blow = Bup = 200, which is the structural difference the port introduces
+      rather than a value it changes.
+    why_this_disposition: >
+      The same 24-United-States-gridcell fit as fuel_threshold_lower, against
+      one round number adopted without an argument. The interval is narrow
+      because the two sources nearly agree, and a narrow bracket over two
+      Earth fits is a statement about the SOURCES agreeing and not about this
+      world.
+
+  relative_humidity_lower:
+    seam: occurrence_to_area
+    what: >
+      Relative humidity at or below which humidity stops constraining fire
+      occurrence and spread.
+    unit: per cent
+    central: 30.0
+    bracket: [20.0, 40.0]
+    disposition: bracketed
+    defect: implicit_earth
+    route: none
+    consumed_by: fire-5
+    source: >
+      Li et al. (2012) section 2.1.3, citing Zhou and Lu (2009): fires will not
+      occur or spread at RH at or above 70 per cent, and humidity is no longer
+      a constraint at or below 30 per cent.
+    why_this_disposition: >
+      The pair is an empirical Earth observation about fuel-air moisture
+      exchange at Earth's surface pressure and Earth's atmospheric
+      composition. Vesper's surface pressure is declared in
+      config/planet.yaml and is not Earth's, and relative humidity is a ratio
+      against a saturation vapour pressure that depends on temperature rather
+      than on pressure, so the THRESHOLD does not carry even though the
+      variable does. The bracket is 10 points either side, declared as a sweep
+      width; it is not a measurement.
+
+  relative_humidity_upper:
+    seam: occurrence_to_area
+    what: >
+      Relative humidity at or above which fire neither occurs nor spreads.
+    unit: per cent
+    central: 70.0
+    bracket: [60.0, 80.0]
+    disposition: bracketed
+    defect: implicit_earth
+    route: none
+    consumed_by: fire-5
+    source: >
+      Li et al. (2012) section 2.1.3, citing Zhou and Lu (2009). The companion
+      of relative_humidity_lower and swept with it rather than independently:
+      the two are one observation reported as an interval, and a sweep that
+      crossed them would be reporting a humidity band that runs backwards.
+    why_this_disposition: >
+      As relative_humidity_lower. The ordering constraint is the gate's, not
+      the bracket's: fire_parameter_gate.py refuses a sweep arm where lower
+      exceeds upper.
+
+  soil_wetness_extinction:
+    seam: occurrence_to_area
+    what: >
+      Surface soil wetness, as volumetric moisture relative to saturation, at
+      which the soil-moisture constraint on occurrence is more than 95 per
+      cent complete.
+    unit: dimensionless
+    central: 0.69
+    bracket: [0.50, 0.85]
+    disposition: bracketed
+    defect: tuned
+    route: none
+    consumed_by: fire-5
+    source: >
+      Li et al. (2012) section 2.1.3 and Appendix A: theta_e = 0.69, derived
+      from the MODIS Active Fire Count product over a sample of 37 677
+      gridcell-months.
+    why_this_disposition: >
+      A number read off an Earth satellite fire record against an Earth
+      reanalysis soil moisture. It is a fit residual by construction and there
+      is no second estimate, so the disposition is a declared sweep. The
+      bracket is wide because the quantity is a soil property crossed with a
+      fire-detection threshold, and neither half transports.
+
+  average_fire_duration:
+    seam: occurrence_to_area
+    what: >
+      How long one fire is taken to burn before it stops, which with the
+      spread rate is what sets area per fire. It is the seam's whole
+      time-dependence.
+    unit: hours
+    central: 30.0
+    bracket: [15.0, 60.0]
+    disposition: bracketed
+    defect: implicit_earth
+    route: none
+    consumed_by: fire-5
+    source: >
+      Li et al. (2012) section 2.2.3 takes average fire duration as 1 day, and
+      says why in its own words: there is no global grid data on barriers to
+      fire spread or on suppression, so 1 day is adopted as the value at which
+      Arora and Boer (2005) set extinguishing probability to 0.5, and as the
+      expectation of the stochastic duration in Venevsky et al. (2002).
+    why_this_disposition: >
+      THE EARTH NUMBER IS NOT 1, IT IS 24 HOURS, and that is the whole entry.
+      "One day" is a diurnal cycle, and what makes a fire stop overnight is the
+      return of humidity and the fall of temperature after dark -- so the
+      quantity is anchored to the planet's ROTATION and not to a count.
+      config/planet.yaml declares rotation_hours 30.0, so the constant carried
+      across as a numeral is 24 hours where the mechanism says about 30: a 25
+      per cent error in the duration and, through a spread rate multiplied by
+      it, in area per fire. This is the same class of defect as the GlobFIRM
+      burn-probability floor that biosphere/config/fire.yaml records, found the
+      same way, and it is why `unit` here is HOURS rather than days.
+      `central` is the declared rotation period. Whether that declaration is
+      the SIDEREAL period or the SOLAR day is not settled in the tree -- two
+      consumers read it as each -- and the difference is 0.689 per cent, which
+      is world-8bho's to resolve and is four hundred times smaller than this
+      bracket. The bracket is half to two rotations, which is the spread the
+      Earth sources themselves disagree over, not a confidence interval.
+    control_that_must_fire: >
+      A port that reproduces Li's number rather than Li's mechanism will write
+      24. The gate holds `central` to one solar day computed from
+      config/planet.yaml rather than to a literal, so a planet whose day
+      changes moves the constant and a hardcoded 24 fails.
+
+  fire_spread_calm_ratio:
+    seam: occurrence_to_area
+    what: >
+      Ratio of the fire spread rate in still air to the average maximum spread
+      rate; the g(0) of the wind-dependence function.
+    unit: dimensionless
+    central: 0.1
+    bracket: [0.05, 0.2]
+    disposition: bracketed
+    defect: opaque
+    route: none
+    consumed_by: fire-5
+    source: >
+      Li et al. (2012) section 2.2.2 reports that Arora and Boer (2005)
+      CTEM-FIRE "assumes g(0) = 0.1"; Li then derives g(W) from its own
+      elliptical geometry rather than adopting the assumption.
+    why_this_disposition: >
+      The classification is opaque and not tuned: the derivation is stated to
+      be an assumption in the citing paper and the cited paper was not read
+      here, so what is missing is a reader's ACCESS to the argument rather
+      than the argument's existence. Walking that chain is the repair the
+      opaque class prescribes and it is not walked -- Arora and Boer (2005) is
+      not in references/. The bracket is a factor of two either way and holds
+      only until the source is read.
+    unresolved: >
+      Arora and Boer (2005), doi 10.1029/2005JG000042. Not held in
+      references/pdf/. Reading it is what converts this entry from bracketed
+      to sourced or moves it to tuned.
+
+  average_fire_size_tree:
+    seam: occurrence_to_area
+    what: Fixed average burned area of one fire in tree-dominated vegetation.
+    unit: km2
+    central: 0.6
+    bracket: [0.6, 1.4]
+    disposition: bracketed
+    defect: tuned
+    route: none
+    consumed_by: fire-5
+    source: >
+      Mangeon et al. (2016) INFERNO section 2.1.3: 0.6, 1.4 and 1.2 km2 for
+      trees, grass and shrubs, so that grass and shrubs fuel larger fires than
+      trees.
+    why_this_disposition: >
+      INFERNO fixes fire size per vegetation class instead of deriving it, and
+      its own discussion says global fire size was mostly influenced by
+      precipitation, aridity and human activity -- two of which this world has
+      and one of which it does not. The bracket spans INFERNO's own three
+      classes rather than an invented interval, which is the honest width: the
+      paper demonstrates that the class assignment is worth that much, and a
+      Vesper vegetation class does not map onto an Earth one.
+    superseded_by: >
+      This constant exists only for the arm that does NOT take the Li seam. Li
+      et al. (2012) computes area per fire from spread rate and duration
+      instead of fixing it, and audit finding 2 selects that seam. Kept as the
+      declared alternative for fire-9's model-form comparison, where a fixed
+      fire size is the reduced arm to compare the derived one against.
+
+  # ----------------------------------------------------------------- effects
+  globfirm_burned_fraction_curve:
+    seam: effects
+    what: >
+      The four coefficients of the denominator of Thonicke et al. (2001) Eqn 8,
+      which turns the annual mean daily fire probability into the annual
+      burned fraction. This is the curve the project KEEPS: it is the operator
+      that runs today.
+    unit: dimensionless
+    central: [0.45, 2.83, 2.96, 1.04]
+    disposition: sourced
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/vegdynam.cpp
+    literal: "0.45*sm*sm*sm+2.83*sm*sm+2.96*sm+1.04"
+    consumed_by: fire-5
+    source: >
+      Thonicke, Venevsky, Sitch and Cramer (2001) Eqn 8, fitted by non-linear
+      least-mean-square regression against observed area burnt in Portugal,
+      southern California and Kakadu National Park.
+    why_this_disposition: >
+      A PUBLISHED FIT WITH AN INSPECTABLE DOMAIN IS NOT A TUNING, which is the
+      distinction biosphere/config/fire.yaml already turns on: the provenance
+      reaches a reader, the domain is stated, and the number was not chosen to
+      make this project's output come out anywhere. It is nonetheless
+      implicit-earth, and the diagnosis is not an endorsement -- three Earth
+      fire regimes is the domain, and this world is outside it. The repair is
+      not a different quartic; it is fire-9's model-form comparison, where the
+      distance between this curve and the Li seam is the reported spread.
+    do_not: >
+      Do not refit these four numbers against a Vesper burned area. There is
+      no observed burned area on this world to fit against, so a refit would
+      be a fit to a desired result, which is the definition the no-tuned-values
+      rule exists to refuse.
+
+  fireline_intensity_heat_yield:
+    seam: effects
+    what: Energy released per unit mass of fuel burned.
+    unit: MJ kg-1
+    central: 20.0
+    bracket: [16.0, 22.0]
+    disposition: bracketed
+    defect: none
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "HEAT_YIELD = 20."
+    consumed_by: fire-6
+    source: >
+      blaze.cpp:225 cites Liedloff (2007) for 20 MJ/kg.
+    why_this_disposition: >
+      THIS ONE CARRIES AND THE DEFECT IS none, which is worth saying because
+      most of this file's entries do not. Heat yield is a property of the
+      CHEMISTRY of dried plant tissue -- the enthalpy of combustion of
+      cellulose, lignin and their ash fraction -- and that chemistry is what
+      the biosphere model simulates on this world too. What varies is
+      composition and ash content, not the planet, so the bracket is the
+      ordinary range of dry plant material rather than a statement about
+      Vesper. It is bracketed rather than sourced only because Liedloff (2007)
+      is not held in references/ and the single number has no stated spread.
+    unresolved: >
+      Liedloff (2007). Not in references/pdf/ and not identified to a DOI from
+      the blaze.cpp comment alone. The bracket stands until it is.
+
+  fireline_intensity_spread_coefficient:
+    seam: effects
+    what: >
+      The constant of proportionality turning the McArthur forest fire danger
+      index times available fuel into a rate of spread.
+    unit: m s-1 per index-unit per g m-2
+    central: 3.3333e-05
+    disposition: irreducible
+    defect: opaque
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "A = 3.3333e-05"
+    consumed_by: fire-6
+    source: >
+      blaze.cpp:227, whose entire justification is the comment "Empirical
+      value". The surrounding function cites Noble (1980) derived from
+      McArthur for the formulation.
+    why_this_disposition: >
+      The chain terminates at a comment. 3.3333e-05 is 1/30000 to five digits,
+      which is the shape of a unit conversion someone folded into a
+      coefficient rather than of a fitted residual, but nothing in the source
+      says which and Noble (1980) is not held. It is kept because the
+      alternative is deleting the rate-of-spread term entirely, and recorded
+      here with the form of the error it leaves: the coefficient multiplies an
+      index whose own domain is the defect below, so its magnitude is not
+      separately interpretable and a bracket on it would be a bracket on
+      nothing.
+    unresolved: >
+      Noble, Bary and Gill (1980), the McArthur equations. Not in
+      references/pdf/. It is what would say whether 1/30000 is a conversion.
+
+  mcarthur_index_domain:
+    seam: effects
+    what: >
+      Not a constant but the DOMAIN of the index every BLAZE spread rate is
+      proportional to, registered here because a coefficient's disposition is
+      meaningless while the quantity it scales is out of domain.
+    unit: dimensionless
+    central: null
+    disposition: irreducible
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "climate.mcarthur_forest_fire_index"
+    consumed_by: fire-6
+    source: >
+      The McArthur Forest Fire Danger Index was constructed for Australian
+      eucalypt forest. Mangeon et al. (2016) section 4 evaluates it against
+      three other fire indices inside a global Earth model and reports that it
+      "performs poorly at high latitudes (it was made for Australia)".
+    why_this_disposition: >
+      A published Earth evaluation says this index does not transport across
+      Earth's own latitudes, which is a stronger statement against it than any
+      single coefficient in this file carries. It is registered rather than
+      repaired because repairing it means choosing a different fire-danger
+      index, and that is a MODEL-FORM decision belonging to fire-9's
+      comparison rather than a value this register can dispose of. What the
+      entry buys is that a reader arming BLAZE meets the finding at the
+      parameter rather than in a paper.
+
+  survival_probability_boreal_scale:
+    seam: effects
+    what: >
+      The fire-line intensity at which the modelled survival probability of a
+      boreal tree falls to 1/e.
+    unit: kW m-1
+    central: 500.0
+    bracket: [350.0, 750.0]
+    disposition: bracketed
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "exp(-fire_line_intensity/500.)"
+    consumed_by: fire-6
+    source: >
+      blaze.cpp cites Dalziel et al. (2008) for the boreal survival form.
+    why_this_disposition: >
+      Tree survival at a given fire-line intensity is set by bark thickness
+      against a heat flux, and bark thickness on this world is a modelled
+      quantity rather than an Earth measurement -- grav-7 already carries the
+      Earth-fixed height-diameter coefficient this depends on. The bracket's
+      upper end is 750 because that is the lowest of the fire-line intensity
+      class bounds the same file already uses, so the interval is bounded by a
+      number the model states rather than by one chosen here.
+    depends_on: grav-7
+
+  litter_combustion_factors:
+    seam: effects
+    what: >
+      Four factors spanning three hundred times, scaling the litter pool that
+      is ready to combust, selected by ABSOLUTE EARTH LATITUDE.
+    unit: dimensionless
+    central: {boreal: 0.38, temperate: 0.0025, tropics: 0.15, savanna: 0.75}
+    disposition: irreducible
+    defect: tuned
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "K_LITTER_BOREAL"
+    consumed_by: fire-6
+    source: >
+      blaze.cpp:59-66, declared under the comment "Tuning factors for litter
+      ready for combustion" and selected at :1006-1016 under the comment
+      "Latitude depending tuning values mortality".
+    why_this_disposition: >
+      THE SOURCE CALLS THEM TUNING FACTORS, so no chain has to be walked to
+      classify them: the defect is stated by the code that carries them. They
+      are irreducible rather than bracketed because a bracket implies a sweep,
+      and what would be swept is a selector this project has already refused --
+      absolute latitude choosing a combustion regime is exactly what bio-29's
+      latitude-use contract forbids, and a bracket around each of four bands
+      would legitimise the banding by parameterising it. The repair is fire-6's:
+      the bands are replaced by vegetation, fuel, weather and thermal state.
+      Nothing between here and there is a value.
+    dormancy: >
+      Dormant, and what disarms it is an ORDERING rather than a setting.
+      notes/audits/tuned-values.md section 18 and world-4j27 carry that,
+      including the reason a reader in blaze.cpp cannot see it.
+
+  earth_radius_in_gridcell_area:
+    seam: effects
+    what: >
+      Earth's mean radius, 6371.2213 km, used to convert a latitude-longitude
+      cell into an area in square kilometres inside the fire effects layer.
+    unit: km
+    central: 6371.2213
+    disposition: sourced
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/framework/guessmath.h
+    literal: "R_EARTH            = 6371.2213"
+    consumed_by: fire-6
+    source: >
+      guessmath.h:61, commented "mean earth-radius[km]". Used only by
+      blaze.cpp's pixelsize(), at :121-123.
+    why_this_disposition: >
+      DEAD TODAY AND LIVE ON ACTIVATION, which is the only reason it is in a
+      register rather than in an audit. pixelsize() has no callers anywhere in
+      vendor/lpj-guess, so nothing computes a gridcell area from Earth's radius
+      in any run this project has made. It is registered because fire-6 is the
+      row that arms this layer, and burned AREA is what the function returns:
+      the error is second order in the radius, and config/planet.yaml declares
+      a super-Earth whose radius is not 6371 km, so a fire model that started
+      reporting area would report it against the wrong planet with nothing
+      objecting. It is absent from notes/audits/tuned-values.md and from
+      world-4j27's list of dormant knobs, both of which enumerate blaze.cpp,
+      so it is a new finding rather than a restatement of one.
+    repair: >
+      lib/nc_geometry.py owns the one expression turning config/planet.yaml's
+      radius_earth into metres, and world-gnvz routed the Python tree's Earth
+      radii through it. This is the C++ tree's remaining one. Either
+      pixelsize() is deleted, which is a fix, or the radius reaches it the way
+      every other planet constant reaches this model -- through the generated
+      header that build_vesper_header.py writes. Deleting is preferred and
+      cheaper: the function is unreachable, and fire-5's area per fire comes
+      from spread rate and duration rather than from a cell's size.
+    row: world-pqk7
+    do_not_defer_silently: >
+      Registered as a row rather than left here: the entry is a finding, and
+      what to do about it is tracked apart from it.
+
+  fire_nitrogen_emission_ratios:
+    seam: cnp_destinations
+    what: >
+      How nitrogen volatilised by fire is split between ammonia, nitrogen
+      oxides, nitrous oxide and dinitrogen. The four shares sum to exactly 1,
+      so this is a partition of the flux and not a set of yields.
+    unit: dimensionless
+    central: {NH3: 0.005, NOx: 0.237, N2O: 0.036, N2: 0.722}
+    disposition: sourced
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/framework/guess.cpp
+    literal: "NH3_FIRERATIO = 0.005"
+    consumed_by: fire-8
+    source: >
+      guess.cpp:60-65, commented "emission ratios from fire (NH3, NOx, N2O, N2)
+      Delmas et al. 1995".
+    why_this_disposition: >
+      These are the ratios the measured tail in fire-8 is expressed through:
+      the worst cell of the accepted run emits 600 kgN/ha/yr as N2 alone, and
+      it does so because N2 carries 0.722 of whatever the fire nitrogen flux
+      is. The partition is therefore NOT the defect -- it is a partition, it
+      sums to 1, and it cannot manufacture nitrogen -- and registering it says
+      so, which is what stops the tail being attributed here. What the tail
+      measures is the flux being partitioned, which is the effects layer's.
+    do_not: >
+      Do not adjust these four shares to bring a simulated fire nitrogen flux
+      into an Earth-like range. They conserve nitrogen by construction and
+      changing them moves gas SPECIATION, not the total; a total that is wrong
+      stays wrong and moves to a different molecule.
+
+  phosphorus_volatilised_fraction:
+    seam: cnp_destinations
+    what: >
+      Share of phosphorus in combusted material that leaves as smoke, against
+      the share retained on site as ash and mineral soil. The C-N-P fork's
+      missing fire term.
+    unit: dimensionless
+    central: null
+    disposition: irreducible
+    defect: none
+    route: none
+    consumed_by: fire-7
+    source: >
+      There is none, and that is the entry. blaze.cpp transfers and reports
+      carbon and nitrogen during combustion and contains no phosphorus
+      transfer at all; the older fire() path in vegdynam.cpp has its
+      phosphorus block commented out with an unresolved note about the
+      atmospheric fraction. Audit finding 6.
+    why_this_disposition: >
+      NOT IRREDUCIBLE AS A NUMBER -- irreducible as an ABSENCE, which is a
+      different thing and is why `central` is null rather than a guess. No
+      value may be entered here from an Earth ash chemistry until fire-7
+      declares the partition, because the failure mode is not an inaccurate
+      phosphorus flux: it is that enabling either fire path under phosphorus
+      limitation updates carbon and nitrogen while leaving the corresponding
+      phosphorus in place, which breaks tissue stoichiometry and the C-N-P
+      budget silently.
+    fail_closed: >
+      This is the register's one FAIL-CLOSED entry. While `central` is null,
+      fire_parameter_gate.py --strict refuses any configuration that arms a
+      fire model with phosphorus limitation enabled. A null here is a refusal
+      and never a default of zero: zero would be the claim that fire
+      volatilises no phosphorus, which is a strong physical statement nobody
+      has made.

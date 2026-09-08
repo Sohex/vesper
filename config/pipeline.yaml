@@ -1943,6 +1943,34 @@ steps:
       boundary; `--strict` is the arm that refuses. `lpj_run` needs it so the
       boundary sits on the path rather than beside it.
 
+  - id: fire_parameter_gate
+    script: biosphere/scripts/fire_parameter_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/fire_parameter_gate_report.json]
+    gate: >
+      every Earth constant the replacement fire model inherits, held to the
+      disposition biosphere/config/fire_parameters.yaml declares for it. It is
+      not fire_gate, which reads a different declaration about the same area:
+      that one asks whether this project's DIVERGENCES from mainline are still
+      real, and this one asks whether the constants the port has not yet
+      written still carry a disposition, still sit inside their own brackets,
+      and are still on the lines they are attributed to. It fails on a
+      disposition, defect, seam or route outside the declared vocabulary, on a
+      bracketed entry with no bracket or a bracket on an entry nothing sweeps,
+      on a compiled literal the source no longer carries, on a constant that
+      reaches no run whose consumer row has CLOSED -- which is the point a
+      waiting constant becomes a frozen one -- on a planet-anchored central
+      that stopped tracking config/planet.yaml, on a threshold pair running
+      backwards, on fire nitrogen shares that do not sum to one or disagree
+      with the compiled source, on an unresolved source that references/pdf/
+      now holds, and on the deletion of any entry another check is about.
+      --strict refuses on the one fail-closed entry, the phosphorus
+      volatilised fraction, whose absence is what stops a fire path running
+      under phosphorus limitation while blaze.cpp moves carbon and nitrogen
+      and leaves the corresponding phosphorus in place. Every input is a file
+      and it spawns nothing.
   - id: fire_gate
     script: biosphere/scripts/fire_gate.py
     loop: B
@@ -2179,7 +2207,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, build_lpj_guess, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, century_acceleration_gate, fire_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate, stochastic_seed_gate, equilibrium_window_gate]
+    needs: [lpj_driver, build_lpj_guess, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, century_acceleration_gate, fire_gate, fire_parameter_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate, stochastic_seed_gate, equilibrium_window_gate]
     writes: [biosphere/runs/]
     gate: >
       Completion includes BIO-14 assessment inside the run harness: every
