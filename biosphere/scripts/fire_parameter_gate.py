@@ -49,6 +49,12 @@ It can fail:
                 declared share disagreeing with the literal in the source. They
                 are a partition of a flux, so a sum that is not one means the
                 model creates or destroys nitrogen at the fire
+  derivation    a central value that stopped equalling the expression it is
+                declared to follow from, or -- the open case -- a source that
+                compiles a value the derivation contradicts. The second fires
+                every run by design: blaze.cpp's rate-of-spread coefficient is
+                Noble (1980)'s conversion with a lost decimal, and the finding
+                is meant to report until the source is repaired
   unresolved    an entry that names a source as not held while that source is
                 in fact in `references/pdf/`. A bracket standing on "the paper
                 was not read" is void the moment the paper arrives
@@ -455,6 +461,114 @@ def check_unresolved(params: dict, pdf_dir: Path) -> list[dict]:
     return bad
 
 
+def check_derivations(params: dict, root: Path) -> list[dict]:
+    """A value declared to FOLLOW from an expression still follows from it, and
+    what the source compiles is still what the entry says it compiles.
+
+    Two halves, and they fail in opposite directions on purpose.
+
+    `derived_from` is arithmetic written out -- a unit conversion, not a fit --
+    so it is EVALUATED here rather than trusted. An entry whose `central` stops
+    equalling its own expression has had one of the two edited alone.
+
+    `implemented_value` is what the compiled source actually carries where that
+    DISAGREES with the derivation. It is the finding, held open deliberately:
+    while the two differ, this reports the gap on every run, and the way to
+    silence it is to repair the source and delete the field. A gate that let
+    the disagreement sit silently would be the frozen state with a defect in
+    it.
+    """
+    bad = []
+    for name, entry in params.items():
+        if not isinstance(entry, dict):
+            continue
+        expression = entry.get("derived_from")
+        if expression:
+            try:
+                # Arithmetic only: the expression is a unit conversion written
+                # out, and anything that is not a number and an operator is a
+                # declaration this gate should refuse rather than execute.
+                if not re.fullmatch(r"[0-9eE.+\-*/() ]+", str(expression)):
+                    raise ValueError("not arithmetic")
+                got = float(eval(str(expression), {"__builtins__": {}}, {}))
+            except Exception as exc:                              # noqa: BLE001
+                bad.append(_finding(
+                    "derivation", name,
+                    f"`derived_from` {expression!r} did not evaluate as "
+                    f"arithmetic: {exc!r}"))
+                continue
+            central = entry.get("central")
+            if not isinstance(central, (int, float)) or isinstance(central, bool):
+                bad.append(_finding("derivation", name,
+                                    "declares `derived_from` and its central "
+                                    "is not a number"))
+            elif abs(float(central) - got) > abs(got) * 1e-6:
+                bad.append(_finding(
+                    "derivation", name,
+                    f"central {central} is not what `derived_from` evaluates "
+                    f"to ({got!r}); one of the two was edited alone"))
+        implemented = entry.get("implemented_value")
+        if implemented is None:
+            continue
+        where, literal = entry.get("source_file"), entry.get("literal")
+        if not where or literal is None:
+            bad.append(_finding("derivation", name,
+                                "declares `implemented_value` and names no "
+                                "source line to read it from"))
+            continue
+        code = _strip_c_comments((root / where).read_text(
+            encoding="utf-8", errors="replace")) if (root / where).is_file() else ""
+        found = re.search(r"=\s*([0-9.]+[eE][+-]?[0-9]+|[0-9]*\.?[0-9]+)",
+                          literal)
+        if not found or found.group(1) not in code:
+            bad.append(_finding(
+                "derivation", name,
+                f"{where} no longer compiles {literal!r}, so the recorded "
+                f"disagreement cannot be confirmed against the source"))
+            continue
+        if not entry.get("row"):
+            bad.append(_finding(
+                "derivation", name,
+                f"{where} compiles {implemented!r} against a derivation of "
+                f"{entry.get('central')!r} and the entry names no `row`. A "
+                f"disagreement between a source and its own derivation is a "
+                f"defect, and an unowned one is a defect nobody is going to "
+                f"fix"))
+    return bad
+
+
+def declared_disagreements(params: dict) -> list[dict]:
+    """The source-versus-derivation gaps that are DECLARED and OWNED.
+
+    These are reported on every run and do not fail, which is the same split
+    `fire_gate.py` makes between a divergence whose verdict is `keep` and one
+    whose verdict is `gate`. A gate that failed on a defect already written
+    down and already tracked would fail forever, and a check that always fails
+    is one people learn to run with `|| true`.
+
+    What DOES fail is the pair drifting: `check_derivations` refuses an entry
+    whose recorded `implemented_value` the source no longer compiles, and one
+    that names no owning row. So the disagreement is allowed to sit only for
+    exactly as long as it is described correctly and owned.
+    """
+    out = []
+    for name, entry in params.items():
+        if not isinstance(entry, dict):
+            continue
+        implemented, central = entry.get("implemented_value"), entry.get("central")
+        if implemented is None or not isinstance(central, (int, float)):
+            continue
+        out.append({
+            "parameter": name,
+            "row": entry.get("row"),
+            "source_file": entry.get("source_file"),
+            "compiles": implemented,
+            "derivation": central,
+            "factor": float(implemented) / float(central) if central else None,
+        })
+    return out
+
+
 # Entries the anchor, ordering and partition checks are ABOUT. Those three ask
 # whether a named constant is still right, which is a different question from
 # whether it is still there, and a check that answered both would report a
@@ -499,6 +613,7 @@ def check(declaration: dict, root: Path, planet: dict,
     findings.extend(check_anchors(params, planet))
     findings.extend(check_ordering(params))
     findings.extend(check_partition(params, root))
+    findings.extend(check_derivations(params, root))
     findings.extend(check_unresolved(params, pdf_dir))
     if complete:
         findings.extend(check_completeness(params))
@@ -579,6 +694,14 @@ def _fixtures(root: Path) -> list[dict]:
     case("an unresolved source that is in fact held",
          one({"unresolved": "Thonicke et al. (2010). Not in references/pdf/."}),
          "unresolved")
+    case("a central that stopped following its own derivation",
+         one({"central": 9.9, "derived_from": "0.0012 / 100.0 / 3.6"}),
+         "derivation")
+    case("a source/derivation gap that names no owning row",
+         one({"central": 3.333333e-06, "derived_from": "0.0012 / 100.0 / 3.6",
+              "implemented_value": 3.3333e-05, "route": "compiled_literal",
+              "source_file": "vendor/lpj-guess/modules/blaze.cpp",
+              "literal": "A = 3.3333e-05"}), "derivation")
     case("a register missing an entry another check is about",
          check({"parameters": {"probe": dict(ok)}}, root, planet, statuses,
                REFERENCE_PDFS, complete=True), "missing")
@@ -609,6 +732,7 @@ def main() -> int:
 
     blocked = [name for name, entry in params.items()
                if entry.get("fail_closed") and entry.get("central") is None]
+    disagreements = declared_disagreements(params)
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -619,6 +743,7 @@ def main() -> int:
         "reaching_no_run": sorted(name for name, e in params.items()
                                   if e.get("route") == "none"),
         "fail_closed": sorted(blocked),
+        "declared_disagreements": disagreements,
         "findings": findings,
         "fixtures": fixtures,
     }
@@ -656,6 +781,14 @@ def main() -> int:
         else:
             print("\n  every constant carries a disposition, sits inside its "
                   "own bracket, and is on the line it names")
+        for d in disagreements:
+            print(f"\n  DECLARED DISAGREEMENT ({d['row']}): {d['parameter']}\n"
+                  f"    {d['source_file']} compiles {d['compiles']!r}; the "
+                  f"derivation gives {d['derivation']!r}, a factor of "
+                  f"{d['factor']:.4f}.\n"
+                  f"    Owned and reported, not failed. It stops reporting "
+                  f"when the source is repaired and `implemented_value` is "
+                  f"deleted.")
         if blocked:
             print(f"\n  FAIL CLOSED: {', '.join(blocked)} is undeclared. No "
                   f"fire path may run under phosphorus limitation while it is.")

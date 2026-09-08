@@ -365,25 +365,28 @@ parameters:
     central: 0.1
     bracket: [0.05, 0.2]
     disposition: bracketed
-    defect: opaque
+    defect: implicit_earth
     route: none
     consumed_by: fire-5
     source: >
-      Li et al. (2012) section 2.2.2 reports that Arora and Boer (2005)
-      CTEM-FIRE "assumes g(0) = 0.1"; Li then derives g(W) from its own
-      elliptical geometry rather than adopting the assumption.
+      Arora and Boer (2005), JGR Biogeosciences 110 G02008, equation 12:
+      g(Ws) = 1 - (1 - g0)*exp(-Ws^2/2500), "where g0 is value of g(Ws) at
+      Ws = 0.0 km/h (assumed equal to 0.1) which governs fire growth rate in
+      calm conditions". Li et al. (2012) section 2.2.2 reports the same
+      assumption and then derives g(W) from its own elliptical geometry rather
+      than adopting it.
     why_this_disposition: >
-      The classification is opaque and not tuned: the derivation is stated to
-      be an assumption in the citing paper and the cited paper was not read
-      here, so what is missing is a reader's ACCESS to the argument rather
-      than the argument's existence. Walking that chain is the repair the
-      opaque class prescribes and it is not walked -- Arora and Boer (2005) is
-      not in references/. The bracket is a factor of two either way and holds
-      only until the source is read.
-    unresolved: >
-      Arora and Boer (2005), doi 10.1029/2005JG000042. Not held in
-      references/pdf/. Reading it is what converts this entry from bracketed
-      to sourced or moves it to tuned.
+      NO LONGER OPAQUE: the chain is walked and Arora and Boer state g0 as an
+      assumption in their own words, so the derivation is reachable and says
+      there is nothing behind it. It is not tuned either -- no fit produced
+      0.1, and the paper's only check on the wind dependence is against
+      Vigilante et al. (2004) in the North Kimberley of northwest Australia,
+      a 25 per cent observed increase in spread rate between 15 and 20 km/h
+      against equation 12's 31 per cent. That single Earth check on a
+      dimensionless ratio whose magnitude depends on the atmosphere the fire
+      burns in is what makes it implicit_earth: this world's surface pressure
+      and composition are declared in config/planet.yaml and are not Earth's.
+      The bracket is a factor of two either way and is swept.
 
   average_fire_size_tree:
     seam: occurrence_to_area
@@ -473,40 +476,101 @@ parameters:
       ordinary range of dry plant material rather than a statement about
       Vesper. It is bracketed rather than sourced only because Liedloff (2007)
       is not held in references/ and the single number has no stated spread.
-    unresolved: >
-      Liedloff (2007). Not in references/pdf/ and not identified to a DOI from
-      the blaze.cpp comment alone. The bracket stands until it is.
+    chain_walked_to: >
+      Liedloff and Cook (2007), Ecological Modelling 201:269-282, section 2.8:
+      the Byram fire-line intensity is the product of "the heat yield of the
+      fuel (H: ASSUMED TO BE 20 MJ kg-1)", the fine fuel load and the rate of
+      spread. So the citation terminates in an author's stated assumption and
+      not in a measurement, which is the same shape as the GLOBFIRM floor and
+      is why the bracket stays. What it no longer rests on is the source being
+      unread. The bracket rests instead on the enthalpy of combustion of dry
+      plant tissue, which is a chemistry this world's biosphere shares.
+      blaze.cpp also applies H to a fuel that includes coarse woody debris,
+      where Liedloff applies it to FINE fuel only.
 
   fireline_intensity_spread_coefficient:
     seam: effects
     what: >
       The constant of proportionality turning the McArthur forest fire danger
-      index times available fuel into a rate of spread.
+      index times available fuel into a rate of spread. It is not empirical: it
+      is a folded unit conversion, and the conversion is wrong by a decade.
     unit: m s-1 per index-unit per g m-2
-    central: 3.3333e-05
-    disposition: irreducible
-    defect: opaque
+    central: 3.333333e-06
+    disposition: sourced
+    defect: implicit_earth
     route: compiled_literal
     source_file: vendor/lpj-guess/modules/blaze.cpp
     literal: "A = 3.3333e-05"
+    implemented_value: 3.3333e-05
+    derived_from: "0.0012 / 100.0 / 3.6"
+    row: world-c15e
     consumed_by: fire-6
     source: >
-      blaze.cpp:227, whose entire justification is the comment "Empirical
-      value". The surrounding function cites Noble (1980) derived from
-      McArthur for the formulation.
+      Noble, Gill and Bary (1980), Australian Journal of Ecology 5:201-203, the
+      Mark 5 forest meter: R = 0.0012*F*W. Its Table 1 gives R in km/h, W in
+      tonnes/ha and F dimensionless. blaze.cpp:1076 and :1081 compute F by
+      Noble's own drought-factor and fire-danger equations verbatim, so F is on
+      Noble's scale and nothing rescales between them.
     why_this_disposition: >
-      The chain terminates at a comment. 3.3333e-05 is 1/30000 to five digits,
-      which is the shape of a unit conversion someone folded into a
-      coefficient rather than of a fitted residual, but nothing in the source
-      says which and Noble (1980) is not held. It is kept because the
-      alternative is deleting the rate-of-spread term entirely, and recorded
-      here with the form of the error it leaves: the coefficient multiplies an
-      index whose own domain is the defect below, so its magnitude is not
-      separately interpretable and a bracket on it would be a bracket on
-      nothing.
-    unresolved: >
-      Noble, Bary and Gill (1980), the McArthur equations. Not in
-      references/pdf/. It is what would say whether 1/30000 is a conversion.
+      SOURCED NOW, AND THE SOURCE IS WHAT CONVICTS THE IMPLEMENTED NUMBER. The
+      entry was irreducible while the chain terminated at the comment
+      "Empirical value"; Noble (1980) is held and the chain terminates in an
+      equation. `central` is Noble's coefficient expressed in the units
+      blaze.cpp uses -- 1 t/ha is 100 g/m2 and 1 km/h is 1/3.6 m/s, so
+      0.0012/100/3.6 = 3.333333e-06 -- and `implemented_value` is what the
+      source compiles. The ratio is ten, and the mantissa agreeing to five
+      digits is what makes it a lost decimal rather than a different
+      calibration: 1.2/3.6 is 0.33333, and 0.33333e-5 written as 3.3333e-05
+      drops a decade.
+      The defect is implicit_earth and not the decade: the decade is a bug with
+      a row, while what stays wrong after it is fixed is that the index this
+      scales was built for Australian eucalypt forest.
+    control_that_must_fire: >
+      `fire_parameter_gate.py` evaluates `derived_from` and compares it with
+      `central`, and separately reads `implemented_value` out of
+      `source_file`. So the arithmetic is redone on every run rather than
+      trusted, and a repair that edits blaze.cpp without editing this entry
+      turns the finding off by making the two agree -- which is the intended
+      way for it to end.
+
+  mcarthur_drought_factor_limit:
+    seam: effects
+    what: >
+      The ceiling on the McArthur drought factor before it enters the fire
+      danger index. Registered because it is a published CORRECTION that this
+      source implements and does not cite, which is the opposite of the usual
+      finding in this file.
+    unit: dimensionless
+    central: 10.0
+    disposition: sourced
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "min(10.0,mcarthur_d)"
+    consumed_by: fire-6
+    source: >
+      Sirakoff (1985), Australian Journal of Ecology 10:481, a two-page
+      correction to Noble, Gill and Bary (1980). McArthur (1973) sets the
+      drought factor's upper limit to ten and Noble's equations carry no such
+      limit, so the equations return a fire danger index that is too high
+      whenever the drought factor exceeds it. Sirakoff's worked example: the
+      unlimited Noble equations give D = 12.1 where the meter gives D = 10.
+    why_this_disposition: >
+      IT IS ALREADY RIGHT, and that is the entry. blaze.cpp:1078 applies
+      max(0.0, min(10.0, mcarthur_d)) immediately before the index at :1081,
+      which is exactly Sirakoff's repair, while the comment above it cites
+      only "(Noble, 1980)" -- the paper that lacks the limit. So a reader
+      checking the implementation against its stated source would find a
+      constant the source does not contain and could remove it as unexplained.
+      Registering it is what stops a correct line being deleted for looking
+      wrong. The defect is implicit_earth for the same reason as
+      `mcarthur_index_domain`: the ceiling is a property of an Australian
+      meter's scale, and it travels with the index rather than apart from it.
+    do_not: >
+      Do not remove this clamp while the McArthur index remains. It is not a
+      guard someone added against a numerical excursion; it is part of the
+      published definition of the quantity, and Noble's equations are the
+      approximation that omits it.
 
   mcarthur_index_domain:
     seam: effects
