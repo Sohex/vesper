@@ -58,6 +58,11 @@ It can fail:
   enforcement   a fail-closed entry whose refusal the model no longer makes,
                 or one that names no source making it. A declaration the model
                 does not share is a preference
+  native        a Vesper-native plant type that neither declares the fire pair
+                nor says it inherits them deliberately, with a basis. The
+                declaration file is a list of CHANGES, so an absent parameter
+                reads the same whether it was left alone on purpose or never
+                looked at
   absence       a constant declared DELETED that the source carries again, or
                 one claiming both `literal` and `absent_from_source`. Comments
                 are stripped first, so the comment left at the deletion site
@@ -106,6 +111,7 @@ COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 DECLARATION = COMPONENT_ROOT / "config" / "fire_parameters.yaml"
 REPORT = GENERATED / "fire_parameter_gate_report.json"
 PLANET = PROJECT_ROOT / "config" / "planet.yaml"
+NATIVE_PFTS = COMPONENT_ROOT / "config" / "native_pfts.yaml"
 ISSUE_EXPORT = PROJECT_ROOT / ".beads" / "issues.jsonl"
 REFERENCE_PDFS = PROJECT_ROOT / "references" / "pdf"
 
@@ -679,6 +685,77 @@ def check_enforcement(params: dict, root: Path) -> list[dict]:
     return bad
 
 
+def check_native_fire_parameters(native: dict) -> list[dict]:
+    """Every Vesper-native plant type says what it does about the fire pair.
+
+    `native_pfts.yaml` is a LIST OF CHANGES -- a native block declares what
+    distinguishes it and inherits the rest -- and that shape cannot distinguish
+    a parameter deliberately left alone from one nobody looked at. The two the
+    fire operator reads per plant type, `fireresist` and `litterme`, were the
+    second kind: the polar strategies took cool grass's by inheritance and no
+    line said whether that was chosen.
+
+    So a native block must either DECLARE them or say in `deliberately_inherited`
+    that it does not, with a basis. Silence is what this refuses, and silence is
+    the only thing it refuses: inheriting is a perfectly good answer and is the
+    one the polar types take.
+    """
+    FIRE_PAIR = {"fireresist", "litterme"}
+    blocks: dict[str, tuple[str, dict]] = {}
+    for kind in ("groups", "types"):
+        for name, spec in ((native or {}).get(kind) or {}).items():
+            if isinstance(spec, dict):
+                blocks[name] = (kind, spec)
+    if not blocks:
+        return [_finding("native", "native_pfts.yaml",
+                         "declares no native groups or types, so this check "
+                         "asserts nothing about any of them")]
+
+    def settled(name, seen=None):
+        """What this block and its NATIVE ancestors say about the fire pair.
+
+        Inheritance is followed because a group exists exactly so two types
+        sharing a derived trait do not each state it -- requiring every type to
+        repeat the statement would be the duplication the group prevents. The
+        walk stops at the first non-native ancestor, which is a shipped block
+        whose values came through the Earth conversion.
+        """
+        seen = seen or set()
+        if name in seen or name not in blocks:
+            # A non-native ancestor -- a shipped group whose values came through
+            # the Earth conversion -- says nothing here and imposes no basis. It
+            # returns True and not False: a missing basis is something a NATIVE
+            # block failed to give, and the walk ending is not that.
+            return set(), True
+        seen.add(name)
+        _, spec = blocks[name]
+        declared = set(spec.get("parameters") or {}) & FIRE_PAIR
+        statement = spec.get("deliberately_inherited") or {}
+        covered = set(statement.get("parameters") or []) & FIRE_PAIR
+        has_basis = bool(statement.get("basis")) if covered else True
+        up_cov, up_basis = settled(spec.get("inherits"), seen)
+        return declared | covered | up_cov, has_basis and up_basis
+
+    bad = []
+    for name, (kind, spec) in blocks.items():
+        covered, has_basis = settled(name)
+        uncovered = sorted(FIRE_PAIR - covered)
+        if uncovered:
+            bad.append(_finding(
+                "native", f"{kind}/{name}",
+                f"neither it nor any native block it inherits from declares "
+                f"{uncovered} or says it inherits them deliberately. This file "
+                f"is a list of changes, so a fire parameter that is absent "
+                f"reads the same whether it was left alone on purpose or never "
+                f"looked at"))
+        elif not has_basis:
+            bad.append(_finding(
+                "native", f"{kind}/{name}",
+                "inherits the fire pair deliberately and gives no basis. Every "
+                "other parameter this file declares carries one"))
+    return bad
+
+
 # Entries the anchor, ordering and partition checks are ABOUT. Those three ask
 # whether a named constant is still right, which is a different question from
 # whether it is still there, and a check that answered both would report a
@@ -707,7 +784,7 @@ def check_completeness(params: dict) -> list[dict]:
 
 def check(declaration: dict, root: Path, planet: dict,
           statuses: dict[str, str], pdf_dir: Path,
-          complete: bool = False) -> list[dict]:
+          complete: bool = False, native: dict | None = None) -> list[dict]:
     """Every check over one declaration.
 
     `complete` says whether this declaration claims to be the WHOLE register.
@@ -727,6 +804,8 @@ def check(declaration: dict, root: Path, planet: dict,
     findings.extend(check_absences(params, root))
     findings.extend(check_enforcement(params, root))
     findings.extend(check_unresolved(params, pdf_dir))
+    if native is not None:
+        findings.extend(check_native_fire_parameters(native))
     if complete:
         findings.extend(check_completeness(params))
     return findings
@@ -837,6 +916,27 @@ def _fixtures(root: Path) -> list[dict]:
                             "10.1016/j.earscirev.2013.12.007, for the global "
                             "ash composition. Not held."}),
          "no findings")
+    case("a native type silent about the fire pair",
+         check({"parameters": {"probe": dict(ok)}}, root, planet, statuses,
+               REFERENCE_PDFS,
+               native={"groups": {"g": {"inherits": "C3G", "parameters": {}}},
+                       "types": {"T": {"inherits": "g", "parameters": {}}}}),
+         "native"),
+    case("a native type covered by its parent group's statement",
+         check({"parameters": {"probe": dict(ok)}}, root, planet, statuses,
+               REFERENCE_PDFS,
+               native={"groups": {"g": {"inherits": "C3G", "parameters": {},
+                   "deliberately_inherited": {
+                       "parameters": ["fireresist", "litterme"],
+                       "basis": "the cells do not burn"}}},
+                       "types": {"T": {"inherits": "g", "parameters": {}}}}),
+         "no findings"),
+    case("a native type inheriting the fire pair with no basis",
+         check({"parameters": {"probe": dict(ok)}}, root, planet, statuses,
+               REFERENCE_PDFS,
+               native={"groups": {"g": {"inherits": "C3G", "parameters": {},
+                   "deliberately_inherited": {"parameters": ["fireresist", "litterme"]}}}}),
+         "native"),
     case("a register missing an entry another check is about",
          check({"parameters": {"probe": dict(ok)}}, root, planet, statuses,
                REFERENCE_PDFS, complete=True), "missing")
@@ -856,8 +956,9 @@ def main() -> int:
     params = declaration.get("parameters") or {}
 
     fixtures = _fixtures(PROJECT_ROOT)
+    native = yaml.safe_load(NATIVE_PFTS.read_text(encoding="utf-8"))
     findings = check(declaration, PROJECT_ROOT, planet, statuses,
-                     REFERENCE_PDFS, complete=True)
+                     REFERENCE_PDFS, complete=True, native=native)
 
     by_seam: dict[str, list[str]] = {}
     by_defect: dict[str, list[str]] = {}

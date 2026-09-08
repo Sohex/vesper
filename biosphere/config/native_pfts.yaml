@@ -37,6 +37,45 @@ groups:
     # C3G and not the bare `grass` group: both strategies are modifications of
     # the cool grass, so naming it makes this file the list of changes.
     inherits: C3G
+
+    # THE FIRE PAIR IS DELIBERATELY C3G'S, and this line exists because a file
+    # that is a list of changes cannot otherwise distinguish a parameter left
+    # alone from one nobody looked at. `fireresist` and `litterme` are the two
+    # parameters the fire operator reads per plant type, and both arrive here
+    # as cool grass's 0.5 and 0.2 by inheritance. world-ykhg asked whether that
+    # was a decision; it is now.
+    #
+    # THE BASIS IS THAT THE CAP DOES NOT BURN, measured rather than assumed. On
+    # `lpj_1e6a2b9ca51a4eff9592992cad96677b`, over the 234 gridcells poleward of
+    # 75 degrees -- the cells `notes/vesperian-polar-type.md` derives these
+    # strategies for -- fire is 0.24 per cent of carbon turnover against 5.95
+    # per cent over the rest of the world, and 80.3 per cent of them carry no
+    # fire at all against 34.8 per cent elsewhere. Mean fire flux is 9.5e-5
+    # kgC/m2/yr against 1.9e-2, a factor of two hundred.
+    #
+    # So no fire-parameter choice for these two types is resolvable on this
+    # world's evidence: the cells they are for burn too little to separate one
+    # value from another. Inheriting the lifeform's is the disposition that adds
+    # no claim the evidence cannot carry, which is why it is preferred over
+    # inventing a polar value with a basis line as the parameters below have.
+    #
+    # TWO THINGS THAT WOULD REOPEN IT. A fire regime that reaches the cap --
+    # world-drim's repair moves burning DOWN, so it widens this margin rather
+    # than narrowing it, but a change to the ignition side under fire-3 could
+    # go the other way. And a resolved bark or tissue basis for `fireresist`
+    # under fire-6, which would give these types something of their own to
+    # derive it from rather than a lifeform default.
+    deliberately_inherited:
+      parameters: [fireresist, litterme]
+      from: C3G
+      basis: >
+        The polar cap carries 0.24 per cent of its carbon turnover through fire
+        against 5.95 per cent elsewhere, and 80.3 per cent of its 234 cells
+        never burn, so neither parameter is resolvable there. Measured on
+        lpj_1e6a2b9ca51a4eff9592992cad96677b, which predates these types, so the
+        cells are occupied by the C3G they modify.
+      reopened_by: [fire-3, fire-6]
+
     parameters:
 
       pstemp_min:
