@@ -205,14 +205,24 @@ parameters:
     literal: "MINFUEL=0.2"
     consumed_by: fire-5
     source: >
-      Thonicke et al. (2001) uses 200 gC/m2 as a single threshold and
-      vegdynam.cpp declares it as MINFUEL=0.2 kgC/m2; blaze.cpp restates the
-      same number as MIN_FUEL=200. Arora and Boer (2005) CTEM-FIRE adopts 200
-      as the lower end, which Li et al. (2012) section 2.1.2 describes as
-      arbitrary. Li's own 155 is the low end of the bracket.
+      Thonicke et al. (2001) p.664 states that "a fuel load of less than
+      approximately 200 g/m2 reduces fire spread to zero (Schultz, 1988)", and
+      vegdynam.cpp declares it as MINFUEL=0.2 kgC/m2 while blaze.cpp restates
+      it as MIN_FUEL=200. Arora and Boer (2005) CTEM-FIRE adopts 200 as its
+      lower end, which Li et al. (2012) section 2.1.2 describes as arbitrary.
+      Li's own 155 is the low end of the bracket.
+      THE 200 IS NOT A FIT AND NOT A FIRE MEASUREMENT. Thonicke's reference
+      list resolves Schultz (1988) to "Die Oekozonen der Erde: die Oekologische
+      Gliederung der Geosphaere, Ulmer, Stuttgart" -- a German-language
+      physical-geography TEXTBOOK on the Earth's ecozones. So a round number
+      travelled out of a general ecology text into a DGVM and then into two
+      more, which is why the entry says two models state it without arguing
+      for it. world-4xez holds the page this still needs.
     why_this_disposition: >
       Li's 155 is TUNED in the strict sense and the paper says so in its own
-      words: 155 and 1050 "are estimated by maximizing the correlation between
+      words, while the 200 it is bracketed against is OPAQUE -- a chain with a
+      reachable next link nobody has followed. Two different defects at the two
+      ends is exactly why this is an interval and not a choice between them: 155 and 1050 "are estimated by maximizing the correlation between
       observed and simulated fire counts at 24 grid cells in the United
       States". A number that IS the residual of a fit against 24 Earth cells
       is not a Vesper fact, and neither is a round 200 that two other models
@@ -659,6 +669,49 @@ parameters:
       notes/audits/tuned-values.md section 18 and world-4j27 carry that,
       including the reason a reader in blaze.cpp cannot see it.
 
+  combustion_completeness_table:
+    seam: effects
+    what: >
+      The 13 x 5 table of combustion and transfer fractions BLAZE applies to
+      every pool, selected by a fire-line-intensity class. Registered as ONE
+      entry because the table's columns and the index that selects them are
+      one contract, and both ends of it are broken.
+    unit: dimensionless
+    central: null
+    disposition: irreducible
+    defect: tuned
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "TURNOVERFRACT[13][5]"
+    row: world-voxz
+    consumed_by: fire-6
+    source: >
+      blaze.cpp:41-54, under the header comment
+      "combustion rates depending on fire-line-intensities [kW/m]
+      <750|<3000|<7000| >=7000 (Sprouters|Seeders)". Sixty-five numbers and no
+      citation for any of them. The intensity class bounds 750, 3000 and 7000
+      kW/m are at :162-178 and again at :169 and :271.
+    why_this_disposition: >
+      `central` is null and the disposition is irreducible because there is
+      nothing to dispose OF yet: no source is named for any of the sixty-five
+      values, so each would be its own opaque chain with no next link, and
+      bracketing a table nobody can sweep in sixty-five dimensions would be a
+      declaration with no consequence. What this entry carries instead is that
+      the table is BROKEN AT BOTH ENDS AS A LOOKUP, which has to be settled
+      before its values are worth arguing about.
+      Low end: the index producer returns -1 for a patch below MIN_FUEL and
+      nothing guards the lookup, so [0][-1] reads outside the array and
+      [r][-1] aliases [r-1][4] -- the most intense column of the row above.
+      A patch with too little fuel to carry a fire combusts all of its surface
+      litter. High end: the index never returns 3, so the sprouter column at
+      >=7000 kW/m is unreachable and every intense fire takes the seeder
+      rates, which differ by a factor of four for stems and branches.
+    do_not: >
+      Do not source or bracket individual cells of this table while the index
+      is wrong. The values selected today are not the values the table says
+      are selected, so a disposition attached to a cell would describe a
+      number the model does not use.
+
   earth_radius_in_gridcell_area:
     seam: effects
     what: >
@@ -731,6 +784,46 @@ parameters:
       into an Earth-like range. They conserve nitrogen by construction and
       changing them moves gas SPECIATION, not the total; a total that is wrong
       stays wrong and moves to a different molecule.
+
+  fuel_currency:
+    seam: cnp_destinations
+    what: >
+      What "fuel" MEANS on both sides of every fire equation in this register:
+      the model carries carbon and the equations were calibrated on dry mass.
+      Not a coefficient -- a units contract that three coefficients silently
+      assume, which is why it is one entry rather than a note on each.
+    unit: kg dry fuel per kgC
+    central: null
+    disposition: irreducible
+    defect: implicit_earth
+    route: none
+    row: world-9zfv
+    consumed_by: fire-6
+    source: >
+      LPJ-GUESS carries every pool as carbon -- guess.h documents cmass
+      throughout as kgC/m2 -- and blaze.cpp's available_fuel() sums cmass
+      members directly. Noble (1980) Table 1 defines W as "Fuel weight,
+      tonnes ha-1"; Byram (1959), which blaze.cpp:249 cites through Pyne
+      (1996), takes w as the fuel mass consumed. No carbon-to-dry-matter
+      factor exists anywhere in the fire path: blaze.cpp, vegdynam.cpp and
+      guess.h were searched and the ratio is silently 1.
+    why_this_disposition: >
+      IRREDUCIBLE WITH `central` NULL, for the same reason
+      `phosphorus_volatilised_fraction` is: the defect is an ABSENCE, and
+      writing a number here would be this file inventing the contract it
+      exists to record. About 2 is the right order for dry biomass to carbon,
+      and it is deliberately not written as a value, because a single factor
+      entered here would immediately become the thing that gets adjusted until
+      a burned area looks right -- which is a tuning, and the whole subject of
+      this file.
+      The defect is implicit_earth in its exact sense: the derivations on the
+      other side are SOUND, and they are for fuel beds measured on Earth in a
+      currency this model does not carry.
+    do_not: >
+      Do not repair this and world-c15e with one combined factor. The decade
+      and the currency multiply, they have different right answers, and a
+      product that came out somewhere plausible would conceal both. Price them
+      separately; world-c15e says the same thing from its own side.
 
   phosphorus_volatilised_fraction:
     seam: cnp_destinations
