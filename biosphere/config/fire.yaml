@@ -89,6 +89,280 @@ mainline_divergences:
     more, because the effect below reaches the vegetation through a stochastic
     per-patch draw and one patch cannot resolve a 0.1 per cent hazard.
   entries:
+    - id: globfirm_fireprob_earth_year_conversion
+      owner: world-drim
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/vegdynam.cpp
+      function: fire
+      mainline_form: added_line
+      mainline:
+        - "Thonicke et al. (2001) fitted Eqn 9's four"
+      live: "fireprob = 1.0 - pow(1.0 - fireprob, VESPER_EARTH_YEARS_PER_ORBIT);"
+      live_under: globfirm_cohort
+      execution: none
+      why_no_execution: >
+        The accepted run predates it. lpj_1e6a2b9ca51a4eff9592992cad96677b was
+        integrated on the unconverted curve, so it is the pre-change arm of a
+        pair whose post-change arm needs a rebuild. No arm carries it yet.
+      classification: implicit-earth
+      settles: >
+        Eqn 9 returns a burned fraction per EARTH year and the model applied it
+        to 183 absolute days. The argument going in needs no conversion -- s is
+        a mean daily probability and is scale-invariant -- so only the output
+        carried a year, which is what hid it. Full argument in
+        biosphere/notes/fire-model-audit.md finding 13.
+      breaks_if_removed: >
+        Nothing structurally: fireprob stays in [0,1] either way and every
+        consumer is linear in it or draws a Bernoulli on it. What breaks is the
+        rate: removing the conversion returns the operator to burning 1.9959
+        times too fast per unit absolute time.
+      worth: >
+        A factor of about two on a term measured at 11.69 per cent of this
+        world's simulated carbon turnover, so it is a correction to a material
+        quantity rather than to a diagnostic. Not simply half at equilibrium: a
+        lower burn probability lets fuel accumulate and makes each fire larger,
+        so the sign is unambiguous and the magnitude needs the run.
+
+    - id: blaze_negative_intensity_index_guard
+      owner: world-voxz
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/blaze.cpp
+      function: blaze
+      mainline_form: added_line
+      mainline:
+        - "A NEGATIVE INDEX MEANS NO FIRE, AND IT USED TO REACH THE LOOKUP."
+      live: "if (fli_index < 0) {"
+      live_under: blaze
+      execution: none
+      why_no_execution: >
+        BLAZE is disarmed in the configuration this project runs, so no arm
+        reaches this path at all.
+      classification: not_a_constant
+      settles: >
+        get_fireline_intensity sets the intensity to -1 for a patch below
+        MIN_FUEL and the index function returns -1, which reached
+        TURNOVERFRACT[r][-1]: out of bounds at row 0 and aliasing [r-1][4] on
+        the rest, so a patch with too little fuel to carry a fire combusted all
+        of its surface litter. Finding 11.
+      breaks_if_removed: >
+        The out-of-bounds read returns, and with it undefined behaviour at row
+        0 rather than merely a wrong number.
+      worth: >
+        Every patch drawn to burn below the fuel threshold. The sign is the
+        point: "not enough fuel" produced maximum combustion completeness.
+
+    - id: blaze_rate_of_spread_coefficient
+      owner: world-c15e
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/blaze.cpp
+      function: get_fireline_intensity
+      mainline_form: line
+      mainline:
+        - "It was declared as 3.3333e-05 under the comment \"Empirical value\", which"
+      live: "const double A = NOBLE_ROS_KMH_PER_TONNE_HA / G_M2_PER_TONNE_HA / KMH_PER_M_S;"
+      live_under: blaze
+      execution: none
+      why_no_execution: >
+        BLAZE is disarmed, so no arm exercises the spread term.
+      classification: implicit-earth
+      settles: >
+        Noble, Gill and Bary (1980) Table 1 fixes the units of R = 0.0012*F*W,
+        and the coefficient in this function's units is 0.0012/100/3.6 =
+        3.333333e-06. The declared 3.3333e-05 was that with a lost decimal.
+        Finding 10.
+      breaks_if_removed: >
+        The rate of spread returns to ten times Noble's, and fire-line intensity
+        with it, so every fire above ordinary fuel loads saturates the top
+        intensity class.
+      worth: >
+        A class boundary rather than a rounding: at F 20 with 2000 gC/m2 it gave
+        53 333 kW/m against Noble's 5333, which is 7.6 times the top bound.
+        Written as the conversion rather than a corrected number so that
+        substituting a magic number fails the restatement check in
+        biosphere/scripts/fire_parameter_gate.py.
+
+    - id: blaze_kobziar_intensity_coefficient
+      owner: world-mjb0
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/blaze.cpp
+      function: survival_probability_temp_needleleaf
+      mainline_form: line
+      mainline:
+        - "coefficient on fireline intensity 0.0015, on diameter at breast height"
+      live: "const double KOBZIAR_B1_PER_KW_M = 0.0015;"
+      live_under: blaze
+      execution: none
+      why_no_execution: >
+        BLAZE is disarmed, so no arm exercises the survival curves.
+      classification: implicit-earth
+      settles: >
+        Kobziar et al. (2006) Table 8 "All units" gives 0.0015 with a standard
+        error of 0.0002. The declared 0.000151 was 7.5 standard errors below it
+        and is a lost decimal. Finding 14.
+      breaks_if_removed: >
+        The logistic stops responding to intensity: at 7000 kW/m a 20 cm tree
+        survives with probability 0.89 where the source's coefficients give
+        0.0007.
+      worth: >
+        It was CANCELLING against blaze_rate_of_spread_coefficient. Intensity
+        arriving here was ten times too high while this was ten times too low,
+        so the product was roughly right and repairing either alone leaves the
+        curve wrong by a decade. The two are one repair and neither may be
+        reverted without the other.
+
+    - id: blaze_kobziar_fuel_unit
+      owner: world-mjb0
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/blaze.cpp
+      function: survival_probability_temp_needleleaf
+      mainline_form: line
+      mainline:
+        - "reciprocal, so the term entered Kobziar's logistic a hundred times too"
+      live: "const double MG_HA_PER_KG_M2 = 10.0;"
+      live_under: blaze
+      execution: none
+      why_no_execution: >
+        BLAZE is disarmed.
+      classification: not_a_constant
+      settles: >
+        sompool cmass is kgC/m2 at framework/guess.h:3949 and 1 kg/m2 is 10
+        Mg/ha, so the conversion is ten. The declared 0.1 was its reciprocal.
+        Finding 14.
+      breaks_if_removed: >
+        The coarse-woody-debris term returns to a hundredth of its value and the
+        variable is switched off in all but name.
+      worth: >
+        At 3 kgC/m2 the term gave 0.0066 where Kobziar's coefficient asks for
+        0.657. Note the remaining approximation this does NOT fix: Kobziar's
+        variable is the CONSUMPTION of 1000-hour fuels and this passes the pool.
+
+    - id: blaze_ffdi_realignment_year
+      owner: world-4iyz
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/blaze.cpp
+      function: blaze_accounting_gridcell
+      mainline_form: line
+      mainline:
+        - "This read `365 % AVERAGING_FFDI`, giving 25, on a model whose year is"
+      live: "int avg_shift = AVERAGING_FFDI - (date.year_length() % AVERAGING_FFDI);"
+      live_under: blaze
+      execution: none
+      why_no_execution: >
+        BLAZE is disarmed.
+      classification: implicit-earth
+      settles: >
+        The ring buffer is rotated at a year boundary by the year's remainder
+        modulo the window. 30 - (183 % 30) is 27 and the literal 365 gave 25.
+        Finding 12.
+      breaks_if_removed: >
+        The rotation is off by two slots every year boundary and the new year's
+        first month mixes days from two years out of order.
+      worth: >
+        Small and structural. Taken from date.year_length() rather than
+        corrected to 27 so the buffer tracks the declared year instead of
+        carrying a second hardcoded one. The 30-day WINDOW is untouched and is
+        fire-6's decision.
+
+    - id: blaze_kbdi_rainfall_conversion
+      owner: world-4iyz
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/blaze.cpp
+      function: blaze_accounting_gridcell
+      mainline_form: added_line
+      mainline:
+        - "THE RAINFALL TERM IS A SITE CLIMATOLOGY IN INCHES PER EARTH YEAR."
+      live: "climate.rainfall_annual_avg / VESPER_EARTH_YEARS_PER_ORBIT;"
+      live_under: blaze
+      execution: none
+      why_no_execution: >
+        BLAZE is disarmed.
+      classification: implicit-earth
+      settles: >
+        Keetch and Byram use the site's mean ANNUAL rainfall as the parameter
+        setting how fast it dries, and -.0441 was fitted with it in inches per
+        365-day year. The running mean is over this model's 183-day year.
+        Finding 12.
+      breaks_if_removed: >
+        Every site reads as receiving about half the rain it does, and because
+        the term is exponential the resulting bias depends on the climate rather
+        than scaling the field.
+      worth: >
+        0.69 of the intended drought accumulation at an Earth-equivalent 500
+        mm/yr, 0.53 at 1000 and 0.46 at 1500, so it compresses the range of
+        simulated fire weather and moves its spatial pattern. It is a DECISION
+        that the argument is a climatology rather than an integration, recorded
+        at the site for fire-6 to revisit.
+
+    - id: blaze_pixelsize_earth_radius
+      owner: world-pqk7
+      verdict: keep
+      where: file_scope
+      source_file: vendor/lpj-guess/framework/guessmath.h
+      mainline_form: deleted_line
+      mainline:
+        - "R_EARTH is DELETED. Earth's mean radius had exactly one consumer in this"
+      absent_from_stripped:
+        - "R_EARTH            = 6371.2213"
+        - "R_EARTH = 6371.2213"
+      live: null
+      live_under: blaze
+      execution: none
+      why_no_execution: >
+        The deleted function had no callers, so no arm ever reached it and none
+        could.
+      classification: implicit-earth
+      settles: >
+        Earth's mean radius had one consumer in the tree, blaze.cpp's
+        pixelsize(), which had no callers of its own. Both are deleted and no
+        number moved. Finding 6.
+      breaks_if_removed: >
+        Nothing today. What returns is a latent Earth radius in the layer
+        fire-6 arms, and burned AREA is what the function returned, against a
+        planet declared at 1.20 Earth radii.
+      worth: >
+        Nothing measurable now and 44 per cent of a surface area the moment
+        anything called it. Registered at file scope because a deleted function
+        has no enclosing function to name.
+
+    - id: fire_under_phosphorus_limitation_refused
+      owner: fire-7
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/framework/parameters.cpp
+      function: plib
+      mainline_form: added_line
+      mainline:
+        - "FIRE UNDER PHOSPHORUS LIMITATION IS REFUSED SEPARATELY, and the"
+      live: "if (ifplim && firemodel != NOFIRE) {"
+      live_under: globfirm_any
+      execution: none
+      why_no_execution: >
+        It cannot fire yet: parameters.cpp already refuses ifplim 1
+        unconditionally on PFRAC_LEAFTOSAP, so no configuration reaches this
+        condition. That is exactly why it is stated separately.
+      classification: not_a_constant
+      settles: >
+        Neither fire path moves phosphorus -- blaze.cpp has no phosphorus
+        transfer and vegdynam.cpp's fire() has its phosphorus block commented
+        out -- so a burn under ifplim 1 removes a litter pool's carbon and
+        nitrogen and leaves its phosphorus. Finding 6.
+      breaks_if_removed: >
+        Nothing today, and silently everything the moment BIO-34 and
+        WORLD-3E5N lift the refusal above it. That is the point of the
+        separation: a change with nothing to do with fire would otherwise arm
+        this hazard.
+      worth: >
+        The failure it prevents CLOSES -- the phosphorus was never removed, so
+        every budget balances -- which is why no closure test can see it and why
+        the instrument has to be a refusal rather than a check.
+
     - id: globfirm_fireprob_floor
       owner: world-v5j1
       verdict: keep

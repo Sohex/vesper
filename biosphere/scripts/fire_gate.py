@@ -92,7 +92,21 @@ DIVERGENCE_VERDICTS = ("keep", "gate")
 #   deleted_line    the release runs a line this project's source does not run
 #                   at all. There is no `live` line, and the absence is what
 #                   `absent_from_stripped` carries
-MAINLINE_FORMS = ("line", "commented_out", "deleted_line")
+#   added_line      this project's source runs a line the release has NOTHING
+#                   in place of. The inverse of a deletion, and its checks are
+#                   the inverse too: there is no released form to find absent
+#                   from code, so what can fail is `live` going missing and the
+#                   recorded statement of what the release does instead going
+#                   missing. Both are asserted; the third check the `line` form
+#                   makes is declared vacuous here rather than run, because a
+#                   release that runs nothing leaves nothing to forbid
+MAINLINE_FORMS = ("line", "commented_out", "deleted_line", "added_line")
+
+# Where a divergence sits. `operator` is inside a named function and is the
+# ordinary case; `file_scope` is a declaration or a whole function outside any
+# other, which the function check cannot be run on -- a DELETED function has no
+# enclosing function to name, and a file-scope constant never had one.
+DIVERGENCE_SITES = ("operator", "file_scope")
 
 # Which configuration a divergence is live in. Two switches select a fire path
 # -- `firemodel` and `vegmode` -- so an entry names the pair it bites under
@@ -209,6 +223,14 @@ def _check_forms(entry: dict, what: str, form_kind: str, source_file: str,
                            "The weaker guard cannot be claimed for a line that "
                            "would support the stronger one"))
             continue
+        if form_kind == "added_line":
+            # The release runs NOTHING here, so `mainline` is a recorded
+            # STATEMENT of that and not a line of code. Asserting it is absent
+            # from the stripped source would be a check that cannot fail, which
+            # is the shape this module already refuses elsewhere. What can fail
+            # is the statement going missing, which the loop above has just
+            # checked, and `live` going missing, which the caller checks.
+            continue
         for candidate in {form, _strip_comments(form).strip()}:
             if candidate and candidate in code_only:
                 bad(what, (f"declares a divergence from {candidate!r}, and "
@@ -291,7 +313,7 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
                 bad(what, f"a divergence saying nothing about what it {field}")
         _check_entry_execution(entry, what, arms, bad, claimed)
 
-        if entry.get("where") != "operator":
+        if entry.get("where") not in DIVERGENCE_SITES:
             bad(what, f"unknown divergence site {entry.get('where')!r}")
             continue
         source_file = entry.get("source_file")
@@ -301,7 +323,13 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
         source_text, code_only = sources[source_file]
 
         function = entry.get("function")
-        if not function:
+        if entry.get("where") == "file_scope":
+            if function:
+                bad(what, (f"is declared at file scope and names the function "
+                           f"{function!r}. A file-scope divergence sits in no "
+                           f"function; one that does is an `operator` "
+                           f"divergence mis-declared"))
+        elif not function:
             bad(what, "a divergence naming no function it sits in")
         elif not re.search(rf"\b{re.escape(function)}\s*\(", code_only):
             bad(what, (f"sits in {function!r}, and {source_file} no longer "
@@ -317,6 +345,11 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
         if form_kind == "deleted_line":
             _check_absence(entry, what, source_file, code_only, bad)
         else:
+            if entry.get("absent_from_stripped"):
+                bad(what, (f"is a {form_kind!r} divergence carrying "
+                           "absent_from_stripped, which only a deletion has. "
+                           "Nothing was removed, so there is no fragment whose "
+                           "reappearance would be a revert"))
             live = entry.get("live")
             if not live:
                 bad(what, "a divergence naming no line the model runs instead")
@@ -371,7 +404,21 @@ def _fixtures(declaration: dict, sources: dict) -> list[dict]:
     def claim(entry_id, field, value):
         return lambda d: _entry(d, entry_id).__setitem__(field, value)
 
-    first = declaration["mainline_divergences"]["entries"][0]["id"]
+    # NAMED, not indexed and not matched by shape. The fixtures below mutate one
+    # entry and assert what the checker then says, and most of them use
+    # fragments of `vegdynam.cpp` -- so they need THE FLOOR entry specifically,
+    # not merely any deletion. Indexing entries[0] stopped testing them the
+    # moment an entry was declared above it, and matching on
+    # `mainline_form == "deleted_line"` stopped the moment a second deletion in
+    # another file was declared above it. Both failures were silent: the
+    # fixtures went on passing while asserting nothing.
+    FIXTURE_ENTRY = "globfirm_fireprob_floor"
+    ids = {e["id"] for e in declaration["mainline_divergences"]["entries"]}
+    if FIXTURE_ENTRY not in ids:
+        return [{"fixture": f"the fixtures mutate {FIXTURE_ENTRY!r}",
+                 "expected": "that entry to exist", "found": sorted(ids),
+                 "pass": False}]
+    first = FIXTURE_ENTRY
 
     # A line the source in fact still runs, and a fragment of one. Both are read
     # out of `fire()` rather than invented, so a fixture that stops being wrong
@@ -393,6 +440,29 @@ def _fixtures(declaration: dict, sources: dict) -> list[dict]:
         ("a deletion carrying no forbidden fragments, so a reformatted revert "
          "would pass",
          mutate(claim(first, "absent_from_stripped", [])),
+         "divergence"),
+        # The added_line form and the file_scope site, each able to fail in a
+        # named way. They are built by MUTATING the floor entry rather than by
+        # writing a synthetic one, so a fixture cannot drift away from the
+        # schema the real entries use.
+        ("an added line the source does not run",
+         mutate(lambda d: (_entry(d, first).update(
+             {"mainline_form": "added_line", "absent_from_stripped": None,
+              "live": "fireprob = no_such_conversion();"}))),
+         "divergence"),
+        ("an added line naming no line the model runs",
+         mutate(lambda d: (_entry(d, first).update(
+             {"mainline_form": "added_line", "absent_from_stripped": None,
+              "live": None}))),
+         "divergence"),
+        ("an added line carrying absent_from_stripped, which only a deletion has",
+         mutate(lambda d: (_entry(d, first).update(
+             {"mainline_form": "added_line",
+              "absent_from_stripped": ["fireprob=0.001"],
+              "live": live_line}))),
+         "divergence"),
+        ("a file-scope divergence that also names a function",
+         mutate(claim(first, "where", "file_scope")),
          "divergence"),
         ("a deletion that also names a line the model runs instead",
          mutate(claim(first, "live", live_fragment + ";")),
