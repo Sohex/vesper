@@ -22,8 +22,24 @@ read, and recorded in `references/INDEX.md`:
 - Mangeon et al. (2016), INFERNO; and
 - Rabin et al. (2017), the FireMIP phase-1 protocol and model comparison.
 
+Four more were read on 2026-09-07, to walk the BLAZE effects layer's own
+citations to their ends rather than to add a model form:
+
+- Noble, Gill and Bary (1980), the McArthur meters as equations, which is the
+  source of every fire-danger term `blaze.cpp` runs and which settles that its
+  rate-of-spread coefficient is a unit conversion rather than an empirical
+  value;
+- Sirakoff (1985), the two-page correction to Noble that `blaze.cpp` already
+  implements and does not cite;
+- Liedloff and Cook (2007), for the fuel heat yield, which that paper states as
+  an assumption rather than a measurement; and
+- Arora and Boer (2005), for the calm-air fire growth ratio Li et al. (2012)
+  reports second-hand, which that paper also states as an assumption.
+
 The findings below distinguish what those papers demonstrate from choices that
-must be declared for Vesper.
+must be declared for Vesper.  Findings 9 through 11 were added by that second
+reading; the constants themselves, with their dispositions, are in
+`biosphere/config/fire_parameters.yaml` rather than restated here.
 
 ## Findings
 
@@ -269,5 +285,138 @@ structure.
 How many gridcells that is cannot be stated from the source.  It is a property of
 this world's soil moisture and fuel, and `biosphere/config/fire.yaml`'s
 `comparison_arm` names the paired run that would measure it.
+
+### 9. SIMFIRE is not an alternative to BLAZE; it is BLAZE's mandatory preprocessing
+
+Finding 1 said the driver "enables BLAZE only when the input module calls itself
+`cru_ncep`", and described that as a generator-identity test. The mechanism is
+both simpler and harder than that, and it changes what FIRE-4 has to do.
+
+`modules/driver.cpp:734` reads:
+
+```
+if (firemodel == BLAZE) {
+    simfire_accounting_gridcell(gridcell);
+    blaze_accounting_gridcell(gridcell.climate);
+}
+```
+
+So selecting BLAZE runs SIMFIRE's whole annual accounting unconditionally.
+`simfire_accounting_gridcell` calls `getsimfiredata` on the first day of the
+simulation, and that function opens `file_simfire` and calls `fail()` if it
+cannot. The archive it opens holds Hyde 3.1 population density and a monthly
+burned-area climatology. `simfire_update_pop_density` is called beside the biome
+mapping every year. There is no configuration in which BLAZE runs and this does
+not.
+
+The coupling is load-bearing in the other direction too. `blaze.cpp:1012` selects
+the litter combustion factor `k_tun_litter` on `gridcell.simfire_biome`, and
+`blaze.cpp:403` selects which tree survival parameterisation applies on the same
+field. `simfire_biome` is written only by `simfire_biome_mapping`, which is
+reached only from inside `simfire_accounting_gridcell`. Removing the SIMFIRE path
+without replacing that field leaves both selections reading a member that
+`Gridcell`'s constructor does not initialise.
+
+**The archive would not refuse this world; it would answer for it.** The lookup
+in `getsimfiredata` keys on `floor(lon*2)/2 + 0.25` and the matching latitude, so
+a Vesper gridcell carries coordinates that are perfectly valid keys into an Earth
+0.5-degree archive. It would not fail to find a record. It would return the human
+population history and the observed fire seasonality of the Earth location at the
+same latitude and longitude, and the run would complete. This is the concrete
+form of finding 1's warning that supplying the archive conceals rather than
+solves the missing inputs, and it is why FIRE-4 must fail closed on a capability
+rather than on a file being absent.
+
+Consequence for the staged plan in finding 2: the ignition/occurrence seam and
+the effects layer are separable as MODEL FORM but not as work. FIRE-6 cannot arm
+BLAZE while FIRE-4 has removed the field BLAZE selects its coefficients with, and
+FIRE-4 cannot remove SIMFIRE while BLAZE is the only thing that calls it. The
+biome classification `simfire_biome` carries is the piece that has to survive the
+removal, and it is derived from the model's own simulated vegetation and land
+cover rather than from the archive -- `update_fire_biome` reads patch state, with
+absolute latitude 50 degrees separating shrubland from tundra and barren, which is
+the BIO-29 latitude branch finding 6 already names.
+
+### 10. BLAZE's rate of spread is Noble's coefficient with a lost decimal
+
+`blaze.cpp:227` declares `A = 3.3333e-05` under the comment `// Empirical
+value`, and uses it at `:247` as `rate_of_spread = A * mcarthur_forest_fire_index
+* avail_fuel`.  Noble et al. (1980) gives the Mark 5 forest rate of spread as
+`R = 0.0012*F*W`, and its Table 1 fixes the units: R in km/h, W in tonnes/ha, F
+dimensionless.  `blaze.cpp` computes F from Noble's own drought-factor and index
+equations verbatim at `:1076` and `:1081`, so nothing rescales between them.
+
+In the units `blaze.cpp` uses -- fuel in g/m2, spread in m/s -- Noble's
+coefficient is `0.0012 / 100 / 3.6 = 3.333333e-06`.  The source compiles ten
+times that, and the mantissa agreeing to five digits is what makes it a lost
+decimal rather than a different calibration.  The constant is not empirical; it
+is a folded unit conversion whose comment failed to say so.
+
+Three independent readings confirm the units, so no alternative rescues it:
+`MIN_FUEL = 200` is commented g/m2 and matches GlobFIRM's 200 gC/m2 threshold;
+`HEAT_YIELD * avail_fuel * rate_of_spread` evaluates to kW/m only with R in m/s;
+and the intensity class bounds 750, 3000 and 7000 kW/m are standard Byram
+values.  Reading R as m/min, m/h or cm/s gives 2e-04, 1.2e-02 and 3.3333e-04,
+none of them the declared number.
+
+It is worth a class boundary rather than a rounding.  At F = 10 with 1000 gC/m2
+of fuel, Noble gives 667 kW/m, below the lowest bound; `blaze.cpp` gives 6667,
+the second-highest class.  At F = 20 with 2000 gC/m2, 5333 against 53 333, which
+is 7.6 times above the top bound, so every such fire takes the maximum
+combustion column and the maximum mortality.  `world-c15e`.
+
+A separate error multiplies with it.  `available_fuel` sums `cmass`, which is
+carbon, while Noble's W and Byram's w are fuel weight; no carbon-to-dry-matter
+factor exists anywhere in the fire path.  `world-9zfv` carries that, filed apart
+because the two have different right answers and one combined factor that made
+the product look plausible would conceal both.
+
+### 11. The combustion table's column index is wrong at both ends
+
+`TURNOVERFRACT` is `double[13][5]`, selected by a fire-line-intensity class.
+
+At the low end this is a defect.  `get_fireline_intensity` sets the intensity to
+`-1.` when available fuel is below `MIN_FUEL` -- the documented "not enough fuel
+to ignite" case -- and `get_fire_line_intensity_index` then falls through every
+branch and returns `-1`.  `blaze()` passes that index straight to
+`get_combustion_rates` with no guard; its only two early returns are on
+flammable area and the stochastic burn draw, and neither consults fuel.  The
+array is contiguous, so `[r][-1]` aliases `[r-1][4]`, the highest-intensity
+column of the row above, and `[0][-1]` reads before the array.  A patch with too
+little fuel to carry a fire therefore combusts all of its surface litter and half
+its leaves, and is flagged burned.  The sign is backwards and the row-0 read is
+undefined behaviour.  `world-voxz`.
+
+At the high end it is dead code.  The table's header comment says columns 3 and 4
+are the sprouter and seeder rates above 7000 kW/m, and the index function returns
+4 for every intensity above 7000 and never 3.  `is_resprouter` exists in the file
+but reaches only a survival probability, never a column.  Every intense fire
+therefore takes the seeder rates, which for stems and branches to litter are 0.8
+against the sprouter 0.2.
+
+### 12. The drought index reads a 183-day rainfall total into an Earth-annual coefficient
+
+`blaze.cpp:1069` is the Keetch-Byram drought index, and its rainfall term is
+`exp(-.0441 * climate.rainfall_annual_avg / 25.4)`.  That running mean is
+accumulated and reset on `date.islastday && date.islastmonth`, so it is a total
+over this model's year of 183 absolute days, while the coefficient was fitted to
+Earth annual rainfall over 365.
+
+Because the term is exponential, the resulting bias depends on the climate
+rather than scaling the field: holding the daily rate fixed, the drought
+accumulates at 0.69 of the intended rate at an Earth-equivalent 500 mm/yr, 0.53
+at 1000 and 0.46 at 1500.  A bias that varies with the cell compresses the range
+of simulated fire weather and moves its spatial pattern.  It also runs the
+opposite way from the guess, because rainfall enters through a negative
+exponential: a shorter year makes the world read as wetter and burn less.
+
+This is the same class as the GlobFIRM burn-probability floor of finding 8,
+found the same way, and `biosphere/notes/time-base-unit-contract.md` excludes
+fire rates from its registry and hands them here.  `RAINFALL_AVERAGING_SPAN = 3`
+is the second half and is not obviously the same repair: a memory length may be a
+count of seasonal cycles rather than a duration, and it should be decided rather
+than inherited.  The rest of the block is imperial throughout and its ceiling of
+800 is 203.2 mm of soil moisture deficit standing for an Earth soil profile's
+water capacity.  `world-4iyz`.
 
 No LPJ-GUESS or ExoPlaSim run was performed for this audit.

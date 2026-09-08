@@ -543,6 +543,81 @@ parameters:
       turns the finding off by making the two agree -- which is the intended
       way for it to end.
 
+  keetch_byram_drought_index_domain:
+    seam: effects
+    what: >
+      The drought index every McArthur fire-danger term is built on. Like
+      `mcarthur_index_domain` this is a DOMAIN rather than a constant, and it
+      is registered because the coefficients below it cannot be disposed of
+      while the quantity they act on is the wrong one.
+    unit: hundredths of an inch of soil moisture deficit
+    central: 800.0
+    disposition: sourced
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "800. - climate.kbdi"
+    row: world-4iyz
+    consumed_by: fire-6
+    source: >
+      Keetch and Byram (1968), implemented at blaze.cpp:1061-1073. The block
+      is imperial throughout -- t*9./5.+32. converts to Fahrenheit, /25.4 to
+      inches and *.254 back to millimetres -- and the ceiling of 800 is 800
+      hundredths of an inch, which is 203.2 mm of soil moisture deficit.
+    why_this_disposition: >
+      `central` is the ceiling because that is the one number in the block
+      with a physical meaning rather than a fitted one: it stands for the water
+      capacity of a soil profile, and it is an EARTH soil profile. This
+      project's pedology component derives this world's soil water capacity
+      from its own build, so the index carries a soil assumption that
+      contradicts an artifact the tree already produces.
+      THE INDEX'S ARGUMENT IS ALSO THE WRONG QUANTITY, which is world-4iyz and
+      is worse than the ceiling: the rainfall term is fed a 183-day model-year
+      total against a coefficient fitted to Earth ANNUAL rainfall, and because
+      the term is exponential the resulting bias depends on the climate --
+      0.69 of the intended drought accumulation at 500 mm/yr, 0.53 at 1000 and
+      0.46 at 1500. A bias that varies with the cell compresses the range of
+      simulated fire weather and moves its spatial pattern, rather than
+      scaling the field.
+    do_not: >
+      Do not rescale the 0.0441 coefficient to absorb the year-length error.
+      That repairs the unit of one number inside a fitted index and leaves the
+      index reading a quantity it was not fitted on; the conversion belongs at
+      the point of read, where it can be seen.
+
+  rainfall_averaging_span:
+    seam: effects
+    what: >
+      How many years of past rainfall the drought index's running mean
+      remembers.
+    unit: model years
+    central: 3.0
+    bracket: [1.5, 3.0]
+    disposition: bracketed
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/blaze.cpp
+    literal: "RAINFALL_AVERAGING_SPAN = 3"
+    row: world-4iyz
+    consumed_by: fire-6
+    source: >
+      blaze.cpp:77, uncited, used at :1105-1109 as a weighting on a running
+      mean and compared against date.year, so it counts MODEL years.
+    why_this_disposition: >
+      Three model years is 1.5 Earth years of absolute time, and the question
+      the bracket holds open is which of those the calibration meant. A
+      memory length for a drought index is arguably a count of SEASONAL CYCLES,
+      in which case three is right and carries unchanged; or it is a DURATION
+      over which soil moisture anomalies persist, in which case three Earth
+      years is 5.98 model years and the constant is a factor of two out. The
+      bracket's ends are exactly those two readings -- 3.0 model years, and
+      the 1.5 that three model years is worth in Earth years -- rather than a
+      confidence interval, so a sweep reports what the ambiguity is worth
+      instead of one arm inheriting it.
+      Unlike `average_fire_duration` this one is NOT anchored to the planet,
+      because the answer is not a rotation: it depends on which quantity the
+      calibration was about, and no reading of config/planet.yaml settles that.
+
   mcarthur_drought_factor_limit:
     seam: effects
     what: >
