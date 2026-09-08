@@ -285,18 +285,45 @@ double survival_probability_boreal(double fire_line_intensity) {
 double survival_probability_temp_needleleaf(double diameter_at_breast_height, double fire_line_intensity, double mass_cwd) {
 
 	double diameter_at_breast_height_cm  = diameter_at_breast_height * CM_PER_M; // in cm
-	double cwd = mass_cwd * 0.1; // in Mg/ha
+
+	// kgC/m2 to Mg/ha is a factor of TEN, not a tenth. sompool cmass is
+	// documented "C mass in pool kgC/m2" at framework/guess.h:3949, and
+	// 1 kg/m2 is 10000 kg/ha is 10 Mg/ha. This read `mass_cwd * 0.1`, the
+	// reciprocal, so the term entered Kobziar's logistic a hundred times too
+	// small and contributed essentially nothing: at 3 kgC/m2 of coarse woody
+	// debris it gave 0.0066 where the coefficient asks for 0.657.
+	// world-3vhm, biosphere/notes/fire-model-audit.md finding 14.
+	const double MG_HA_PER_KG_M2 = 10.0;
+	double cwd = mass_cwd * MG_HA_PER_KG_M2; // in Mg/ha
 	// survival probability at intensity below 750 kW/m
 	double survival_probability_750;
 	double survival_probability;
 
+	// KOBZIAR ET AL. (2006) TABLE 8, "All units": the intercept is 1.0337, the
+	// coefficient on fireline intensity 0.0015, on diameter at breast height
+	// -0.2210 and on 1000-hour fuel consumption 0.0219, with I in kW/m and DBH
+	// in cm. Three of those four were transcribed correctly and the intensity
+	// coefficient was not: it stood here as 0.000151, a decade below the 0.0015
+	// the paper reports with a standard error of 0.0002, so the logistic barely
+	// responded to how intense the fire was. At 7000 kW/m a 20 cm tree survived
+	// with probability 0.89 where the source's coefficients give 0.0007.
+	//
+	// IT WAS CANCELLING AGAINST world-c15e AND IS NOW NOT. The rate-of-spread
+	// coefficient above carried a lost decimal in the other direction, so
+	// fire_line_intensity reaching this function was ten times too high while
+	// this coefficient was ten times too low, and the product was roughly
+	// right. Repairing the spread coefficient alone left this curve ten times
+	// too weak, which is why both have to move together and why neither may be
+	// left as a compensating error. world-3vhm,
+	// biosphere/notes/fire-model-audit.md finding 14.
+	const double KOBZIAR_B1_PER_KW_M = 0.0015;
 	if ( fire_line_intensity < 750. ) {
-		survival_probability_750   = 1. - (1./(1.+ exp(-(1.0337 + 0.000151*750. 
+		survival_probability_750   = 1. - (1./(1.+ exp(-(1.0337 + KOBZIAR_B1_PER_KW_M*750. 
 						- .221*diameter_at_breast_height_cm + .0219*cwd))));
 		survival_probability = 1. - (fire_line_intensity/750. * (1. - survival_probability_750) );
 	}
 	else {
-		survival_probability = 1. - (1./(1.+ exp(-(1.0337 + 0.000151*fire_line_intensity
+		survival_probability = 1. - (1./(1.+ exp(-(1.0337 + KOBZIAR_B1_PER_KW_M*fire_line_intensity
 						- .221*diameter_at_breast_height_cm + .0219*cwd))));
 	}
 

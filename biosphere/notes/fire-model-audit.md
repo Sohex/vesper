@@ -533,4 +533,41 @@ do not move.  `world-drim`, REPAIRED: `fire()` now applies
 The binary was NOT rebuilt, so `build_lpj_guess.py --verify` reports it stale
 and the next run refuses until it is.
 
+### 14. Kobziar's survival logistic carries two unit errors, and one was cancelling finding 10
+
+`blaze.cpp`'s `survival_probability_temp_needleleaf()` implements Kobziar,
+Moghaddas and Stephens (2006) Table 8, "All units": intercept 1.0337, 0.0015 on
+fireline intensity, -0.2210 on diameter at breast height, 0.0219 on consumption
+of 1000-hour fuels, with intensity in kW/m and diameter in cm.  Three of the
+four were transcribed correctly.
+
+**The intensity coefficient stood at 0.000151 against the paper's 0.0015** --
+a decade low, and 7.5 standard errors below a value the paper reports with a
+standard error of 0.0002, so it is a lost decimal rather than a different fit.
+The logistic barely responded to how intense the fire was: at 7000 kW/m a 20 cm
+tree survived with probability 0.8919 where the source's own coefficients give
+0.0007, and at 3000 kW/m 0.9379 against 0.2087.
+
+**The fuel term was converted by the reciprocal.** `cwd = mass_cwd * 0.1`,
+commented "in Mg/ha", where `sompool` `cmass` is documented "C mass in pool
+kgC/m2" at `framework/guess.h:3949` and 1 kg/m2 is 10 Mg/ha.  At 3 kgC/m2 of
+coarse woody debris the term contributed 0.0066 where the coefficient asks for
+0.657, so the variable was switched off in all but name.
+
+**And the first was cancelling against finding 10**, which is why it is worth a
+finding of its own.  The rate-of-spread coefficient carried a lost decimal in
+the OTHER direction, so the intensity reaching this function was ten times too
+high while this coefficient was ten times too low and the product was roughly
+right.  Repairing the spread coefficient alone left this curve ten times too
+weak.  The two had to move together, and neither could be left as a
+compensating error -- which is the concrete case for the rule finding 10's
+companion `world-9zfv` already states: two multiplying errors are never repaired
+with one combined factor, because a plausible product conceals both.
+
+Both are fixed, as named constants with their derivations at the site.  What is
+NOT fixed is a model-form question: Kobziar's third variable is the CONSUMPTION
+of 1000-hour fuels and `blaze.cpp` passes the coarse woody debris POOL, which is
+at most equal to it and usually well above.  The model already computes the
+consumption as `patch.lcwd_to_atm`.  `world-mjb0`.
+
 No LPJ-GUESS or ExoPlaSim run was performed for this audit.

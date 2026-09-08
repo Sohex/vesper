@@ -879,7 +879,18 @@ parameters:
     literal: "exp(-fire_line_intensity/500.)"
     consumed_by: fire-6
     source: >
-      blaze.cpp cites Dalziel et al. (2008) for the boreal survival form.
+      blaze.cpp cites Dalziel et al. (2008) for the boreal survival form. Not
+      held; the citation cannot be resolved to a DOI from the source comment
+      alone, and Knorr, Jiang and Arneth (2016) -- fetched for the purpose --
+      turns out to describe SIMFIRE's emissions and never mentions BLAZE, so it
+      does not carry the reference list either.
+    sibling_curve_was_wrong: >
+      The temperate-needleleaf curve beside this one was transcribed from
+      Kobziar et al. (2006) with a decade lost on its intensity coefficient and
+      a reciprocal on its fuel unit (world-mjb0), both found by reading the
+      source paper. This one has not been checked against Dalziel because
+      Dalziel is not held. Its 500 kW/m e-folding is therefore in exactly the
+      state Kobziar's was before the paper arrived.
     why_this_disposition: >
       Tree survival at a given fire-line intensity is set by bark thickness
       against a heat flux, and bark thickness on this world is a modelled
