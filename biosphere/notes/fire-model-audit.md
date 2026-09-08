@@ -419,4 +419,57 @@ than inherited.  The rest of the block is imperial throughout and its ceiling of
 800 is 203.2 mm of soil moisture deficit standing for an Earth soil profile's
 water capacity.  `world-4iyz`.
 
+### 13. GlobFIRM's burned fraction is a per-Earth-year rate on a 183-day year
+
+Finding 8 diagnosed the burn-probability FLOOR as one-per-Earth-year and it was
+deleted.  `biosphere/config/fire.yaml` records that the curve the floor sat on
+top of "is a separate question".  This is that question, and it has the same
+answer.
+
+`modules/vegdynam.cpp:1431` is Thonicke et al. (2001) Eqn 9:
+
+```
+s = n / (double)date.year_length();
+sm = s - 1;
+fireprob = s*exp(sm/(0.45*sm*sm*sm + 2.83*sm*sm + 2.96*sm + 1.04));
+```
+
+**The argument going in is correct, and that is what hides it.**  `n` is the
+summed daily fire probability over the year, so `s` is the annual MEAN DAILY
+probability -- a dimensionless fraction of days.  Holding the daily fire weather
+fixed, `n` scales with the year's length and `s` does not, so `s` computed over
+183 days is the same physical quantity Thonicke computed over 365.  Nothing is
+wrong on the way in.
+
+**The output is a burned fraction per EARTH year.**  Eqn 9's four coefficients
+were fitted against observed annual area burnt, on a world whose year is 365
+days.  The model applies that fraction to a year of 183 absolute days --
+`VESPER_YEAR_LENGTH_DAYS` in `framework/vesper.h`, returned by
+`date.year_length()` through `Date::MAX_YEAR_LENGTH` at `guess.h:529`.  The same
+fire climate therefore delivers a whole Earth year of burning every 183 days:
+365.2569/183 = 1.9959 times the burned area per unit absolute time.
+
+It is consumed as a per-model-year rate, which closes the argument.
+`mortality_guess:1050` draws `randfrac(...) < fireprob` once per simulation year,
+and `mortality_lpj:873` and `mortality_guess:907` set
+`mort_fire = fireprob*(1-fireresist)` per simulation year.  No downstream
+division by a year length absorbs it.
+
+The same file already applies the conversion elsewhere.  `vegdynam.cpp:1005`
+computes the growth-efficiency mortality as
+`1.0 - pow(1.0 - KMORTGREFF_PER_EARTH_YEAR, VESPER_EARTH_YEARS_PER_ORBIT)`, which
+is the rule `vesper.h` states for an Earth-calibrated fraction per Earth year,
+and `distinterval` reaches the model as 199.594 simulation years against an Earth
+calibration of 100.  The comment at `:1459` names `distinterval` as "the same
+class of quantity read 140 lines below", converted "for exactly this reason".
+The curve's own output sits two lines above that comment.
+
+The conversion roughly halves the probability -- ratio 0.5010 at 1e-4, 0.5023 at
+1e-2, 0.5142 at 0.1 -- and fire is 11.7 per cent of this world's simulated carbon
+turnover, so it is a correction to a material term rather than to a diagnostic.
+The equilibrium response is not simply half: a lower burn probability lets fuel
+accumulate and makes each fire larger, so the sign is unambiguous and the
+magnitude needs the run.  Thonicke's four coefficients are not what is wrong and
+do not move.  `world-drim`.
+
 No LPJ-GUESS or ExoPlaSim run was performed for this audit.

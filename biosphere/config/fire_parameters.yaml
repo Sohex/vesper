@@ -462,6 +462,49 @@ parameters:
       be a fit to a desired result, which is the definition the no-tuned-values
       rule exists to refuse.
 
+  globfirm_annual_burned_fraction:
+    seam: occurrence_to_area
+    what: >
+      The TIME BASE of GLOBFIRM's burned fraction, as distinct from the four
+      coefficients of the curve that produces it. Registered separately from
+      `globfirm_burned_fraction_curve` because the curve is a published fit
+      this project keeps and the time base is a defect it does not.
+    unit: fraction burned per year
+    central: null
+    disposition: irreducible
+    defect: implicit_earth
+    route: compiled_literal
+    source_file: vendor/lpj-guess/modules/vegdynam.cpp
+    literal: "fireprob=s*exp(sm/"
+    row: world-drim
+    consumed_by: fire-5
+    source: >
+      Thonicke et al. (2001) Eqn 9 returns the ANNUAL fractional area burnt,
+      fitted against observed annual area burnt on a world whose year is 365
+      days. vegdynam.cpp:1431 applies it to a year of 183 absolute days.
+    why_this_disposition: >
+      `central` is null because the defect is not a NUMBER: the curve's four
+      coefficients are right and stay, and what is wrong is the unit its output
+      carries. The argument going in is fine and that is what hides it --
+      s = n/year_length() is a mean daily probability and is scale-invariant,
+      so the same fire climate gives the same s on a 183-day year as on a
+      365-day one. The output is not scale-invariant, and the same fraction
+      burned over 183 days instead of 365.2569 is 1.9959 times the burning per
+      unit absolute time.
+      The same file already knows the conversion: vegdynam.cpp:1005 applies
+      1-pow(1-r, VESPER_EARTH_YEARS_PER_ORBIT) to the growth-efficiency
+      mortality, and `distinterval` reaches the model as 199.594 against an
+      Earth calibration of 100. The comment at :1459, written for the deleted
+      burn-probability floor, names distinterval as the same class of quantity
+      and converted for exactly this reason. The floor was diagnosed on that
+      argument and deleted; the curve's own output, two lines above the
+      comment, has the identical property.
+    do_not: >
+      Do not rescale Thonicke's four coefficients. They are a published fit
+      with a stated Earth domain and they are not what is wrong; converting
+      the output is, and the constant to convert it with is already imported
+      in that file.
+
   fireline_intensity_heat_yield:
     seam: effects
     what: Energy released per unit mass of fuel burned.
