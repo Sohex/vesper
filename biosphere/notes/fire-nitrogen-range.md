@@ -1,9 +1,13 @@
-# Is the simulated fire nitrogen flux in a possible range?
+# The simulated fire operator on the accepted run: what it is worth, and whether its nitrogen flux is possible
 
-Worldbuilding. Vesper is an invented planet; this note is about the nitrogen its
-simulated vegetation model loses to fire, and about whether two conservation
-bounds reject that number. Nothing here is about fire on Earth except where
+Worldbuilding. Vesper is an invented planet; this note is about what its
+simulated vegetation model's fire operator is doing on the one accepted run --
+how much of the carbon cycle it moves, and whether the nitrogen it releases is
+inside two conservation bounds. Nothing here is about fire on Earth except where
 Earth is named as a distance to report.
+
+Two questions in one measurement session on one run, and they are in this order
+because the second only matters if the first says fire matters.
 
 FIRE-8 exists because `assess_lpj_run.py` checks that values are finite,
 physical and closing, and asks nothing about whether a flux is ORDINARY. A large
@@ -120,6 +124,56 @@ passed: they cost one pass over two tables, they have right answers, and the
 defect they would catch -- a fire operator drawing nitrogen the model never had --
 is one that closure testing cannot see, because a flux that removes nitrogen the
 model had closes whatever its size.
+
+## What fire is worth in this world
+
+Measured on the same run, over the same 2,026,101 gridcell-years, from
+`cflux.out`. That table is in kgC/m2/yr and is written without the `M2_PER_HA`
+factor the nitrogen flux tables carry. `Veg` is the NEGATED net primary
+production (`commonoutput.cpp:1488` reports `-NPP`), `Soil` is heterotrophic
+respiration plus organic leaching, and `Fire` is the fire carbon flux. At
+equilibrium the net is zero, so production is balanced by soil respiration plus
+fire, and fire's share of the carbon TURNOVER is `Fire / (Soil + Fire)`.
+
+    NPP                        0.15309 kgC/m2/yr
+    soil respiration + leach   0.12374
+    fire                       0.01639
+    fire / (soil + fire)       0.1169
+    fire / NPP                 0.1070
+
+**Fire moves about a tenth of this world's simulated carbon turnover**, and it
+does so through the operator that is actually running: GLOBFIRM, on the
+configuration `run_lpj_guess.py` writes.
+
+It is not spread evenly, and the distribution is the more useful half:
+
+    per-gridcell fire share of turnover, 1617 cells
+      median                 0.0029
+      p75                    0.0921
+      p90                    0.1577
+      p99                    0.3206
+      maximum                0.3595
+      cells above 10%          369   (22.8%)
+      cells above 25%           52   (3.2%)
+      cells with no fire       669   (41.4%)
+
+So two fifths of the land never burns and roughly a quarter of it routes more
+than a tenth of its carbon through fire, with the most fire-dominated gridcells
+approaching a third.
+
+**This is what makes the rest of the fire work worth doing, and it is worth
+stating as a number rather than as an assumption.** A ten per cent term in the
+carbon cycle is far above any noise floor, so every question about the fire
+operator -- the deleted burn-probability floor, the Earth-fitted curve it runs,
+the four defects registered against the effects layer it does not yet run -- is
+a question about a material quantity rather than a rounding. It also means
+FIRE-9's comparison is well posed: a no-fire arm would move about a tenth of the
+carbon turnover, which no ensemble spread is going to hide.
+
+It says nothing about whether a tenth is the RIGHT share. Earth's terrestrial
+fire flux is of the same order as a fraction of NPP, and under CLAUDE.md's rule
+that is a distance to report rather than a target to solve onto. What the number
+establishes is the STAKE, not the answer.
 
 No LPJ-GUESS run was performed for this note. It reads the tables of a run that
 already existed.
