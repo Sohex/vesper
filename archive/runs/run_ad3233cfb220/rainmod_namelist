@@ -1,0 +1,7 @@
+ &rainmod_nl
+ RCRITWIDTH = -1 
+ GAMMA = -1 
+ CLWREF = 0.00021 
+ NCLOUDS     =     1
+ NSTORAIN    =     0
+ /END

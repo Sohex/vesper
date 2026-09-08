@@ -1,0 +1,12 @@
+ &icemod_nl
+ HLEAD = 0.5000 
+ XMAXD = -1.0000 
+ HICE_INI = 0.0000 
+ TSST_POL = 273.0000 
+ TSST_EQ = 300.0000 
+ CLFI = 328000.0 
+ CPS = 3990.33 
+ CRHOS = 1027.94 
+ TFREEZE = 271.2449 
+ NICE        =     1
+ /END

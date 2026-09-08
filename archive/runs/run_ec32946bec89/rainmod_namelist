@@ -1,0 +1,5 @@
+ &rainmod_nl
+ CLWREF = 0.00021 
+ NCLOUDS     =     1
+ NSTORAIN    =     0
+ /END

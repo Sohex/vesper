@@ -1,0 +1,7 @@
+ &oceanmod_nl
+ HDIFFK = 1000 
+ NHDIFF = 0 
+ MLDEPTH = 50.0 
+ NOCEAN      =     1
+ NLSG        =     0
+ /END

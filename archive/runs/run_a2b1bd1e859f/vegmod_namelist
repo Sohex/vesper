@@ -1,0 +1,9 @@
+ &vegmod_nl
+ RINIVEG = 0.0 
+ RINISOIL = 0.0 
+ RINIDMR = 2.0 
+ RINIDSC = 1.0 
+ RINIDAGG = 0.5 
+ FORGROW = 1.0 
+ NCVEG = 1 
+ /END
