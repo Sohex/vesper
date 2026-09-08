@@ -1,0 +1,125 @@
+# Is the simulated fire nitrogen flux in a possible range?
+
+Worldbuilding. Vesper is an invented planet; this note is about the nitrogen its
+simulated vegetation model loses to fire, and about whether two conservation
+bounds reject that number. Nothing here is about fire on Earth except where
+Earth is named as a distance to report.
+
+FIRE-8 exists because `assess_lpj_run.py` checks that values are finite,
+physical and closing, and asks nothing about whether a flux is ORDINARY. A large
+positive emission is finite, is positive, and CLOSES -- the nitrogen it removes
+is nitrogen the model had -- so the row's own argument is that nothing in the
+tree currently looks. This note is the looking, for the one axis that can be
+settled without choosing a fire model.
+
+## The criteria, and why they are criteria
+
+Both are stated before the comparison and neither is fitted to the distribution
+it judges. CLAUDE.md's rule is that a threshold chosen after the run it judges is
+not a threshold; the tail below had already been measured when this was written,
+so the bounds are derived from the INPUT side, where the observed distribution
+cannot reach them.
+
+**Bound 1, the stock bound.** In one simulated year a gridcell cannot lose more
+nitrogen to fire than the nitrogen it holds. Fire moves nitrogen out of the
+vegetation, litter and soil pools, so a year in which the fire flux exceeds the
+cell's total nitrogen pool is not a large fire; it is a defect.
+
+**Bound 2, the rate bound.** Over the retained record a gridcell is at
+equilibrium, so its nitrogen losses equal its nitrogen inputs. Fire is one of at
+least three loss pathways -- fire gases, soil gases and leaching -- so the
+retained-record mean fire loss must be strictly below the retained-record mean
+input. A cell above it is either not at equilibrium or is losing nitrogen it
+never received.
+
+Neither bound involves a fire model, a burned area or an Earth comparison. Both
+have a right answer, which is what makes them tests rather than descriptions.
+
+## What was measured
+
+Measured on 2026-09-07, on `lpj_1e6a2b9ca51a4eff9592992cad96677b` -- the first
+accepted LPJ run, 8600 spin-up, 1253 retained, 1617 gridcells,
+`canonical-10m-carve2`, `npatch 5`. All 2,026,101 gridcell-years of the retained
+record, no subsampling.
+
+The fire flux is the sum of the four fire columns of `ngases.out`: `NH3_fire`,
+`NOx_fire`, `N2O_fire` and `N2_fire`. The inputs are `NH4dep`, `NO3dep`, `fix`
+and `fert` from `nflux.out`, which that file writes NEGATED. The stock is
+`npool.out`'s `Total`.
+
+**A unit trap sits between those three files and it is not documented anywhere a
+reader would meet it.** `nflux.out` and `ngases.out` are multiplied by
+`M2_PER_HA` at `commonoutput.cpp:1983` and `:2085` and are in kgN/ha;
+`npool.out` at `:2057` is not, and is in kgN/m2. The comment at `:196` reading
+"kgN/m2, converted by 1e4 to kgN/ha" is about the PRECISION the column is given
+and not about the column being converted. Comparing the two without the factor
+of 10^4 makes every cell-year fail bound 1 by about three orders of magnitude,
+which is a tidy-looking wrong answer of exactly the kind CLAUDE.md's
+check-the-instrument rule is about.
+
+## Results
+
+**Bound 1 holds, with room.**
+
+    cell-years compared              2,026,101
+    cell-years where fire > pool     0
+    worst fire/pool ratio            0.0712
+    at                               lon -123.75, lat -2.77, year 9118
+    that year                        831.19 kgN/ha burned from a pool of 11,675 kgN/ha
+
+**Bound 2 holds, and one cell approaches it.**
+
+    gridcells compared               1,617
+    cells with no nitrogen input     0
+    cells whose mean fire loss exceeds mean input   0
+    mean fire/input ratio            0.185
+    worst ratio                      0.981  (fire 9.813, input 9.999 kgN/ha/yr)
+    largest mean fire loss           10.494 kgN/ha/yr against an input of 12.809
+
+## What this settles
+
+**The tail is a transient, not a rate.** The 831 kgN/ha in the worst
+gridcell-year is 7.1 per cent of that cell's nitrogen pool, released in one year
+by one fire after a long accumulation. Over the retained record the same cells
+lose, on average, 18.5 per cent of their nitrogen input to fire. Those two
+numbers are consistent with a fire regime of long return intervals and large
+accumulated fuel, and they are not consistent with a flux the model is
+manufacturing.
+
+So the measured tail is NOT out of physical range, and FIRE-8's
+"reject impossible ranges" does not reject it. That is a real answer rather than
+an absence of one: two conservation bounds were available, both were applied to
+every gridcell-year, and both pass.
+
+**A cross-check fell out and it confirms the emission partition.** The figure
+recorded on FIRE-8 is 797.1 kgN/ha for the worst cell-year, against 831.19 here.
+The ratio is 0.959, which is exactly `NOx_FIRERATIO + N2_FIRERATIO` --
+`0.237 + 0.722` from `guess.cpp:60-65`, after Delmas et al. (1995). The earlier
+figure summed two species of four; the four are in their declared proportions to
+five digits, so the partition is intact and cannot be what produced the
+magnitude.
+
+## What this does not settle, and where it goes instead
+
+Whether the fire REGIME is right. Both bounds constrain nitrogen and neither
+constrains how often a cell burns or how much of it burns, and a model with too
+few, too large fires satisfies both exactly as well as a correct one does. The
+quantities that would settle that are the fire return interval and the burned
+fraction, and there is no observed burned area on this world to compare them
+against -- which is why FIRE-9's matched model-form comparison, not a range
+check, is where that question belongs.
+
+Nor does it say the emission is right in ABSOLUTE terms. Earth fire emission from
+burned area runs of order 1 to 10 kgN/ha/yr, and this run's mean of 0.98 sits
+inside that while its per-cell means run to 10.5. Under CLAUDE.md's rule Earth's
+figure is a distance to report and never a target to solve onto, and the distance
+here is unremarkable.
+
+Both bounds are worth keeping as acceptance criteria precisely because they
+passed: they cost one pass over two tables, they have right answers, and the
+defect they would catch -- a fire operator drawing nitrogen the model never had --
+is one that closure testing cannot see, because a flux that removes nitrogen the
+model had closes whatever its size.
+
+No LPJ-GUESS run was performed for this note. It reads the tables of a run that
+already existed.
