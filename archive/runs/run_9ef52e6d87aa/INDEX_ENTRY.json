@@ -1,0 +1,46 @@
+{
+  "run_id": "run_9ef52e6d87aa",
+  "directory": "run_9ef52e6d87aa",
+  "status": "simulation_complete",
+  "legacy_name": false,
+  "orbits_on_disk": 228,
+  "snapshots_on_disk": 0,
+  "size_gb": 15.58,
+  "executable_sha256": "6f8fd649a2c36c4e8c09e759f740a98178798e786f224059391d9faf9f7b6694",
+  "arm": null,
+  "config_sha256": "9bfc642b6d5054892d5c0e51d737a1ee7727df75c2b2bbc798ab62dad475d286",
+  "physical": {
+    "resolution": "T21",
+    "layers": 10,
+    "ranks": 16,
+    "precision_bytes": 8,
+    "flux_ratio": 0.945,
+    "co2_ppm": 450.0,
+    "ch4_ppmv": 1.6,
+    "n2o_ppmv": 0.3,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": true,
+    "stellar_spectrum": "k25v",
+    "geography": "23c6af41",
+    "forcing": "stellar_cycle",
+    "cycle_components": {
+      "medium": [
+        11.0,
+        0.025
+      ],
+      "long": [
+        57.0,
+        0.035
+      ]
+    }
+  },
+  "source_build": "canonical-10m-base",
+  "climatologies": {},
+  "converged": null,
+  "convergence_metrics": {},
+  "high_cadence": {},
+  "payload_present": true,
+  "archived": false
+}

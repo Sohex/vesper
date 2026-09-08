@@ -1,0 +1,6 @@
+ &glacier_nl
+ GLACPERSIST = 1 
+ ICESHEETH = -1.0 
+ NGLACIER  =  1 
+ GLACELIM  =  2.0 
+ /END

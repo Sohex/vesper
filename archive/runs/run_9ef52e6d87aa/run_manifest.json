@@ -1,0 +1,5248 @@
+{
+  "schema_version": 1,
+  "run_id": "run_9ef52e6d87aa",
+  "physical": {
+    "resolution": "T21",
+    "layers": 10,
+    "ranks": 16,
+    "precision_bytes": 8,
+    "flux_ratio": 0.945,
+    "co2_ppm": 450.0,
+    "ch4_ppmv": 1.6,
+    "n2o_ppmv": 0.3,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": true,
+    "stellar_spectrum": "k25v",
+    "geography": "23c6af41",
+    "forcing": "stellar_cycle",
+    "cycle_components": {
+      "medium": [
+        11.0,
+        0.025
+      ],
+      "long": [
+        57.0,
+        0.035
+      ]
+    }
+  },
+  "status": "simulation_complete",
+  "created_utc": "2026-08-27T16:07:32.288665+00:00",
+  "config_path": "/home/cfutro/docs/world/config/planet.yaml",
+  "config_sha256": "9bfc642b6d5054892d5c0e51d737a1ee7727df75c2b2bbc798ab62dad475d286",
+  "source_config": {
+    "schema_version": 1,
+    "source_build": "canonical-10m-base",
+    "baseline_climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+    "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+    "planet": {
+      "radius_earth": 1.2,
+      "gravity_m_s2": 12.81,
+      "mass_earth": 1.881009,
+      "rotation_hours": 30.0,
+      "obliquity_degrees": 32.0,
+      "eccentricity": 0.02,
+      "rotation_direction": "prograde",
+      "longitude_positive": "east",
+      "prime_meridian": "orogen_export_zero"
+    },
+    "star": {
+      "spectral_type": "K2.5V",
+      "activity": "active",
+      "surface_uv_relative_to_earth": 0.4,
+      "mass_solar": 0.8,
+      "luminosity_solar": 0.32359365692962827,
+      "effective_temperature_k": 4965.0,
+      "metallicity": 0.0
+    },
+    "orbit": {
+      "earth_solar_constant_w_m2": 1361.0,
+      "baseline_flux_earth": 0.945,
+      "sweep_flux_earth": [
+        0.9,
+        0.95,
+        1.0
+      ],
+      "longitude_vernal_equinox_degrees": 102.7
+    },
+    "atmosphere": {
+      "pN2_bar": 0.78025,
+      "pO2_bar": 0.21,
+      "pAr_bar": 0.0093,
+      "pCO2_bar": 0.00045,
+      "pCH4_bar": 1.6e-06,
+      "pN2O_bar": 3e-07,
+      "ozone": true
+    },
+    "radiation": {
+      "two_band_albedo": true,
+      "stellar_spectrum": "k25v"
+    },
+    "ocean": {
+      "horizontal_diffusion": false,
+      "horizontal_diffusivity_m2_s": 1000.0,
+      "salinity_psu": 34.7,
+      "cold_start": {
+        "sst_equator_k": 300.0,
+        "sst_pole_k": 273.0,
+        "sea_ice_thickness_m": 0.0
+      },
+      "sea_ice_fusion_j_kg": 328000.0
+    },
+    "surface": {
+      "mixed_layer_depth_m": 50.0,
+      "sea_ice": true,
+      "sea_ice_max_thickness_m": -1.0,
+      "sea_ice_lead_closing_m": 0.5,
+      "cryosphere": {
+        "sea_ice_density_kg_m3": 920.0,
+        "sea_ice_specific_heat_j_kg_k": 2070.0,
+        "sea_ice_conductivity_w_m_k": 2.03,
+        "snow_fusion_j_kg": 333444.87
+      },
+      "glaciers": {
+        "enabled": true,
+        "min_snow_depth_m": 2.0,
+        "initial_height_m": -1.0,
+        "max_snow_depth_m": -1.0,
+        "persistence_orbits": 1.0
+      },
+      "land_water_column": {
+        "scheme": "layered",
+        "layers": 3,
+        "lower_boundary": "impermeable",
+        "layer_thickness_m": [
+          0.02,
+          0.48,
+          1.0
+        ],
+        "soil_phase": false,
+        "evaporation_limiter": {
+          "theta_low": 0.0,
+          "exponent": 1
+        }
+      },
+      "soil_albedo_moisture": {
+        "enabled": true,
+        "saturation_at_empty_layer": 0.0,
+        "saturation_at_full_layer": 0.7642,
+        "shape_sigma_broadband": 1.0,
+        "shape_sigma_band1": 1.0,
+        "shape_sigma_band2": 1.0
+      }
+    },
+    "model": {
+      "resolution": "T21",
+      "latitudes": 32,
+      "longitudes": 64,
+      "layers": 10,
+      "vertical_grid": 4,
+      "model_top_hpa": 50.0,
+      "precision_bytes": 8,
+      "compile_flags": {
+        "f90_opts": [
+          "-O2",
+          "-cpp",
+          "-ffpe-trap=invalid,zero,overflow",
+          "-ffpe-summary=none",
+          "-march=znver4",
+          "-funroll-loops",
+          "-g"
+        ],
+        "profiles": {
+          "production": [],
+          "checked": [
+            "-fcheck=all"
+          ],
+          "poisoned": [
+            "-fcheck=all",
+            "-finit-real=snan",
+            "-Og"
+          ]
+        },
+        "profile": "production"
+      },
+      "ncpus": 16,
+      "timestep_minutes": 45.0,
+      "physics_filter": "gp|exp|sp",
+      "filter_kappa": 8.0,
+      "filter_power": 16,
+      "cold_start_seed": 88888888,
+      "hyperdiffusion": {
+        "eddy_wind_m_s": 9.838,
+        "order_alpha": 4,
+        "cutoff_fraction": 0.381,
+        "ratios_to_vorticity": {
+          "divergence": 0.2,
+          "temperature": 2.533,
+          "humidity": 0.333
+        },
+        "timescales_days": {
+          "T21": {
+            "divergence": 0.2691,
+            "vorticity": 1.3455,
+            "temperature": 3.4082,
+            "humidity": 0.4481
+          },
+          "T42": {
+            "divergence": 0.1346,
+            "vorticity": 0.6728,
+            "temperature": 1.7042,
+            "humidity": 0.224
+          },
+          "T85": {
+            "divergence": 0.0665,
+            "vorticity": 0.3324,
+            "temperature": 0.842,
+            "humidity": 0.1107
+          },
+          "T127": {
+            "divergence": 0.0445,
+            "vorticity": 0.2225,
+            "temperature": 0.5636,
+            "humidity": 0.0741
+          },
+          "T170": {
+            "divergence": 0.0333,
+            "vorticity": 0.1663,
+            "temperature": 0.4212,
+            "humidity": 0.0554
+          }
+        }
+      },
+      "cold_start_profile": {
+        "surface_temperature_k": 279.83
+      },
+      "semi_implicit_reference_temperature_k": 241.41,
+      "rayleigh_sponge_rotations": [
+        20.0,
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_type": ".nc",
+      "uniform_land_surface": true,
+      "energy_diagnostics": true,
+      "energy_diagnostics_3d": false,
+      "energy_fixer": true,
+      "cloud_absorption_scale": 1.192,
+      "cloud_water_reference_kg_m3": 0.00021,
+      "precip_reevaporation_gamma": "derived",
+      "cloud_fraction_subgrid_width": "derived",
+      "asymptotic_mixing_length_m": "derived",
+      "land_longwave_emissivity": 0.935,
+      "sea_longwave_emissivity": 0.98,
+      "ozone_scale": 0.794,
+      "ozone_uv_weight": 0.335,
+      "ozone_visible_weight": 0.908,
+      "h2o_sw_weight": 1.351,
+      "h2o_sw_level": 1.161,
+      "h2o_sw_level_bracket": [
+        1.128,
+        1.205
+      ],
+      "co2_sw_weight": 1.51,
+      "roughness_source": "lithology",
+      "soil_water_source": "pedology",
+      "lake_dwmax_m": 0.2,
+      "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.074,
+        0.222
+      ],
+      "tree_albedo": 0.143,
+      "tree_albedo_bracket": [
+        0.13,
+        0.148
+      ],
+      "grass_albedo": 0.209,
+      "grass_albedo_bracket": [
+        0.19,
+        0.217
+      ],
+      "lithology_albedo_overrides": {
+        "playa_clastic": {
+          "albedo": 0.23,
+          "replaces": 0.19
+        }
+      },
+      "barren_rock_classes": [
+        "evaporite",
+        "playa_clastic"
+      ],
+      "geography_land_threshold": 0.5,
+      "seasonal_samples_per_orbit": 32,
+      "regular_output_bins_per_orbit": 12
+    },
+    "stellar_cycle": {
+      "components": {
+        "medium": {
+          "period_earth_years": 11.0,
+          "amplitude_flux_peak_to_peak": 0.025,
+          "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
+        },
+        "long": {
+          "period_earth_years": 57.0,
+          "amplitude_flux_peak_to_peak": 0.035,
+          "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+        }
+      },
+      "total_amplitude_flux_peak_to_peak": 0.06,
+      "alignment_recurrence_earth_years": 314
+    }
+  },
+  "stellar_spectrum_digest": {
+    "name": "k25v",
+    "file": "k25v.dat",
+    "sha256": "2284d52e5c00d47fe946bb091acd800cd4dc01f83d3e435a5505e3da3f14d652",
+    "hr_file": "k25v_hr.dat",
+    "hr_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51"
+  },
+  "fixed_orbit_parameters": {
+    "gravity_m_s2": 12.81,
+    "gravity_earth": 1.3062564688247262,
+    "rotation_days": 1.25,
+    "stellar_radius_solar": 0.7688013533747929,
+    "stellar_flux_ratio_earth": 0.945,
+    "stellar_flux_w_m2": 1286.145,
+    "semimajor_axis_au": 0.5851727524330596,
+    "orbital_year_earth_days": 182.80142503147016,
+    "orbital_year_seconds": 15794043.122719022,
+    "rotations_per_orbit_namelist": 146,
+    "runsteps_per_orbit": 5850,
+    "actual_run_duration_earth_days": 182.8125,
+    "snapshot_interval_steps": 182,
+    "ocean_salinity_psu": 34.7,
+    "sea_water_freezing_point_k": 271.2449107119143,
+    "sea_water_density_kg_m3": 1027.9400838036595,
+    "sea_water_heat_capacity_j_kg_k": 3990.3345056901185,
+    "sea_ice_fusion_j_kg": 328000.0,
+    "cold_start_sst_equator_k": 300.0,
+    "cold_start_sst_pole_k": 273.0,
+    "cold_start_ice_thickness_m": 0.0,
+    "sea_ice_max_thickness_m": -1.0,
+    "sea_ice_lead_closing_m": 0.5,
+    "sea_ice_density_kg_m3": 920.0,
+    "sea_ice_specific_heat_j_kg_k": 2070.0,
+    "sea_ice_conductivity_w_m_k": 2.03,
+    "snow_fusion_j_kg": 333444.87,
+    "ocean_horizontal_diffusion": 0,
+    "ocean_horizontal_diffusivity_m2_s": 1000.0,
+    "cloud_absorption_scale": 1.192,
+    "vegetation_albedo_bands": [
+      0.074,
+      0.222
+    ],
+    "glacier_persistence_orbits": 1.0,
+    "max_snow_depth_m": -1.0,
+    "land_longwave_emissivity": 0.935,
+    "sea_longwave_emissivity": 0.98,
+    "ozone_profile_lengths_m": {
+      "BO3": 15309.720191887463,
+      "CO3": 3827.430047971866
+    },
+    "cloud_water_reference_kg_m3": 0.00021,
+    "precip_reevaporation_gamma": -1.0,
+    "cloud_fraction_subgrid_width": -1.0,
+    "asymptotic_mixing_length_m": -1.0,
+    "land_water_column": {
+      "NLANDWCOL": 1,
+      "NLSOILW": 3,
+      "NLANDWDRAIN": 0,
+      "DSOILWF": [
+        0.013333,
+        0.32,
+        0.666667
+      ],
+      "DSOILWZ": [
+        0.02,
+        0.48,
+        1.0
+      ],
+      "NLANDWPHASE": 0,
+      "DRHSLOW": 0.0,
+      "NRHSEXP": 1
+    },
+    "soil_thermal": {
+      "SOILDIFDRY": 0.2088,
+      "SOILDIFSAT": 1.4332,
+      "SOILCAPDRY": 1111100.0,
+      "SOILCAPSAT": 2968900.0,
+      "SOILSRWP": 0.376,
+      "SOILSRFC": 0.7642
+    },
+    "soil_albedo_moisture": {
+      "NWETSOIL": 1,
+      "SKINSRAD": 0.0,
+      "SKINSRFC": 0.7642,
+      "WETSIGMA": 1.0,
+      "WETSIGMA1": 1.0,
+      "WETSIGMA2": 1.0
+    }
+  },
+  "cycle": {
+    "components": {
+      "medium": {
+        "period_earth_years": 11.0,
+        "period_local_orbits": 21.977435897435896,
+        "period_model_steps": 128568.0,
+        "amplitude_flux_peak_to_peak": 0.025,
+        "semi_amplitude_flux_earth": 0.0125,
+        "semi_amplitude_w_m2": 17.0125,
+        "phase_cycles": 0.0,
+        "namelist_slot": "GSOL*(unsuffixed)"
+      },
+      "long": {
+        "period_earth_years": 57.0,
+        "period_local_orbits": 113.88307692307693,
+        "period_model_steps": 666216.0,
+        "amplitude_flux_peak_to_peak": 0.035,
+        "semi_amplitude_flux_earth": 0.0175,
+        "semi_amplitude_w_m2": 23.817500000000003,
+        "phase_cycles": 0.0,
+        "namelist_slot": "GSOL*2"
+      }
+    },
+    "mean_flux_earth": 0.945,
+    "mean_flux_w_m2": 1286.145,
+    "aligned_minimum_flux_earth": 0.9149999999999999,
+    "aligned_maximum_flux_earth": 0.975,
+    "total_amplitude_flux_peak_to_peak": 0.060000000000000005,
+    "start_model_step": 1228500,
+    "phase_convention": "each sinusoid begins at mean flux and rises",
+    "stellar_spectrum_treatment": "fixed 4965 K blackbody spectral partition; the cycle is a grey multiplier. A spot-driven 6% bolometric swing shifts the band-1 fraction by 0.007, worth under 0.02 K at this ice cover -- see exoplasim/notes/parameter-decisions.md.",
+    "namelist": {
+      "GSOLAMP@radmod_namelist": "17.0125",
+      "GSOLPERIOD@radmod_namelist": "128568.0",
+      "GSOLPHASE@radmod_namelist": "0.0",
+      "GSOLAMP2@radmod_namelist": "23.817500000000003",
+      "GSOLPERIOD2@radmod_namelist": "666216.0",
+      "GSOLPHASE2@radmod_namelist": "0.0"
+    }
+  },
+  "initial_restart": "/home/cfutro/docs/world/exoplasim/runs/run_893e276ee029/MOST_REST.00209",
+  "initial_restart_sha256": "16156efb8dff04325be85853313b1b7dfe1bda0a8816767a82deaa9eb7d04a51",
+  "executable_sha256": "6f8fd649a2c36c4e8c09e759f740a98178798e786f224059391d9faf9f7b6694",
+  "executable_path": "/home/cfutro/docs/world/vendor/exoplasim/exoplasim/plasim/run/most_plasim_t21_l10_p16.x",
+  "executable_provenance": {
+    "arm": null,
+    "manifest_entry": {
+      "name": "most_plasim_t21_l10_p16.x",
+      "sha256": "6f8fd649a2c36c4e8c09e759f740a98178798e786f224059391d9faf9f7b6694",
+      "profile": "production",
+      "effective_f90_opts": "-O2 -cpp -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -march=znver4 -funroll-loops -g -fopenmp -DOMPSHARED -fdefault-real-8",
+      "manifest": "/home/cfutro/docs/world/exoplasim/binary_manifest.json"
+    }
+  },
+  "target_orbits": 228,
+  "diagnostics": [
+    {
+      "year_index": 0,
+      "surface_temperature_k": 283.4574159435448,
+      "toa_net_radiation_w_m2": -8.414249794535811,
+      "surface_downward_heat_flux_w_m2": -2.7761790787888514,
+      "planetary_sea_ice_fraction": 0.06436148695623976,
+      "precipitation_mm_day": 2.063333568597819,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.0,
+        "long": 0.0
+      },
+      "cycle_end_phase": {
+        "medium": 0.045501213365689755,
+        "long": 0.008780935912676969
+      },
+      "forcing_flux_earth": {
+        "start": 0.945,
+        "end": 0.9494901982003593
+      }
+    },
+    {
+      "year_index": 1,
+      "surface_temperature_k": 279.2597962461927,
+      "toa_net_radiation_w_m2": -4.920026786205917,
+      "surface_downward_heat_flux_w_m2": -3.812234898060856,
+      "planetary_sea_ice_fraction": 0.0669494471999338,
+      "precipitation_mm_day": 2.048342589074058,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.045501213365689755,
+        "long": 0.008780935912676969
+      },
+      "cycle_end_phase": {
+        "medium": 0.09100242673137951,
+        "long": 0.017561871825353938
+      },
+      "forcing_flux_earth": {
+        "start": 0.9494901982003593,
+        "end": 0.953691288307395
+      }
+    },
+    {
+      "year_index": 2,
+      "surface_temperature_k": 279.1457211989915,
+      "toa_net_radiation_w_m2": -2.398173588251382,
+      "surface_downward_heat_flux_w_m2": -1.5849928423814592,
+      "planetary_sea_ice_fraction": 0.0640390413741272,
+      "precipitation_mm_day": 1.988139010652026,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.09100242673137951,
+        "long": 0.017561871825353938
+      },
+      "cycle_end_phase": {
+        "medium": 0.13650364009706925,
+        "long": 0.02634280773803091
+      },
+      "forcing_flux_earth": {
+        "start": 0.953691288307395,
+        "end": 0.9573374023689879
+      }
+    },
+    {
+      "year_index": 3,
+      "surface_temperature_k": 279.1030234253739,
+      "toa_net_radiation_w_m2": -1.1930946747205846,
+      "surface_downward_heat_flux_w_m2": -0.7436895149579823,
+      "planetary_sea_ice_fraction": 0.06379659621305926,
+      "precipitation_mm_day": 2.001214246082938,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.13650364009706925,
+        "long": 0.02634280773803091
+      },
+      "cycle_end_phase": {
+        "medium": 0.18200485346275902,
+        "long": 0.035123743650707875
+      },
+      "forcing_flux_earth": {
+        "start": 0.9573374023689879,
+        "end": 0.9602072667940412
+      }
+    },
+    {
+      "year_index": 4,
+      "surface_temperature_k": 279.06981206468146,
+      "toa_net_radiation_w_m2": -0.05598572091007611,
+      "surface_downward_heat_flux_w_m2": 0.3537987946946304,
+      "planetary_sea_ice_fraction": 0.0640202158393997,
+      "precipitation_mm_day": 1.9729762132160706,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.18200485346275902,
+        "long": 0.035123743650707875
+      },
+      "cycle_end_phase": {
+        "medium": 0.22750606682844876,
+        "long": 0.04390467956338485
+      },
+      "forcing_flux_earth": {
+        "start": 0.9602072667940412,
+        "end": 0.962141937825288
+      }
+    },
+    {
+      "year_index": 5,
+      "surface_temperature_k": 279.3465293272279,
+      "toa_net_radiation_w_m2": 0.08311120167314294,
+      "surface_downward_heat_flux_w_m2": 0.6095173464460414,
+      "planetary_sea_ice_fraction": 0.06131238514791837,
+      "precipitation_mm_day": 1.9705635611225203,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.22750606682844876,
+        "long": 0.04390467956338485
+      },
+      "cycle_end_phase": {
+        "medium": 0.2730072801941385,
+        "long": 0.05268561547606182
+      },
+      "forcing_flux_earth": {
+        "start": 0.962141937825288,
+        "end": 0.9630574792027689
+      }
+    },
+    {
+      "year_index": 6,
+      "surface_temperature_k": 279.1645445931718,
+      "toa_net_radiation_w_m2": -0.7910676072497109,
+      "surface_downward_heat_flux_w_m2": -0.21099517365976586,
+      "planetary_sea_ice_fraction": 0.05998809611296562,
+      "precipitation_mm_day": 2.0042198900085686,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.2730072801941385,
+        "long": 0.05268561547606182
+      },
+      "cycle_end_phase": {
+        "medium": 0.31850849355982824,
+        "long": 0.061466551388738785
+      },
+      "forcing_flux_earth": {
+        "start": 0.9630574792027689,
+        "end": 0.9629515535390186
+      }
+    },
+    {
+      "year_index": 7,
+      "surface_temperature_k": 279.12992690836137,
+      "toa_net_radiation_w_m2": -0.7533740973342088,
+      "surface_downward_heat_flux_w_m2": -0.1205588019514326,
+      "planetary_sea_ice_fraction": 0.05943215992377641,
+      "precipitation_mm_day": 2.012901000265389,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.31850849355982824,
+        "long": 0.061466551388738785
+      },
+      "cycle_end_phase": {
+        "medium": 0.36400970692551804,
+        "long": 0.07024748730141575
+      },
+      "forcing_flux_earth": {
+        "start": 0.9629515535390186,
+        "end": 0.9619033929995315
+      }
+    },
+    {
+      "year_index": 8,
+      "surface_temperature_k": 279.2845392286542,
+      "toa_net_radiation_w_m2": -0.4863619568534047,
+      "surface_downward_heat_flux_w_m2": -0.20626298670616192,
+      "planetary_sea_ice_fraction": 0.05899820180479879,
+      "precipitation_mm_day": 1.9642982218760023,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.36400970692551804,
+        "long": 0.07024748730141575
+      },
+      "cycle_end_phase": {
+        "medium": 0.4095109202912078,
+        "long": 0.07902842321409273
+      },
+      "forcing_flux_earth": {
+        "start": 0.9619033929995315,
+        "end": 0.960067152335311
+      }
+    },
+    {
+      "year_index": 9,
+      "surface_temperature_k": 279.048637335973,
+      "toa_net_radiation_w_m2": -1.167498366377144,
+      "surface_downward_heat_flux_w_m2": -0.5435050915505963,
+      "planetary_sea_ice_fraction": 0.06256599625534107,
+      "precipitation_mm_day": 1.9825914296052574,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.4095109202912078,
+        "long": 0.07902842321409273
+      },
+      "cycle_end_phase": {
+        "medium": 0.4550121336568975,
+        "long": 0.0878093591267697
+      },
+      "forcing_flux_earth": {
+        "start": 0.960067152335311,
+        "end": 0.957659184518184
+      }
+    },
+    {
+      "year_index": 10,
+      "surface_temperature_k": 278.8533862816824,
+      "toa_net_radiation_w_m2": -1.8633152756972882,
+      "surface_downward_heat_flux_w_m2": -1.2311432735921108,
+      "planetary_sea_ice_fraction": 0.06461471448344931,
+      "precipitation_mm_day": 1.9937167147166333,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.4550121336568975,
+        "long": 0.0878093591267697
+      },
+      "cycle_end_phase": {
+        "medium": 0.5005133470225873,
+        "long": 0.09659029503944666
+      },
+      "forcing_flux_earth": {
+        "start": 0.957659184518184,
+        "end": 0.9549402725742376
+      }
+    },
+    {
+      "year_index": 11,
+      "surface_temperature_k": 278.5676980117072,
+      "toa_net_radiation_w_m2": -1.4471113502069957,
+      "surface_downward_heat_flux_w_m2": -0.9773133429982833,
+      "planetary_sea_ice_fraction": 0.06671416030030107,
+      "precipitation_mm_day": 1.9742131538512626,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.5005133470225873,
+        "long": 0.09659029503944666
+      },
+      "cycle_end_phase": {
+        "medium": 0.546014560388277,
+        "long": 0.10537123095212364
+      },
+      "forcing_flux_earth": {
+        "start": 0.9549402725742376,
+        "end": 0.9521942606468657
+      }
+    },
+    {
+      "year_index": 12,
+      "surface_temperature_k": 278.39844160449576,
+      "toa_net_radiation_w_m2": -2.0355039068266785,
+      "surface_downward_heat_flux_w_m2": -1.2315600723091482,
+      "planetary_sea_ice_fraction": 0.06751145439481783,
+      "precipitation_mm_day": 1.9659731384104628,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.546014560388277,
+        "long": 0.10537123095212364
+      },
+      "cycle_end_phase": {
+        "medium": 0.5915157737539668,
+        "long": 0.1141521668648006
+      },
+      "forcing_flux_earth": {
+        "start": 0.9521942606468657,
+        "end": 0.9497048196107718
+      }
+    },
+    {
+      "year_index": 13,
+      "surface_temperature_k": 278.2507307142038,
+      "toa_net_radiation_w_m2": -2.1970441985045457,
+      "surface_downward_heat_flux_w_m2": -1.479160818985226,
+      "planetary_sea_ice_fraction": 0.0701135250710619,
+      "precipitation_mm_day": 1.931988770568561,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.5915157737539668,
+        "long": 0.1141521668648006
+      },
+      "cycle_end_phase": {
+        "medium": 0.6370169871196565,
+        "long": 0.12293310277747757
+      },
+      "forcing_flux_earth": {
+        "start": 0.9497048196107718,
+        "end": 0.9477322339740322
+      }
+    },
+    {
+      "year_index": 14,
+      "surface_temperature_k": 278.1639546627764,
+      "toa_net_radiation_w_m2": -1.3724048020135706,
+      "surface_downward_heat_flux_w_m2": -0.8508868964368853,
+      "planetary_sea_ice_fraction": 0.07090049698441657,
+      "precipitation_mm_day": 1.8800844079678671,
+      "native_runtime_seconds": 179.0,
+      "cycle_start_phase": {
+        "medium": 0.6370169871196565,
+        "long": 0.12293310277747757
+      },
+      "cycle_end_phase": {
+        "medium": 0.6825182004853463,
+        "long": 0.13171403869015455
+      },
+      "forcing_flux_earth": {
+        "start": 0.9477322339740322,
+        "end": 0.94649209505519
+      }
+    },
+    {
+      "year_index": 15,
+      "surface_temperature_k": 277.84025387622415,
+      "toa_net_radiation_w_m2": -1.793248499767125,
+      "surface_downward_heat_flux_w_m2": -1.1662919504915201,
+      "planetary_sea_ice_fraction": 0.0736169518241687,
+      "precipitation_mm_day": 1.9092229355982158,
+      "native_runtime_seconds": 175.0,
+      "cycle_start_phase": {
+        "medium": 0.6825182004853463,
+        "long": 0.13171403869015455
+      },
+      "cycle_end_phase": {
+        "medium": 0.7280194138510361,
+        "long": 0.1404949746028315
+      },
+      "forcing_flux_earth": {
+        "start": 0.94649209505519,
+        "end": 0.9461376306484823
+      }
+    },
+    {
+      "year_index": 16,
+      "surface_temperature_k": 277.4377450888782,
+      "toa_net_radiation_w_m2": -1.783481407606658,
+      "surface_downward_heat_flux_w_m2": -1.1160633700880052,
+      "planetary_sea_ice_fraction": 0.07872402054759477,
+      "precipitation_mm_day": 1.9038399101775534,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.7280194138510361,
+        "long": 0.1404949746028315
+      },
+      "cycle_end_phase": {
+        "medium": 0.7735206272167258,
+        "long": 0.14927591051550848
+      },
+      "forcing_flux_earth": {
+        "start": 0.9461376306484823,
+        "end": 0.9467471061572039
+      }
+    },
+    {
+      "year_index": 17,
+      "surface_temperature_k": 277.384369824534,
+      "toa_net_radiation_w_m2": -0.7757719634221282,
+      "surface_downward_heat_flux_w_m2": -0.20539377061637176,
+      "planetary_sea_ice_fraction": 0.07590635465894391,
+      "precipitation_mm_day": 1.878404886321491,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.7735206272167258,
+        "long": 0.14927591051550848
+      },
+      "cycle_end_phase": {
+        "medium": 0.8190218405824156,
+        "long": 0.15805684642818546
+      },
+      "forcing_flux_earth": {
+        "start": 0.9467471061572039,
+        "end": 0.9483173204498013
+      }
+    },
+    {
+      "year_index": 18,
+      "surface_temperature_k": 277.62218321907625,
+      "toa_net_radiation_w_m2": -0.38412361320701943,
+      "surface_downward_heat_flux_w_m2": 0.059980140398067316,
+      "planetary_sea_ice_fraction": 0.07546935227989487,
+      "precipitation_mm_day": 1.9019395701584623,
+      "native_runtime_seconds": 176.0,
+      "cycle_start_phase": {
+        "medium": 0.8190218405824156,
+        "long": 0.15805684642818546
+      },
+      "cycle_end_phase": {
+        "medium": 0.8645230539481052,
+        "long": 0.1668377823408624
+      },
+      "forcing_flux_earth": {
+        "start": 0.9483173204498013,
+        "end": 0.950763724899244
+      }
+    },
+    {
+      "year_index": 19,
+      "surface_temperature_k": 277.58280462299666,
+      "toa_net_radiation_w_m2": -0.053778166773533975,
+      "surface_downward_heat_flux_w_m2": 0.39037243177794356,
+      "planetary_sea_ice_fraction": 0.07220929090957946,
+      "precipitation_mm_day": 1.87262468876706,
+      "native_runtime_seconds": 178.0,
+      "cycle_start_phase": {
+        "medium": 0.8645230539481052,
+        "long": 0.1668377823408624
+      },
+      "cycle_end_phase": {
+        "medium": 0.910024267313795,
+        "long": 0.1756187182535394
+      },
+      "forcing_flux_earth": {
+        "start": 0.950763724899244,
+        "end": 0.953927156370699
+      }
+    },
+    {
+      "year_index": 20,
+      "surface_temperature_k": 277.88326490395775,
+      "toa_net_radiation_w_m2": 0.027761515510881313,
+      "surface_downward_heat_flux_w_m2": 0.5129792129687195,
+      "planetary_sea_ice_fraction": 0.07232942511613909,
+      "precipitation_mm_day": 1.9110885928269628,
+      "native_runtime_seconds": 175.0,
+      "cycle_start_phase": {
+        "medium": 0.910024267313795,
+        "long": 0.1756187182535394
+      },
+      "cycle_end_phase": {
+        "medium": 0.9555254806794848,
+        "long": 0.18439965416621637
+      },
+      "forcing_flux_earth": {
+        "start": 0.953927156370699,
+        "end": 0.9575866379753916
+      }
+    },
+    {
+      "year_index": 21,
+      "surface_temperature_k": 277.9884932212786,
+      "toa_net_radiation_w_m2": 0.9839511757661691,
+      "surface_downward_heat_flux_w_m2": 1.416768859161251,
+      "planetary_sea_ice_fraction": 0.07373781959357266,
+      "precipitation_mm_day": 1.8969515816719513,
+      "native_runtime_seconds": 179.0,
+      "cycle_start_phase": {
+        "medium": 0.9555254806794848,
+        "long": 0.18439965416621637
+      },
+      "cycle_end_phase": {
+        "medium": 0.0010266940451746365,
+        "long": 0.19318059007889332
+      },
+      "forcing_flux_earth": {
+        "start": 0.9575866379753916,
+        "end": 0.9614772087989002
+      }
+    },
+    {
+      "year_index": 22,
+      "surface_temperature_k": 278.26140729944086,
+      "toa_net_radiation_w_m2": 0.8340582477847623,
+      "surface_downward_heat_flux_w_m2": 1.2321480915928935,
+      "planetary_sea_ice_fraction": 0.06949338623870088,
+      "precipitation_mm_day": 1.931734334314831,
+      "native_runtime_seconds": 177.0,
+      "cycle_start_phase": {
+        "medium": 0.0010266940451746365,
+        "long": 0.19318059007889332
+      },
+      "cycle_end_phase": {
+        "medium": 0.04652790741086421,
+        "long": 0.2019615259915703
+      },
+      "forcing_flux_earth": {
+        "start": 0.9614772087989002,
+        "end": 0.9653113355298313
+      }
+    },
+    {
+      "year_index": 23,
+      "surface_temperature_k": 278.7391853940675,
+      "toa_net_radiation_w_m2": 1.8206345364740788,
+      "surface_downward_heat_flux_w_m2": 1.9429860146670421,
+      "planetary_sea_ice_fraction": 0.06398760399232808,
+      "precipitation_mm_day": 1.937620848619721,
+      "native_runtime_seconds": 176.0,
+      "cycle_start_phase": {
+        "medium": 0.04652790741086421,
+        "long": 0.2019615259915703
+      },
+      "cycle_end_phase": {
+        "medium": 0.09202912077655401,
+        "long": 0.21074246190424728
+      },
+      "forcing_flux_earth": {
+        "start": 0.9653113355298313,
+        "end": 0.9688021681040463
+      }
+    },
+    {
+      "year_index": 24,
+      "surface_temperature_k": 279.0515498068016,
+      "toa_net_radiation_w_m2": 1.5181663672856551,
+      "surface_downward_heat_flux_w_m2": 2.0090136787928627,
+      "planetary_sea_ice_fraction": 0.06294466543916369,
+      "precipitation_mm_day": 1.9995232789973674,
+      "native_runtime_seconds": 178.0,
+      "cycle_start_phase": {
+        "medium": 0.09202912077655401,
+        "long": 0.21074246190424728
+      },
+      "cycle_end_phase": {
+        "medium": 0.1375303341422438,
+        "long": 0.21952339781692423
+      },
+      "forcing_flux_earth": {
+        "start": 0.9688021681040463,
+        "end": 0.9716867517483089
+      }
+    },
+    {
+      "year_index": 25,
+      "surface_temperature_k": 279.31515248511903,
+      "toa_net_radiation_w_m2": 1.494202453011045,
+      "surface_downward_heat_flux_w_m2": 1.8473637294595815,
+      "planetary_sea_ice_fraction": 0.06359004051787605,
+      "precipitation_mm_day": 1.9808615247355437,
+      "native_runtime_seconds": 176.0,
+      "cycle_start_phase": {
+        "medium": 0.1375303341422438,
+        "long": 0.21952339781692423
+      },
+      "cycle_end_phase": {
+        "medium": 0.1830315475079336,
+        "long": 0.2283043337296012
+      },
+      "forcing_flux_earth": {
+        "start": 0.9716867517483089,
+        "end": 0.9737473113105801
+      }
+    },
+    {
+      "year_index": 26,
+      "surface_temperature_k": 279.59644303967406,
+      "toa_net_radiation_w_m2": 1.5933651627356455,
+      "surface_downward_heat_flux_w_m2": 1.9991647713899579,
+      "planetary_sea_ice_fraction": 0.05918680955831664,
+      "precipitation_mm_day": 1.992880619446236,
+      "native_runtime_seconds": 176.0,
+      "cycle_start_phase": {
+        "medium": 0.1830315475079336,
+        "long": 0.2283043337296012
+      },
+      "cycle_end_phase": {
+        "medium": 0.2285327608736234,
+        "long": 0.2370852696422782
+      },
+      "forcing_flux_earth": {
+        "start": 0.9737473113105801,
+        "end": 0.9748288802179206
+      }
+    },
+    {
+      "year_index": 27,
+      "surface_temperature_k": 279.95825426019223,
+      "toa_net_radiation_w_m2": 1.636508926118598,
+      "surface_downward_heat_flux_w_m2": 1.948627207082865,
+      "planetary_sea_ice_fraction": 0.05809689382896638,
+      "precipitation_mm_day": 1.9981635987157338,
+      "native_runtime_seconds": 179.0,
+      "cycle_start_phase": {
+        "medium": 0.2285327608736234,
+        "long": 0.2370852696422782
+      },
+      "cycle_end_phase": {
+        "medium": 0.27403397423931297,
+        "long": 0.24586620555495514
+      },
+      "forcing_flux_earth": {
+        "start": 0.9748288802179206,
+        "end": 0.9748518431063689
+      }
+    },
+    {
+      "year_index": 28,
+      "surface_temperature_k": 280.2269742247693,
+      "toa_net_radiation_w_m2": 0.8286898972148437,
+      "surface_downward_heat_flux_w_m2": 1.3737563753709408,
+      "planetary_sea_ice_fraction": 0.05535091566318703,
+      "precipitation_mm_day": 2.0353085355932174,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.27403397423931297,
+        "long": 0.24586620555495514
+      },
+      "cycle_end_phase": {
+        "medium": 0.31953518760500277,
+        "long": 0.2546471414676321
+      },
+      "forcing_flux_earth": {
+        "start": 0.9748518431063689,
+        "end": 0.973818374034164
+      }
+    },
+    {
+      "year_index": 29,
+      "surface_temperature_k": 280.19780430679754,
+      "toa_net_radiation_w_m2": -0.10182695895084166,
+      "surface_downward_heat_flux_w_m2": 0.5447330663859726,
+      "planetary_sea_ice_fraction": 0.054657745178819744,
+      "precipitation_mm_day": 2.021750818806054,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.31953518760500277,
+        "long": 0.2546471414676321
+      },
+      "cycle_end_phase": {
+        "medium": 0.36503640097069256,
+        "long": 0.2634280773803091
+      },
+      "forcing_flux_earth": {
+        "start": 0.973818374034164,
+        "end": 0.9718122477041172
+      }
+    },
+    {
+      "year_index": 30,
+      "surface_temperature_k": 280.29702414878017,
+      "toa_net_radiation_w_m2": -0.4017790344410119,
+      "surface_downward_heat_flux_w_m2": 0.0653851297166083,
+      "planetary_sea_ice_fraction": 0.053833075544950065,
+      "precipitation_mm_day": 2.0605258636471406,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.36503640097069256,
+        "long": 0.2634280773803091
+      },
+      "cycle_end_phase": {
+        "medium": 0.41053761433638236,
+        "long": 0.2722090132929861
+      },
+      "forcing_flux_earth": {
+        "start": 0.9718122477041172,
+        "end": 0.9689920390573744
+      }
+    },
+    {
+      "year_index": 31,
+      "surface_temperature_k": 280.21634090088304,
+      "toa_net_radiation_w_m2": -1.3143494039310362,
+      "surface_downward_heat_flux_w_m2": -0.7853239055382257,
+      "planetary_sea_ice_fraction": 0.053557456338966324,
+      "precipitation_mm_day": 2.0529971852317876,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.41053761433638236,
+        "long": 0.2722090132929861
+      },
+      "cycle_end_phase": {
+        "medium": 0.45603882770207216,
+        "long": 0.280989949205663
+      },
+      "forcing_flux_earth": {
+        "start": 0.9689920390573744,
+        "end": 0.9655782632900466
+      }
+    },
+    {
+      "year_index": 32,
+      "surface_temperature_k": 279.9800838835109,
+      "toa_net_radiation_w_m2": -1.2020470435603645,
+      "surface_downward_heat_flux_w_m2": -0.4874088740270574,
+      "planetary_sea_ice_fraction": 0.05583272528992356,
+      "precipitation_mm_day": 2.0238873066960097,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.45603882770207216,
+        "long": 0.280989949205663
+      },
+      "cycle_end_phase": {
+        "medium": 0.5015400410677617,
+        "long": 0.28977088511834
+      },
+      "forcing_flux_earth": {
+        "start": 0.9655782632900466,
+        "end": 0.9618355002182306
+      }
+    },
+    {
+      "year_index": 33,
+      "surface_temperature_k": 279.7380939893644,
+      "toa_net_radiation_w_m2": -1.7795607618753333,
+      "surface_downward_heat_flux_w_m2": -1.0544743800767575,
+      "planetary_sea_ice_fraction": 0.057606857116801434,
+      "precipitation_mm_day": 2.009303946475117,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.5015400410677617,
+        "long": 0.28977088511834
+      },
+      "cycle_end_phase": {
+        "medium": 0.5470412544334515,
+        "long": 0.29855182103101696
+      },
+      "forcing_flux_earth": {
+        "start": 0.9618355002182306,
+        "end": 0.958050954045912
+      }
+    },
+    {
+      "year_index": 34,
+      "surface_temperature_k": 279.531180243338,
+      "toa_net_radiation_w_m2": -1.8259801789155248,
+      "surface_downward_heat_flux_w_m2": -1.1417646888401844,
+      "planetary_sea_ice_fraction": 0.05738496067526566,
+      "precipitation_mm_day": 2.0178858203212937,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.5470412544334515,
+        "long": 0.29855182103101696
+      },
+      "cycle_end_phase": {
+        "medium": 0.5925424677991413,
+        "long": 0.30733275694369394
+      },
+      "forcing_flux_earth": {
+        "start": 0.958050954045912,
+        "end": 0.9545111889237804
+      }
+    },
+    {
+      "year_index": 35,
+      "surface_temperature_k": 279.3536997059848,
+      "toa_net_radiation_w_m2": -2.7466628231399564,
+      "surface_downward_heat_flux_w_m2": -2.146103586908246,
+      "planetary_sea_ice_fraction": 0.060016177814197776,
+      "precipitation_mm_day": 1.9719661562049444,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.5925424677991413,
+        "long": 0.30733275694369394
+      },
+      "cycle_end_phase": {
+        "medium": 0.6380436811648311,
+        "long": 0.3161136928563709
+      },
+      "forcing_flux_earth": {
+        "start": 0.9545111889237804,
+        "end": 0.9514789287372961
+      }
+    },
+    {
+      "year_index": 36,
+      "surface_temperature_k": 278.72496978605955,
+      "toa_net_radiation_w_m2": -3.1001935224454082,
+      "surface_downward_heat_flux_w_m2": -2.2173738393550093,
+      "planetary_sea_ice_fraction": 0.06355943680175791,
+      "precipitation_mm_day": 2.0055690194688167,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.6380436811648311,
+        "long": 0.3161136928563709
+      },
+      "cycle_end_phase": {
+        "medium": 0.6835448945305209,
+        "long": 0.3248946287690479
+      },
+      "forcing_flux_earth": {
+        "start": 0.9514789287372961,
+        "end": 0.949171804310916
+      }
+    },
+    {
+      "year_index": 37,
+      "surface_temperature_k": 278.32306937135905,
+      "toa_net_radiation_w_m2": -2.6586656005689053,
+      "surface_downward_heat_flux_w_m2": -1.9303218644262043,
+      "planetary_sea_ice_fraction": 0.06817485265080732,
+      "precipitation_mm_day": 1.9529650260093105,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.6835448945305209,
+        "long": 0.3248946287690479
+      },
+      "cycle_end_phase": {
+        "medium": 0.7290461078962105,
+        "long": 0.3336755646817248
+      },
+      "forcing_flux_earth": {
+        "start": 0.949171804310916,
+        "end": 0.9477447730886415
+      }
+    },
+    {
+      "year_index": 38,
+      "surface_temperature_k": 277.96413800063004,
+      "toa_net_radiation_w_m2": -1.9481703342733592,
+      "surface_downward_heat_flux_w_m2": -1.3958564903885515,
+      "planetary_sea_ice_fraction": 0.07261807571812907,
+      "precipitation_mm_day": 1.9344181591888385,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.7290461078962105,
+        "long": 0.3336755646817248
+      },
+      "cycle_end_phase": {
+        "medium": 0.7745473212619003,
+        "long": 0.3424565005944018
+      },
+      "forcing_flux_earth": {
+        "start": 0.9477447730886415,
+        "end": 0.9472776381857202
+      }
+    },
+    {
+      "year_index": 39,
+      "surface_temperature_k": 277.83490195408183,
+      "toa_net_radiation_w_m2": -1.875395612012442,
+      "surface_downward_heat_flux_w_m2": -1.4151602716644558,
+      "planetary_sea_ice_fraction": 0.07561099235253663,
+      "precipitation_mm_day": 1.9113941651073951,
+      "native_runtime_seconds": 175.0,
+      "cycle_start_phase": {
+        "medium": 0.7745473212619003,
+        "long": 0.3424565005944018
+      },
+      "cycle_end_phase": {
+        "medium": 0.8200485346275901,
+        "long": 0.3512374365070788
+      },
+      "forcing_flux_earth": {
+        "start": 0.9472776381857202,
+        "end": 0.9477686797074083
+      }
+    },
+    {
+      "year_index": 40,
+      "surface_temperature_k": 277.6296929943298,
+      "toa_net_radiation_w_m2": -1.4016377578908232,
+      "surface_downward_heat_flux_w_m2": -0.7813672219949791,
+      "planetary_sea_ice_fraction": 0.07640841206063752,
+      "precipitation_mm_day": 1.9066285056765255,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.8200485346275901,
+        "long": 0.3512374365070788
+      },
+      "cycle_end_phase": {
+        "medium": 0.8655497479932799,
+        "long": 0.36001837241975576
+      },
+      "forcing_flux_earth": {
+        "start": 0.9477686797074083,
+        "end": 0.949134915006443
+      }
+    },
+    {
+      "year_index": 41,
+      "surface_temperature_k": 277.53929480625646,
+      "toa_net_radiation_w_m2": -1.0239421915096143,
+      "surface_downward_heat_flux_w_m2": -0.48330601880612817,
+      "planetary_sea_ice_fraction": 0.07610818407554744,
+      "precipitation_mm_day": 1.9017690125057387,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.8655497479932799,
+        "long": 0.36001837241975576
+      },
+      "cycle_end_phase": {
+        "medium": 0.9110509613589697,
+        "long": 0.36879930833243274
+      },
+      "forcing_flux_earth": {
+        "start": 0.949134915006443,
+        "end": 0.9512189663845685
+      }
+    },
+    {
+      "year_index": 42,
+      "surface_temperature_k": 277.65713674246814,
+      "toa_net_radiation_w_m2": -0.514858563616951,
+      "surface_downward_heat_flux_w_m2": 0.033450094540755426,
+      "planetary_sea_ice_fraction": 0.07435739665963512,
+      "precipitation_mm_day": 1.9070618508762602,
+      "native_runtime_seconds": 175.0,
+      "cycle_start_phase": {
+        "medium": 0.9110509613589697,
+        "long": 0.36879930833243274
+      },
+      "cycle_end_phase": {
+        "medium": 0.9565521747246593,
+        "long": 0.3775802442451097
+      },
+      "forcing_flux_earth": {
+        "start": 0.9512189663845685,
+        "end": 0.9538019783231847
+      }
+    },
+    {
+      "year_index": 43,
+      "surface_temperature_k": 277.82174546480843,
+      "toa_net_radiation_w_m2": 0.06489905885406166,
+      "surface_downward_heat_flux_w_m2": 0.4476940442477442,
+      "planetary_sea_ice_fraction": 0.0731505663814253,
+      "precipitation_mm_day": 1.9095733308680065,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.9565521747246593,
+        "long": 0.3775802442451097
+      },
+      "cycle_end_phase": {
+        "medium": 0.002053388090349273,
+        "long": 0.38636118015778664
+      },
+      "forcing_flux_earth": {
+        "start": 0.9538019783231847,
+        "end": 0.9566215352003098
+      }
+    },
+    {
+      "year_index": 44,
+      "surface_temperature_k": 277.7964072968545,
+      "toa_net_radiation_w_m2": -0.06370148435658567,
+      "surface_downward_heat_flux_w_m2": 0.31433965964695326,
+      "planetary_sea_ice_fraction": 0.07508329159481723,
+      "precipitation_mm_day": 1.916657539841696,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.002053388090349273,
+        "long": 0.38636118015778664
+      },
+      "cycle_end_phase": {
+        "medium": 0.047554601456038625,
+        "long": 0.3951421160704636
+      },
+      "forcing_flux_earth": {
+        "start": 0.9566215352003098,
+        "end": 0.9593931244850944
+      }
+    },
+    {
+      "year_index": 45,
+      "surface_temperature_k": 278.009821066591,
+      "toa_net_radiation_w_m2": 0.9775423524116572,
+      "surface_downward_heat_flux_w_m2": 1.422863523230152,
+      "planetary_sea_ice_fraction": 0.07332196710482176,
+      "precipitation_mm_day": 1.936417194121665,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.047554601456038625,
+        "long": 0.3951421160704636
+      },
+      "cycle_end_phase": {
+        "medium": 0.09305581482172842,
+        "long": 0.4039230519831406
+      },
+      "forcing_flux_earth": {
+        "start": 0.9593931244850944,
+        "end": 0.9618334025532538
+      }
+    },
+    {
+      "year_index": 46,
+      "surface_temperature_k": 278.2969614024925,
+      "toa_net_radiation_w_m2": 1.0973613314474142,
+      "surface_downward_heat_flux_w_m2": 1.395403368553577,
+      "planetary_sea_ice_fraction": 0.06968130776490516,
+      "precipitation_mm_day": 1.9388225993498291,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.09305581482172842,
+        "long": 0.4039230519831406
+      },
+      "cycle_end_phase": {
+        "medium": 0.13855702818741822,
+        "long": 0.4127039878958176
+      },
+      "forcing_flux_earth": {
+        "start": 0.9618334025532538,
+        "end": 0.9636833739043672
+      }
+    },
+    {
+      "year_index": 47,
+      "surface_temperature_k": 278.5561129649919,
+      "toa_net_radiation_w_m2": 0.8611414921197639,
+      "surface_downward_heat_flux_w_m2": 1.3580210176310945,
+      "planetary_sea_ice_fraction": 0.06624434172387461,
+      "precipitation_mm_day": 1.94079323743022,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.13855702818741822,
+        "long": 0.4127039878958176
+      },
+      "cycle_end_phase": {
+        "medium": 0.18405824155310802,
+        "long": 0.42148492380849456
+      },
+      "forcing_flux_earth": {
+        "start": 0.9636833739043672,
+        "end": 0.9647296015667437
+      }
+    },
+    {
+      "year_index": 48,
+      "surface_temperature_k": 278.84968563162823,
+      "toa_net_radiation_w_m2": 0.7350834936872639,
+      "surface_downward_heat_flux_w_m2": 1.3001261903471577,
+      "planetary_sea_ice_fraction": 0.06483535607870132,
+      "precipitation_mm_day": 1.9557880817120359,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.18405824155310802,
+        "long": 0.42148492380849456
+      },
+      "cycle_end_phase": {
+        "medium": 0.2295594549187978,
+        "long": 0.43026585972117154
+      },
+      "forcing_flux_earth": {
+        "start": 0.9647296015667437,
+        "end": 0.964821726278882
+      }
+    },
+    {
+      "year_index": 49,
+      "surface_temperature_k": 278.89140285693406,
+      "toa_net_radiation_w_m2": 0.7895643943542648,
+      "surface_downward_heat_flux_w_m2": 1.128954382981126,
+      "planetary_sea_ice_fraction": 0.06335565006073854,
+      "precipitation_mm_day": 1.9444180937341726,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.2295594549187978,
+        "long": 0.43026585972117154
+      },
+      "cycle_end_phase": {
+        "medium": 0.2750606682844876,
+        "long": 0.43904679563384846
+      },
+      "forcing_flux_earth": {
+        "start": 0.964821726278882,
+        "end": 0.9638848716658178
+      }
+    },
+    {
+      "year_index": 50,
+      "surface_temperature_k": 279.13890216604847,
+      "toa_net_radiation_w_m2": -0.05844007953915945,
+      "surface_downward_heat_flux_w_m2": 0.6493822149045686,
+      "planetary_sea_ice_fraction": 0.06261667880056404,
+      "precipitation_mm_day": 1.9770676063614416,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.2750606682844876,
+        "long": 0.43904679563384846
+      },
+      "cycle_end_phase": {
+        "medium": 0.3205618816501774,
+        "long": 0.44782773154652544
+      },
+      "forcing_flux_earth": {
+        "start": 0.9638848716658178,
+        "end": 0.9619259277602027
+      }
+    },
+    {
+      "year_index": 51,
+      "surface_temperature_k": 278.88665921609,
+      "toa_net_radiation_w_m2": -1.298538891710004,
+      "surface_downward_heat_flux_w_m2": -0.7119071396587312,
+      "planetary_sea_ice_fraction": 0.06379500724718483,
+      "precipitation_mm_day": 2.0064686085245227,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.3205618816501774,
+        "long": 0.44782773154652544
+      },
+      "cycle_end_phase": {
+        "medium": 0.3660630950158672,
+        "long": 0.4566086674592024
+      },
+      "forcing_flux_earth": {
+        "start": 0.9619259277602027,
+        "end": 0.9590332021517379
+      }
+    },
+    {
+      "year_index": 52,
+      "surface_temperature_k": 278.7839546395838,
+      "toa_net_radiation_w_m2": -1.5736674316069426,
+      "surface_downward_heat_flux_w_m2": -1.068954214693056,
+      "planetary_sea_ice_fraction": 0.06550332714789954,
+      "precipitation_mm_day": 2.008631572500274,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.3660630950158672,
+        "long": 0.4566086674592024
+      },
+      "cycle_end_phase": {
+        "medium": 0.411564308381557,
+        "long": 0.4653896033718794
+      },
+      "forcing_flux_earth": {
+        "start": 0.9590332021517379,
+        "end": 0.9553694664439036
+      }
+    },
+    {
+      "year_index": 53,
+      "surface_temperature_k": 278.59725025730916,
+      "toa_net_radiation_w_m2": -1.6356905165502384,
+      "surface_downward_heat_flux_w_m2": -0.903668757516025,
+      "planetary_sea_ice_fraction": 0.06684379576574918,
+      "precipitation_mm_day": 1.954799993098172,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.411564308381557,
+        "long": 0.4653896033718794
+      },
+      "cycle_end_phase": {
+        "medium": 0.4570655217472468,
+        "long": 0.4741705392845564
+      },
+      "forcing_flux_earth": {
+        "start": 0.9553694664439036,
+        "end": 0.95115896184722
+      }
+    },
+    {
+      "year_index": 54,
+      "surface_temperature_k": 278.21090568284444,
+      "toa_net_radiation_w_m2": -1.7556826390152798,
+      "surface_downward_heat_flux_w_m2": -0.9075352894907511,
+      "planetary_sea_ice_fraction": 0.07097270102198293,
+      "precipitation_mm_day": 1.9205004863182327,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.4570655217472468,
+        "long": 0.4741705392845564
+      },
+      "cycle_end_phase": {
+        "medium": 0.5025667351129361,
+        "long": 0.4829514751972333
+      },
+      "forcing_flux_earth": {
+        "start": 0.95115896184722,
+        "end": 0.946669418119279
+      }
+    },
+    {
+      "year_index": 55,
+      "surface_temperature_k": 277.8111770881514,
+      "toa_net_radiation_w_m2": -2.5856480600812546,
+      "surface_downward_heat_flux_w_m2": -1.867919481685669,
+      "planetary_sea_ice_fraction": 0.07299323123219385,
+      "precipitation_mm_day": 1.9369586046620413,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.5025667351129361,
+        "long": 0.4829514751972333
+      },
+      "cycle_end_phase": {
+        "medium": 0.5480679484786259,
+        "long": 0.4917324111099103
+      },
+      "forcing_flux_earth": {
+        "start": 0.946669418119279,
+        "end": 0.9421905448647068
+      }
+    },
+    {
+      "year_index": 56,
+      "surface_temperature_k": 277.6511205809302,
+      "toa_net_radiation_w_m2": -2.7143201923070683,
+      "surface_downward_heat_flux_w_m2": -2.0496691916336185,
+      "planetary_sea_ice_fraction": 0.07469404636799735,
+      "precipitation_mm_day": 1.904877067275124,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.5480679484786259,
+        "long": 0.4917324111099103
+      },
+      "cycle_end_phase": {
+        "medium": 0.5935691618443157,
+        "long": 0.5005133470225873
+      },
+      "forcing_flux_earth": {
+        "start": 0.9421905448647068,
+        "end": 0.9380107405714527
+      }
+    },
+    {
+      "year_index": 57,
+      "surface_temperature_k": 277.17448507393027,
+      "toa_net_radiation_w_m2": -2.9104714765110287,
+      "surface_downward_heat_flux_w_m2": -2.0576697554291123,
+      "planetary_sea_ice_fraction": 0.07559016249523749,
+      "precipitation_mm_day": 1.871947044868486,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.5935691618443157,
+        "long": 0.5005133470225873
+      },
+      "cycle_end_phase": {
+        "medium": 0.6390703752100055,
+        "long": 0.5092942829352642
+      },
+      "forcing_flux_earth": {
+        "start": 0.9380107405714527,
+        "end": 0.934393909436592
+      }
+    },
+    {
+      "year_index": 58,
+      "surface_temperature_k": 276.62863713905233,
+      "toa_net_radiation_w_m2": -2.9341724386608394,
+      "surface_downward_heat_flux_w_m2": -2.3032886422106005,
+      "planetary_sea_ice_fraction": 0.08086075163818898,
+      "precipitation_mm_day": 1.8687717035419964,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.6390703752100055,
+        "long": 0.5092942829352642
+      },
+      "cycle_end_phase": {
+        "medium": 0.6845715885756953,
+        "long": 0.5180752188479412
+      },
+      "forcing_flux_earth": {
+        "start": 0.934393909436592,
+        "end": 0.9315582672804226
+      }
+    },
+    {
+      "year_index": 59,
+      "surface_temperature_k": 276.4011716576419,
+      "toa_net_radiation_w_m2": -2.858551570934567,
+      "surface_downward_heat_flux_w_m2": -2.2233287749219532,
+      "planetary_sea_ice_fraction": 0.08460502788245527,
+      "precipitation_mm_day": 1.813956471851559,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.6845715885756953,
+        "long": 0.5180752188479412
+      },
+      "cycle_end_phase": {
+        "medium": 0.7300728019413851,
+        "long": 0.5268561547606182
+      },
+      "forcing_flux_earth": {
+        "start": 0.9315582672804226,
+        "end": 0.9296588563727344
+      }
+    },
+    {
+      "year_index": 60,
+      "surface_temperature_k": 275.7810359165714,
+      "toa_net_radiation_w_m2": -3.0425489963000705,
+      "surface_downward_heat_flux_w_m2": -2.137272564214443,
+      "planetary_sea_ice_fraction": 0.09005932362473278,
+      "precipitation_mm_day": 1.861354581495871,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.7300728019413851,
+        "long": 0.5268561547606182
+      },
+      "cycle_end_phase": {
+        "medium": 0.7755740153070749,
+        "long": 0.5356370906732951
+      },
+      "forcing_flux_earth": {
+        "start": 0.9296588563727344,
+        "end": 0.9287751879081444
+      }
+    },
+    {
+      "year_index": 61,
+      "surface_temperature_k": 275.42154799567,
+      "toa_net_radiation_w_m2": -2.3651011858807194,
+      "surface_downward_heat_flux_w_m2": -1.8319835835635458,
+      "planetary_sea_ice_fraction": 0.09449085986552867,
+      "precipitation_mm_day": 1.8056300720377387,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.7755740153070749,
+        "long": 0.5356370906732951
+      },
+      "cycle_end_phase": {
+        "medium": 0.8210752286727647,
+        "long": 0.5444180265859722
+      },
+      "forcing_flux_earth": {
+        "start": 0.9287751879081444,
+        "end": 0.9289050146103939
+      }
+    },
+    {
+      "year_index": 62,
+      "surface_temperature_k": 275.3448334194449,
+      "toa_net_radiation_w_m2": -2.054665772506604,
+      "surface_downward_heat_flux_w_m2": -1.4247096924895057,
+      "planetary_sea_ice_fraction": 0.09582933692804607,
+      "precipitation_mm_day": 1.7752785900279406,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.8210752286727647,
+        "long": 0.5444180265859722
+      },
+      "cycle_end_phase": {
+        "medium": 0.8665764420384545,
+        "long": 0.5531989624986491
+      },
+      "forcing_flux_earth": {
+        "start": 0.9289050146103939,
+        "end": 0.9299647383099476
+      }
+    },
+    {
+      "year_index": 63,
+      "surface_temperature_k": 275.15566548870737,
+      "toa_net_radiation_w_m2": -2.021870700806524,
+      "surface_downward_heat_flux_w_m2": -1.428975514341191,
+      "planetary_sea_ice_fraction": 0.09552870011233251,
+      "precipitation_mm_day": 1.8092199440269432,
+      "native_runtime_seconds": 175.0,
+      "cycle_start_phase": {
+        "medium": 0.8665764420384545,
+        "long": 0.5531989624986491
+      },
+      "cycle_end_phase": {
+        "medium": 0.9120776554041443,
+        "long": 0.561979898411326
+      },
+      "forcing_flux_earth": {
+        "start": 0.9299647383099476,
+        "end": 0.9317964187228441
+      }
+    },
+    {
+      "year_index": 64,
+      "surface_temperature_k": 274.9183439606746,
+      "toa_net_radiation_w_m2": -1.1967097910726705,
+      "surface_downward_heat_flux_w_m2": -0.8037407870086808,
+      "planetary_sea_ice_fraction": 0.10001817874822828,
+      "precipitation_mm_day": 1.7982646279887964,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.9120776554041443,
+        "long": 0.561979898411326
+      },
+      "cycle_end_phase": {
+        "medium": 0.9575788687698337,
+        "long": 0.570760834324003
+      },
+      "forcing_flux_earth": {
+        "start": 0.9317964187228441,
+        "end": 0.9341808137860368
+      }
+    },
+    {
+      "year_index": 65,
+      "surface_temperature_k": 274.7503224776979,
+      "toa_net_radiation_w_m2": -0.7601647216784295,
+      "surface_downward_heat_flux_w_m2": -0.14320577677584825,
+      "planetary_sea_ice_fraction": 0.09985653467074511,
+      "precipitation_mm_day": 1.7915472440890086,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.9575788687698337,
+        "long": 0.570760834324003
+      },
+      "cycle_end_phase": {
+        "medium": 0.0030800821355234653,
+        "long": 0.57954177023668
+      },
+      "forcing_flux_earth": {
+        "start": 0.9341808137860368,
+        "end": 0.9368553922772078
+      }
+    },
+    {
+      "year_index": 66,
+      "surface_temperature_k": 274.9160548183437,
+      "toa_net_radiation_w_m2": 0.40933475463440816,
+      "surface_downward_heat_flux_w_m2": 0.6939624138719296,
+      "planetary_sea_ice_fraction": 0.09763499719096924,
+      "precipitation_mm_day": 1.7641280662128689,
+      "native_runtime_seconds": 182.0,
+      "cycle_start_phase": {
+        "medium": 0.0030800821355234653,
+        "long": 0.57954177023668
+      },
+      "cycle_end_phase": {
+        "medium": 0.04858129550121326,
+        "long": 0.588322706149357
+      },
+      "forcing_flux_earth": {
+        "start": 0.9368553922772078,
+        "end": 0.9395358558128263
+      }
+    },
+    {
+      "year_index": 67,
+      "surface_temperature_k": 275.2402509171947,
+      "toa_net_radiation_w_m2": 0.27704020184199285,
+      "surface_downward_heat_flux_w_m2": 0.6210815884999752,
+      "planetary_sea_ice_fraction": 0.09780999069145463,
+      "precipitation_mm_day": 1.789341509796273,
+      "native_runtime_seconds": 180.0,
+      "cycle_start_phase": {
+        "medium": 0.04858129550121326,
+        "long": 0.588322706149357
+      },
+      "cycle_end_phase": {
+        "medium": 0.09408250886690306,
+        "long": 0.5971036420620339
+      },
+      "forcing_flux_earth": {
+        "start": 0.9395358558128263,
+        "end": 0.9419394224437889
+      }
+    },
+    {
+      "year_index": 68,
+      "surface_temperature_k": 275.2700802313278,
+      "toa_net_radiation_w_m2": 0.7420345765851942,
+      "surface_downward_heat_flux_w_m2": 1.0168006151161073,
+      "planetary_sea_ice_fraction": 0.0959720153197119,
+      "precipitation_mm_day": 1.7852889070568094,
+      "native_runtime_seconds": 190.0,
+      "cycle_start_phase": {
+        "medium": 0.09408250886690306,
+        "long": 0.5971036420620339
+      },
+      "cycle_end_phase": {
+        "medium": 0.13958372223259286,
+        "long": 0.605884577974711
+      },
+      "forcing_flux_earth": {
+        "start": 0.9419394224437889,
+        "end": 0.9438079810791954
+      }
+    },
+    {
+      "year_index": 69,
+      "surface_temperature_k": 275.44138642001883,
+      "toa_net_radiation_w_m2": 0.43563206945632577,
+      "surface_downward_heat_flux_w_m2": 0.8727934503095272,
+      "planetary_sea_ice_fraction": 0.09628562344926848,
+      "precipitation_mm_day": 1.7944470691285677,
+      "native_runtime_seconds": 190.0,
+      "cycle_start_phase": {
+        "medium": 0.13958372223259286,
+        "long": 0.605884577974711
+      },
+      "cycle_end_phase": {
+        "medium": 0.18508493559828265,
+        "long": 0.6146655138873879
+      },
+      "forcing_flux_earth": {
+        "start": 0.9438079810791954,
+        "end": 0.9449292364733711
+      }
+    },
+    {
+      "year_index": 70,
+      "surface_temperature_k": 275.57953421030834,
+      "toa_net_radiation_w_m2": 0.3645215247567009,
+      "surface_downward_heat_flux_w_m2": 0.7837777346033094,
+      "planetary_sea_ice_fraction": 0.09450355526950942,
+      "precipitation_mm_day": 1.8359671894717602,
+      "native_runtime_seconds": 185.0,
+      "cycle_start_phase": {
+        "medium": 0.18508493559828265,
+        "long": 0.6146655138873879
+      },
+      "cycle_end_phase": {
+        "medium": 0.23058614896397245,
+        "long": 0.6234464498000648
+      },
+      "forcing_flux_earth": {
+        "start": 0.9449292364733711,
+        "end": 0.9451541276563344
+      }
+    },
+    {
+      "year_index": 71,
+      "surface_temperature_k": 275.8045989830655,
+      "toa_net_radiation_w_m2": 0.24897556597833548,
+      "surface_downward_heat_flux_w_m2": 0.6904378799284192,
+      "planetary_sea_ice_fraction": 0.08973782246980266,
+      "precipitation_mm_day": 1.8232221569095426,
+      "native_runtime_seconds": 187.0,
+      "cycle_start_phase": {
+        "medium": 0.23058614896397245,
+        "long": 0.6234464498000648
+      },
+      "cycle_end_phase": {
+        "medium": 0.27608736232966224,
+        "long": 0.6322273857127418
+      },
+      "forcing_flux_earth": {
+        "start": 0.9451541276563344,
+        "end": 0.9444091052294512
+      }
+    },
+    {
+      "year_index": 72,
+      "surface_temperature_k": 275.9726238764467,
+      "toa_net_radiation_w_m2": -0.04346696646045226,
+      "surface_downward_heat_flux_w_m2": 0.5054306363613276,
+      "planetary_sea_ice_fraction": 0.08712813391792257,
+      "precipitation_mm_day": 1.823317122096897,
+      "native_runtime_seconds": 180.0,
+      "cycle_start_phase": {
+        "medium": 0.27608736232966224,
+        "long": 0.6322273857127418
+      },
+      "cycle_end_phase": {
+        "medium": 0.32158857569535204,
+        "long": 0.6410083216254188
+      },
+      "forcing_flux_earth": {
+        "start": 0.9444091052294512,
+        "end": 0.9427022703258209
+      }
+    },
+    {
+      "year_index": 73,
+      "surface_temperature_k": 275.99572662444626,
+      "toa_net_radiation_w_m2": -0.9183480519638515,
+      "surface_downward_heat_flux_w_m2": -0.46253662932014733,
+      "planetary_sea_ice_fraction": 0.08904792391757854,
+      "precipitation_mm_day": 1.8366737583190944,
+      "native_runtime_seconds": 186.0,
+      "cycle_start_phase": {
+        "medium": 0.32158857569535204,
+        "long": 0.6410083216254188
+      },
+      "cycle_end_phase": {
+        "medium": 0.36708978906104184,
+        "long": 0.6497892575380958
+      },
+      "forcing_flux_earth": {
+        "start": 0.9427022703258209,
+        "end": 0.9401228763664682
+      }
+    },
+    {
+      "year_index": 74,
+      "surface_temperature_k": 275.822179356786,
+      "toa_net_radiation_w_m2": -0.9747644703343997,
+      "surface_downward_heat_flux_w_m2": -0.23718382378613803,
+      "planetary_sea_ice_fraction": 0.09184713223637299,
+      "precipitation_mm_day": 1.8013755044232738,
+      "native_runtime_seconds": 186.0,
+      "cycle_start_phase": {
+        "medium": 0.36708978906104184,
+        "long": 0.6497892575380958
+      },
+      "cycle_end_phase": {
+        "medium": 0.4125910024267312,
+        "long": 0.6585701934507727
+      },
+      "forcing_flux_earth": {
+        "start": 0.9401228763664682,
+        "end": 0.9368342335743649
+      }
+    },
+    {
+      "year_index": 75,
+      "surface_temperature_k": 275.66810642738704,
+      "toa_net_radiation_w_m2": -1.3851089339369764,
+      "surface_downward_heat_flux_w_m2": -0.8257577930042709,
+      "planetary_sea_ice_fraction": 0.09198825352971769,
+      "precipitation_mm_day": 1.8097696013411544,
+      "native_runtime_seconds": 177.0,
+      "cycle_start_phase": {
+        "medium": 0.4125910024267312,
+        "long": 0.6585701934507727
+      },
+      "cycle_end_phase": {
+        "medium": 0.458092215792421,
+        "long": 0.6673511293634496
+      },
+      "forcing_flux_earth": {
+        "start": 0.9368342335743649,
+        "end": 0.9330605917966321
+      }
+    },
+    {
+      "year_index": 76,
+      "surface_temperature_k": 275.3577003772457,
+      "toa_net_radiation_w_m2": -2.1750662741812667,
+      "surface_downward_heat_flux_w_m2": -1.321243130055386,
+      "planetary_sea_ice_fraction": 0.09519438516472539,
+      "precipitation_mm_day": 1.7980471538957172,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.458092215792421,
+        "long": 0.6673511293634496
+      },
+      "cycle_end_phase": {
+        "medium": 0.5035934291581108,
+        "long": 0.6761320652761267
+      },
+      "forcing_flux_earth": {
+        "start": 0.9330605917966321,
+        "end": 0.9290690660521931
+      }
+    },
+    {
+      "year_index": 77,
+      "surface_temperature_k": 275.03977104383165,
+      "toa_net_radiation_w_m2": -1.916776832952328,
+      "surface_downward_heat_flux_w_m2": -1.4390509825985667,
+      "planetary_sea_ice_fraction": 0.0965481889142596,
+      "precipitation_mm_day": 1.7578014865390126,
+      "native_runtime_seconds": 166.0,
+      "cycle_start_phase": {
+        "medium": 0.5035934291581108,
+        "long": 0.6761320652761267
+      },
+      "cycle_end_phase": {
+        "medium": 0.5490946425238006,
+        "long": 0.6849130011888036
+      },
+      "forcing_flux_earth": {
+        "start": 0.9290690660521931,
+        "end": 0.9251480716816469
+      }
+    },
+    {
+      "year_index": 78,
+      "surface_temperature_k": 274.6426307790465,
+      "toa_net_radiation_w_m2": -2.54683301502498,
+      "surface_downward_heat_flux_w_m2": -1.739875146869924,
+      "planetary_sea_ice_fraction": 0.101373228164908,
+      "precipitation_mm_day": 1.7598193706123955,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.5490946425238006,
+        "long": 0.6849130011888036
+      },
+      "cycle_end_phase": {
+        "medium": 0.5945958558894904,
+        "long": 0.6936939371014806
+      },
+      "forcing_flux_earth": {
+        "start": 0.9251480716816469,
+        "end": 0.9215840193567325
+      }
+    },
+    {
+      "year_index": 79,
+      "surface_temperature_k": 274.2883710349147,
+      "toa_net_radiation_w_m2": -2.777161828803974,
+      "surface_downward_heat_flux_w_m2": -2.0498047566089,
+      "planetary_sea_ice_fraction": 0.10496075010573068,
+      "precipitation_mm_day": 1.7413068537955603,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.5945958558894904,
+        "long": 0.6936939371014806
+      },
+      "cycle_end_phase": {
+        "medium": 0.6400970692551802,
+        "long": 0.7024748730141576
+      },
+      "forcing_flux_earth": {
+        "start": 0.9215840193567325,
+        "end": 0.9186381615036865
+      }
+    },
+    {
+      "year_index": 80,
+      "surface_temperature_k": 273.75783848109637,
+      "toa_net_radiation_w_m2": -3.179381104709753,
+      "surface_downward_heat_flux_w_m2": -2.630612059943294,
+      "planetary_sea_ice_fraction": 0.11146967718868721,
+      "precipitation_mm_day": 1.7335263446766263,
+      "native_runtime_seconds": 164.0,
+      "cycle_start_phase": {
+        "medium": 0.6400970692551802,
+        "long": 0.7024748730141576
+      },
+      "cycle_end_phase": {
+        "medium": 0.68559828262087,
+        "long": 0.7112558089268345
+      },
+      "forcing_flux_earth": {
+        "start": 0.9186381615036865,
+        "end": 0.9165254694375751
+      }
+    },
+    {
+      "year_index": 81,
+      "surface_temperature_k": 273.30647571669516,
+      "toa_net_radiation_w_m2": -2.784791157770431,
+      "surface_downward_heat_flux_w_m2": -2.2205161687912622,
+      "planetary_sea_ice_fraction": 0.11717727104384594,
+      "precipitation_mm_day": 1.6857581857637793,
+      "native_runtime_seconds": 165.0,
+      "cycle_start_phase": {
+        "medium": 0.68559828262087,
+        "long": 0.7112558089268345
+      },
+      "cycle_end_phase": {
+        "medium": 0.7310994959865598,
+        "long": 0.7200367448395115
+      },
+      "forcing_flux_earth": {
+        "start": 0.9165254694375751,
+        "end": 0.9153972556882347
+      }
+    },
+    {
+      "year_index": 82,
+      "surface_temperature_k": 272.8753237674701,
+      "toa_net_radiation_w_m2": -1.926956882709903,
+      "surface_downward_heat_flux_w_m2": -1.1808695515082246,
+      "planetary_sea_ice_fraction": 0.12093159249014074,
+      "precipitation_mm_day": 1.6684164974397517,
+      "native_runtime_seconds": 181.0,
+      "cycle_start_phase": {
+        "medium": 0.7310994959865598,
+        "long": 0.7200367448395115
+      },
+      "cycle_end_phase": {
+        "medium": 0.7766007093522496,
+        "long": 0.7288176807521884
+      },
+      "forcing_flux_earth": {
+        "start": 0.9153972556882347,
+        "end": 0.9153289520023581
+      }
+    },
+    {
+      "year_index": 83,
+      "surface_temperature_k": 272.5576407513784,
+      "toa_net_radiation_w_m2": -2.5803365010446995,
+      "surface_downward_heat_flux_w_m2": -1.9644213307615044,
+      "planetary_sea_ice_fraction": 0.12772164357669802,
+      "precipitation_mm_day": 1.7040972227333664,
+      "native_runtime_seconds": 183.0,
+      "cycle_start_phase": {
+        "medium": 0.7766007093522496,
+        "long": 0.7288176807521884
+      },
+      "cycle_end_phase": {
+        "medium": 0.8221019227179394,
+        "long": 0.7375986166648655
+      },
+      "forcing_flux_earth": {
+        "start": 0.9153289520023581,
+        "end": 0.916314035008626
+      }
+    },
+    {
+      "year_index": 84,
+      "surface_temperature_k": 272.3400829812752,
+      "toa_net_radiation_w_m2": -1.509506561201678,
+      "surface_downward_heat_flux_w_m2": -0.8997583004783821,
+      "planetary_sea_ice_fraction": 0.12956021822325578,
+      "precipitation_mm_day": 1.6772665336174384,
+      "native_runtime_seconds": 181.0,
+      "cycle_start_phase": {
+        "medium": 0.8221019227179394,
+        "long": 0.7375986166648655
+      },
+      "cycle_end_phase": {
+        "medium": 0.8676031360836287,
+        "long": 0.7463795525775424
+      },
+      "forcing_flux_earth": {
+        "start": 0.916314035008626,
+        "end": 0.918264592506859
+      }
+    },
+    {
+      "year_index": 85,
+      "surface_temperature_k": 272.3392835377155,
+      "toa_net_radiation_w_m2": -0.6593605478155066,
+      "surface_downward_heat_flux_w_m2": -0.2670057208169004,
+      "planetary_sea_ice_fraction": 0.1290391119312464,
+      "precipitation_mm_day": 1.6544692246504276,
+      "native_runtime_seconds": 184.0,
+      "cycle_start_phase": {
+        "medium": 0.8676031360836287,
+        "long": 0.7463795525775424
+      },
+      "cycle_end_phase": {
+        "medium": 0.9131043494493185,
+        "long": 0.7551604884902194
+      },
+      "forcing_flux_earth": {
+        "start": 0.918264592506859,
+        "end": 0.9210184842984347
+      }
+    },
+    {
+      "year_index": 86,
+      "surface_temperature_k": 272.2986353702174,
+      "toa_net_radiation_w_m2": -0.19112124057062788,
+      "surface_downward_heat_flux_w_m2": 0.15805434921950198,
+      "planetary_sea_ice_fraction": 0.13391488133765414,
+      "precipitation_mm_day": 1.641911220220386,
+      "native_runtime_seconds": 186.0,
+      "cycle_start_phase": {
+        "medium": 0.9131043494493185,
+        "long": 0.7551604884902194
+      },
+      "cycle_end_phase": {
+        "medium": 0.9586055628150083,
+        "long": 0.7639414244028964
+      },
+      "forcing_flux_earth": {
+        "start": 0.9210184842984347,
+        "end": 0.9243525161727976
+      }
+    },
+    {
+      "year_index": 87,
+      "surface_temperature_k": 272.5295628827973,
+      "toa_net_radiation_w_m2": 0.20099481213803294,
+      "surface_downward_heat_flux_w_m2": 0.6654835391168422,
+      "planetary_sea_ice_fraction": 0.12965736362315303,
+      "precipitation_mm_day": 1.6693628010269017,
+      "native_runtime_seconds": 182.0,
+      "cycle_start_phase": {
+        "medium": 0.9586055628150083,
+        "long": 0.7639414244028964
+      },
+      "cycle_end_phase": {
+        "medium": 0.004106776180698546,
+        "long": 0.7727223603155733
+      },
+      "forcing_flux_earth": {
+        "start": 0.9243525161727976,
+        "end": 0.9280005575591712
+      }
+    },
+    {
+      "year_index": 88,
+      "surface_temperature_k": 272.6430271595188,
+      "toa_net_radiation_w_m2": 0.44373734131328063,
+      "surface_downward_heat_flux_w_m2": 0.9655573584853342,
+      "planetary_sea_ice_fraction": 0.1274089879063127,
+      "precipitation_mm_day": 1.6801367687155155,
+      "native_runtime_seconds": 178.0,
+      "cycle_start_phase": {
+        "medium": 0.004106776180698546,
+        "long": 0.7727223603155733
+      },
+      "cycle_end_phase": {
+        "medium": 0.0496079895463879,
+        "long": 0.7815032962282503
+      },
+      "forcing_flux_earth": {
+        "start": 0.9280005575591712,
+        "end": 0.931675132067548
+      }
+    },
+    {
+      "year_index": 89,
+      "surface_temperature_k": 272.9876767992825,
+      "toa_net_radiation_w_m2": 1.1054578753532731,
+      "surface_downward_heat_flux_w_m2": 1.3051405575350288,
+      "planetary_sea_ice_fraction": 0.12274747030435024,
+      "precipitation_mm_day": 1.6838129003636797,
+      "native_runtime_seconds": 181.0,
+      "cycle_start_phase": {
+        "medium": 0.0496079895463879,
+        "long": 0.7815032962282503
+      },
+      "cycle_end_phase": {
+        "medium": 0.09510920291207725,
+        "long": 0.7902842321409272
+      },
+      "forcing_flux_earth": {
+        "start": 0.931675132067548,
+        "end": 0.9350907282546358
+      }
+    },
+    {
+      "year_index": 90,
+      "surface_temperature_k": 273.3272194573378,
+      "toa_net_radiation_w_m2": 1.2503711949334375,
+      "surface_downward_heat_flux_w_m2": 1.7351164209822125,
+      "planetary_sea_ice_fraction": 0.11935774187162175,
+      "precipitation_mm_day": 1.6913796650017328,
+      "native_runtime_seconds": 186.0,
+      "cycle_start_phase": {
+        "medium": 0.09510920291207725,
+        "long": 0.7902842321409272
+      },
+      "cycle_end_phase": {
+        "medium": 0.1406104162777675,
+        "long": 0.7990651680536043
+      },
+      "forcing_flux_earth": {
+        "start": 0.9350907282546358,
+        "end": 0.9379869383420725
+      }
+    },
+    {
+      "year_index": 91,
+      "surface_temperature_k": 273.75125705170973,
+      "toa_net_radiation_w_m2": 1.695252971374031,
+      "surface_downward_heat_flux_w_m2": 2.0441621184982197,
+      "planetary_sea_ice_fraction": 0.1149241524871243,
+      "precipitation_mm_day": 1.7201343776199838,
+      "native_runtime_seconds": 188.0,
+      "cycle_start_phase": {
+        "medium": 0.1406104162777675,
+        "long": 0.7990651680536043
+      },
+      "cycle_end_phase": {
+        "medium": 0.18611162964345684,
+        "long": 0.8078461039662812
+      },
+      "forcing_flux_earth": {
+        "start": 0.9379869383420725,
+        "end": 0.9401495466190937
+      }
+    },
+    {
+      "year_index": 92,
+      "surface_temperature_k": 274.1163977939531,
+      "toa_net_radiation_w_m2": 1.0716985765982099,
+      "surface_downward_heat_flux_w_m2": 1.4911497389792263,
+      "planetary_sea_ice_fraction": 0.10947659989860985,
+      "precipitation_mm_day": 1.7173421245123106,
+      "native_runtime_seconds": 190.0,
+      "cycle_start_phase": {
+        "medium": 0.18611162964345684,
+        "long": 0.8078461039662812
+      },
+      "cycle_end_phase": {
+        "medium": 0.23161284300914708,
+        "long": 0.8166270398789581
+      },
+      "forcing_flux_earth": {
+        "start": 0.9401495466190937,
+        "end": 0.9414278557429161
+      }
+    },
+    {
+      "year_index": 93,
+      "surface_temperature_k": 274.4675513722599,
+      "toa_net_radiation_w_m2": 1.8929236521608936,
+      "surface_downward_heat_flux_w_m2": 2.321469648151385,
+      "planetary_sea_ice_fraction": 0.10426098318398037,
+      "precipitation_mm_day": 1.7143730686646816,
+      "native_runtime_seconds": 191.0,
+      "cycle_start_phase": {
+        "medium": 0.23161284300914708,
+        "long": 0.8166270398789581
+      },
+      "cycle_end_phase": {
+        "medium": 0.27711405637483644,
+        "long": 0.8254079757916352
+      },
+      "forcing_flux_earth": {
+        "start": 0.9414278557429161,
+        "end": 0.9417468445924511
+      }
+    },
+    {
+      "year_index": 94,
+      "surface_temperature_k": 274.75150230427636,
+      "toa_net_radiation_w_m2": 1.5730511559408153,
+      "surface_downward_heat_flux_w_m2": 1.8687374711550355,
+      "planetary_sea_ice_fraction": 0.1017068125598387,
+      "precipitation_mm_day": 1.7466712316953734,
+      "native_runtime_seconds": 188.0,
+      "cycle_start_phase": {
+        "medium": 0.27711405637483644,
+        "long": 0.8254079757916352
+      },
+      "cycle_end_phase": {
+        "medium": 0.3226152697405267,
+        "long": 0.8341889117043121
+      },
+      "forcing_flux_earth": {
+        "start": 0.9417468445924511,
+        "end": 0.9411131709388595
+      }
+    },
+    {
+      "year_index": 95,
+      "surface_temperature_k": 275.0372870035325,
+      "toa_net_radiation_w_m2": 0.20956209124560118,
+      "surface_downward_heat_flux_w_m2": 0.5702723808082865,
+      "planetary_sea_ice_fraction": 0.10080368057340265,
+      "precipitation_mm_day": 1.7651679623912317,
+      "native_runtime_seconds": 187.0,
+      "cycle_start_phase": {
+        "medium": 0.3226152697405267,
+        "long": 0.8341889117043121
+      },
+      "cycle_end_phase": {
+        "medium": 0.36811648310621603,
+        "long": 0.8429698476169891
+      },
+      "forcing_flux_earth": {
+        "start": 0.9411131709388595,
+        "end": 0.9396145319062826
+      }
+    },
+    {
+      "year_index": 96,
+      "surface_temperature_k": 274.9696614949634,
+      "toa_net_radiation_w_m2": -0.7479099101366007,
+      "surface_downward_heat_flux_w_m2": -0.14115896121899082,
+      "planetary_sea_ice_fraction": 0.10333857313846724,
+      "precipitation_mm_day": 1.780784529610281,
+      "native_runtime_seconds": 182.0,
+      "cycle_start_phase": {
+        "medium": 0.36811648310621603,
+        "long": 0.8429698476169891
+      },
+      "cycle_end_phase": {
+        "medium": 0.41361769647190627,
+        "long": 0.851750783529666
+      },
+      "forcing_flux_earth": {
+        "start": 0.9396145319062826,
+        "end": 0.9374124344416127
+      }
+    },
+    {
+      "year_index": 97,
+      "surface_temperature_k": 274.9304772606252,
+      "toa_net_radiation_w_m2": -0.3968689768340508,
+      "surface_downward_heat_flux_w_m2": 0.26534948859055457,
+      "planetary_sea_ice_fraction": 0.10132550346690598,
+      "precipitation_mm_day": 1.7502475604430212,
+      "native_runtime_seconds": 185.0,
+      "cycle_start_phase": {
+        "medium": 0.41361769647190627,
+        "long": 0.851750783529666
+      },
+      "cycle_end_phase": {
+        "medium": 0.4591189098375956,
+        "long": 0.8605317194423431
+      },
+      "forcing_flux_earth": {
+        "start": 0.9374124344416127,
+        "end": 0.9347289630176835
+      }
+    },
+    {
+      "year_index": 98,
+      "surface_temperature_k": 274.9156662445814,
+      "toa_net_radiation_w_m2": -1.1785734851715866,
+      "surface_downward_heat_flux_w_m2": -0.6180656068827322,
+      "planetary_sea_ice_fraction": 0.10031432106352144,
+      "precipitation_mm_day": 1.7553346845792652,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.4591189098375956,
+        "long": 0.8605317194423431
+      },
+      "cycle_end_phase": {
+        "medium": 0.5046201232032859,
+        "long": 0.86931265535502
+      },
+      "forcing_flux_earth": {
+        "start": 0.9347289630176835,
+        "end": 0.9318286191282561
+      }
+    },
+    {
+      "year_index": 99,
+      "surface_temperature_k": 274.7609234468841,
+      "toa_net_radiation_w_m2": -1.299787610935284,
+      "surface_downward_heat_flux_w_m2": -0.6277170852592122,
+      "planetary_sea_ice_fraction": 0.10250234587633106,
+      "precipitation_mm_day": 1.7507527523428463,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.5046201232032859,
+        "long": 0.86931265535502
+      },
+      "cycle_end_phase": {
+        "medium": 0.5501213365689752,
+        "long": 0.8780935912676969
+      },
+      "forcing_flux_earth": {
+        "start": 0.9318286191282561,
+        "end": 0.9289967072340954
+      }
+    },
+    {
+      "year_index": 100,
+      "surface_temperature_k": 274.4061197977716,
+      "toa_net_radiation_w_m2": -1.4577850771549015,
+      "surface_downward_heat_flux_w_m2": -1.0233872961395074,
+      "planetary_sea_ice_fraction": 0.10309396718415892,
+      "precipitation_mm_day": 1.7598799478423048,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.5501213365689752,
+        "long": 0.8780935912676969
+      },
+      "cycle_end_phase": {
+        "medium": 0.5956225499346646,
+        "long": 0.886874527180374
+      },
+      "forcing_flux_earth": {
+        "start": 0.9289967072340954,
+        "end": 0.9265160222072334
+      }
+    },
+    {
+      "year_index": 101,
+      "surface_temperature_k": 274.57420302003226,
+      "toa_net_radiation_w_m2": -1.4407971108738533,
+      "surface_downward_heat_flux_w_m2": -0.6449701168783604,
+      "planetary_sea_ice_fraction": 0.10799695276249571,
+      "precipitation_mm_day": 1.6990826664176297,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.5956225499346646,
+        "long": 0.886874527180374
+      },
+      "cycle_end_phase": {
+        "medium": 0.6411237633003548,
+        "long": 0.8956554630930509
+      },
+      "forcing_flux_earth": {
+        "start": 0.9265160222072334,
+        "end": 0.9246437312334131
+      }
+    },
+    {
+      "year_index": 102,
+      "surface_temperature_k": 273.99378373325476,
+      "toa_net_radiation_w_m2": -2.11881498489841,
+      "surface_downward_heat_flux_w_m2": -1.4780086674518973,
+      "planetary_sea_ice_fraction": 0.11210227792514978,
+      "precipitation_mm_day": 1.7369366261245927,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.6411237633003548,
+        "long": 0.8956554630930509
+      },
+      "cycle_end_phase": {
+        "medium": 0.6866249766660442,
+        "long": 0.9044363990057279
+      },
+      "forcing_flux_earth": {
+        "start": 0.9246437312334131,
+        "end": 0.9235903273749216
+      }
+    },
+    {
+      "year_index": 103,
+      "surface_temperature_k": 273.8584324557112,
+      "toa_net_radiation_w_m2": -1.8920457144438634,
+      "surface_downward_heat_flux_w_m2": -1.1090001181022038,
+      "planetary_sea_ice_fraction": 0.1143373227361386,
+      "precipitation_mm_day": 1.698619078427806,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.6866249766660442,
+        "long": 0.9044363990057279
+      },
+      "cycle_end_phase": {
+        "medium": 0.7321261900317344,
+        "long": 0.9132173349184048
+      },
+      "forcing_flux_earth": {
+        "start": 0.9235903273749216,
+        "end": 0.9235023638466797
+      }
+    },
+    {
+      "year_index": 104,
+      "surface_temperature_k": 273.39534288711985,
+      "toa_net_radiation_w_m2": -1.8404520528933566,
+      "surface_downward_heat_flux_w_m2": -1.5182538015650497,
+      "planetary_sea_ice_fraction": 0.11963328671668431,
+      "precipitation_mm_day": 1.7234553158729442,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.7321261900317344,
+        "long": 0.9132173349184048
+      },
+      "cycle_end_phase": {
+        "medium": 0.7776274033974238,
+        "long": 0.9219982708310818
+      },
+      "forcing_flux_earth": {
+        "start": 0.9235023638466797,
+        "end": 0.9244503711677312
+      }
+    },
+    {
+      "year_index": 105,
+      "surface_temperature_k": 273.22109798370496,
+      "toa_net_radiation_w_m2": -0.9599706149906616,
+      "surface_downward_heat_flux_w_m2": -0.31448107661069935,
+      "planetary_sea_ice_fraction": 0.12073517469325663,
+      "precipitation_mm_day": 1.7349156438460815,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.7776274033974238,
+        "long": 0.9219982708310818
+      },
+      "cycle_end_phase": {
+        "medium": 0.823128616763114,
+        "long": 0.9307792067437588
+      },
+      "forcing_flux_earth": {
+        "start": 0.9244503711677312,
+        "end": 0.9264229386312797
+      }
+    },
+    {
+      "year_index": 106,
+      "surface_temperature_k": 273.2257254264894,
+      "toa_net_radiation_w_m2": -0.422443423160418,
+      "surface_downward_heat_flux_w_m2": 0.1078435970567168,
+      "planetary_sea_ice_fraction": 0.11995320334322529,
+      "precipitation_mm_day": 1.7154072358158967,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.823128616763114,
+        "long": 0.9307792067437588
+      },
+      "cycle_end_phase": {
+        "medium": 0.8686298301288033,
+        "long": 0.9395601426564357
+      },
+      "forcing_flux_earth": {
+        "start": 0.9264229386312797,
+        "end": 0.9293274411427822
+      }
+    },
+    {
+      "year_index": 107,
+      "surface_temperature_k": 273.43503322867286,
+      "toa_net_radiation_w_m2": 0.06536262148693577,
+      "surface_downward_heat_flux_w_m2": 0.4805161603097495,
+      "planetary_sea_ice_fraction": 0.11907638161150587,
+      "precipitation_mm_day": 1.7293705972258024,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.8686298301288033,
+        "long": 0.9395601426564357
+      },
+      "cycle_end_phase": {
+        "medium": 0.9141310434944936,
+        "long": 0.9483410785691128
+      },
+      "forcing_flux_earth": {
+        "start": 0.9293274411427822,
+        "end": 0.9329973530288991
+      }
+    },
+    {
+      "year_index": 108,
+      "surface_temperature_k": 273.66725366051867,
+      "toa_net_radiation_w_m2": 0.8902055745968057,
+      "surface_downward_heat_flux_w_m2": 1.1953310086519957,
+      "planetary_sea_ice_fraction": 0.11340663629046016,
+      "precipitation_mm_day": 1.7134246294473654,
+      "native_runtime_seconds": 175.0,
+      "cycle_start_phase": {
+        "medium": 0.9141310434944936,
+        "long": 0.9483410785691128
+      },
+      "cycle_end_phase": {
+        "medium": 0.9596322568601829,
+        "long": 0.9571220144817897
+      },
+      "forcing_flux_earth": {
+        "start": 0.9329973530288991,
+        "end": 0.9372055557121806
+      }
+    },
+    {
+      "year_index": 109,
+      "surface_temperature_k": 274.10011538198376,
+      "toa_net_radiation_w_m2": 1.141074370506701,
+      "surface_downward_heat_flux_w_m2": 1.4414841685856292,
+      "planetary_sea_ice_fraction": 0.11206360121573501,
+      "precipitation_mm_day": 1.7397814868126111,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.9596322568601829,
+        "long": 0.9571220144817897
+      },
+      "cycle_end_phase": {
+        "medium": 0.005133470225872294,
+        "long": 0.9659029503944666
+      },
+      "forcing_flux_earth": {
+        "start": 0.9372055557121806,
+        "end": 0.9416825595844506
+      }
+    },
+    {
+      "year_index": 110,
+      "surface_temperature_k": 274.4427684234433,
+      "toa_net_radiation_w_m2": 1.671875156214545,
+      "surface_downward_heat_flux_w_m2": 2.018636030008397,
+      "planetary_sea_ice_fraction": 0.10736487752885411,
+      "precipitation_mm_day": 1.7627873967983703,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.005133470225872294,
+        "long": 0.9659029503944666
+      },
+      "cycle_end_phase": {
+        "medium": 0.050634683591562535,
+        "long": 0.9746838863071436
+      },
+      "forcing_flux_earth": {
+        "start": 0.9416825595844506,
+        "end": 0.9461381614946454
+      }
+    },
+    {
+      "year_index": 111,
+      "surface_temperature_k": 275.0294029112863,
+      "toa_net_radiation_w_m2": 2.024342726514443,
+      "surface_downward_heat_flux_w_m2": 2.345747809854165,
+      "planetary_sea_ice_fraction": 0.10283215920794642,
+      "precipitation_mm_day": 1.7424429420095657,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.050634683591562535,
+        "long": 0.9746838863071436
+      },
+      "cycle_end_phase": {
+        "medium": 0.09613589695725189,
+        "long": 0.9834648222198206
+      },
+      "forcing_flux_earth": {
+        "start": 0.9461381614946454,
+        "end": 0.9502847803781819
+      }
+    },
+    {
+      "year_index": 112,
+      "surface_temperature_k": 275.31531645802494,
+      "toa_net_radiation_w_m2": 2.056261529702392,
+      "surface_downward_heat_flux_w_m2": 2.4290265905070405,
+      "planetary_sea_ice_fraction": 0.09778388556734757,
+      "precipitation_mm_day": 1.796552458875516,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.09613589695725189,
+        "long": 0.9834648222198206
+      },
+      "cycle_end_phase": {
+        "medium": 0.14163711032294213,
+        "long": 0.9922457581324976
+      },
+      "forcing_flux_earth": {
+        "start": 0.9502847803781819,
+        "end": 0.9538605773347465
+      }
+    },
+    {
+      "year_index": 113,
+      "surface_temperature_k": 275.6623052365733,
+      "toa_net_radiation_w_m2": 2.0861721402427826,
+      "surface_downward_heat_flux_w_m2": 2.2605386805076617,
+      "planetary_sea_ice_fraction": 0.0974106623127683,
+      "precipitation_mm_day": 1.8105218845479079,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.14163711032294213,
+        "long": 0.9922457581324976
+      },
+      "cycle_end_phase": {
+        "medium": 0.18713832368863148,
+        "long": 0.0010266940451746365
+      },
+      "forcing_flux_earth": {
+        "start": 0.9538605773347465,
+        "end": 0.9566504839679169
+      }
+    },
+    {
+      "year_index": 114,
+      "surface_temperature_k": 276.1761484475432,
+      "toa_net_radiation_w_m2": 2.1575333166625703,
+      "surface_downward_heat_flux_w_m2": 2.564820670201974,
+      "planetary_sea_ice_fraction": 0.09117913048398402,
+      "precipitation_mm_day": 1.8161853792653273,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.18713832368863148,
+        "long": 0.0010266940451746365
+      },
+      "cycle_end_phase": {
+        "medium": 0.23263953705432172,
+        "long": 0.00980762995785156
+      },
+      "forcing_flux_earth": {
+        "start": 0.9566504839679169,
+        "end": 0.9585034326120988
+      }
+    },
+    {
+      "year_index": 115,
+      "surface_temperature_k": 276.69832584519895,
+      "toa_net_radiation_w_m2": 1.885728207212849,
+      "surface_downward_heat_flux_w_m2": 2.1746795298463897,
+      "planetary_sea_ice_fraction": 0.08360950213024743,
+      "precipitation_mm_day": 1.8908397888053365,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.23263953705432172,
+        "long": 0.00980762995785156
+      },
+      "cycle_end_phase": {
+        "medium": 0.2781407504200111,
+        "long": 0.018588565870528484
+      },
+      "forcing_flux_earth": {
+        "start": 0.9585034326120988,
+        "end": 0.9593443904045982
+      }
+    },
+    {
+      "year_index": 116,
+      "surface_temperature_k": 277.0094024100129,
+      "toa_net_radiation_w_m2": 1.5292033589227414,
+      "surface_downward_heat_flux_w_m2": 1.978136545783648,
+      "planetary_sea_ice_fraction": 0.07889577369328826,
+      "precipitation_mm_day": 1.903953338497008,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.2781407504200111,
+        "long": 0.018588565870528484
+      },
+      "cycle_end_phase": {
+        "medium": 0.3236419637857013,
+        "long": 0.027369501783205408
+      },
+      "forcing_flux_earth": {
+        "start": 0.9593443904045982,
+        "end": 0.9591802209830274
+      }
+    },
+    {
+      "year_index": 117,
+      "surface_temperature_k": 277.4749377918542,
+      "toa_net_radiation_w_m2": 1.6050490333257077,
+      "surface_downward_heat_flux_w_m2": 2.0281515044456455,
+      "planetary_sea_ice_fraction": 0.07260147257625398,
+      "precipitation_mm_day": 1.9015163606553547,
+      "native_runtime_seconds": 166.0,
+      "cycle_start_phase": {
+        "medium": 0.3236419637857013,
+        "long": 0.027369501783205408
+      },
+      "cycle_end_phase": {
+        "medium": 0.36914317715139067,
+        "long": 0.03615043769588233
+      },
+      "forcing_flux_earth": {
+        "start": 0.9591802209830274,
+        "end": 0.9580988986574067
+      }
+    },
+    {
+      "year_index": 118,
+      "surface_temperature_k": 277.6778597547005,
+      "toa_net_radiation_w_m2": 0.1513060548451016,
+      "surface_downward_heat_flux_w_m2": 0.5495033155737769,
+      "planetary_sea_ice_fraction": 0.07399779113903694,
+      "precipitation_mm_day": 1.9159370097844066,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.36914317715139067,
+        "long": 0.03615043769588233
+      },
+      "cycle_end_phase": {
+        "medium": 0.41464439051708,
+        "long": 0.04493137360855948
+      },
+      "forcing_flux_earth": {
+        "start": 0.9580988986574067,
+        "end": 0.9562621395457647
+      }
+    },
+    {
+      "year_index": 119,
+      "surface_temperature_k": 277.5291907500723,
+      "toa_net_radiation_w_m2": -0.13699416199966294,
+      "surface_downward_heat_flux_w_m2": 0.6718812323138179,
+      "planetary_sea_ice_fraction": 0.07398802766992205,
+      "precipitation_mm_day": 1.9171592261909574,
+      "native_runtime_seconds": 165.0,
+      "cycle_start_phase": {
+        "medium": 0.41464439051708,
+        "long": 0.04493137360855948
+      },
+      "cycle_end_phase": {
+        "medium": 0.46014560388277026,
+        "long": 0.0537123095212364
+      },
+      "forcing_flux_earth": {
+        "start": 0.9562621395457647,
+        "end": 0.9538920485642237
+      }
+    },
+    {
+      "year_index": 120,
+      "surface_temperature_k": 277.37656607235857,
+      "toa_net_radiation_w_m2": -0.3629045820709509,
+      "surface_downward_heat_flux_w_m2": 0.00327606877217305,
+      "planetary_sea_ice_fraction": 0.07705576359076886,
+      "precipitation_mm_day": 1.8975139196421325,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.46014560388277026,
+        "long": 0.0537123095212364
+      },
+      "cycle_end_phase": {
+        "medium": 0.5056468172484596,
+        "long": 0.062493245433913325
+      },
+      "forcing_flux_earth": {
+        "start": 0.9538920485642237,
+        "end": 0.951252866945037
+      }
+    },
+    {
+      "year_index": 121,
+      "surface_temperature_k": 277.44385127360647,
+      "toa_net_radiation_w_m2": -1.125557008414364,
+      "surface_downward_heat_flux_w_m2": -0.6485973040221703,
+      "planetary_sea_ice_fraction": 0.07534929715876086,
+      "precipitation_mm_day": 1.9280240517251026,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.5056468172484596,
+        "long": 0.062493245433913325
+      },
+      "cycle_end_phase": {
+        "medium": 0.5511480306141499,
+        "long": 0.07127418134659025
+      },
+      "forcing_flux_earth": {
+        "start": 0.951252866945037,
+        "end": 0.9486293026833563
+      }
+    },
+    {
+      "year_index": 122,
+      "surface_temperature_k": 277.1620705509145,
+      "toa_net_radiation_w_m2": -0.897671382289524,
+      "surface_downward_heat_flux_w_m2": -0.2932199481252538,
+      "planetary_sea_ice_fraction": 0.07684146376959392,
+      "precipitation_mm_day": 1.8773542225412816,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.5511480306141499,
+        "long": 0.07127418134659025
+      },
+      "cycle_end_phase": {
+        "medium": 0.5966492439798392,
+        "long": 0.08005511725926717
+      },
+      "forcing_flux_earth": {
+        "start": 0.9486293026833563,
+        "end": 0.9463032036984174
+      }
+    },
+    {
+      "year_index": 123,
+      "surface_temperature_k": 277.12633855745304,
+      "toa_net_radiation_w_m2": -0.7631720902077248,
+      "surface_downward_heat_flux_w_m2": -0.23372901701880053,
+      "planetary_sea_ice_fraction": 0.0782662765816408,
+      "precipitation_mm_day": 1.8877159170204076,
+      "native_runtime_seconds": 183.0,
+      "cycle_start_phase": {
+        "medium": 0.5966492439798392,
+        "long": 0.08005511725926717
+      },
+      "cycle_end_phase": {
+        "medium": 0.6421504573455294,
+        "long": 0.08883605317194432
+      },
+      "forcing_flux_earth": {
+        "start": 0.9463032036984174,
+        "end": 0.9445304680194471
+      }
+    },
+    {
+      "year_index": 124,
+      "surface_temperature_k": 277.25845995150763,
+      "toa_net_radiation_w_m2": -1.3869787712074961,
+      "surface_downward_heat_flux_w_m2": -0.6802576918503268,
+      "planetary_sea_ice_fraction": 0.07856228316992626,
+      "precipitation_mm_day": 1.855284900291075,
+      "native_runtime_seconds": 182.0,
+      "cycle_start_phase": {
+        "medium": 0.6421504573455294,
+        "long": 0.08883605317194432
+      },
+      "cycle_end_phase": {
+        "medium": 0.6876516707112188,
+        "long": 0.09761698908462124
+      },
+      "forcing_flux_earth": {
+        "start": 0.9445304680194471,
+        "end": 0.9435200660503368
+      }
+    },
+    {
+      "year_index": 125,
+      "surface_temperature_k": 277.0717539116244,
+      "toa_net_radiation_w_m2": -0.8327134471549084,
+      "surface_downward_heat_flux_w_m2": -0.4725473359735721,
+      "planetary_sea_ice_fraction": 0.07825357726456536,
+      "precipitation_mm_day": 1.8587064675147167,
+      "native_runtime_seconds": 184.0,
+      "cycle_start_phase": {
+        "medium": 0.6876516707112188,
+        "long": 0.09761698908462124
+      },
+      "cycle_end_phase": {
+        "medium": 0.733152884076909,
+        "long": 0.10639792499729817
+      },
+      "forcing_flux_earth": {
+        "start": 0.9435200660503368,
+        "end": 0.9434168784932438
+      }
+    },
+    {
+      "year_index": 126,
+      "surface_temperature_k": 276.9542324436929,
+      "toa_net_radiation_w_m2": -1.0148578230365628,
+      "surface_downward_heat_flux_w_m2": -0.27877856348942,
+      "planetary_sea_ice_fraction": 0.07701388942694845,
+      "precipitation_mm_day": 1.8619087458907149,
+      "native_runtime_seconds": 182.0,
+      "cycle_start_phase": {
+        "medium": 0.733152884076909,
+        "long": 0.10639792499729817
+      },
+      "cycle_end_phase": {
+        "medium": 0.7786540974425984,
+        "long": 0.11517886090997509
+      },
+      "forcing_flux_earth": {
+        "start": 0.9434168784932438,
+        "end": 0.9442897437399694
+      }
+    },
+    {
+      "year_index": 127,
+      "surface_temperature_k": 276.8507690589944,
+      "toa_net_radiation_w_m2": -0.3073126901883458,
+      "surface_downward_heat_flux_w_m2": 0.09591693963011665,
+      "planetary_sea_ice_fraction": 0.07934808083545468,
+      "precipitation_mm_day": 1.8511522519996026,
+      "native_runtime_seconds": 177.0,
+      "cycle_start_phase": {
+        "medium": 0.7786540974425984,
+        "long": 0.11517886090997509
+      },
+      "cycle_end_phase": {
+        "medium": 0.8241553108082886,
+        "long": 0.12395979682265201
+      },
+      "forcing_flux_earth": {
+        "start": 0.9442897437399694,
+        "end": 0.946125685618312
+      }
+    },
+    {
+      "year_index": 128,
+      "surface_temperature_k": 276.96624806329254,
+      "toa_net_radiation_w_m2": -0.21112208673635027,
+      "surface_downward_heat_flux_w_m2": 0.28195403577680267,
+      "planetary_sea_ice_fraction": 0.08023736433432914,
+      "precipitation_mm_day": 1.8390161377531904,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.8241553108082886,
+        "long": 0.12395979682265201
+      },
+      "cycle_end_phase": {
+        "medium": 0.869656524173978,
+        "long": 0.13274073273532916
+      },
+      "forcing_flux_earth": {
+        "start": 0.946125685618312,
+        "end": 0.9488307906411713
+      }
+    },
+    {
+      "year_index": 129,
+      "surface_temperature_k": 277.34319568924354,
+      "toa_net_radiation_w_m2": 0.28126134212659704,
+      "surface_downward_heat_flux_w_m2": 0.5275036926450082,
+      "planetary_sea_ice_fraction": 0.07871092685559994,
+      "precipitation_mm_day": 1.8468850442892666,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.869656524173978,
+        "long": 0.13274073273532916
+      },
+      "cycle_end_phase": {
+        "medium": 0.9151577375396673,
+        "long": 0.14152166864800608
+      },
+      "forcing_flux_earth": {
+        "start": 0.9488307906411713,
+        "end": 0.9522376640799419
+      }
+    },
+    {
+      "year_index": 130,
+      "surface_temperature_k": 277.2385730918474,
+      "toa_net_radiation_w_m2": 1.0424909103679678,
+      "surface_downward_heat_flux_w_m2": 1.5039688309335146,
+      "planetary_sea_ice_fraction": 0.07677528040680252,
+      "precipitation_mm_day": 1.8532307514673771,
+      "native_runtime_seconds": 166.0,
+      "cycle_start_phase": {
+        "medium": 0.9151577375396673,
+        "long": 0.14152166864800608
+      },
+      "cycle_end_phase": {
+        "medium": 0.9606589509053576,
+        "long": 0.150302604560683
+      },
+      "forcing_flux_earth": {
+        "start": 0.9522376640799419,
+        "end": 0.9561188600934953
+      }
+    },
+    {
+      "year_index": 131,
+      "surface_temperature_k": 277.69689365726845,
+      "toa_net_radiation_w_m2": 0.8355624599951419,
+      "surface_downward_heat_flux_w_m2": 1.182618066020339,
+      "planetary_sea_ice_fraction": 0.07413067014139131,
+      "precipitation_mm_day": 1.8720476682960008,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.9606589509053576,
+        "long": 0.150302604560683
+      },
+      "cycle_end_phase": {
+        "medium": 0.006160164271046931,
+        "long": 0.15908354047335993
+      },
+      "forcing_flux_earth": {
+        "start": 0.9561188600934953,
+        "end": 0.9602051961469886
+      }
+    },
+    {
+      "year_index": 132,
+      "surface_temperature_k": 278.0664342472823,
+      "toa_net_radiation_w_m2": 1.516982281105518,
+      "surface_downward_heat_flux_w_m2": 1.864020448376892,
+      "planetary_sea_ice_fraction": 0.0729567724165301,
+      "precipitation_mm_day": 1.9032210338220041,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.006160164271046931,
+        "long": 0.15908354047335993
+      },
+      "cycle_end_phase": {
+        "medium": 0.05166137763673717,
+        "long": 0.16786447638603685
+      },
+      "forcing_flux_earth": {
+        "start": 0.9602051961469886,
+        "end": 0.9642074654226969
+      }
+    },
+    {
+      "year_index": 133,
+      "surface_temperature_k": 278.2692435796503,
+      "toa_net_radiation_w_m2": 1.6844759806912666,
+      "surface_downward_heat_flux_w_m2": 2.1042416677549354,
+      "planetary_sea_ice_fraction": 0.06913837093676896,
+      "precipitation_mm_day": 1.9362353763601992,
+      "native_runtime_seconds": 164.0,
+      "cycle_start_phase": {
+        "medium": 0.05166137763673717,
+        "long": 0.16786447638603685
+      },
+      "cycle_end_phase": {
+        "medium": 0.09716259100242652,
+        "long": 0.176645412298714
+      },
+      "forcing_flux_earth": {
+        "start": 0.9642074654226969,
+        "end": 0.9678397850483281
+      }
+    },
+    {
+      "year_index": 134,
+      "surface_temperature_k": 278.8532142404643,
+      "toa_net_radiation_w_m2": 1.7770581537283476,
+      "surface_downward_heat_flux_w_m2": 2.1633709760778075,
+      "planetary_sea_ice_fraction": 0.06481903796401592,
+      "precipitation_mm_day": 1.9323139751373517,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.09716259100242652,
+        "long": 0.176645412298714
+      },
+      "cycle_end_phase": {
+        "medium": 0.14266380436811676,
+        "long": 0.18542634821139092
+      },
+      "forcing_flux_earth": {
+        "start": 0.9678397850483281,
+        "end": 0.9708426851424524
+      }
+    },
+    {
+      "year_index": 135,
+      "surface_temperature_k": 279.1048303738344,
+      "toa_net_radiation_w_m2": 1.5646260819374513,
+      "surface_downward_heat_flux_w_m2": 1.729865823306632,
+      "planetary_sea_ice_fraction": 0.06445849841637044,
+      "precipitation_mm_day": 1.9827448894379704,
+      "native_runtime_seconds": 166.0,
+      "cycle_start_phase": {
+        "medium": 0.14266380436811676,
+        "long": 0.18542634821139092
+      },
+      "cycle_end_phase": {
+        "medium": 0.18816501773380612,
+        "long": 0.19420728412406785
+      },
+      "forcing_flux_earth": {
+        "start": 0.9708426851424524,
+        "end": 0.9730040646845572
+      }
+    },
+    {
+      "year_index": 136,
+      "surface_temperature_k": 279.3561387457289,
+      "toa_net_radiation_w_m2": 1.5579156657331945,
+      "surface_downward_heat_flux_w_m2": 2.0005697791309767,
+      "planetary_sea_ice_fraction": 0.059090034651731065,
+      "precipitation_mm_day": 1.9799781851936038,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.18816501773380612,
+        "long": 0.19420728412406785
+      },
+      "cycle_end_phase": {
+        "medium": 0.23366623109949636,
+        "long": 0.20298822003674477
+      },
+      "forcing_flux_earth": {
+        "start": 0.9730040646845572,
+        "end": 0.9741763133535255
+      }
+    },
+    {
+      "year_index": 137,
+      "surface_temperature_k": 279.6704066362232,
+      "toa_net_radiation_w_m2": 1.5405716375049554,
+      "surface_downward_heat_flux_w_m2": 1.9409177785856897,
+      "planetary_sea_ice_fraction": 0.057628803241301964,
+      "precipitation_mm_day": 2.0047561331094497,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.23366623109949636,
+        "long": 0.20298822003674477
+      },
+      "cycle_end_phase": {
+        "medium": 0.2791674444651857,
+        "long": 0.21176915594942192
+      },
+      "forcing_flux_earth": {
+        "start": 0.9741763133535255,
+        "end": 0.9742882096880314
+      }
+    },
+    {
+      "year_index": 138,
+      "surface_temperature_k": 279.9559927444349,
+      "toa_net_radiation_w_m2": 0.8068098541599115,
+      "surface_downward_heat_flux_w_m2": 1.1704883196669384,
+      "planetary_sea_ice_fraction": 0.05693440380935604,
+      "precipitation_mm_day": 2.0137421842243515,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.2791674444651857,
+        "long": 0.21176915594942192
+      },
+      "cycle_end_phase": {
+        "medium": 0.32466865783087506,
+        "long": 0.22055009186209884
+      },
+      "forcing_flux_earth": {
+        "start": 0.9742882096880314,
+        "end": 0.9733506299417677
+      }
+    },
+    {
+      "year_index": 139,
+      "surface_temperature_k": 279.9927015129652,
+      "toa_net_radiation_w_m2": 0.18379614407377134,
+      "surface_downward_heat_flux_w_m2": 0.6770160629850114,
+      "planetary_sea_ice_fraction": 0.05778506680543342,
+      "precipitation_mm_day": 2.0020963914114147,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.32466865783087506,
+        "long": 0.22055009186209884
+      },
+      "cycle_end_phase": {
+        "medium": 0.3701698711965653,
+        "long": 0.22933102777477576
+      },
+      "forcing_flux_earth": {
+        "start": 0.9733506299417677,
+        "end": 0.9714556044140282
+      }
+    },
+    {
+      "year_index": 140,
+      "surface_temperature_k": 280.16212645230945,
+      "toa_net_radiation_w_m2": -0.4367495491556654,
+      "surface_downward_heat_flux_w_m2": 0.2103198506728788,
+      "planetary_sea_ice_fraction": 0.058818966048401033,
+      "precipitation_mm_day": 1.9843246059154185,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.3701698711965653,
+        "long": 0.22933102777477576
+      },
+      "cycle_end_phase": {
+        "medium": 0.41567108456225466,
+        "long": 0.2381119636874527
+      },
+      "forcing_flux_earth": {
+        "start": 0.9714556044140282,
+        "end": 0.968768798046975
+      }
+    },
+    {
+      "year_index": 141,
+      "surface_temperature_k": 279.9576491360777,
+      "toa_net_radiation_w_m2": -1.0499551214124399,
+      "surface_downward_heat_flux_w_m2": -0.4329091290563912,
+      "planetary_sea_ice_fraction": 0.05558495683952446,
+      "precipitation_mm_day": 2.0389239038092097,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.41567108456225466,
+        "long": 0.2381119636874527
+      },
+      "cycle_end_phase": {
+        "medium": 0.4611722979279449,
+        "long": 0.2468928996001296
+      },
+      "forcing_flux_earth": {
+        "start": 0.968768798046975,
+        "end": 0.9655160258572808
+      }
+    },
+    {
+      "year_index": 142,
+      "surface_temperature_k": 279.68680005933004,
+      "toa_net_radiation_w_m2": -1.4949351783391533,
+      "surface_downward_heat_flux_w_m2": -0.7768149122336513,
+      "planetary_sea_ice_fraction": 0.05909512352015061,
+      "precipitation_mm_day": 2.029852653373136,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.4611722979279449,
+        "long": 0.2468928996001296
+      },
+      "cycle_end_phase": {
+        "medium": 0.5066735112936342,
+        "long": 0.25567383551280676
+      },
+      "forcing_flux_earth": {
+        "start": 0.9655160258572808,
+        "end": 0.9619648979802685
+      }
+    },
+    {
+      "year_index": 143,
+      "surface_temperature_k": 279.57564848142977,
+      "toa_net_radiation_w_m2": -1.989484359321035,
+      "surface_downward_heat_flux_w_m2": -1.4415900656373069,
+      "planetary_sea_ice_fraction": 0.060382176195580235,
+      "precipitation_mm_day": 2.0150354222752993,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.5066735112936342,
+        "long": 0.25567383551280676
+      },
+      "cycle_end_phase": {
+        "medium": 0.5521747246593245,
+        "long": 0.2644547714254837
+      },
+      "forcing_flux_earth": {
+        "start": 0.9619648979802685,
+        "end": 0.958403084441373
+      }
+    },
+    {
+      "year_index": 144,
+      "surface_temperature_k": 279.2078869141316,
+      "toa_net_radiation_w_m2": -1.853796958714123,
+      "surface_downward_heat_flux_w_m2": -1.1926423872280838,
+      "planetary_sea_ice_fraction": 0.06254688939697736,
+      "precipitation_mm_day": 1.9872439153910884,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.5521747246593245,
+        "long": 0.2644547714254837
+      },
+      "cycle_end_phase": {
+        "medium": 0.5976759380250138,
+        "long": 0.2732357073381606
+      },
+      "forcing_flux_earth": {
+        "start": 0.958403084441373,
+        "end": 0.9551149641396866
+      }
+    },
+    {
+      "year_index": 145,
+      "surface_temperature_k": 278.9406414741922,
+      "toa_net_radiation_w_m2": -2.2268463225309603,
+      "surface_downward_heat_flux_w_m2": -1.4092875330749086,
+      "planetary_sea_ice_fraction": 0.06597885975161047,
+      "precipitation_mm_day": 1.9602950377588915,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.5976759380250138,
+        "long": 0.2732357073381606
+      },
+      "cycle_end_phase": {
+        "medium": 0.6431771513907041,
+        "long": 0.28201664325083753
+      },
+      "forcing_flux_earth": {
+        "start": 0.9551149641396866,
+        "end": 0.9523585536584364
+      }
+    },
+    {
+      "year_index": 146,
+      "surface_temperature_k": 278.425914009623,
+      "toa_net_radiation_w_m2": -2.5260971636890894,
+      "surface_downward_heat_flux_w_m2": -1.993521075193539,
+      "planetary_sea_ice_fraction": 0.06931867550734006,
+      "precipitation_mm_day": 1.9838965748783803,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.6431771513907041,
+        "long": 0.28201664325083753
+      },
+      "cycle_end_phase": {
+        "medium": 0.6886783647563934,
+        "long": 0.29079757916351445
+      },
+      "forcing_flux_earth": {
+        "start": 0.9523585536584364,
+        "end": 0.9503445887625636
+      }
+    },
+    {
+      "year_index": 147,
+      "surface_temperature_k": 278.2747315069991,
+      "toa_net_radiation_w_m2": -2.1853477699091317,
+      "surface_downward_heat_flux_w_m2": -1.4230314916845483,
+      "planetary_sea_ice_fraction": 0.0686847631336629,
+      "precipitation_mm_day": 1.9449300942000585,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.6886783647563934,
+        "long": 0.29079757916351445
+      },
+      "cycle_end_phase": {
+        "medium": 0.7341795781220837,
+        "long": 0.2995785150761916
+      },
+      "forcing_flux_earth": {
+        "start": 0.9503445887625636,
+        "end": 0.9492194566514391
+      }
+    },
+    {
+      "year_index": 148,
+      "surface_temperature_k": 278.00504274081845,
+      "toa_net_radiation_w_m2": -1.631171514472875,
+      "surface_downward_heat_flux_w_m2": -0.9109452383316312,
+      "planetary_sea_ice_fraction": 0.07029447425863372,
+      "precipitation_mm_day": 1.892992561861719,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.7341795781220837,
+        "long": 0.2995785150761916
+      },
+      "cycle_end_phase": {
+        "medium": 0.779680791487773,
+        "long": 0.3083594509888685
+      },
+      "forcing_flux_earth": {
+        "start": 0.9492194566514391,
+        "end": 0.9490533643948016
+      }
+    },
+    {
+      "year_index": 149,
+      "surface_temperature_k": 277.72039455884726,
+      "toa_net_radiation_w_m2": -1.4066359231768342,
+      "surface_downward_heat_flux_w_m2": -1.0154259318085197,
+      "planetary_sea_ice_fraction": 0.07448213472711386,
+      "precipitation_mm_day": 1.9385642268436623,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.779680791487773,
+        "long": 0.3083594509888685
+      },
+      "cycle_end_phase": {
+        "medium": 0.8251820048534624,
+        "long": 0.31714038690154545
+      },
+      "forcing_flux_earth": {
+        "start": 0.9490533643948016,
+        "end": 0.9498347038722589
+      }
+    },
+    {
+      "year_index": 150,
+      "surface_temperature_k": 277.7635706257793,
+      "toa_net_radiation_w_m2": -1.258051182510023,
+      "surface_downward_heat_flux_w_m2": -0.7457900815832499,
+      "planetary_sea_ice_fraction": 0.07275618144201862,
+      "precipitation_mm_day": 1.9378086640902232,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.8251820048534624,
+        "long": 0.31714038690154545
+      },
+      "cycle_end_phase": {
+        "medium": 0.8706832182191526,
+        "long": 0.32592132281422237
+      },
+      "forcing_flux_earth": {
+        "start": 0.9498347038722589,
+        "end": 0.9514710704712467
+      }
+    },
+    {
+      "year_index": 151,
+      "surface_temperature_k": 277.9823903517661,
+      "toa_net_radiation_w_m2": -0.03003885017059001,
+      "surface_downward_heat_flux_w_m2": 0.4943962623882432,
+      "planetary_sea_ice_fraction": 0.0717098867922897,
+      "precipitation_mm_day": 1.8941296152104607,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.8706832182191526,
+        "long": 0.32592132281422237
+      },
+      "cycle_end_phase": {
+        "medium": 0.916184431584842,
+        "long": 0.3347022587268993
+      },
+      "forcing_flux_earth": {
+        "start": 0.9514710704712467,
+        "end": 0.9537968526138251
+      }
+    },
+    {
+      "year_index": 152,
+      "surface_temperature_k": 278.09105998241006,
+      "toa_net_radiation_w_m2": 0.4015343741556663,
+      "surface_downward_heat_flux_w_m2": 0.8593677647305843,
+      "planetary_sea_ice_fraction": 0.06975592960490065,
+      "precipitation_mm_day": 1.8796307664221419,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.916184431584842,
+        "long": 0.3347022587268993
+      },
+      "cycle_end_phase": {
+        "medium": 0.9616856449505322,
+        "long": 0.34348319463957644
+      },
+      "forcing_flux_earth": {
+        "start": 0.9537968526138251,
+        "end": 0.956586775731065
+      }
+    },
+    {
+      "year_index": 153,
+      "surface_temperature_k": 278.10251733871206,
+      "toa_net_radiation_w_m2": -0.14725903620041722,
+      "surface_downward_heat_flux_w_m2": 0.2972157409481186,
+      "planetary_sea_ice_fraction": 0.07156227831178195,
+      "precipitation_mm_day": 1.9029922197061813,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.9616856449505322,
+        "long": 0.34348319463957644
+      },
+      "cycle_end_phase": {
+        "medium": 0.007186858316221567,
+        "long": 0.35226413055225336
+      },
+      "forcing_flux_earth": {
+        "start": 0.956586775731065,
+        "end": 0.9595743008903932
+      }
+    },
+    {
+      "year_index": 154,
+      "surface_temperature_k": 278.1825949764147,
+      "toa_net_radiation_w_m2": 0.27523908661852925,
+      "surface_downward_heat_flux_w_m2": 0.6660722564500872,
+      "planetary_sea_ice_fraction": 0.0721366103224891,
+      "precipitation_mm_day": 1.9331404726318073,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.007186858316221567,
+        "long": 0.35226413055225336
+      },
+      "cycle_end_phase": {
+        "medium": 0.05268807168191181,
+        "long": 0.3610450664649303
+      },
+      "forcing_flux_earth": {
+        "start": 0.9595743008903932,
+        "end": 0.9624733841494287
+      }
+    },
+    {
+      "year_index": 155,
+      "surface_temperature_k": 278.526624424303,
+      "toa_net_radiation_w_m2": 1.4550305993555988,
+      "surface_downward_heat_flux_w_m2": 1.78233423536084,
+      "planetary_sea_ice_fraction": 0.06742504836391087,
+      "precipitation_mm_day": 1.9458514042357304,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.05268807168191181,
+        "long": 0.3610450664649303
+      },
+      "cycle_end_phase": {
+        "medium": 0.09818928504760116,
+        "long": 0.3698260023776072
+      },
+      "forcing_flux_earth": {
+        "start": 0.9624733841494287,
+        "end": 0.965001829855023
+      }
+    },
+    {
+      "year_index": 156,
+      "surface_temperature_k": 278.80709999744107,
+      "toa_net_radiation_w_m2": 0.6329168043398181,
+      "surface_downward_heat_flux_w_m2": 1.0147212879472338,
+      "planetary_sea_ice_fraction": 0.06286448933123497,
+      "precipitation_mm_day": 1.9821888421649267,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.09818928504760116,
+        "long": 0.3698260023776072
+      },
+      "cycle_end_phase": {
+        "medium": 0.1436904984132914,
+        "long": 0.37860693829028413
+      },
+      "forcing_flux_earth": {
+        "start": 0.965001829855023,
+        "end": 0.9669043416786893
+      }
+    },
+    {
+      "year_index": 157,
+      "surface_temperature_k": 278.92998823683195,
+      "toa_net_radiation_w_m2": 0.7844539336204049,
+      "surface_downward_heat_flux_w_m2": 1.1853109888514195,
+      "planetary_sea_ice_fraction": 0.06273967455266581,
+      "precipitation_mm_day": 1.9750150013795307,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.1436904984132914,
+        "long": 0.37860693829028413
+      },
+      "cycle_end_phase": {
+        "medium": 0.18919171177898075,
+        "long": 0.3873878742029613
+      },
+      "forcing_flux_earth": {
+        "start": 0.9669043416786893,
+        "end": 0.967973399686324
+      }
+    },
+    {
+      "year_index": 158,
+      "surface_temperature_k": 279.13219905849456,
+      "toa_net_radiation_w_m2": 0.9015308784247126,
+      "surface_downward_heat_flux_w_m2": 1.2896512156655693,
+      "planetary_sea_ice_fraction": 0.06126344622661086,
+      "precipitation_mm_day": 1.9600414652973288,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.18919171177898075,
+        "long": 0.3873878742029613
+      },
+      "cycle_end_phase": {
+        "medium": 0.2346929251446701,
+        "long": 0.3961688101156382
+      },
+      "forcing_flux_earth": {
+        "start": 0.967973399686324,
+        "end": 0.9680662681917245
+      }
+    },
+    {
+      "year_index": 159,
+      "surface_temperature_k": 279.3845832163462,
+      "toa_net_radiation_w_m2": 0.9487344955125764,
+      "surface_downward_heat_flux_w_m2": 1.3631986151476696,
+      "planetary_sea_ice_fraction": 0.0599533324709731,
+      "precipitation_mm_day": 1.959181001697998,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.2346929251446701,
+        "long": 0.3961688101156382
+      },
+      "cycle_end_phase": {
+        "medium": 0.28019413851036035,
+        "long": 0.4049497460283151
+      },
+      "forcing_flux_earth": {
+        "start": 0.9680662681917245,
+        "end": 0.9671167532157684
+      }
+    },
+    {
+      "year_index": 160,
+      "surface_temperature_k": 279.63958369120263,
+      "toa_net_radiation_w_m2": -0.19775032240313228,
+      "surface_downward_heat_flux_w_m2": 0.48283398585870785,
+      "planetary_sea_ice_fraction": 0.05908169452306616,
+      "precipitation_mm_day": 2.0158535592337405,
+      "native_runtime_seconds": 166.0,
+      "cycle_start_phase": {
+        "medium": 0.28019413851036035,
+        "long": 0.4049497460283151
+      },
+      "cycle_end_phase": {
+        "medium": 0.3256953518760497,
+        "long": 0.41373068194099205
+      },
+      "forcing_flux_earth": {
+        "start": 0.9671167532157684,
+        "end": 0.9651407545701267
+      }
+    },
+    {
+      "year_index": 161,
+      "surface_temperature_k": 279.4224790003481,
+      "toa_net_radiation_w_m2": -0.6485742592937571,
+      "surface_downward_heat_flux_w_m2": -0.16000126986495208,
+      "planetary_sea_ice_fraction": 0.058452048288945437,
+      "precipitation_mm_day": 1.9979538520515876,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.3256953518760497,
+        "long": 0.41373068194099205
+      },
+      "cycle_end_phase": {
+        "medium": 0.37119656524173994,
+        "long": 0.422511617853669
+      },
+      "forcing_flux_earth": {
+        "start": 0.9651407545701267,
+        "end": 0.9622351613077191
+      }
+    },
+    {
+      "year_index": 162,
+      "surface_temperature_k": 279.45302517116994,
+      "toa_net_radiation_w_m2": -0.808902989438583,
+      "surface_downward_heat_flux_w_m2": -0.15923927658871237,
+      "planetary_sea_ice_fraction": 0.05924977681439129,
+      "precipitation_mm_day": 1.9719885181519958,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.37119656524173994,
+        "long": 0.422511617853669
+      },
+      "cycle_end_phase": {
+        "medium": 0.4166977786074293,
+        "long": 0.4312925537663461
+      },
+      "forcing_flux_earth": {
+        "start": 0.9622351613077191,
+        "end": 0.9585701796399276
+      }
+    },
+    {
+      "year_index": 163,
+      "surface_temperature_k": 279.25849718168917,
+      "toa_net_radiation_w_m2": -1.6891443898679803,
+      "surface_downward_heat_flux_w_m2": -1.1178596361423672,
+      "planetary_sea_ice_fraction": 0.05999239376493435,
+      "precipitation_mm_day": 1.9710708371161352,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.4166977786074293,
+        "long": 0.4312925537663461
+      },
+      "cycle_end_phase": {
+        "medium": 0.46219899197311953,
+        "long": 0.44007348967902304
+      },
+      "forcing_flux_earth": {
+        "start": 0.9585701796399276,
+        "end": 0.9543757155470345
+      }
+    },
+    {
+      "year_index": 164,
+      "surface_temperature_k": 278.92760085388375,
+      "toa_net_radiation_w_m2": -2.3144197487495894,
+      "surface_downward_heat_flux_w_m2": -1.661372425957582,
+      "planetary_sea_ice_fraction": 0.06326946678734324,
+      "precipitation_mm_day": 1.97235257129543,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.46219899197311953,
+        "long": 0.44007348967902304
+      },
+      "cycle_end_phase": {
+        "medium": 0.5077002053388089,
+        "long": 0.44885442559169997
+      },
+      "forcing_flux_earth": {
+        "start": 0.9543757155470345,
+        "end": 0.9499229169246451
+      }
+    },
+    {
+      "year_index": 165,
+      "surface_temperature_k": 278.4084425092658,
+      "toa_net_radiation_w_m2": -2.892265654930114,
+      "surface_downward_heat_flux_w_m2": -2.1498790357048354,
+      "planetary_sea_ice_fraction": 0.06875837597399691,
+      "precipitation_mm_day": 1.9589388032294246,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.5077002053388089,
+        "long": 0.44885442559169997
+      },
+      "cycle_end_phase": {
+        "medium": 0.5532014187044991,
+        "long": 0.4576353615043769
+      },
+      "forcing_flux_earth": {
+        "start": 0.9499229169246451,
+        "end": 0.9455023730365804
+      }
+    },
+    {
+      "year_index": 166,
+      "surface_temperature_k": 277.8752924659043,
+      "toa_net_radiation_w_m2": -2.779579969290944,
+      "surface_downward_heat_flux_w_m2": -1.8920925408647469,
+      "planetary_sea_ice_fraction": 0.07138628279938339,
+      "precipitation_mm_day": 1.9384711259948944,
+      "native_runtime_seconds": 166.0,
+      "cycle_start_phase": {
+        "medium": 0.5532014187044991,
+        "long": 0.4576353615043769
+      },
+      "cycle_end_phase": {
+        "medium": 0.5987026320701885,
+        "long": 0.46641629741705404
+      },
+      "forcing_flux_earth": {
+        "start": 0.9455023730365804,
+        "end": 0.9414007403863055
+      }
+    },
+    {
+      "year_index": 167,
+      "surface_temperature_k": 277.64628672734165,
+      "toa_net_radiation_w_m2": -3.245825105647271,
+      "surface_downward_heat_flux_w_m2": -2.531686533263111,
+      "planetary_sea_ice_fraction": 0.07482470507344517,
+      "precipitation_mm_day": 1.91879037185256,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.5987026320701885,
+        "long": 0.46641629741705404
+      },
+      "cycle_end_phase": {
+        "medium": 0.6442038454358787,
+        "long": 0.47519723332973096
+      },
+      "forcing_flux_earth": {
+        "start": 0.9414007403863055,
+        "end": 0.9378776918471246
+      }
+    },
+    {
+      "year_index": 168,
+      "surface_temperature_k": 277.2121690144441,
+      "toa_net_radiation_w_m2": -3.3112212862987955,
+      "surface_downward_heat_flux_w_m2": -2.33990553591427,
+      "planetary_sea_ice_fraction": 0.07665619087319113,
+      "precipitation_mm_day": 1.8934512161590666,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.6442038454358787,
+        "long": 0.47519723332973096
+      },
+      "cycle_end_phase": {
+        "medium": 0.6897050588015681,
+        "long": 0.4839781692424079
+      },
+      "forcing_flux_earth": {
+        "start": 0.9378776918471246,
+        "end": 0.9351450596372581
+      }
+    },
+    {
+      "year_index": 169,
+      "surface_temperature_k": 276.73690780047554,
+      "toa_net_radiation_w_m2": -2.4429110523932853,
+      "surface_downward_heat_flux_w_m2": -1.9988894363839613,
+      "planetary_sea_ice_fraction": 0.08316987598010621,
+      "precipitation_mm_day": 1.8676568667652207,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.6897050588015681,
+        "long": 0.4839781692424079
+      },
+      "cycle_end_phase": {
+        "medium": 0.7352062721672574,
+        "long": 0.4927591051550848
+      },
+      "forcing_flux_earth": {
+        "start": 0.9351450596372581,
+        "end": 0.9333498646208673
+      }
+    },
+    {
+      "year_index": 170,
+      "surface_temperature_k": 276.4264470291684,
+      "toa_net_radiation_w_m2": -2.5652378429077394,
+      "surface_downward_heat_flux_w_m2": -1.8322468858965866,
+      "planetary_sea_ice_fraction": 0.0841433629960947,
+      "precipitation_mm_day": 1.8367620665390858,
+      "native_runtime_seconds": 167.0,
+      "cycle_start_phase": {
+        "medium": 0.7352062721672574,
+        "long": 0.4927591051550848
+      },
+      "cycle_end_phase": {
+        "medium": 0.7807074855329477,
+        "long": 0.5015400410677617
+      },
+      "forcing_flux_earth": {
+        "start": 0.9333498646208673,
+        "end": 0.9325626089185814
+      }
+    },
+    {
+      "year_index": 171,
+      "surface_temperature_k": 275.9753630210143,
+      "toa_net_radiation_w_m2": -2.7089130847976914,
+      "surface_downward_heat_flux_w_m2": -1.946465567084169,
+      "planetary_sea_ice_fraction": 0.08899431463283147,
+      "precipitation_mm_day": 1.8318034056870482,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.7807074855329477,
+        "long": 0.5015400410677617
+      },
+      "cycle_end_phase": {
+        "medium": 0.826208698898637,
+        "long": 0.5103209769804389
+      },
+      "forcing_flux_earth": {
+        "start": 0.9325626089185814,
+        "end": 0.9327717815330212
+      }
+    },
+    {
+      "year_index": 172,
+      "surface_temperature_k": 275.66766296404074,
+      "toa_net_radiation_w_m2": -1.7097560990355454,
+      "surface_downward_heat_flux_w_m2": -1.0228599490433985,
+      "planetary_sea_ice_fraction": 0.09229582949472055,
+      "precipitation_mm_day": 1.814079219303728,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.826208698898637,
+        "long": 0.5103209769804389
+      },
+      "cycle_end_phase": {
+        "medium": 0.8717099122643273,
+        "long": 0.5191019128931158
+      },
+      "forcing_flux_earth": {
+        "start": 0.9327717815330212,
+        "end": 0.9338850223223862
+      }
+    },
+    {
+      "year_index": 173,
+      "surface_temperature_k": 275.55291834885094,
+      "toa_net_radiation_w_m2": -1.3103081751133026,
+      "surface_downward_heat_flux_w_m2": -0.8010735514367409,
+      "planetary_sea_ice_fraction": 0.09133370716861848,
+      "precipitation_mm_day": 1.8075461571779146,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.8717099122643273,
+        "long": 0.5191019128931158
+      },
+      "cycle_end_phase": {
+        "medium": 0.9172111256300166,
+        "long": 0.5278828488057927
+      },
+      "forcing_flux_earth": {
+        "start": 0.9338850223223862,
+        "end": 0.9357368491330065
+      }
+    },
+    {
+      "year_index": 174,
+      "surface_temperature_k": 275.5149885400767,
+      "toa_net_radiation_w_m2": -0.7412453940783313,
+      "surface_downward_heat_flux_w_m2": -0.25188177012764185,
+      "planetary_sea_ice_fraction": 0.09401176077154089,
+      "precipitation_mm_day": 1.7690558065722943,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.9172111256300166,
+        "long": 0.5278828488057927
+      },
+      "cycle_end_phase": {
+        "medium": 0.9627123389957069,
+        "long": 0.5366637847184696
+      },
+      "forcing_flux_earth": {
+        "start": 0.9357368491330065,
+        "end": 0.9381023201091141
+      }
+    },
+    {
+      "year_index": 175,
+      "surface_temperature_k": 275.74326977967075,
+      "toa_net_radiation_w_m2": -0.30703827952155366,
+      "surface_downward_heat_flux_w_m2": 0.07194793694076836,
+      "planetary_sea_ice_fraction": 0.09119051690766124,
+      "precipitation_mm_day": 1.8059082290190622,
+      "native_runtime_seconds": 187.0,
+      "cycle_start_phase": {
+        "medium": 0.9627123389957069,
+        "long": 0.5366637847184696
+      },
+      "cycle_end_phase": {
+        "medium": 0.008213552361397092,
+        "long": 0.5454447206311466
+      },
+      "forcing_flux_earth": {
+        "start": 0.9381023201091141,
+        "end": 0.9407155213867228
+      }
+    },
+    {
+      "year_index": 176,
+      "surface_temperature_k": 275.7228422950149,
+      "toa_net_radiation_w_m2": 0.02826985643514505,
+      "surface_downward_heat_flux_w_m2": 0.5994196530232597,
+      "planetary_sea_ice_fraction": 0.0917088429201413,
+      "precipitation_mm_day": 1.8039647037945494,
+      "native_runtime_seconds": 184.0,
+      "cycle_start_phase": {
+        "medium": 0.008213552361397092,
+        "long": 0.5454447206311466
+      },
+      "cycle_end_phase": {
+        "medium": 0.053714765727086444,
+        "long": 0.5542256565438237
+      },
+      "forcing_flux_earth": {
+        "start": 0.9407155213867228,
+        "end": 0.94329137866154
+      }
+    },
+    {
+      "year_index": 177,
+      "surface_temperature_k": 275.843492848619,
+      "toa_net_radiation_w_m2": 0.3398153088084596,
+      "surface_downward_heat_flux_w_m2": 0.5526826620261062,
+      "planetary_sea_ice_fraction": 0.09356028695954971,
+      "precipitation_mm_day": 1.8220636836387953,
+      "native_runtime_seconds": 184.0,
+      "cycle_start_phase": {
+        "medium": 0.053714765727086444,
+        "long": 0.5542256565438237
+      },
+      "cycle_end_phase": {
+        "medium": 0.0992159790927758,
+        "long": 0.5630065924565006
+      },
+      "forcing_flux_earth": {
+        "start": 0.94329137866154,
+        "end": 0.9455490212975999
+      }
+    },
+    {
+      "year_index": 178,
+      "surface_temperature_k": 276.0437606454563,
+      "toa_net_radiation_w_m2": 0.074072614938072,
+      "surface_downward_heat_flux_w_m2": 0.6361852646977251,
+      "planetary_sea_ice_fraction": 0.09210217584723211,
+      "precipitation_mm_day": 1.840233981116678,
+      "native_runtime_seconds": 179.0,
+      "cycle_start_phase": {
+        "medium": 0.0992159790927758,
+        "long": 0.5630065924565006
+      },
+      "cycle_end_phase": {
+        "medium": 0.14471719245846515,
+        "long": 0.5717875283691776
+      },
+      "forcing_flux_earth": {
+        "start": 0.9455490212975999,
+        "end": 0.9472348016178471
+      }
+    },
+    {
+      "year_index": 179,
+      "surface_temperature_k": 276.14282096657877,
+      "toa_net_radiation_w_m2": -0.38466499374528434,
+      "surface_downward_heat_flux_w_m2": 0.1211516445535179,
+      "planetary_sea_ice_fraction": 0.09224413436278549,
+      "precipitation_mm_day": 1.8581591182105586,
+      "native_runtime_seconds": 181.0,
+      "cycle_start_phase": {
+        "medium": 0.14471719245846515,
+        "long": 0.5717875283691776
+      },
+      "cycle_end_phase": {
+        "medium": 0.1902184058241545,
+        "long": 0.5805684642818545
+      },
+      "forcing_flux_earth": {
+        "start": 0.9472348016178471,
+        "end": 0.9481431000208682
+      }
+    },
+    {
+      "year_index": 180,
+      "surface_temperature_k": 276.09938112457655,
+      "toa_net_radiation_w_m2": 0.05326918987362891,
+      "surface_downward_heat_flux_w_m2": 0.5487316237832729,
+      "planetary_sea_ice_fraction": 0.08848014906900958,
+      "precipitation_mm_day": 1.8432065503879722,
+      "native_runtime_seconds": 181.0,
+      "cycle_start_phase": {
+        "medium": 0.1902184058241545,
+        "long": 0.5805684642818545
+      },
+      "cycle_end_phase": {
+        "medium": 0.23571961918984563,
+        "long": 0.5893494001945314
+      },
+      "forcing_flux_earth": {
+        "start": 0.9481431000208682,
+        "end": 0.9481332263260449
+      }
+    },
+    {
+      "year_index": 181,
+      "surface_temperature_k": 276.1149259976365,
+      "toa_net_radiation_w_m2": 0.004741520116389471,
+      "surface_downward_heat_flux_w_m2": 0.4813645036096619,
+      "planetary_sea_ice_fraction": 0.09000281355142221,
+      "precipitation_mm_day": 1.851335921001974,
+      "native_runtime_seconds": 183.0,
+      "cycle_start_phase": {
+        "medium": 0.23571961918984563,
+        "long": 0.5893494001945314
+      },
+      "cycle_end_phase": {
+        "medium": 0.281220832555535,
+        "long": 0.5981303361072086
+      },
+      "forcing_flux_earth": {
+        "start": 0.9481332263260449,
+        "end": 0.9471410446699375
+      }
+    },
+    {
+      "year_index": 182,
+      "surface_temperature_k": 276.25168516595915,
+      "toa_net_radiation_w_m2": -0.18483266109968932,
+      "surface_downward_heat_flux_w_m2": 0.3157669216754225,
+      "planetary_sea_ice_fraction": 0.0896880676052494,
+      "precipitation_mm_day": 1.8301115199145217,
+      "native_runtime_seconds": 177.0,
+      "cycle_start_phase": {
+        "medium": 0.281220832555535,
+        "long": 0.5981303361072086
+      },
+      "cycle_end_phase": {
+        "medium": 0.32672204592122434,
+        "long": 0.6069112720198855
+      },
+      "forcing_flux_earth": {
+        "start": 0.9471410446699375,
+        "end": 0.9451843776322129
+      }
+    },
+    {
+      "year_index": 183,
+      "surface_temperature_k": 276.369647368618,
+      "toa_net_radiation_w_m2": -0.4915774776247706,
+      "surface_downward_heat_flux_w_m2": 0.21423378191307116,
+      "planetary_sea_ice_fraction": 0.08776762975551398,
+      "precipitation_mm_day": 1.8543842506630535,
+      "native_runtime_seconds": 181.0,
+      "cycle_start_phase": {
+        "medium": 0.32672204592122434,
+        "long": 0.6069112720198855
+      },
+      "cycle_end_phase": {
+        "medium": 0.3722232592869137,
+        "long": 0.6156922079325624
+      },
+      "forcing_flux_earth": {
+        "start": 0.9451843776322129,
+        "end": 0.9423617502862616
+      }
+    },
+    {
+      "year_index": 184,
+      "surface_temperature_k": 276.3659626311466,
+      "toa_net_radiation_w_m2": -1.0376529505630947,
+      "surface_downward_heat_flux_w_m2": -0.6711652131243256,
+      "planetary_sea_ice_fraction": 0.08439184945106809,
+      "precipitation_mm_day": 1.8405210616921033,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.3722232592869137,
+        "long": 0.6156922079325624
+      },
+      "cycle_end_phase": {
+        "medium": 0.4177244726526048,
+        "long": 0.6244731438452393
+      },
+      "forcing_flux_earth": {
+        "start": 0.9423617502862616,
+        "end": 0.9388445755507931
+      }
+    },
+    {
+      "year_index": 185,
+      "surface_temperature_k": 276.14759045712646,
+      "toa_net_radiation_w_m2": -1.9242900718133724,
+      "surface_downward_heat_flux_w_m2": -1.132828835064036,
+      "planetary_sea_ice_fraction": 0.08418377242471115,
+      "precipitation_mm_day": 1.8658448367745228,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.4177244726526048,
+        "long": 0.6244731438452393
+      },
+      "cycle_end_phase": {
+        "medium": 0.46322568601829417,
+        "long": 0.6332540797579163
+      },
+      "forcing_flux_earth": {
+        "start": 0.9388445755507931,
+        "end": 0.9348634146719434
+      }
+    },
+    {
+      "year_index": 186,
+      "surface_temperature_k": 275.6586293384053,
+      "toa_net_radiation_w_m2": -1.7155093835069417,
+      "surface_downward_heat_flux_w_m2": -0.9795812912855228,
+      "planetary_sea_ice_fraction": 0.08719255463378613,
+      "precipitation_mm_day": 1.8325759225811227,
+      "native_runtime_seconds": 178.0,
+      "cycle_start_phase": {
+        "medium": 0.46322568601829417,
+        "long": 0.6332540797579163
+      },
+      "cycle_end_phase": {
+        "medium": 0.5087268993839835,
+        "long": 0.6420350156705934
+      },
+      "forcing_flux_earth": {
+        "start": 0.9348634146719434,
+        "end": 0.9306894276665052
+      }
+    },
+    {
+      "year_index": 187,
+      "surface_temperature_k": 275.38850572376936,
+      "toa_net_radiation_w_m2": -2.3767818738955704,
+      "surface_downward_heat_flux_w_m2": -1.7405266924927878,
+      "planetary_sea_ice_fraction": 0.09323283493902013,
+      "precipitation_mm_day": 1.7946283304475847,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.5087268993839835,
+        "long": 0.6420350156705934
+      },
+      "cycle_end_phase": {
+        "medium": 0.5542281127496729,
+        "long": 0.6508159515832703
+      },
+      "forcing_flux_earth": {
+        "start": 0.9306894276665052,
+        "end": 0.9266125190583628
+      }
+    },
+    {
+      "year_index": 188,
+      "surface_temperature_k": 274.9011412373473,
+      "toa_net_radiation_w_m2": -3.1653722270975706,
+      "surface_downward_heat_flux_w_m2": -2.270787483329205,
+      "planetary_sea_ice_fraction": 0.10133179291703526,
+      "precipitation_mm_day": 1.8129837715445465,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.5542281127496729,
+        "long": 0.6508159515832703
+      },
+      "cycle_end_phase": {
+        "medium": 0.5997293261153622,
+        "long": 0.6595968874959472
+      },
+      "forcing_flux_earth": {
+        "start": 0.9266125190583628,
+        "end": 0.9229179525413433
+      }
+    },
+    {
+      "year_index": 189,
+      "surface_temperature_k": 274.2962289004875,
+      "toa_net_radiation_w_m2": -3.133061443159176,
+      "surface_downward_heat_flux_w_m2": -2.475722288061028,
+      "planetary_sea_ice_fraction": 0.10735384845507796,
+      "precipitation_mm_day": 1.7669646871380098,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.5997293261153622,
+        "long": 0.6595968874959472
+      },
+      "cycle_end_phase": {
+        "medium": 0.6452305394810534,
+        "long": 0.6683778234086242
+      },
+      "forcing_flux_earth": {
+        "start": 0.9229179525413433,
+        "end": 0.919863332521887
+      }
+    },
+    {
+      "year_index": 190,
+      "surface_temperature_k": 273.85144192661835,
+      "toa_net_radiation_w_m2": -3.5232413396825506,
+      "surface_downward_heat_flux_w_m2": -2.6591527452025745,
+      "planetary_sea_ice_fraction": 0.11250157123743428,
+      "precipitation_mm_day": 1.77087226747058,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.6452305394810534,
+        "long": 0.6683778234086242
+      },
+      "cycle_end_phase": {
+        "medium": 0.6907317528467427,
+        "long": 0.6771587593213011
+      },
+      "forcing_flux_earth": {
+        "start": 0.919863332521887,
+        "end": 0.9176578207418826
+      }
+    },
+    {
+      "year_index": 191,
+      "surface_temperature_k": 273.2597211896165,
+      "toa_net_radiation_w_m2": -3.2248920056318617,
+      "surface_downward_heat_flux_w_m2": -2.605904751600167,
+      "planetary_sea_ice_fraction": 0.1195894581588382,
+      "precipitation_mm_day": 1.733520200015478,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.6907317528467427,
+        "long": 0.6771587593213011
+      },
+      "cycle_end_phase": {
+        "medium": 0.7362329662124321,
+        "long": 0.6859396952339782
+      },
+      "forcing_flux_earth": {
+        "start": 0.9176578207418826,
+        "end": 0.916445274770933
+      }
+    },
+    {
+      "year_index": 192,
+      "surface_temperature_k": 272.88031569888255,
+      "toa_net_radiation_w_m2": -1.8515966387199203,
+      "surface_downward_heat_flux_w_m2": -1.140879023421958,
+      "planetary_sea_ice_fraction": 0.12430019111346564,
+      "precipitation_mm_day": 1.6776459334746618,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.7362329662124321,
+        "long": 0.6859396952339782
+      },
+      "cycle_end_phase": {
+        "medium": 0.7817341795781214,
+        "long": 0.6947206311466552
+      },
+      "forcing_flux_earth": {
+        "start": 0.916445274770933,
+        "end": 0.9162926768149688
+      }
+    },
+    {
+      "year_index": 193,
+      "surface_temperature_k": 272.63430878354615,
+      "toa_net_radiation_w_m2": -2.2027501800766776,
+      "surface_downward_heat_flux_w_m2": -1.5998864715512422,
+      "planetary_sea_ice_fraction": 0.12893141978140255,
+      "precipitation_mm_day": 1.6977615946473457,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.7817341795781214,
+        "long": 0.6947206311466552
+      },
+      "cycle_end_phase": {
+        "medium": 0.8272353929438125,
+        "long": 0.7035015670593321
+      },
+      "forcing_flux_earth": {
+        "start": 0.9162926768149688,
+        "end": 0.9171847918572323
+      }
+    },
+    {
+      "year_index": 194,
+      "surface_temperature_k": 272.28364858715435,
+      "toa_net_radiation_w_m2": -1.6164787357589276,
+      "surface_downward_heat_flux_w_m2": -1.1022551433933734,
+      "planetary_sea_ice_fraction": 0.13314699842362007,
+      "precipitation_mm_day": 1.68232129586313,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.8272353929438125,
+        "long": 0.7035015670593321
+      },
+      "cycle_end_phase": {
+        "medium": 0.8727366063095019,
+        "long": 0.712282502972009
+      },
+      "forcing_flux_earth": {
+        "start": 0.9171847918572323,
+        "end": 0.9190254884890314
+      }
+    },
+    {
+      "year_index": 195,
+      "surface_temperature_k": 272.30161681073383,
+      "toa_net_radiation_w_m2": -1.845601927715898,
+      "surface_downward_heat_flux_w_m2": -1.3141171633659599,
+      "planetary_sea_ice_fraction": 0.13230203321559292,
+      "precipitation_mm_day": 1.6974231974148053,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.8727366063095019,
+        "long": 0.712282502972009
+      },
+      "cycle_end_phase": {
+        "medium": 0.9182378196751912,
+        "long": 0.7210634388846862
+      },
+      "forcing_flux_earth": {
+        "start": 0.9190254884890314,
+        "end": 0.9216456149502559
+      }
+    },
+    {
+      "year_index": 196,
+      "surface_temperature_k": 272.2901852473737,
+      "toa_net_radiation_w_m2": -0.14533965409021476,
+      "surface_downward_heat_flux_w_m2": 0.23901578745657984,
+      "planetary_sea_ice_fraction": 0.13121327992390716,
+      "precipitation_mm_day": 1.6592767999541447,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.9182378196751912,
+        "long": 0.7210634388846862
+      },
+      "cycle_end_phase": {
+        "medium": 0.9637390330408806,
+        "long": 0.7298443747973631
+      },
+      "forcing_flux_earth": {
+        "start": 0.9216456149502559,
+        "end": 0.9248167907881769
+      }
+    },
+    {
+      "year_index": 197,
+      "surface_temperature_k": 272.51394022196524,
+      "toa_net_radiation_w_m2": 0.13047093718451505,
+      "surface_downward_heat_flux_w_m2": 0.6537395494976024,
+      "planetary_sea_ice_fraction": 0.1291388193006427,
+      "precipitation_mm_day": 1.6613371603293965,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.9637390330408806,
+        "long": 0.7298443747973631
+      },
+      "cycle_end_phase": {
+        "medium": 0.009240246406571728,
+        "long": 0.73862531071004
+      },
+      "forcing_flux_earth": {
+        "start": 0.9248167907881769,
+        "end": 0.9282699943538676
+      }
+    },
+    {
+      "year_index": 198,
+      "surface_temperature_k": 272.7414907798878,
+      "toa_net_radiation_w_m2": 0.4393918901294909,
+      "surface_downward_heat_flux_w_m2": 0.8158299478507107,
+      "planetary_sea_ice_fraction": 0.12603182187605524,
+      "precipitation_mm_day": 1.6789063785158158,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.009240246406571728,
+        "long": 0.73862531071004
+      },
+      "cycle_end_phase": {
+        "medium": 0.05474145977226108,
+        "long": 0.7474062466227169
+      },
+      "forcing_flux_earth": {
+        "start": 0.9282699943538676,
+        "end": 0.9317174370700346
+      }
+    },
+    {
+      "year_index": 199,
+      "surface_temperature_k": 273.0241895082656,
+      "toa_net_radiation_w_m2": 0.4394660021060129,
+      "surface_downward_heat_flux_w_m2": 0.7049292133506411,
+      "planetary_sea_ice_fraction": 0.12136601905169793,
+      "precipitation_mm_day": 1.7190500024408997,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.05474145977226108,
+        "long": 0.7474062466227169
+      },
+      "cycle_end_phase": {
+        "medium": 0.10024267313795043,
+        "long": 0.7561871825353939
+      },
+      "forcing_flux_earth": {
+        "start": 0.9317174370700346,
+        "end": 0.9348759486239673
+      }
+    },
+    {
+      "year_index": 200,
+      "surface_temperature_k": 273.1970661758101,
+      "toa_net_radiation_w_m2": 0.9680144702412155,
+      "surface_downward_heat_flux_w_m2": 1.4499244398351419,
+      "planetary_sea_ice_fraction": 0.12090425388918975,
+      "precipitation_mm_day": 1.7119158828521532,
+      "native_runtime_seconds": 175.0,
+      "cycle_start_phase": {
+        "medium": 0.10024267313795043,
+        "long": 0.7561871825353939
+      },
+      "cycle_end_phase": {
+        "medium": 0.14574388650363979,
+        "long": 0.764968118448071
+      },
+      "forcing_flux_earth": {
+        "start": 0.9348759486239673,
+        "end": 0.9374899746216048
+      }
+    },
+    {
+      "year_index": 201,
+      "surface_temperature_k": 273.51272312481484,
+      "toa_net_radiation_w_m2": 1.4986583327805014,
+      "surface_downward_heat_flux_w_m2": 1.7809933522253116,
+      "planetary_sea_ice_fraction": 0.11788392998265883,
+      "precipitation_mm_day": 1.7102206618598044,
+      "native_runtime_seconds": 174.0,
+      "cycle_start_phase": {
+        "medium": 0.14574388650363979,
+        "long": 0.764968118448071
+      },
+      "cycle_end_phase": {
+        "medium": 0.19124509986932914,
+        "long": 0.7737490543607479
+      },
+      "forcing_flux_earth": {
+        "start": 0.9374899746216048,
+        "end": 0.9393523197373266
+      }
+    },
+    {
+      "year_index": 202,
+      "surface_temperature_k": 274.0187399407861,
+      "toa_net_radiation_w_m2": 1.660426178728894,
+      "surface_downward_heat_flux_w_m2": 2.0143211674887724,
+      "planetary_sea_ice_fraction": 0.11065392285792054,
+      "precipitation_mm_day": 1.7127555593815915,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.19124509986932914,
+        "long": 0.7737490543607479
+      },
+      "cycle_end_phase": {
+        "medium": 0.23674631323502027,
+        "long": 0.7825299902734248
+      },
+      "forcing_flux_earth": {
+        "start": 0.9393523197373266,
+        "end": 0.9403209524518022
+      }
+    },
+    {
+      "year_index": 203,
+      "surface_temperature_k": 274.3899795470086,
+      "toa_net_radiation_w_m2": 1.8406768535910885,
+      "surface_downward_heat_flux_w_m2": 2.204571423792503,
+      "planetary_sea_ice_fraction": 0.10739807795135041,
+      "precipitation_mm_day": 1.7220325839669874,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.23674631323502027,
+        "long": 0.7825299902734248
+      },
+      "cycle_end_phase": {
+        "medium": 0.2822475266007096,
+        "long": 0.7913109261861018
+      },
+      "forcing_flux_earth": {
+        "start": 0.9403209524518022,
+        "end": 0.9403305072264957
+      }
+    },
+    {
+      "year_index": 204,
+      "surface_temperature_k": 274.55178411826387,
+      "toa_net_radiation_w_m2": 0.9055906168929851,
+      "surface_downward_heat_flux_w_m2": 1.4439072891425198,
+      "planetary_sea_ice_fraction": 0.10470050288089107,
+      "precipitation_mm_day": 1.755063841315613,
+      "native_runtime_seconds": 175.0,
+      "cycle_start_phase": {
+        "medium": 0.2822475266007096,
+        "long": 0.7913109261861018
+      },
+      "cycle_end_phase": {
+        "medium": 0.32774873996639897,
+        "long": 0.8000918620987787
+      },
+      "forcing_flux_earth": {
+        "start": 0.9403305072264957,
+        "end": 0.9393975504604635
+      }
+    },
+    {
+      "year_index": 205,
+      "surface_temperature_k": 274.8768731602568,
+      "toa_net_radiation_w_m2": 0.4241964326798355,
+      "surface_downward_heat_flux_w_m2": 0.7980478621862895,
+      "planetary_sea_ice_fraction": 0.1015620357204784,
+      "precipitation_mm_day": 1.7586467755899362,
+      "native_runtime_seconds": 175.0,
+      "cycle_start_phase": {
+        "medium": 0.32774873996639897,
+        "long": 0.8000918620987787
+      },
+      "cycle_end_phase": {
+        "medium": 0.3732499533320883,
+        "long": 0.8088727980114558
+      },
+      "forcing_flux_earth": {
+        "start": 0.9393975504604635,
+        "end": 0.937619182865335
+      }
+    },
+    {
+      "year_index": 206,
+      "surface_temperature_k": 274.89427802026614,
+      "toa_net_radiation_w_m2": -0.4155028452325447,
+      "surface_downward_heat_flux_w_m2": 0.07243971002600628,
+      "planetary_sea_ice_fraction": 0.10144803721798573,
+      "precipitation_mm_day": 1.753809449154738,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.3732499533320883,
+        "long": 0.8088727980114558
+      },
+      "cycle_end_phase": {
+        "medium": 0.41875116669777945,
+        "long": 0.8176537339241328
+      },
+      "forcing_flux_earth": {
+        "start": 0.937619182865335,
+        "end": 0.9351650918773798
+      }
+    },
+    {
+      "year_index": 207,
+      "surface_temperature_k": 274.8218155052968,
+      "toa_net_radiation_w_m2": -0.9162270383283039,
+      "surface_downward_heat_flux_w_m2": -0.27464221762138785,
+      "planetary_sea_ice_fraction": 0.09951241380333249,
+      "precipitation_mm_day": 1.7751927105777967,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.41875116669777945,
+        "long": 0.8176537339241328
+      },
+      "cycle_end_phase": {
+        "medium": 0.4642523800634688,
+        "long": 0.8264346698368097
+      },
+      "forcing_flux_earth": {
+        "start": 0.9351650918773798,
+        "end": 0.9322636994845893
+      }
+    },
+    {
+      "year_index": 208,
+      "surface_temperature_k": 274.6425981594171,
+      "toa_net_radiation_w_m2": -1.2723471764729102,
+      "surface_downward_heat_flux_w_m2": -0.6088625226793094,
+      "planetary_sea_ice_fraction": 0.10112463318815351,
+      "precipitation_mm_day": 1.763622796737144,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.4642523800634688,
+        "long": 0.8264346698368097
+      },
+      "cycle_end_phase": {
+        "medium": 0.5097535934291582,
+        "long": 0.8352156057494866
+      },
+      "forcing_flux_earth": {
+        "start": 0.9322636994845893,
+        "end": 0.9291835302137476
+      }
+    },
+    {
+      "year_index": 209,
+      "surface_temperature_k": 274.5227754572091,
+      "toa_net_radiation_w_m2": -1.4855277815047065,
+      "surface_downward_heat_flux_w_m2": -0.9756401952208514,
+      "planetary_sea_ice_fraction": 0.10310683531929817,
+      "precipitation_mm_day": 1.7548129735746434,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.5097535934291582,
+        "long": 0.8352156057494866
+      },
+      "cycle_end_phase": {
+        "medium": 0.5552548067948475,
+        "long": 0.8439965416621635
+      },
+      "forcing_flux_earth": {
+        "start": 0.9291835302137476,
+        "end": 0.9262113120827378
+      }
+    },
+    {
+      "year_index": 210,
+      "surface_temperature_k": 274.19458926920476,
+      "toa_net_radiation_w_m2": -1.7828397882881426,
+      "surface_downward_heat_flux_w_m2": -0.9939798771159971,
+      "planetary_sea_ice_fraction": 0.10526530469819435,
+      "precipitation_mm_day": 1.7328379751981773,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.5552548067948475,
+        "long": 0.8439965416621635
+      },
+      "cycle_end_phase": {
+        "medium": 0.6007560201605369,
+        "long": 0.8527774775748407
+      },
+      "forcing_flux_earth": {
+        "start": 0.9262113120827378,
+        "end": 0.9236285885742147
+      }
+    },
+    {
+      "year_index": 211,
+      "surface_temperature_k": 274.0842145439976,
+      "toa_net_radiation_w_m2": -1.5366987691593543,
+      "surface_downward_heat_flux_w_m2": -1.1552910502013483,
+      "planetary_sea_ice_fraction": 0.10770285682248219,
+      "precipitation_mm_day": 1.7222357844828662,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.6007560201605369,
+        "long": 0.8527774775748407
+      },
+      "cycle_end_phase": {
+        "medium": 0.646257233526228,
+        "long": 0.8615584134875176
+      },
+      "forcing_flux_earth": {
+        "start": 0.9236285885742147,
+        "end": 0.9216887405952779
+      }
+    },
+    {
+      "year_index": 212,
+      "surface_temperature_k": 273.6914963172573,
+      "toa_net_radiation_w_m2": -1.6958002149405687,
+      "surface_downward_heat_flux_w_m2": -1.0681629363082514,
+      "planetary_sea_ice_fraction": 0.10987076881072026,
+      "precipitation_mm_day": 1.7373802599102235,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.646257233526228,
+        "long": 0.8615584134875176
+      },
+      "cycle_end_phase": {
+        "medium": 0.6917584468919173,
+        "long": 0.8703393494001945
+      },
+      "forcing_flux_earth": {
+        "start": 0.9216887405952779,
+        "end": 0.9205962841385281
+      }
+    },
+    {
+      "year_index": 213,
+      "surface_temperature_k": 273.48364213896434,
+      "toa_net_radiation_w_m2": -2.138901189619721,
+      "surface_downward_heat_flux_w_m2": -1.4553937330770192,
+      "planetary_sea_ice_fraction": 0.11409577697524766,
+      "precipitation_mm_day": 1.7301359681721238,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.6917584468919173,
+        "long": 0.8703393494001945
+      },
+      "cycle_end_phase": {
+        "medium": 0.7372596602576067,
+        "long": 0.8791202853128715
+      },
+      "forcing_flux_earth": {
+        "start": 0.9205962841385281,
+        "end": 0.9204901246519208
+      }
+    },
+    {
+      "year_index": 214,
+      "surface_temperature_k": 273.2642394705269,
+      "toa_net_radiation_w_m2": -1.3586062965484131,
+      "surface_downward_heat_flux_w_m2": -1.0087729321091123,
+      "planetary_sea_ice_fraction": 0.11875367548804716,
+      "precipitation_mm_day": 1.6949548966696186,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.7372596602576067,
+        "long": 0.8791202853128715
+      },
+      "cycle_end_phase": {
+        "medium": 0.782760873623296,
+        "long": 0.8879012212255484
+      },
+      "forcing_flux_earth": {
+        "start": 0.9204901246519208,
+        "end": 0.9214321279525421
+      }
+    },
+    {
+      "year_index": 215,
+      "surface_temperature_k": 272.8472825268356,
+      "toa_net_radiation_w_m2": -1.4384507369052548,
+      "surface_downward_heat_flux_w_m2": -0.8254332212749008,
+      "planetary_sea_ice_fraction": 0.12250824576942981,
+      "precipitation_mm_day": 1.7048416737698195,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.782760873623296,
+        "long": 0.8879012212255484
+      },
+      "cycle_end_phase": {
+        "medium": 0.8282620869889872,
+        "long": 0.8966821571382255
+      },
+      "forcing_flux_earth": {
+        "start": 0.9214321279525421,
+        "end": 0.9234019359552627
+      }
+    },
+    {
+      "year_index": 216,
+      "surface_temperature_k": 272.99911248671845,
+      "toa_net_radiation_w_m2": -0.29375772292262187,
+      "surface_downward_heat_flux_w_m2": 0.25396609954437094,
+      "planetary_sea_ice_fraction": 0.12101957356796862,
+      "precipitation_mm_day": 1.6774256135893895,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.8282620869889872,
+        "long": 0.8966821571382255
+      },
+      "cycle_end_phase": {
+        "medium": 0.8737633003546765,
+        "long": 0.9054630930509024
+      },
+      "forcing_flux_earth": {
+        "start": 0.9234019359552627,
+        "end": 0.9262984485652157
+      }
+    },
+    {
+      "year_index": 217,
+      "surface_temperature_k": 273.22694786289304,
+      "toa_net_radiation_w_m2": -0.39903870021605653,
+      "surface_downward_heat_flux_w_m2": 0.004637324592411544,
+      "planetary_sea_ice_fraction": 0.12125639694955677,
+      "precipitation_mm_day": 1.6772423471723859,
+      "native_runtime_seconds": 166.0,
+      "cycle_start_phase": {
+        "medium": 0.8737633003546765,
+        "long": 0.9054630930509024
+      },
+      "cycle_end_phase": {
+        "medium": 0.9192645137203659,
+        "long": 0.9142440289635794
+      },
+      "forcing_flux_earth": {
+        "start": 0.9262984485652157,
+        "end": 0.9299478519546917
+      }
+    },
+    {
+      "year_index": 218,
+      "surface_temperature_k": 273.2138795305736,
+      "toa_net_radiation_w_m2": 0.5395003002963032,
+      "surface_downward_heat_flux_w_m2": 0.8735292690901972,
+      "planetary_sea_ice_fraction": 0.12236547031033572,
+      "precipitation_mm_day": 1.696131866116111,
+      "native_runtime_seconds": 166.0,
+      "cycle_start_phase": {
+        "medium": 0.9192645137203659,
+        "long": 0.9142440289635794
+      },
+      "cycle_end_phase": {
+        "medium": 0.9647657270860552,
+        "long": 0.9230249648762563
+      },
+      "forcing_flux_earth": {
+        "start": 0.9299478519546917,
+        "end": 0.9341175420387196
+      }
+    },
+    {
+      "year_index": 219,
+      "surface_temperature_k": 273.45892246129046,
+      "toa_net_radiation_w_m2": 1.043254478233924,
+      "surface_downward_heat_flux_w_m2": 1.3438260813148328,
+      "planetary_sea_ice_fraction": 0.11783729088777802,
+      "precipitation_mm_day": 1.7182361118873855,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.9647657270860552,
+        "long": 0.9230249648762563
+      },
+      "cycle_end_phase": {
+        "medium": 0.010266940451744588,
+        "long": 0.9318059007889332
+      },
+      "forcing_flux_earth": {
+        "start": 0.9341175420387196,
+        "end": 0.9385348134184738
+      }
+    },
+    {
+      "year_index": 220,
+      "surface_temperature_k": 273.83060961375384,
+      "toa_net_radiation_w_m2": 1.6617391571346942,
+      "surface_downward_heat_flux_w_m2": 2.0557246502515274,
+      "planetary_sea_ice_fraction": 0.11743381065104763,
+      "precipitation_mm_day": 1.7252522311736533,
+      "native_runtime_seconds": 169.0,
+      "cycle_start_phase": {
+        "medium": 0.010266940451744588,
+        "long": 0.9318059007889332
+      },
+      "cycle_end_phase": {
+        "medium": 0.05576815381743572,
+        "long": 0.9405868367016104
+      },
+      "forcing_flux_earth": {
+        "start": 0.9385348134184738,
+        "end": 0.942908797225597
+      }
+    },
+    {
+      "year_index": 221,
+      "surface_temperature_k": 274.4807090365075,
+      "toa_net_radiation_w_m2": 1.6785842065142065,
+      "surface_downward_heat_flux_w_m2": 1.8120065916456223,
+      "planetary_sea_ice_fraction": 0.11022095099288305,
+      "precipitation_mm_day": 1.735482707933569,
+      "native_runtime_seconds": 172.0,
+      "cycle_start_phase": {
+        "medium": 0.05576815381743572,
+        "long": 0.9405868367016104
+      },
+      "cycle_end_phase": {
+        "medium": 0.10126936718312507,
+        "long": 0.9493677726142873
+      },
+      "forcing_flux_earth": {
+        "start": 0.942908797225597,
+        "end": 0.9469538675766228
+      }
+    },
+    {
+      "year_index": 222,
+      "surface_temperature_k": 274.65693363055817,
+      "toa_net_radiation_w_m2": 2.1186774273582185,
+      "surface_downward_heat_flux_w_m2": 2.4620978525224904,
+      "planetary_sea_ice_fraction": 0.10474962612851053,
+      "precipitation_mm_day": 1.7889903956321225,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.10126936718312507,
+        "long": 0.9493677726142873
+      },
+      "cycle_end_phase": {
+        "medium": 0.14677058054881442,
+        "long": 0.9581487085269642
+      },
+      "forcing_flux_earth": {
+        "start": 0.9469538675766228,
+        "end": 0.950412617143781
+      }
+    },
+    {
+      "year_index": 223,
+      "surface_temperature_k": 275.2910004140102,
+      "toa_net_radiation_w_m2": 2.6365245692000925,
+      "surface_downward_heat_flux_w_m2": 2.997503340780647,
+      "planetary_sea_ice_fraction": 0.09736974233412987,
+      "precipitation_mm_day": 1.7764491416707235,
+      "native_runtime_seconds": 173.0,
+      "cycle_start_phase": {
+        "medium": 0.14677058054881442,
+        "long": 0.9581487085269642
+      },
+      "cycle_end_phase": {
+        "medium": 0.19227179391450377,
+        "long": 0.9669296444396411
+      },
+      "forcing_flux_earth": {
+        "start": 0.950412617143781,
+        "end": 0.953076537343328
+      }
+    },
+    {
+      "year_index": 224,
+      "surface_temperature_k": 275.94942028226234,
+      "toa_net_radiation_w_m2": 2.8056803419478915,
+      "surface_downward_heat_flux_w_m2": 3.100876801613713,
+      "planetary_sea_ice_fraction": 0.09000774791798588,
+      "precipitation_mm_day": 1.8019871019792328,
+      "native_runtime_seconds": 170.0,
+      "cycle_start_phase": {
+        "medium": 0.19227179391450377,
+        "long": 0.9669296444396411
+      },
+      "cycle_end_phase": {
+        "medium": 0.2377730072801949,
+        "long": 0.9757105803523181
+      },
+      "forcing_flux_earth": {
+        "start": 0.953076537343328,
+        "end": 0.954802724994281
+      }
+    },
+    {
+      "year_index": 225,
+      "surface_temperature_k": 276.4199640329149,
+      "toa_net_radiation_w_m2": 1.6195935266855157,
+      "surface_downward_heat_flux_w_m2": 1.9957168560844967,
+      "planetary_sea_ice_fraction": 0.0867897518563876,
+      "precipitation_mm_day": 1.8334532573497444,
+      "native_runtime_seconds": 168.0,
+      "cycle_start_phase": {
+        "medium": 0.2377730072801949,
+        "long": 0.9757105803523181
+      },
+      "cycle_end_phase": {
+        "medium": 0.28327422064588426,
+        "long": 0.9844915162649952
+      },
+      "forcing_flux_earth": {
+        "start": 0.954802724994281,
+        "end": 0.9555252598810546
+      }
+    },
+    {
+      "year_index": 226,
+      "surface_temperature_k": 276.8874436704914,
+      "toa_net_radiation_w_m2": 1.7462375695635288,
+      "surface_downward_heat_flux_w_m2": 2.0921435939561728,
+      "planetary_sea_ice_fraction": 0.08075215126882071,
+      "precipitation_mm_day": 1.848165814269975,
+      "native_runtime_seconds": 171.0,
+      "cycle_start_phase": {
+        "medium": 0.28327422064588426,
+        "long": 0.9844915162649952
+      },
+      "cycle_end_phase": {
+        "medium": 0.3287754340115736,
+        "long": 0.9932724521776721
+      },
+      "forcing_flux_earth": {
+        "start": 0.9555252598810546,
+        "end": 0.9552603302761121
+      }
+    },
+    {
+      "year_index": 227,
+      "surface_temperature_k": 277.0355871053018,
+      "toa_net_radiation_w_m2": 1.0886189619882929,
+      "surface_downward_heat_flux_w_m2": 1.674388828698154,
+      "planetary_sea_ice_fraction": 0.07794245855539707,
+      "precipitation_mm_day": 1.8664948736599725,
+      "native_runtime_seconds": 176.0,
+      "cycle_start_phase": {
+        "medium": 0.3287754340115736,
+        "long": 0.9932724521776721
+      },
+      "cycle_end_phase": {
+        "medium": 0.37427664737726296,
+        "long": 0.002053388090349273
+      },
+      "forcing_flux_earth": {
+        "start": 0.9552603302761121,
+        "end": 0.9541046910232721
+      }
+    }
+  ],
+  "last_started_utc": "2026-08-27T16:07:32.320229+00:00",
+  "completed_orbits": 228,
+  "completed_cycles": {
+    "medium": 10.374276647377263,
+    "long": 2.0020533880903493
+  },
+  "finished_utc": "2026-08-27T16:50:50.259880+00:00"
+}
