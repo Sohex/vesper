@@ -627,12 +627,31 @@ the small-stem figure near the top of the range, above a ceiling of 0.82.
 Both are now registered as DECLARED MODEL FORMS rather than sourced
 coefficients, so a reader meets the disagreement at the parameter.
 
-**Three unreachable resprouter paths, which are one omission.**
+**Three unreachable resprouter paths, and the trait they need does not exist.**
 `TURNOVERFRACT`'s sprouter column cannot be selected (finding 11),
 `survival_probability_sprouter_savanna()` has no callers, and
 `survival_probability_temp_broadleaf()`'s `is_resprouter` branch is dead because
-both call sites pass 0.  Same cause each time: resprouting is a per-individual
-trait, nothing routes it, and the Vesper PFT set declares no such trait.  Decide
-it once rather than site by site.  `world-sgtx`, `world-6kaq`.
+both call sites pass 0.
+
+The obvious reading is that nothing routes a per-individual trait to a per-patch
+index.  That is too generous.  Searching the whole vendored tree for `resprout`,
+`sprouter` and `coppice` returns exactly ONE file, `blaze.cpp`: there is no PFT
+parameter, no instruction-file key, nothing in `guess.h` and nothing in
+`parameters.cpp`.  LPJ-GUESS carries no resprouting trait at all.
+
+So these are not sites waiting to be wired.  Routing means INVENTING the trait,
+and declaring it per plant type needs a basis about which Vesperian types
+resprout that this world has no evidence for -- a plant-functional-type decision
+rather than a fire-layer repair.  **This world's fire model does not distinguish
+resprouters, because the model has no trait to distinguish them by**, and the
+three sites are dormant by absence of an upstream trait rather than by oversight.
+
+They are not deleted, and deliberately.  All three deletions would preserve
+behaviour, but the three together are the layer's only representation of
+resprouting and removing some leaves an incoherent partial; they go together or
+not at all, and not at all costs nothing while BLAZE is disarmed.
+`fire_parameter_gate.py` holds the PREMISE instead -- it refuses if any plant
+type declares a resprouting trait, or if any file outside `blaze.cpp` mentions
+one -- so the decision cannot go stale silently.  `world-sgtx`, `world-6kaq`.
 
 No LPJ-GUESS or ExoPlaSim run was performed for this audit.

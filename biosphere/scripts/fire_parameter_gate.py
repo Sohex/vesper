@@ -58,6 +58,11 @@ It can fail:
   enforcement   a fail-closed entry whose refusal the model no longer makes,
                 or one that names no source making it. A declaration the model
                 does not share is a preference
+  resprouting   a plant type that declares a resprouting trait, or a file
+                outside blaze.cpp that mentions one. The fire layer's three
+                dormant sprouter sites are dormant because no such trait
+                exists; this holds that premise so the decision to leave them
+                cannot go stale silently
   native        a Vesper-native plant type that neither declares the fire pair
                 nor says it inherits them deliberately, with a basis. The
                 declaration file is a list of CHANGES, so an absent parameter
@@ -99,6 +104,7 @@ import argparse
 import json
 import re
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -112,6 +118,7 @@ DECLARATION = COMPONENT_ROOT / "config" / "fire_parameters.yaml"
 REPORT = GENERATED / "fire_parameter_gate_report.json"
 PLANET = PROJECT_ROOT / "config" / "planet.yaml"
 NATIVE_PFTS = COMPONENT_ROOT / "config" / "native_pfts.yaml"
+GENERATED_PFTS = COMPONENT_ROOT / "generated" / "vesper_pfts.ins"
 ISSUE_EXPORT = PROJECT_ROOT / ".beads" / "issues.jsonl"
 REFERENCE_PDFS = PROJECT_ROOT / "references" / "pdf"
 
@@ -756,6 +763,70 @@ def check_native_fire_parameters(native: dict) -> list[dict]:
     return bad
 
 
+# The words a resprouting trait would be spelled with, if one existed.
+RESPROUT_WORDS = ("resprout", "sprouter", "coppice")
+
+
+def check_resprouting_is_unroutable(pfts_path: Path, guess_root: Path) -> list[dict]:
+    """No plant type declares a resprouting trait, so the dormant sites stay dormant.
+
+    `blaze.cpp` represents resprouting in three places and can select it in
+    none: TURNOVERFRACT's sprouter column, `survival_probability_sprouter_savanna`
+    and `survival_probability_temp_broadleaf`'s `is_resprouter` branch. The
+    reason is not a routing oversight. It is that THE TRAIT DOES NOT EXIST: no
+    PFT parameter, no instruction-file key, nothing in `guess.h` or
+    `parameters.cpp`, and `blaze.cpp` is the only file in the vendored tree that
+    mentions resprouting at all.
+
+    So the decision that follows is that this world's fire model does not
+    distinguish resprouters, because the model has no trait to distinguish them
+    by, and inventing one needs a basis about which Vesperian plant types
+    resprout that this world has no evidence for. FIRE-6 and world-sgtx own any
+    change to that.
+
+    What this check holds is the PREMISE of that decision, so the decision
+    cannot go stale silently. The moment a resprouting trait is declared for a
+    plant type, the three dormant sites become routable and must be decided
+    rather than left -- and this fires to say so. It is not a prohibition on
+    adding the trait; it is a reminder attached to the consequence.
+    """
+    bad = []
+    if not pfts_path.is_file():
+        return [_finding("resprouting", pfts_path.name,
+                         "is not a file, so the premise that no plant type "
+                         "declares a resprouting trait cannot be checked")]
+    # An instruction-file comment runs from `!` to end of line.
+    text = re.sub(r"![^\n]*", "", pfts_path.read_text(encoding="utf-8",
+                                                      errors="replace")).lower()
+    found = sorted({w for w in RESPROUT_WORDS if w in text})
+    if found:
+        bad.append(_finding(
+            "resprouting", pfts_path.name,
+            f"declares a resprouting trait ({found}), which the fire layer's "
+            f"three dormant sprouter sites can now be routed from. They were "
+            f"left dormant because no such trait existed; that premise is gone, "
+            f"so world-sgtx and world-6kaq have to be decided rather than "
+            f"deferred"))
+
+    others = []
+    for candidate in sorted(guess_root.rglob("*.cpp")) + sorted(guess_root.rglob("*.h")):
+        if candidate.name == "blaze.cpp":
+            continue
+        try:
+            body = candidate.read_text(encoding="utf-8", errors="replace").lower()
+        except OSError:
+            continue
+        if any(w in body for w in RESPROUT_WORDS):
+            others.append(candidate.relative_to(guess_root).as_posix())
+    if others:
+        bad.append(_finding(
+            "resprouting", "vendor/lpj-guess",
+            f"mentions resprouting outside blaze.cpp, in {others[:5]}. The "
+            f"dormant sites rest on blaze.cpp being the only file that knows "
+            f"the concept exists"))
+    return bad
+
+
 # Entries the anchor, ordering and partition checks are ABOUT. Those three ask
 # whether a named constant is still right, which is a different question from
 # whether it is still there, and a check that answered both would report a
@@ -806,6 +877,9 @@ def check(declaration: dict, root: Path, planet: dict,
     findings.extend(check_unresolved(params, pdf_dir))
     if native is not None:
         findings.extend(check_native_fire_parameters(native))
+    if complete:
+        findings.extend(check_resprouting_is_unroutable(
+            GENERATED_PFTS, root / 'vendor' / 'lpj-guess'))
     if complete:
         findings.extend(check_completeness(params))
     return findings
@@ -937,6 +1011,28 @@ def _fixtures(root: Path) -> list[dict]:
                native={"groups": {"g": {"inherits": "C3G", "parameters": {},
                    "deliberately_inherited": {"parameters": ["fireresist", "litterme"]}}}}),
          "native"),
+    # The resprouting premise, both halves, on temporary trees. This check runs
+    # over paths rather than a declaration, so its fixtures build one.
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "clean.ins").write_text('pft "C3G"\n\tlifeform "grass"\n')
+        (d / "trait.ins").write_text('pft "TrBR"\n\tresprouter 1\n')
+        (d / "commented.ins").write_text('pft "TrBR"\n\t! resprouter would go here\n')
+        empty = d / "guess"; (empty / "modules").mkdir(parents=True)
+        (empty / "modules" / "blaze.cpp").write_text("// is_resprouter lives here\n")
+        cases.append({"fixture": "no resprouting trait anywhere reports nothing",
+                      "expected": "no findings",
+                      "found": sorted({f["kind"] for f in
+                                       check_resprouting_is_unroutable(d / "clean.ins", empty)}) or ["nothing"],
+                      "pass": not check_resprouting_is_unroutable(d / "clean.ins", empty)})
+        case("a plant type declaring a resprouting trait",
+             check_resprouting_is_unroutable(d / "trait.ins", empty), "resprouting")
+        case("a resprouting trait only in an instruction-file comment",
+             check_resprouting_is_unroutable(d / "commented.ins", empty), "no findings")
+        (empty / "modules" / "elsewhere.cpp").write_text("bool resprouter;\n")
+        case("resprouting mentioned outside blaze.cpp",
+             check_resprouting_is_unroutable(d / "clean.ins", empty), "resprouting")
+
     case("a register missing an entry another check is about",
          check({"parameters": {"probe": dict(ok)}}, root, planet, statuses,
                REFERENCE_PDFS, complete=True), "missing")

@@ -1129,6 +1129,21 @@ parameters:
       is wrong. The values selected today are not the values the table says
       are selected, so a disposition attached to a cell would describe a
       number the model does not use.
+    sprouter_column_decision: >
+      DECIDED: this world's fire model does not distinguish resprouters,
+      because the model has no trait to distinguish them by. `blaze.cpp` is the
+      ONLY file in the vendored tree that mentions resprouting -- no PFT
+      parameter, no instruction-file key, nothing in guess.h or parameters.cpp
+      -- so column 3 is dormant by absence of an upstream trait rather than by
+      a routing oversight, and making it reachable would mean inventing the
+      trait on a basis this world has no evidence for.
+      Not deleted: the column, `survival_probability_sprouter_savanna` and
+      `survival_probability_temp_broadleaf`'s `is_resprouter` branch are the
+      layer's only representation of resprouting, and removing some leaves an
+      incoherent partial. They go together or not at all.
+      `fire_parameter_gate.py` holds the premise: it refuses if any plant type
+      declares a resprouting trait or any file outside blaze.cpp mentions one,
+      so the decision cannot go stale silently. world-sgtx, world-6kaq.
 
   earth_radius_in_gridcell_area:
     seam: effects
