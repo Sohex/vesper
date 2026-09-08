@@ -1252,6 +1252,59 @@ python biosphere/scripts/fire_parameter_gate.py --strict   # refuses while the
                                                            # partition is undeclared
 ```
 
+### Which fire arm may be armed is decided by capability, not by a file
+
+`biosphere/config/fire_driver_contract.yaml` is the third fire declaration and
+`fire_driver_gate.py` is its enforcement. The three ask three different
+questions, which is why they are not one gate: `fire_gate.py` asks where this
+project's fire source departs from mainline, `fire_parameter_gate.py` asks what
+disposition each inherited Earth constant carries, and this one asks what each
+fire arm REQUIRES, what this world can SUPPLY, and which arm the model is
+actually TAKING.
+
+It exists because the shipped test cannot work. `modules/driver.cpp:734` runs
+SIMFIRE's whole annual accounting whenever `firemodel == BLAZE`, and
+`getsimfiredata` then opens an archive of human population history and observed
+monthly burned area, or aborts. That archive's lookup keys on
+`floor(lon*2)/2 + 0.25` and the matching latitude, so a Vesper gridcell's
+coordinates are perfectly valid keys into an Earth half-degree archive: it finds
+a record, returns the population and fire seasonality of the Earth location at
+the same coordinates, and the run completes. **The failure mode is silent
+success**, so a test of the form "is the file present" passes exactly when it
+should refuse. What is testable is whether the QUANTITY is something this world
+has, which is what the `external_archive` kind names and always refuses.
+
+Thirteen capabilities across five kinds. Six are available, four are blocked
+with an owning row, and three are refused -- the Earth burned-area climatology,
+the Earth population history and GWGEN's sub-daily statistics. Blocked and
+refused are not degrees of the same thing: blocked has a path and somebody on
+it, refused has neither and is the right answer. The gate refuses a blocked
+capability that names no owner, which is refusal wearing a softer word.
+
+Each arm's verdict is DERIVED from its capabilities and never declared, so the
+block cannot drift into an opinion: NOFIRE and GLOBFIRM are armable, BLAZE is
+refused by all three refused capabilities, and VESPER_REPLACEMENT is blocked by
+four. The contract does not restate a forcing field list -- an arm names the
+process row in `ecological_forcing_contract.yaml` and the gate reads the fields
+from there, which is the same one-statement-per-edge rule `config/pipeline.yaml`
+applies to `needs`.
+
+**The check worth knowing about guards an ORDERING rather than a value.**
+`biosphere/generated/vesper_pfts.ins` carries the shipped `firemodel "BLAZE"`
+and `run_lpj_guess.py` writes `firemodel "GLOBFIRM"` into the run instruction
+file after importing it. LPJ-GUESS's parser takes the last assignment, so that
+write order is the only thing disarming a refused arm: moving the import below
+the override would arm BLAZE with no diagnostic and no change to any value. The
+gate compares their positions rather than trusting the comment beside either,
+because a comment is what survives the edit that breaks the ordering.
+
+```bash
+python biosphere/scripts/fire_driver_gate.py            # status, exit 0
+python biosphere/scripts/fire_driver_gate.py --strict   # also refuses while the
+                                                        # replacement arm is
+                                                        # unbuildable
+```
+
 ## One-off tools
 
 - `scripts/score_prediction.py` -- one-off: scores a productivity prediction against an LPJ-GUESS run, the machinery behind BIO-2's nitrogen bracket. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.

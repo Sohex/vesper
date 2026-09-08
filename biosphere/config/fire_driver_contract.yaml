@@ -1,0 +1,288 @@
+# What a fire driver must SUPPLY before a fire model may be armed, by capability.
+#
+# Worldbuilding. Vesper is an invented planet and this file is about the
+# vegetation model that simulates it: which fire operator may run, and what has
+# to exist before it may.
+#
+# WHAT THIS REPLACES. `biosphere/notes/fire-model-audit.md` finding 1 records
+# that the shipped model gates BLAZE on the input module's identity. Finding 9
+# records the mechanism, which is worse: `modules/driver.cpp:734` runs SIMFIRE's
+# whole annual accounting whenever `firemodel == BLAZE`, and
+# `modules/simfire.cpp`'s `getsimfiredata` then opens an archive of Hyde 3.1
+# human population history and observed monthly burned area, or aborts. There is
+# no configuration in which BLAZE runs and that does not.
+#
+# AND THE ARCHIVE WOULD NOT REFUSE THIS WORLD. Its lookup keys on
+# `floor(lon*2)/2 + 0.25` and the matching latitude, so a Vesper gridcell's
+# coordinates are perfectly valid keys into an Earth half-degree archive. It
+# would find a record and return the human population and fire seasonality of
+# the Earth location at the same latitude and longitude, and the run would
+# COMPLETE. The failure mode is silent success. That is why a capability test
+# cannot be "is the file present" and has to be "is this quantity something this
+# world HAS".
+#
+# THE THREE QUESTIONS THIS FILE ANSWERS, and it answers them separately because
+# conflating them is what an identity test does:
+#   what does each fire arm REQUIRE          `arms`
+#   what can this world SUPPLY               `capabilities`
+#   which arm is the model actually taking   `effective_arm`
+# An arm may be armed only when every capability it requires is `available`. An
+# arm requiring a `refused` capability is refused, and refusing is the correct
+# outcome rather than a gap to close.
+#
+# `biosphere/scripts/fire_driver_gate.py` reads this file. It does NOT restate
+# the forcing fields: `biosphere/config/ecological_forcing_contract.yaml` owns
+# those and carries a process registry keyed by issue, so an arm names the
+# PROCESS ROW and the gate reads the field list from there. One statement of the
+# edge, which is the same rule `config/pipeline.yaml` applies to `needs`.
+
+version: 1
+
+# What kind of thing a capability IS. The kind decides what can satisfy it, and
+# `external_archive` exists so that "a file on disk" is a nameable kind that is
+# always refused rather than an unstated one that quietly passes.
+capability_kinds:
+  forcing_field: >
+    A field the ecological forcing contract declares, delivered by the climate
+    model. Satisfied by a row existing there; never restated here.
+  derived_state: >
+    A quantity the vegetation model computes for itself from its own state.
+    Satisfied when the code that writes it is reachable in the configuration
+    being armed.
+  parameter: >
+    A constant from `biosphere/config/fire_parameters.yaml` with a disposition
+    that permits a run. A registered constant whose `central` is null does NOT
+    satisfy this: a null there is a declared absence and a refusal.
+  external_archive: >
+    An observational data product read from a file. ALWAYS REFUSED. This world
+    has no observational record, and a file that answers anyway is the failure
+    finding 9 describes. There is no path by which one becomes available.
+  weather_generator: >
+    A statistical generator standing in for sub-daily structure the forcing does
+    not carry. Refused unless the statistics it needs are quantities this world
+    supplies.
+
+# WHAT THIS WORLD CAN SUPPLY. `status` is `available`, `blocked` or `refused`,
+# and the three are not degrees of the same thing: blocked has an owner and a
+# path, refused has neither and is correct.
+capabilities:
+
+  fire_weather_sequence:
+    kind: forcing_field
+    status: blocked
+    owner: fire-2
+    what: >
+      One coherent chronological sequence of the fire drivers, in event order.
+      The fields are the ecological forcing contract's `fire-2` process row and
+      are not listed here.
+    forcing_process: fire-2
+    why: >
+      The fields exist upstream; what does not yet exist is the chronological
+      artifact carrying them together. Audit finding 5: fire depends on event
+      ORDER -- wind and dryness before a start, rain coincident with a strike,
+      drying after rain -- and independent monthly means cannot reconstruct it.
+
+  lightning_potential:
+    kind: forcing_field
+    status: blocked
+    owner: fire-1
+    what: >
+      A pre-convective or explicitly upstream lightning-potential diagnostic,
+      synchronous with convective precipitation.
+    forcing_process: fire-1
+    why: >
+      ExoPlaSim carries convective precipitation and a CAPE diagnostic, but the
+      main step calls `rainstep` before `hurricanestep`, so the available CAPE
+      is post-convection. Audit finding 3: multiplying code 322 by code 143
+      would implement a proxy Romps et al. (2014) explicitly declines to
+      validate pointwise.
+
+  fuel_load:
+    kind: derived_state
+    status: available
+    what: >
+      Aboveground litter and, for BLAZE, the transitional litter and grass leaf
+      that `available_fuel()` sums. The model's own carbon pools.
+    provided_by: vendor/lpj-guess/modules/blaze.cpp
+    caveat: >
+      Available as a QUANTITY and not yet in the right CURRENCY. world-9zfv:
+      the pools are carbon and every equation consuming them was calibrated on
+      fuel dry mass, with no conversion anywhere in the path. That is a defect
+      in the consumers rather than in this capability, which is why the status
+      is available and the row carries the caveat instead.
+
+  soil_wetness:
+    kind: derived_state
+    status: available
+    what: Surface and root-zone soil moisture relative to saturation.
+    provided_by: vendor/lpj-guess/modules/soil.cpp
+
+  simfire_biome_classification:
+    kind: derived_state
+    status: available
+    what: >
+      A gridcell biome label, used by BLAZE to select its litter combustion
+      factor and its tree survival parameterisation.
+    provided_by: vendor/lpj-guess/modules/simfire.cpp
+    caveat: >
+      AVAILABLE AND ENTANGLED, which is finding 9's practical consequence.
+      `simfire_biome_mapping` derives this from the model's OWN simulated
+      vegetation and land-cover fractions rather than from the archive, so the
+      quantity itself is legitimate. But it is reachable only from inside
+      `simfire_accounting_gridcell`, which also opens the archive, so removing
+      the archive removes the classification unless it is lifted out first.
+      `update_fire_biome` additionally separates shrubland from tundra and
+      barren on absolute latitude 50 degrees, which is bio-29's contract.
+
+  earth_burned_area_climatology:
+    kind: external_archive
+    status: refused
+    what: >
+      Observed monthly burned-area fractions, used to distribute annual burning
+      through the year.
+    refused_because: >
+      There is no observed burned area on this world. Audit finding 1: Knorr et
+      al. (2014) supports an ignition-saturated control at global Earth scale
+      and does not establish that its seasonality applies to an unobserved
+      planet. Supplying it would not fail; it would answer with Earth's fire
+      season for the Earth location at the same coordinates.
+
+  earth_population_history:
+    kind: external_archive
+    status: refused
+    what: Hyde 3.1 human population density, 57 time slices.
+    refused_because: >
+      Human ignition and suppression are ABSENT for Vesper rather than set to
+      zero. Audit findings 1 and 4: zeroing the driver leaves the Earth
+      calibration built around it, and inventing a population history would be
+      inventing the input the model is being refused for lacking.
+
+  gwgen_subdaily_statistics:
+    kind: weather_generator
+    status: refused
+    what: >
+      GWGEN's sub-daily weather generation, which `parameters.cpp:1271` makes a
+      hard precondition of BLAZE.
+    refused_because: >
+      The generator's statistics are fitted to Earth station data and the
+      sub-daily structure this world has comes from the climate model rather
+      than from a generator. `run_lpj_guess.py` already substitutes INTERP and
+      says why at the point of the substitution.
+
+  disposed_ignition_parameters:
+    kind: parameter
+    status: available
+    what: The ignition seam's constants, each with a sweepable disposition.
+    parameters: [cloud_to_ground_fraction, lightning_ignition_efficiency]
+
+  disposed_occurrence_parameters:
+    kind: parameter
+    status: available
+    what: The occurrence-to-area seam's constants.
+    parameters: [fuel_threshold_lower, fuel_threshold_upper,
+                 relative_humidity_lower, relative_humidity_upper,
+                 soil_wetness_extinction, average_fire_duration,
+                 fire_spread_calm_ratio]
+
+  globfirm_parameters:
+    kind: parameter
+    status: available
+    what: The constants the GLOBFIRM operator runs on.
+    parameters: [fuel_threshold_lower, globfirm_burned_fraction_curve]
+
+  blaze_effects_parameters:
+    kind: parameter
+    status: blocked
+    owner: fire-6
+    what: The constants the BLAZE effects layer runs on.
+    parameters: [fireline_intensity_heat_yield,
+                 fireline_intensity_spread_coefficient,
+                 mcarthur_index_domain, mcarthur_drought_factor_limit,
+                 keetch_byram_drought_index_domain, rainfall_averaging_span,
+                 survival_probability_boreal_scale, litter_combustion_factors,
+                 combustion_completeness_table, earth_radius_in_gridcell_area]
+    why: >
+      Blocked and not available, because four of these are open defects rather
+      than dispositions: world-c15e's lost decimal in the rate of spread,
+      world-voxz's index that reads outside the combustion table, world-4iyz's
+      drought index reading a 183-day total against an Earth-annual
+      coefficient, and world-9zfv's fuel currency. A constant whose consumer is
+      wrong is not disposed of by registering it.
+
+  phosphorus_fire_routing:
+    kind: parameter
+    status: blocked
+    owner: fire-7
+    what: >
+      Where phosphorus in combusted material goes: volatilised against retained
+      as ash and mineral soil.
+    parameters: [phosphorus_volatilised_fraction]
+    why: >
+      `blaze.cpp` transfers carbon and nitrogen at combustion and contains no
+      phosphorus transfer at all; the older `fire()` path has its phosphorus
+      block commented out. Under phosphorus limitation either path would update
+      C and N and leave the corresponding P in place, breaking tissue
+      stoichiometry silently. The register's `central` for it is null, and a
+      null does not satisfy a parameter capability.
+
+# WHAT EACH ARM REQUIRES. An arm is armable when every capability it names is
+# `available`. `status` here is this project's verdict about the arm, and it is
+# derived from the capabilities rather than declared independently -- the gate
+# recomputes it and refuses a declaration that disagrees, so this block cannot
+# drift into an opinion.
+arms:
+  NOFIRE:
+    requires: []
+    intent: >
+      The model-form control. Audit finding 7 requires it as an arm of the
+      comparison, not as a fallback.
+
+  GLOBFIRM:
+    requires: [fuel_load, soil_wetness, globfirm_parameters]
+    intent: >
+      What this project runs today. It needs no ignition model: burned fraction
+      is a function of fuel and litter moisture alone, which is exactly why it
+      is armable while every ignition capability is blocked.
+
+  BLAZE:
+    requires: [fuel_load, soil_wetness, simfire_biome_classification,
+               earth_burned_area_climatology, earth_population_history,
+               gwgen_subdaily_statistics, blaze_effects_parameters]
+    intent: >
+      The shipped effects layer. It is refused, and the reason is structural
+      rather than a missing file: driver.cpp:734 makes SIMFIRE's accounting
+      unconditional under this arm, so the two Earth archives are requirements
+      of the arm and not options within it.
+
+  VESPER_REPLACEMENT:
+    requires: [lightning_potential, fire_weather_sequence, fuel_load,
+               soil_wetness, disposed_ignition_parameters,
+               disposed_occurrence_parameters, blaze_effects_parameters,
+               phosphorus_fire_routing]
+    intent: >
+      The target of fire-3 through fire-7: an INFERNO-like flammability layer
+      with a Li-like explicit count-to-area seam, feeding audited effects. It
+      requires no archive and no population, which is the whole point of
+      building it.
+
+# WHICH ARM THE MODEL ACTUALLY TAKES, and how that is decided.
+#
+# LPJ-GUESS's instruction parser takes the LAST assignment of a key, so the
+# effective arm is a property of WRITE ORDER across two files rather than of
+# either one. `biosphere/generated/vesper_pfts.ins` carries the shipped
+# `firemodel "BLAZE"`, and `biosphere/scripts/run_lpj_guess.py` writes
+# `firemodel "GLOBFIRM"` into the run instruction file AFTER importing it.
+#
+# That ordering is the only thing disarming BLAZE, and an ordering is not a
+# setting: moving the import below the override would arm the refused arm with
+# no diagnostic and no diff to the value. The gate reads both files and refuses
+# if the override stops coming last.
+effective_arm:
+  expected: GLOBFIRM
+  shipped_default: BLAZE
+  shipped_in: biosphere/generated/vesper_pfts.ins
+  override_in: biosphere/scripts/run_lpj_guess.py
+  rule: >
+    The parser takes the last assignment, so the override must appear after the
+    import of the shipped file in the same template. The gate compares their
+    positions rather than trusting the comment beside either.

@@ -22,12 +22,16 @@ import subprocess
 
 import numpy as np
 import yaml
-import gridding  # noqa: E402  from lib/, via _paths: the one Gaussian quadrature
 
 ROOT = Path(__file__).resolve().parents[1]
 import sys as _sys
 if str(ROOT / "lib") not in _sys.path:
     _sys.path.insert(0, str(ROOT / "lib"))
+# BELOW the path insertion, with every other lib/ import. It sat above it and
+# the module does not resolve from anywhere else, so `import world_state` raised
+# ModuleNotFoundError from any working directory -- invisible to every static
+# pass, which is what `scripts/verify_entry_points.py` is the gate for.
+import gridding  # noqa: E402  from lib/: the one Gaussian quadrature
 from paths import rel  # noqa: E402
 # Aliased: there is a `builds()` reporter below, and the bare name would be
 # rebound by it -- which `scripts/smoke_test.py` lints for.

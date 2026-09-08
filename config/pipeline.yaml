@@ -1943,6 +1943,36 @@ steps:
       boundary; `--strict` is the arm that refuses. `lpj_run` needs it so the
       boundary sits on the path rather than beside it.
 
+  - id: fire_driver_gate
+    script: biosphere/scripts/fire_driver_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/fire_driver_gate_report.json]
+    gate: >
+      which fire arm may be armed, decided by CAPABILITY rather than by the
+      identity of whatever supplies the data. The third gate in this area and
+      the three ask three questions: fire_gate asks where this project's fire
+      source departs from mainline, fire_parameter_gate asks what disposition
+      each inherited Earth constant carries, and this asks what each arm
+      requires, what this world can supply, and which arm the model is actually
+      taking. It exists because the shipped test cannot work: driver.cpp:734
+      runs SIMFIRE's accounting whenever firemodel is BLAZE, getsimfiredata
+      opens an Earth archive keyed on floor(lon*2)/2 + 0.25, and a Vesper
+      gridcell's coordinates are valid keys into it -- so the archive answers
+      with the Earth location's population and fire season and the run
+      completes. The failure mode is silent success, and a file-presence test
+      passes exactly when it should refuse. It fails on a capability naming a
+      forcing process or a registered parameter that does not resolve, on a
+      parameter capability marked available whose constants declare a null
+      central, on an external_archive not refused or a blocked capability with
+      no owner, on an arm requiring an undeclared capability, and on the
+      EFFECTIVE ARM: the shipped instruction file sets firemodel BLAZE and
+      run_lpj_guess.py writes GLOBFIRM after importing it, so an ordering and
+      not a setting is what disarms a refused arm, and this compares their
+      positions rather than trusting the comment beside either. --strict also
+      refuses while the replacement arm is unbuildable, which is the project's
+      state rather than a defect. Every input is a file.
   - id: fire_parameter_gate
     script: biosphere/scripts/fire_parameter_gate.py
     loop: B
@@ -2207,7 +2237,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, build_lpj_guess, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, century_acceleration_gate, fire_gate, fire_parameter_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate, stochastic_seed_gate, equilibrium_window_gate]
+    needs: [lpj_driver, build_lpj_guess, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, century_acceleration_gate, fire_gate, fire_parameter_gate, fire_driver_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate, stochastic_seed_gate, equilibrium_window_gate]
     writes: [biosphere/runs/]
     gate: >
       Completion includes BIO-14 assessment inside the run harness: every
