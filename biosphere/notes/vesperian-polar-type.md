@@ -196,3 +196,52 @@ native share of cover equatorward of 45 degrees below 5%. A type meeting the
 first and failing the second is again a super-competitor and the ceiling was
 set too warm; a type failing the first with the second met is confined to a
 niche it cannot fill, and the traits do not do what the cap needs.
+
+## Result of the confined pair: both criteria met at both ends of the bracket
+
+Same design as the first pair, with `vesper_polar` carrying `tcmax_est`
+-30.92.
+
+| | `lpj_bfd1f2b185db43efbfea14b04de1b658` | `lpj_6dc3aaca49b24235a70da25095119f86` |
+| --- | --- | --- |
+| `ltor_max` | 1.0 | 2.0 |
+| acceptance | FAIL, per-cell trend on `lai.out` | **PASS** |
+| polar FPC, criterion above 0.10 | 0.350, MET | 0.473, MET |
+| native share equatorward of 45, criterion below 5% | 0.00%, MET | 0.00%, MET |
+| polar VPE : VPP | 16.3 : 1 | 4.5 : 1 |
+| skirt, 60 to 75 | 0.472 | 0.610 |
+
+The accepted arm is the one the world's numbers rest on; the low arm is
+quoted because the bracket's two ends agree on every claim below.
+
+**The ceiling bit exactly where it was derived to.** Poleward of 60 nothing
+moved between the unconfined and confined pairs: polar cover is 0.3500 and
+0.4727 in both, the strategy ratio is 16:1 and 4.5:1 in both. Equatorward of
+45 the native types are absent to the fourth decimal and the three bands there
+are identical to the accepted run's twelve-type cover, 0.5664, 0.4946 and
+0.8350. The 45-to-60 band is where the ceiling cuts across a band, and native
+share there fell from 86.6% and 88.5% to 65.5% and 69.5%. A type that cannot
+establish where the coldest month is above -30.92 degC does not, and takes
+nothing from the flora that can.
+
+**What the cap carries now.** Leaf area poleward of 75 is 1.06 against the
+accepted run's 0.067, sixteen-fold, flat to three figures across the whole
+retained record (1.0636, 1.0619, 1.0632 by thirds). That is the quantity
+`notes/polar-cover-cold-filter-and-capture.md` found short, and the loop it
+found self-limiting has a way in: cheap leaf deployed onto the pulse.
+
+**The ephemeral holds the cap and the perennial persists at both ends.** A
+leaf-biased allocation favours the perennial relatively, sixteen to one
+falling to four and a half to one, without displacing the ephemeral. The
+evergreen strategy that this world's -68.75 degC winter subsidises through the
+respiration clamp is viable here and secondary.
+
+### The low arm's refusal, measured
+
+The contract's drift half passed: planet-wide leaf area moves -0.41% end to
+end against a 5% limit. The per-cell half refused with a trending cell
+fraction of 0.07194 against a limit of 0.07175, on 1617 cells a difference of
+0.3 cells, so one cell. The limit is the one `world-4hlw` records as measured
+from the run it judges. The high arm cleared the same test. Whether the low
+arm buys more record through `--continue-from` is a question for that row and
+not for this one; nothing here rests on the low arm alone.
