@@ -428,6 +428,82 @@ parameters:
       fire size is the reduced arm to compare the derived one against.
 
   # ----------------------------------------------------------------- effects
+  pft_fire_resistance:
+    seam: effects
+    what: >
+      The share of fire mortality each simulated plant type resists. It
+      multiplies the burned fraction directly -- `mort_fire = fireprob *
+      (1 - fireresist)` -- so it is a first-order control on what fire does to
+      the vegetation, in the operator this project RUNS.
+    unit: dimensionless
+    central: {grass_and_polar: 0.5, mixed_woody: 0.3, fire_sensitive_woody: 0.1}
+    disposition: irreducible
+    defect: implicit_earth
+    route: instruction_file
+    source_file: biosphere/generated/vesper_pfts.ins
+    literal: "fireresist"
+    consumed_by: fire-6
+    source: >
+      Inherited verbatim from stock LPJ-GUESS `data/ins/global.ins`.
+      `build_vesper_pfts.py` converts the parameters
+      biosphere/notes/time-base-unit-contract.md classifies and passes
+      everything else through, and this is correctly not converted -- it is a
+      fraction and not a time quantity. Resolved through the group chain it is
+      0.50 for C3G, C4G, VPE and VPP; 0.30 for BINE, BNE, BNS, TeBE, TeNE and
+      TrBR; 0.10 for IBS, TeBS, TrBE and TrIBE. One source appears anywhere
+      near it: a comment on the 0.30 line noting that Hickler et al. (2012)
+      have 0.2 for one species and 0.4 for another.
+    why_this_disposition: >
+      Irreducible rather than bracketed, and the distinction is the point. A
+      bracket implies a sweep, and what would be swept is fourteen numbers
+      whose only stated source brackets ONE of them, for two Mediterranean
+      species, on a parameter that is a per-plant-type Earth calibration
+      throughout. Sweeping the other thirteen against an interval taken from
+      that comment would be inventing thirteen brackets from one measurement.
+      The repair is not an interval: it is that fire resistance should follow
+      from something this world's plant types HAVE -- bark thickness, canopy
+      height, tissue moisture -- which is fire-6's work and depends on grav-7,
+      whose Earth-fixed height-diameter coefficient the same types carry.
+    do_not: >
+      Do not tune these to move a simulated burned area or a vegetation
+      composition. They are the most directly available knob on what fire does
+      and the least defensible one to turn.
+
+  pft_moisture_of_extinction:
+    seam: occurrence_to_area
+    what: >
+      Each plant type's litter moisture of extinction, weighted by litter mass
+      into the patch mean the GLOBFIRM occurrence term reads. Higher means the
+      litter carries fire at a higher soil moisture.
+    unit: dimensionless
+    central: {grass_and_polar: 0.2, woody: 0.3}
+    disposition: irreducible
+    defect: implicit_earth
+    route: instruction_file
+    source_file: biosphere/generated/vesper_pfts.ins
+    literal: "litterme"
+    consumed_by: fire-5
+    source: >
+      Inherited verbatim from stock `global.ins`, and through it from Thonicke
+      et al. (2001), whose 30 and 20 per cent moistures of extinction are among
+      the numbers that paper fits to observed area burnt in Portugal, southern
+      California and Kakadu National Park. 0.20 for C3G, C4G, VPE and VPP;
+      0.30 for the ten woody types.
+    why_this_disposition: >
+      The same argument as `pft_fire_resistance`: two numbers over fourteen
+      plant types, fitted on three Earth fire regimes, with no derivation that
+      transports. It enters the operator as a litter-mass-weighted patch mean,
+      so a type's value matters in proportion to how much litter it holds --
+      which is why the polar types' inheritance below is not a rounding.
+    inherited_without_a_decision: >
+      VPE AND VPP TOOK EARTH C3 GRASS'S FIRE BEHAVIOUR BY DEFAULT. They are the
+      only plant types this project DERIVED rather than inherited, and they
+      declare neither `fireresist` nor `litterme`:
+      `biosphere/config/native_pfts.yaml` sets `inherits: C3G` and lists only
+      what changes, so both fire parameters arrive as C3G's without appearing
+      in that list. The mechanism is deliberate and the CHOICE was never made.
+      world-ykhg.
+
   globfirm_burned_fraction_curve:
     seam: effects
     what: >

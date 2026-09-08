@@ -854,8 +854,14 @@ def main() -> int:
         "parameters": len(params),
         "by_seam": {k: sorted(v) for k, v in sorted(by_seam.items())},
         "by_defect": {k: sorted(v) for k, v in sorted(by_defect.items())},
+        # A deleted constant also has `route: none` and is NOT waiting for a
+        # consumer, so the two are reported apart. Conflating them would say a
+        # constant that no longer exists is behind an open row.
         "reaching_no_run": sorted(name for name, e in params.items()
-                                  if e.get("route") == "none"),
+                                  if e.get("route") == "none"
+                                  and not e.get("absent_from_source")),
+        "deleted_from_source": sorted(name for name, e in params.items()
+                                      if e.get("absent_from_source")),
         "fail_closed": sorted(blocked),
         "declared_disagreements": disagreements,
         "findings": findings,
@@ -884,6 +890,10 @@ def main() -> int:
             names = report["by_defect"].get(defect) or []
             if names:
                 print(f"    {defect:<16} {len(names)}  {', '.join(names)}")
+        if report["deleted_from_source"]:
+            print(f"\n  {len(report['deleted_from_source'])} deleted from the "
+                  f"source and held to staying deleted: "
+                  f"{', '.join(report['deleted_from_source'])}")
         if report["reaching_no_run"]:
             print(f"\n  {len(report['reaching_no_run'])} reach no run yet, "
                   f"each behind an open row: "
