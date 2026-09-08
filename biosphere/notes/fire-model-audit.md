@@ -570,4 +570,49 @@ of 1000-hour fuels and `blaze.cpp` passes the coarse woody debris POOL, which is
 at most equal to it and usually well above.  The model already computes the
 consumption as `patch.lcwd_to_atm`.  `world-mjb0`.
 
+### 15. The survival curves' citations cover less than the curves do
+
+`blaze.cpp` carries SIX tree-survival curves, each attributed by a comment:
+boreal to Dalziel et al. (2008), temperate needleleaf to Kobziar (2006),
+temperate broadleaf to Hickler et al. (2004), tropical to van Nieustadt (2005),
+savanna to Bond (2008) and savanna resprouters to Cook (2005).  Two of those
+sources are now held and read, and neither attribution holds up in the way a
+reader would assume.
+
+**Kobziar's is transcribed with two unit errors**, which finding 14 carries.
+
+**Hickler's is transcribed correctly and covers a third of the function.**  That
+paper's Table 2e gives `psurv = 0.95 - 1/[1 + (D/R)^1.5]` with R = 0.04 for
+species with fire resistance and 0.07 for the rest, and `blaze.cpp` computes
+exactly that, both values right and D in metres.  But Hickler's psurv is the
+probability of surviving A SURFACE FIRE and carries no intensity term: that
+model is binary, a crown fire kills every tree in the patch and a surface fire
+draws from psurv(D, R).  Searching the paper for fireline, intensity, kW, 3000
+and 7000 returns nothing.
+
+Everything in `blaze.cpp` that responds to fire intensity is therefore its own
+construction, attributed to a paper containing none of it: the reading of
+Hickler's psurv as survival AT 3000 kW/m, the 0.001 floor above 7000, the linear
+ramp between them and the exponential below.  The anchor is the weakest part --
+3000 kW/m sits in this file's own second-highest intensity class, above the
+usual crown-fire transition, so a surface-fire probability is being evaluated at
+an intensity at which Hickler's model would have killed the patch outright.
+`world-8jn6`.
+
+**Three unreachable resprouter paths, which are one omission.**
+`TURNOVERFRACT`'s sprouter column cannot be selected (finding 11),
+`survival_probability_sprouter_savanna()` has no callers, and
+`survival_probability_temp_broadleaf()`'s `is_resprouter` branch is dead because
+both call sites pass 0.  The cause is the same in each: resprouting is a
+per-individual trait, nothing routes it, and the Vesper PFT set declares no such
+trait.  It should be decided once -- routed to all three or deleted from all
+three -- rather than discovered one site at a time.  `world-sgtx`, `world-6kaq`.
+
+**What this says about the four unread sources.**  Of the two read, one was
+wrong and one was attributed past what it supports.  Dalziel and Perera (2009),
+van Nieuwstadt and Sheil (2005), Bond (2008) and Cook et al. (2005) are in
+exactly the state Kobziar was in before it arrived.  The boreal curve is the
+one to read first: it is reachable, it is a bare `exp(-I/500)` with no other
+term to check it against, and its citation carries the wrong year.
+
 No LPJ-GUESS or ExoPlaSim run was performed for this audit.
