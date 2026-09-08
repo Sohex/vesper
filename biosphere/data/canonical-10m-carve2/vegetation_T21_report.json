@@ -3,32 +3,32 @@
     "cmass.out": {
       "npatch": 5,
       "root_seed": 20260828,
-      "run_id": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
-      "run_manifest": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/run_manifest.json",
-      "table": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/cmass.out"
+      "run_id": "lpj_6dc3aaca49b24235a70da25095119f86",
+      "run_manifest": "/home/cfutro/docs/world/biosphere/runs/lpj_6dc3aaca49b24235a70da25095119f86/run_manifest.json",
+      "table": "/home/cfutro/docs/world/biosphere/runs/lpj_6dc3aaca49b24235a70da25095119f86/cmass.out"
     },
     "fpc.out": {
       "npatch": 5,
       "root_seed": 20260828,
-      "run_id": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
-      "run_manifest": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/run_manifest.json",
-      "table": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/fpc.out"
+      "run_id": "lpj_6dc3aaca49b24235a70da25095119f86",
+      "run_manifest": "/home/cfutro/docs/world/biosphere/runs/lpj_6dc3aaca49b24235a70da25095119f86/run_manifest.json",
+      "table": "/home/cfutro/docs/world/biosphere/runs/lpj_6dc3aaca49b24235a70da25095119f86/fpc.out"
     },
     "lai.out": {
       "npatch": 5,
       "root_seed": 20260828,
-      "run_id": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
-      "run_manifest": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/run_manifest.json",
-      "table": "/home/cfutro/docs/world/biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/lai.out"
+      "run_id": "lpj_6dc3aaca49b24235a70da25095119f86",
+      "run_manifest": "/home/cfutro/docs/world/biosphere/runs/lpj_6dc3aaca49b24235a70da25095119f86/run_manifest.json",
+      "table": "/home/cfutro/docs/world/biosphere/runs/lpj_6dc3aaca49b24235a70da25095119f86/lai.out"
     }
   },
-  "generated": "2026-09-07T10:44:31+00:00",
+  "generated": "2026-09-08T05:18:08+00:00",
   "generator": "biosphere/scripts/build_vegetation_field.py",
   "gridcells_on_grid": 1617,
   "gridcells_simulated": 1617,
   "longitude_convention": "model_labels",
-  "lpj_acceptance": "d8899d1fa113d18c0d1c9a34ff6bbe103533a58f68cf17138dacc6236cc55e0d",
-  "lpj_run": "lpj_1e6a2b9ca51a4eff9592992cad96677b",
+  "lpj_acceptance": "e64edd13cf01fa9fe11c8a637721a291e25beb85371c77da0027551ef310ec64",
+  "lpj_run": "lpj_6dc3aaca49b24235a70da25095119f86",
   "plant_functional_types": [
     "BNE",
     "BINE",
@@ -41,7 +41,9 @@
     "TrIBE",
     "TrBR",
     "C3G",
-    "C4G"
+    "C4G",
+    "VPE",
+    "VPP"
   ],
   "rung": "T21",
   "source_build": "canonical-10m-carve2",
@@ -76,9 +78,9 @@
         "identity": "lib.spatial_support.grid_support_contract/1"
       },
       "source_artifacts": [
-        "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/fpc.out",
-        "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/lai.out",
-        "biosphere/runs/lpj_1e6a2b9ca51a4eff9592992cad96677b/cmass.out"
+        "biosphere/runs/lpj_6dc3aaca49b24235a70da25095119f86/fpc.out",
+        "biosphere/runs/lpj_6dc3aaca49b24235a70da25095119f86/lai.out",
+        "biosphere/runs/lpj_6dc3aaca49b24235a70da25095119f86/cmass.out"
       ]
     },
     "supports": [
@@ -104,5 +106,5 @@
       "semantics": "static"
     }
   },
-  "spatial_contract_identity": "0ab312932596355a3a3b8b4061dd95e10dfd366baa1a31eae4944727afc0d4bd"
+  "spatial_contract_identity": "11c3f833777e6fe607f125d3b235f03ffbf77f7f60a49f07ebe1f44b8887d8e8"
 }
