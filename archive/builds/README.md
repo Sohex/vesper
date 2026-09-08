@@ -13,4 +13,4 @@ go and a climate run's output cannot.
 been checked against. Per-build hydrography products under
 `hydrography/data/<build>/` were not touched.
 
-Archived 2026-08-17.
+Archived 2026-09-08.
