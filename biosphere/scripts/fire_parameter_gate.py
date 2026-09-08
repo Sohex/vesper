@@ -55,6 +55,9 @@ It can fail:
                 every run by design: blaze.cpp's rate-of-spread coefficient is
                 Noble (1980)'s conversion with a lost decimal, and the finding
                 is meant to report until the source is repaired
+  enforcement   a fail-closed entry whose refusal the model no longer makes,
+                or one that names no source making it. A declaration the model
+                does not share is a preference
   absence       a constant declared DELETED that the source carries again, or
                 one claiming both `literal` and `absent_from_source`. Comments
                 are stripped first, so the comment left at the deletion site
@@ -621,6 +624,47 @@ def check_absences(params: dict, root: Path) -> list[dict]:
     return bad
 
 
+def check_enforcement(params: dict, root: Path) -> list[dict]:
+    """A fail-closed entry's refusal is still in the model that has to make it.
+
+    A declaration the model does not share is a preference. An entry marked
+    `fail_closed` may name `enforced_in` and `enforced_by`, and this holds that
+    source to still carrying that condition in CODE -- comments stripped, so a
+    refusal deleted but described in a comment fails rather than passes.
+
+    It is deliberately a string match on the condition rather than a parse. The
+    failure it is built for is the refusal being DELETED or its condition
+    narrowed, not its whitespace changing, and a check that tried to understand
+    C++ would be a second model of the language that could disagree with the
+    compiler.
+    """
+    bad = []
+    for name, entry in params.items():
+        if not isinstance(entry, dict) or not entry.get("fail_closed"):
+            continue
+        where, condition = entry.get("enforced_in"), entry.get("enforced_by")
+        if not where or not condition:
+            bad.append(_finding(
+                "enforcement", name,
+                "is fail-closed and names no `enforced_in`/`enforced_by`, so "
+                "the refusal lives only in this file and the model does not "
+                "make it"))
+            continue
+        path = root / where
+        if not path.is_file():
+            bad.append(_finding("enforcement", name, f"{where} is not a file"))
+            continue
+        code = _strip_c_comments(path.read_text(encoding="utf-8",
+                                                errors="replace"))
+        if str(condition) not in code:
+            bad.append(_finding(
+                "enforcement", name,
+                f"{where} no longer carries the condition {condition!r} in "
+                f"code, so the fail-closed refusal this entry claims is not "
+                f"the one the model makes"))
+    return bad
+
+
 # Entries the anchor, ordering and partition checks are ABOUT. Those three ask
 # whether a named constant is still right, which is a different question from
 # whether it is still there, and a check that answered both would report a
@@ -667,6 +711,7 @@ def check(declaration: dict, root: Path, planet: dict,
     findings.extend(check_partition(params, root))
     findings.extend(check_derivations(params, root))
     findings.extend(check_absences(params, root))
+    findings.extend(check_enforcement(params, root))
     findings.extend(check_unresolved(params, pdf_dir))
     if complete:
         findings.extend(check_completeness(params))
@@ -764,6 +809,13 @@ def _fixtures(root: Path) -> list[dict]:
               "literal": "HEAT_YIELD = 20.",
               "source_file": "vendor/lpj-guess/modules/blaze.cpp",
               "route": "compiled_literal"}), "absence")
+    case("a fail-closed entry whose model refusal is gone",
+         one({"fail_closed": "yes",
+              "enforced_in": "vendor/lpj-guess/framework/parameters.cpp",
+              "enforced_by": "ifplim && firemodel == NOT_A_REAL_CONDITION"}),
+         "enforcement")
+    case("a fail-closed entry naming no enforcing source",
+         one({"fail_closed": "yes"}), "enforcement")
     case("a register missing an entry another check is about",
          check({"parameters": {"probe": dict(ok)}}, root, planet, statuses,
                REFERENCE_PDFS, complete=True), "missing")

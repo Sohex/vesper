@@ -985,9 +985,20 @@ parameters:
       phosphorus in place, which breaks tissue stoichiometry and the C-N-P
       budget silently.
     fail_closed: >
-      This is the register's one FAIL-CLOSED entry. While `central` is null,
-      fire_parameter_gate.py --strict refuses any configuration that arms a
-      fire model with phosphorus limitation enabled. A null here is a refusal
-      and never a default of zero: zero would be the claim that fire
-      volatilises no phosphorus, which is a strong physical statement nobody
-      has made.
+      This is the register's one FAIL-CLOSED entry, and it is enforced in TWO
+      places because a declaration the model does not share is a preference.
+      `fire_parameter_gate.py --strict` refuses while `central` is null, and
+      `parameters.cpp` refuses the run itself: `ifplim && firemodel != NOFIRE`
+      aborts before any integration. A null here is a refusal and never a
+      default of zero -- zero would be the claim that fire volatilises no
+      phosphorus, which is a strong physical statement nobody has made.
+    enforced_in: vendor/lpj-guess/framework/parameters.cpp
+    enforced_by: "ifplim && firemodel != NOFIRE"
+    why_a_second_refusal: >
+      `parameters.cpp` ALREADY refuses `ifplim 1` unconditionally, on
+      PFRAC_LEAFTOSAP, so the fire guard cannot fire today. It is stated as its
+      own condition anyway, and the separation is the whole point: that refusal
+      will be lifted by the change settling BIO-34 and WORLD-3E5N, which has
+      nothing to do with fire, and folded into it the fire hazard would be
+      armed by an unrelated repair with nothing objecting. Lifting one refusal
+      must not silently lift the other.

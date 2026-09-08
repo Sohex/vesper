@@ -224,6 +224,13 @@ capabilities:
       C and N and leave the corresponding P in place, breaking tissue
       stoichiometry silently. The register's `central` for it is null, and a
       null does not satisfy a parameter capability.
+    enforced: >
+      The MODEL refuses it too, not only this contract: `parameters.cpp` aborts
+      on `ifplim && firemodel != NOFIRE` before any integration. That condition
+      is stated separately from the unconditional `ifplim` refusal already
+      beside it, because that one rests on PFRAC_LEAFTOSAP and will be lifted
+      by the change settling BIO-34 and WORLD-3E5N -- which has nothing to do
+      with fire, and would otherwise arm this hazard as a side effect.
 
 # WHAT EACH ARM REQUIRES. An arm is armable when every capability it names is
 # `available`. `status` here is this project's verdict about the arm, and it is

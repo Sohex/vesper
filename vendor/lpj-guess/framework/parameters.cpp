@@ -1430,6 +1430,56 @@ void plib_callback(int callback) {
 			plibabort();
 		}
 
+		// FIRE UNDER PHOSPHORUS LIMITATION IS REFUSED SEPARATELY, and the
+		// separation is the point. The refusal above is unconditional today, so
+		// this one cannot currently fire -- but it rests on PFRAC_LEAFTOSAP and
+		// will be lifted by the change that settles BIO-34 and WORLD-3E5N, which
+		// has nothing to do with fire. Folded into that condition, the fire
+		// hazard would be armed by an unrelated repair with nothing objecting.
+		// It is stated as its own condition so that lifting one refusal cannot
+		// silently lift the other.
+		//
+		// WHAT IT PREVENTS. Neither fire path moves phosphorus.
+		// modules/blaze.cpp contains no phosphorus transfer at all, and the
+		// GLOBFIRM path in modules/vegdynam.cpp has its phosphorus block
+		// commented out with an unresolved note about the atmospheric fraction:
+		// around :1523 it reports FIREC and the fire nitrogen fluxes and leaves
+		// Fluxes::P_FIRE commented, and around :1529 it scales
+		// cmass_litter_leaf, _sap, _heart, _repr and nmass_litter_leaf, _sap,
+		// _heart by (1 - mort_fire) while the three pmass_litter_ lines beside
+		// them stay commented.
+		//
+		// So a burn under ifplim 1 removes a litter pool's carbon and nitrogen
+		// and leaves its phosphorus in place. The pool's C:P and N:P collapse
+		// toward zero, the remaining litter becomes arbitrarily phosphorus-rich,
+		// and the decomposition and mineralisation operators read that as a
+		// resource quality signal. Nothing is conserved wrongly -- the budget
+		// still closes, because the phosphorus was never removed -- which is
+		// exactly why no closure test can see it.
+		//
+		// LIFTING THIS NEEDS A DECLARED PARTITION AND NOT A NUMBER. What share
+		// of combusted phosphorus is volatilised against retained on site as ash
+		// and mineral soil is registered as phosphorus_volatilised_fraction in
+		// biosphere/config/fire_parameters.yaml with a null central value, and a
+		// null there is a refusal rather than a default of zero: zero is the
+		// claim that fire volatilises no phosphorus, and nobody has made it.
+		// FIRE-7, biosphere/notes/fire-model-audit.md finding 6.
+		if (ifplim && firemodel != NOFIRE) {
+			sendmessage("Error", "fire under ifplim 1 is refused: neither fire path "
+				"transfers phosphorus. blaze.cpp has no phosphorus transfer at all and "
+				"GLOBFIRM's fire() in vegdynam.cpp has its phosphorus block commented "
+				"out, so a burn removes a litter pool's carbon and nitrogen and leaves "
+				"its phosphorus in place, breaking tissue stoichiometry silently -- the "
+				"budget still closes, because the phosphorus was never removed, so no "
+				"closure test sees it. Run firemodel \"NOFIRE\", or declare the "
+				"volatilised-against-retained phosphorus partition and implement it for "
+				"live and litter pools first (FIRE-7; the partition is registered as "
+				"phosphorus_volatilised_fraction in biosphere/config/fire_parameters.yaml "
+				"with a null central value, and a null there is a refusal and not a "
+				"default of zero).");
+			plibabort();
+		}
+
 		if (nyear_spinup <= freenyears) {
 			sendmessage("Error", "freenyears must be smaller than nyear_spinup");
 			plibabort();

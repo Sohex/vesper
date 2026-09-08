@@ -177,7 +177,14 @@ path under phosphorus limitation would therefore update C and N while leaving
 the corresponding P in place, breaking tissue stoichiometry and the C-N-P
 budget.  Fire activation must fail closed until volatilized P versus ash/soil
 retention is declared, implemented for live and litter pools, and covered by
-mass-balance tests.
+mass-balance tests.  IT NOW DOES: `framework/parameters.cpp` aborts on
+`ifplim && firemodel != NOFIRE`.  That is stated as its own condition rather
+than folded into the unconditional `ifplim` refusal beside it, because that
+refusal rests on `PFRAC_LEAFTOSAP` and will be lifted by the change settling
+BIO-34 and WORLD-3E5N -- a change with nothing to do with fire, which would
+otherwise arm this hazard as a side effect.  The partition itself is still
+undeclared and FIRE-7 still owns it; what exists now is the refusal, not the
+repair.
 
 ### 7. Evaluation must diagnose mechanisms, not merely match burned area
 
