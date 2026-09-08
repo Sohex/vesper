@@ -2830,6 +2830,15 @@ one_offs:
   # contract. Generates nothing: it is a verdict on an artifact another
   # step wrote, and carries fixtures so it can fail on itself.
   - biosphere/scripts/check_forcing_contract.py
+  # Two conservation bounds on a completed run's fire nitrogen flux: that a
+  # gridcell-year cannot lose more nitrogen to fire than the cell holds, and
+  # that a cell's retained-record mean fire loss cannot exceed its mean
+  # nitrogen supply. Outside the graph because it is a verdict on a run another
+  # step produced and generates nothing any step reads. It is here rather than
+  # inside `assess_lpj_run.py` because FIRE-8 is the row that promotes it to an
+  # acceptance criterion; until then it is evidence.
+  # biosphere/notes/fire-nitrogen-range.md.
+  - biosphere/scripts/fire_nitrogen_bounds.py
   # Validates the equilibrium contract's drift bound against series whose
   # answer is known by construction, and prices the retained record each
   # assessed quantity needs. Outside the graph because its JSON is EVIDENCE for
